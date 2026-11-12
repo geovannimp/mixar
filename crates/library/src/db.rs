@@ -172,7 +172,6 @@ mod tests {
             "track_stem",
             "track_hot_cue",
             "track_loop",
-            "track_stem",
             "sampler_bank",
             "sampler_slot",
         ] {
@@ -194,19 +193,23 @@ mod tests {
         }
     }
 
-    fn track_columns(db: &Db) -> Vec<String> {
+    fn table_columns(db: &Db, table: &str) -> Vec<String> {
         db.conn()
             .unwrap()
             .as_connection()
             .query_all_raw(Statement::from_string(
                 sea_orm::DatabaseBackend::Sqlite,
-                "PRAGMA table_info(tracks)".to_string(),
+                format!("PRAGMA table_info({table})"),
             ))
             .map_err(db_err)
             .unwrap()
             .into_iter()
             .map(|row| row.try_get::<String>("", "name").unwrap())
             .collect()
+    }
+
+    fn track_columns(db: &Db) -> Vec<String> {
+        table_columns(db, "tracks")
     }
 
     #[test]
@@ -275,6 +278,35 @@ mod tests {
                 "sync did not add {column}"
             );
         }
+    }
+
+    #[test]
+    fn sync_adds_auto_saved_to_existing_track_loop() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("library.db");
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE track_loop (
+                    track_id TEXT NOT NULL,
+                    slot_index INTEGER NOT NULL,
+                    in_ms INTEGER NOT NULL,
+                    out_ms INTEGER NOT NULL,
+                    label TEXT,
+                    color TEXT,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (track_id, slot_index)
+                );",
+            )
+            .unwrap();
+        }
+
+        let db = open(&db_path).unwrap();
+        let columns = table_columns(&db, "track_loop");
+        assert!(
+            columns.iter().any(|name| name == "auto_saved"),
+            "sync did not add auto_saved: {columns:?}"
+        );
     }
 
     #[test]

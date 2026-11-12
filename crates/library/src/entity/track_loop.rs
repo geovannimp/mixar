@@ -14,6 +14,9 @@ pub struct Model {
     pub out_ms: i32,
     pub label: Option<String>,
     pub color: Option<String>,
+    /// Written by automatic loop memory; imported/explicit rows keep false.
+    #[sea_orm(default_value = false)]
+    pub auto_saved: bool,
     pub updated_at: String,
     #[sea_orm(
         belongs_to,

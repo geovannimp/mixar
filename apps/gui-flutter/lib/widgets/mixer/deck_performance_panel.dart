@@ -123,7 +123,6 @@ class DeckPerformancePanel extends StatelessWidget {
                             onDoubleBeats: () {},
                             onLoopIn: () {},
                             onLoopOut: () {},
-                            onBeatsChipPress: () {},
                             hasTrack: hasTrack,
                             disabled: disabled,
                             bordered: false,

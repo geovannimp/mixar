@@ -85,9 +85,7 @@ class DeckLoopPanel extends StatelessWidget {
     required this.onDoubleBeats,
     required this.onLoopIn,
     required this.onLoopOut,
-    required this.onBeatsChipPress,
     this.loopPending = false,
-    this.savedLoopAtSlot = false,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
@@ -97,13 +95,11 @@ class DeckLoopPanel extends StatelessWidget {
   final bool loopActive;
   final bool loopPending;
   final int loopBeats;
-  final bool savedLoopAtSlot;
   final VoidCallback onToggleLoop;
   final VoidCallback onHalveBeats;
   final VoidCallback onDoubleBeats;
   final VoidCallback onLoopIn;
   final VoidCallback onLoopOut;
-  final VoidCallback onBeatsChipPress;
 
   /// When false, controls are disabled (Tauri `!deck.track`).
   final bool hasTrack;
@@ -182,8 +178,8 @@ class DeckLoopPanel extends StatelessWidget {
               const SizedBox(width: 8),
               cellButton(
                 label: '$loopBeats',
-                lit: savedLoopAtSlot,
-                onPress: savedLoopAtSlot ? onBeatsChipPress : null,
+                lit: active,
+                onPress: null,
                 style: chipStyle.copyWith(
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),

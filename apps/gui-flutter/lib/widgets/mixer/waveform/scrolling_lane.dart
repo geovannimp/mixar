@@ -1,21 +1,25 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/gestures.dart' show PointerScrollEvent;
+import 'package:flutter/gestures.dart' show PointerScrollEvent, kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -56,6 +60,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   var _scrubAnchorMs = 0.0;
   final _seekClock = Stopwatch()..start();
   int? _lastSeekMs;
+  var _suppressSeek = false;
 
   @override
   void initState() {
@@ -276,6 +281,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
             onPointerDown: durationMs <= 0
                 ? null
                 : (e) {
+                    if (e.buttons != kPrimaryButton) {
+                      return;
+                    }
                     _scrubbing = true;
                     _playhead.stop();
                     _scrubAnchorX = e.localPosition.dx;
@@ -295,6 +303,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               _throttledSeek(ms.round());
             },
             onPointerUp: (e) {
+              if (_suppressSeek || shiftKeyPressed()) {
+                _suppressSeek = false;
+                _scrubbing = false;
+                return;
+              }
               if (!_scrubbing) {
                 return;
               }
@@ -350,6 +363,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                           playhead: _displayTicks,
                           displayMs: () => _displayMs(durationMs),
                           dpr: dpr,
+                          onMenuOpened: () => _suppressSeek = true,
                         ),
                       Align(
                         child: ColoredBox(
@@ -462,6 +476,7 @@ class _LaneStrip extends ConsumerWidget {
     required this.playhead,
     required this.displayMs,
     required this.dpr,
+    this.onMenuOpened,
   });
 
   final int deckId;
@@ -474,6 +489,7 @@ class _LaneStrip extends ConsumerWidget {
   final Listenable playhead;
   final double Function() displayMs;
   final double dpr;
+  final VoidCallback? onMenuOpened;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -494,17 +510,42 @@ class _LaneStrip extends ConsumerWidget {
     // 1 px loop and cue edges, and an anti-alias-free hairline drawn at a
     // fractional scale drops out at some zoom levels.
     final displayWidth = (stripSpan * pxPerMs).round();
-    final loops = ref.watch(
-      stripLoopPictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
-    );
-    final activeLoop = ref.watch(
-      stripActiveLoopPictureProvider((
-        deckId,
-        stripOrigin,
-        stripSpan,
-        displayWidth,
-      )),
-    );
+    final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
+    final hotCues = ref.watch(deckHotCuesProvider(deckId));
+    final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
+    final active = activeLoop != null && activeLoop.active ? activeLoop : null;
+    final visibleSavedLoops = [
+      for (final loop in savedLoops)
+        if (active == null ||
+            loop.inMs != active.inMs ||
+            loop.outMs != active.outMs)
+          loop,
+    ];
+    final accent = context.theme.colors.primary;
+    final sections = <WaveformSection>[
+      for (final loop in visibleSavedLoops)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: loop.inMs,
+          endMs: loop.outMs,
+          color: accent,
+        ),
+      if (active != null)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: active.inMs,
+          endMs: active.outMs,
+          color: accent,
+          active: true,
+        ),
+      for (final cue in hotCues)
+        WaveformSection(
+          type: WaveformSectionType.cue,
+          startMs: cue.positionMs,
+          color: hotCueAccent(cue.slot).border.withValues(alpha: 1),
+          label: '${cue.slot + 1}',
+        ),
+    ];
     final pendingLoopIn = ref.watch(
       stripPendingLoopInPictureProvider((
         deckId,
@@ -512,9 +553,6 @@ class _LaneStrip extends ConsumerWidget {
         stripSpan,
         displayWidth,
       )),
-    );
-    final cues = ref.watch(
-      stripCuePictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
     );
     // Wider than the audio window on both sides so the grid still covers the
     // viewport when the strip is clamped at the track's start or end (and a
@@ -545,47 +583,60 @@ class _LaneStrip extends ConsumerWidget {
         width: displayWidth.toDouble(),
         child: child!,
       ),
-      child: RepaintBoundary(
-        child: Stack(
-          fit: StackFit.expand,
-          // The grid picture starts before the strip's audio window and may
-          // reach past its far edge; the lane's ClipRect keeps it inside the
-          // lane.
-          clipBehavior: Clip.none,
-          children: [
-            FittedBox(
-              fit: BoxFit.fill,
-              child: SizedBox(
-                width: stripWidth.toDouble(),
-                height: height,
-                child: _StripWaveform(
-                  deckId: deckId,
-                  strip: strip,
+      child: LoopBandDeleteRegion(
+        deckId: deckId,
+        trackId: trackId,
+        loops: visibleSavedLoops,
+        originMs: stripOrigin,
+        spanMs: stripSpan,
+        width: displayWidth.toDouble(),
+        height: height,
+        onMenuOpened: onMenuOpened,
+        child: RepaintBoundary(
+          child: Stack(
+            fit: StackFit.expand,
+            // The grid picture starts before the strip's audio window and may
+            // reach past its far edge; the lane's ClipRect keeps it inside the
+            // lane.
+            clipBehavior: Clip.none,
+            children: [
+              FittedBox(
+                fit: BoxFit.fill,
+                child: SizedBox(
+                  width: stripWidth.toDouble(),
                   height: height,
-                ),
-              ),
-            ),
-            if (beatGrid != null)
-              Positioned(
-                left: beatGridLeft,
-                top: 0,
-                bottom: 0,
-                width: gridWidth.toDouble(),
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _BeatGridPicturePainter(picture: beatGrid),
+                  child: _StripWaveform(
+                    deckId: deckId,
+                    strip: strip,
+                    height: height,
                   ),
                 ),
               ),
-            CustomPaint(
-              painter: _StripOverlayPainter(
-                loops: loops,
-                activeLoop: activeLoop,
-                pendingLoopIn: pendingLoopIn,
-                cues: cues,
+              if (beatGrid != null)
+                Positioned(
+                  left: beatGridLeft,
+                  top: 0,
+                  bottom: 0,
+                  width: gridWidth.toDouble(),
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _BeatGridPicturePainter(picture: beatGrid),
+                    ),
+                  ),
+                ),
+              CustomPaint(
+                painter: _StripOverlayPainter(pendingLoopIn: pendingLoopIn),
               ),
-            ),
-          ],
+              CustomPaint(
+                painter: WaveformSectionPainter(
+                  sections: sections,
+                  originMs: stripOrigin,
+                  spanMs: stripSpan,
+                  compact: false,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -645,31 +696,20 @@ void _paintStripPictures(
   canvas.restore();
 }
 
-/// Loops and cues, replayed at the width they were recorded at.
+/// Pending Loop In marker, replayed at the width it was recorded at.
 class _StripOverlayPainter extends CustomPainter {
-  new({
-    required this.loops,
-    required this.activeLoop,
-    required this.pendingLoopIn,
-    required this.cues,
-  });
+  new({required this.pendingLoopIn});
 
-  final Picture? loops;
-  final Picture? activeLoop;
   final Picture? pendingLoopIn;
-  final Picture? cues;
 
   @override
   void paint(Canvas canvas, Size size) {
-    _paintStripPictures(canvas, size, [loops, activeLoop, pendingLoopIn, cues]);
+    _paintStripPictures(canvas, size, [pendingLoopIn]);
   }
 
   @override
   bool shouldRepaint(_StripOverlayPainter oldDelegate) =>
-      !identical(loops, oldDelegate.loops) ||
-      !identical(activeLoop, oldDelegate.activeLoop) ||
-      !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
-      !identical(cues, oldDelegate.cues);
+      !identical(pendingLoopIn, oldDelegate.pendingLoopIn);
 }
 
 class _WaveformPainter extends CustomPainter {

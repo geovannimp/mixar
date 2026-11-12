@@ -22,6 +22,7 @@ use bus_api::TrackAnalyzed;
 use bus_api::TrackProgress;
 use bus_api::TrackSummary;
 use bus_api::TrackUpdated;
+use bus_api::AUTO_LOOP_SLOT;
 use library_core::{AnalyzeTrackOptions, AudioSource, Library, TrackId};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -389,8 +390,12 @@ fn handle_save_loop(
     let id = TrackId::new(track_id.clone());
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.save_track_loop(&id, slot, in_ms, out_ms, label, color)
-            .and_then(|_| lib.list_track_loops(&id))
+        let saved = if slot == AUTO_LOOP_SLOT {
+            lib.auto_save_track_loop(&id, in_ms, out_ms)
+        } else {
+            lib.save_track_loop(&id, slot, in_ms, out_ms, label, color)
+        };
+        saved.and_then(|_| lib.list_track_loops(&id))
     };
     publish_loops_result(buses, track_id, result);
 }

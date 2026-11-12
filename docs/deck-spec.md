@@ -256,9 +256,9 @@ Controller pads are the primary abstraction: the eight deck buttons carry a sele
 | L2 | **Loop in / out** | Manual set in and out points | P1 |
 | L3 | **Loop halve / double** | ÷2 / ×2 current length | P1 |
 | L4 | **Loop roll** | Temporary loop while held | P2 |
-| L5 | **Saved loops** | Named loops persisted per track | P2 |
+| L5 | **Saved loops** | Up to 10 loops remembered automatically per track, independent of length; imported loops preserved | P2 |
 | L6 | **Active loop on waveform** | Visual bracket + beat count | P1 |
-| L7 | **Reloop / exit loop** | Toggle loop off; optional slip exit | P1 |
+| L7 | **Reloop / exit loop** | Exit keeps the shaded band; press Loop inside it to reloop. Recall keeps the playhead when before the loop out, and seeks to in only when already past it; optional slip exit | P1 |
 
 Loop engine must **wrap read position** within `[in, out)` while optionally advancing **shadow position** for slip mode.
 
@@ -426,6 +426,7 @@ CREATE TABLE IF NOT EXISTS track_loop (
     slot_index          INTEGER NOT NULL,
     in_ms               INTEGER NOT NULL,
     out_ms              INTEGER NOT NULL,
+    auto_saved          INTEGER NOT NULL DEFAULT 0, -- 1 = deck memory; 0 = imported/explicit
     label               TEXT,
     color               TEXT,
     updated_at          TEXT NOT NULL,
@@ -443,7 +444,7 @@ track_deck_prefs (
 |-------|----------------|------------|
 | `track_waveform` | 1 | `analyze_track` |
 | `track_hot_cue` | 0–8+ (one per slot) | `save_hot_cue` (Hot Cue **pad mode** only) |
-| `track_loop` | 0–N (one per slot) | `save_loop` |
+| `track_loop` | 0–10 auto + imported (one per slot) | `auto_save_loop` / `save_loop` |
 
 Load path: when a track is loaded to a deck, read all `track_hot_cue` / `track_loop` rows for that `track_id` into engine memory. No separate bulk `load_*` command required unless we add lazy fetch later.
 
@@ -452,7 +453,7 @@ Load path: when a track is loaded to a deck, read all `track_hot_cue` / `track_l
 Extend `Deck` in `engine-dsp` with:
 
 - `transport`: cue point, reverse, slip shadow position
-- `loop`: active region, roll state; saved loops via **`save_loop`** → `track_loop` table
+- `loop`: active region, roll state; automatic memory via **`auto_save_loop`** → `track_loop.auto_saved` (max 10 per track; imported rows untouched)
 - `sync`: master reference, tempo target
 - `pads`: `{ mode, slots[8] }` — mode-specific runtime state; **hot_cue** mode loads from **`track_hot_cue`**
 - `fx_chain`: ordered effects
@@ -533,7 +534,10 @@ delete_hot_cue(track_id, slot_index)
 
 save_loop(track_id, slot_index, in_ms, out_ms, label?, color?)
 delete_loop(track_id, slot_index)
+auto_save_loop(track_id, in_ms, out_ms)
 ```
+
+`auto_save_loop` writes one `track_loop` row with `auto_saved = 1`. It reuses an overlapping auto row, otherwise takes the oldest auto row once the 10-auto-loop cap is reached. Rows with `auto_saved = 0` (imports or explicit saves) are never matched or evicted.
 
 No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes one row. `delete_*` clears the slot; engine reload picks up changes on next track load (or immediately if we add a refresh hook).
 

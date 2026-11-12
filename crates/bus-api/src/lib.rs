@@ -12,6 +12,10 @@ mod payload;
 /// Product display name shared by desktop hosts (Tauri / Flutter).
 pub const APP_DISPLAY_NAME: &str = "Mixar";
 
+/// Internal sentinel: the engine asks the library worker to allocate or update
+/// an automatic loop slot. It is resolved by the worker and never persisted.
+pub const AUTO_LOOP_SLOT: u8 = u8::MAX;
+
 pub use audio_core::CrossfaderAssign;
 pub use library::BeatGrid;
 pub use library::HotCue;

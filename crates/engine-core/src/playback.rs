@@ -248,7 +248,9 @@ impl Engine {
         self.play(deck_id)
     }
 
-    /// Recall a saved loop region: activate, seek to in, play.
+    /// Recall a saved loop region: activate it, keeping the playhead when it
+    /// is before the loop out; seek to the in point only when the playhead is
+    /// already past the region.
     pub fn recall_deck_saved_loop(
         &mut self,
         deck_id: usize,
@@ -265,8 +267,10 @@ impl Engine {
                 "Loop out must be after loop in: in={in_ms} out={out_ms}"
             ));
         }
-        // Seek first: the loop activation anchors the slip cursor at the in point.
-        self.seek_deck(deck_id, in_ms)?;
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        if position_ms >= out_ms {
+            self.seek_deck(deck_id, in_ms)?;
+        }
         self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
         // Drop the pending loop-in only once the activation succeeded, so a
         // failed recall leaves it intact for a retry.
@@ -357,7 +361,9 @@ impl Engine {
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.pending_loop_in_ms = None;
         }
-        self.set_deck_loop_region(deck_id, in_ms, out_ms)
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+        let _ = self.auto_save_deck_loop(deck_id, in_ms, out_ms);
+        Ok(())
     }
 
     /// Resolve a caller-supplied loop boundary: clamp, then snap only when Quantize is on.
@@ -390,7 +396,10 @@ impl Engine {
             if let Some(control) = self.deck_control.get_mut(deck_id) {
                 control.pending_loop_in_ms = None;
             }
-            return self.set_deck_loop_region(deck_id, in_ms, out_ms.max(in_ms + 10));
+            let out_ms = out_ms.max(in_ms + 10);
+            self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+            let _ = self.auto_save_deck_loop(deck_id, in_ms, out_ms);
+            return Ok(());
         }
         let control = self
             .deck_control
@@ -414,7 +423,9 @@ impl Engine {
             if let Some(control) = self.deck_control.get_mut(deck_id) {
                 control.pending_loop_in_ms = None;
             }
-            return self.set_deck_loop_region(deck_id, in_ms, out_ms);
+            self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+            let _ = self.auto_save_deck_loop(deck_id, in_ms, out_ms);
+            return Ok(());
         }
         let in_ms = self
             .deck_transport_state(deck_id)
@@ -427,7 +438,9 @@ impl Engine {
         if out_ms <= in_ms {
             return Err(anyhow::anyhow!("Loop out must be after loop in."));
         }
-        self.set_deck_loop_region(deck_id, in_ms, out_ms)
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+        let _ = self.auto_save_deck_loop(deck_id, in_ms, out_ms);
+        Ok(())
     }
 
     /// Jump playhead by `beats` (negative = backward), optionally snapped.

@@ -5,10 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
-import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
   if (picture == null) {
@@ -59,120 +57,6 @@ typedef StripWindowKey = (String, int, int, int);
 /// (deck, window origin, window span, picture width)
 typedef DeckStripWindowKey = (int, int, int, int);
 
-class StripLoopPictureNotifier extends Notifier<Picture?> with _OverlayPicture {
-  new(this.arg);
-
-  final StripWindowKey arg;
-
-  @override
-  Picture? build() {
-    final (trackId, originMs, spanMs, widthPx) = arg;
-    ref.onDispose(dropPicture);
-    if (dropInvalidWindow(spanMs, widthPx)) {
-      return null;
-    }
-    final loops =
-        ref.watch(trackSavedLoopsProvider.select((m) => m[trackId])) ??
-        const [];
-    if (loops.isEmpty) {
-      dropPicture();
-      return null;
-    }
-    return publishPicture(
-      recordLoopPicture(
-        loops: loops,
-        originMs: originMs,
-        spanMs: spanMs,
-        size: _stripSize(widthPx),
-      ),
-    );
-  }
-}
-
-class StripActiveLoopPictureNotifier extends Notifier<Picture?>
-    with _OverlayPicture {
-  new(this.arg);
-
-  final DeckStripWindowKey arg;
-
-  @override
-  Picture? build() {
-    final (deckId, originMs, spanMs, widthPx) = arg;
-    ref.onDispose(dropPicture);
-    if (dropInvalidWindow(spanMs, widthPx)) {
-      return null;
-    }
-    return publishPicture(
-      recordActiveLoopPicture(
-        loop: ref.watch(deckActiveLoopProvider(deckId)),
-        originMs: originMs,
-        spanMs: spanMs,
-        size: _stripSize(widthPx),
-      ),
-    );
-  }
-}
-
-class StripPendingLoopInPictureNotifier extends Notifier<Picture?>
-    with _OverlayPicture {
-  new(this.arg);
-
-  final DeckStripWindowKey arg;
-
-  @override
-  Picture? build() {
-    final (deckId, originMs, spanMs, widthPx) = arg;
-    ref.onDispose(dropPicture);
-    if (dropInvalidWindow(spanMs, widthPx)) {
-      return null;
-    }
-    return publishPicture(
-      recordPendingLoopInPicture(
-        pendingInMs: ref.watch(deckPendingLoopInMsProvider(deckId)),
-        originMs: originMs,
-        spanMs: spanMs,
-        size: _stripSize(widthPx),
-      ),
-    );
-  }
-}
-
-class StripCuePictureNotifier extends Notifier<Picture?> with _OverlayPicture {
-  new(this.arg);
-
-  final StripWindowKey arg;
-
-  @override
-  Picture? build() {
-    final (trackId, originMs, spanMs, widthPx) = arg;
-    ref.onDispose(dropPicture);
-    if (dropInvalidWindow(spanMs, widthPx)) {
-      return null;
-    }
-    final rows = ref.watch(trackHotCuesProvider.select((m) => m[trackId]));
-    if (rows == null || rows.isEmpty) {
-      dropPicture();
-      return null;
-    }
-    final cues = [
-      for (final row in rows)
-        DeckHotCue(
-          slot: row.slot,
-          positionMs: row.positionMs,
-          label: row.label,
-        ),
-    ];
-    return publishPicture(
-      recordCuePicture(
-        cues: cues,
-        originMs: originMs,
-        spanMs: spanMs,
-        size: _stripSize(widthPx),
-      ),
-    );
-  }
-}
-
 class StripBeatGridPictureNotifier extends Notifier<Picture?>
     with _OverlayPicture {
   new(this.arg);
@@ -213,27 +97,36 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?>
   }
 }
 
+class StripPendingLoopInPictureNotifier extends Notifier<Picture?>
+    with _OverlayPicture {
+  new(this.arg);
+
+  final DeckStripWindowKey arg;
+
+  @override
+  Picture? build() {
+    final (deckId, originMs, spanMs, widthPx) = arg;
+    ref.onDispose(dropPicture);
+    if (dropInvalidWindow(spanMs, widthPx)) {
+      return null;
+    }
+    return publishPicture(
+      recordPendingLoopInPicture(
+        pendingInMs: ref.watch(deckPendingLoopInMsProvider(deckId)),
+        originMs: originMs,
+        spanMs: spanMs,
+        size: _stripSize(widthPx),
+      ),
+    );
+  }
+}
+
 final stripBeatGridPictureProvider = NotifierProvider.autoDispose
     .family<StripBeatGridPictureNotifier, Picture?, StripWindowKey>(
       StripBeatGridPictureNotifier.new,
     );
 
-final stripLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripLoopPictureNotifier, Picture?, StripWindowKey>(
-      StripLoopPictureNotifier.new,
-    );
-
-final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripActiveLoopPictureNotifier, Picture?, DeckStripWindowKey>(
-      StripActiveLoopPictureNotifier.new,
-    );
-
 final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
     .family<StripPendingLoopInPictureNotifier, Picture?, DeckStripWindowKey>(
       StripPendingLoopInPictureNotifier.new,
-    );
-
-final stripCuePictureProvider = NotifierProvider.autoDispose
-    .family<StripCuePictureNotifier, Picture?, StripWindowKey>(
-      StripCuePictureNotifier.new,
     );

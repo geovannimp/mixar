@@ -65,3 +65,47 @@ fn recall_saved_loop_activates_and_plays() {
     assert_eq!(region.out_ms, 1000);
     assert!(region.active);
 }
+
+#[test]
+fn recall_saved_loop_keeps_position_before_out() {
+    let session = null_session_loaded();
+    session
+        .with_engine(|engine| engine.seek_deck(0, 500))
+        .expect("seek");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+            deck: 0,
+            in_ms: 0,
+            out_ms: 1000,
+        }))
+        .expect("recall");
+
+    let update = recv_updated(&mut evt);
+    assert!(update.playing);
+    let position = update.position_ms.expect("position");
+    assert!((position - 500).abs() <= 1);
+}
+
+#[test]
+fn recall_saved_loop_past_out_seeks_to_in() {
+    let session = null_session_loaded();
+    session
+        .with_engine(|engine| engine.seek_deck(0, 1500))
+        .expect("seek");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+            deck: 0,
+            in_ms: 0,
+            out_ms: 1000,
+        }))
+        .expect("recall");
+
+    let update = recv_updated(&mut evt);
+    assert!(update.playing);
+    let position = update.position_ms.expect("position");
+    assert!(position.abs() <= 1);
+}

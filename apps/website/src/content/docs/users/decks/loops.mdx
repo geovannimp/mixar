@@ -1,11 +1,11 @@
 ---
 title: "Loops"
-description: "Run an auto loop, mark one by hand, and save loops to the track."
+description: "Run an auto loop, mark one by hand, and let the deck remember loops automatically."
 section: "Decks"
 order: 304
 ---
 
-A loop repeats a span of the loaded track until you exit it. Start one from the **Loop** key, reshape it by hand, and save it to the track. The **Loop** tab holds one panel:
+A loop repeats a span of the loaded track until you exit it. Start one from the **Loop** key, reshape it by hand, and the deck remembers it for the next time you load the track. The **Loop** tab holds one panel:
 
 ```
 Loop
@@ -21,17 +21,25 @@ One press does whichever of these applies first:
 
 | Situation | What happens |
 | --- | --- |
-| Nothing saved under the playhead, no active loop | Starts an auto loop at the current length, snapped to the nearest beat |
-| A saved loop sits under the playhead | Recalls it: seeks to its in point, activates it, and plays |
 | A loop is already active | Exits the loop; playback carries on from wherever the playhead is |
+| A saved loop sits under the playhead | Recalls it without jumping: playback continues from the current position and wraps at the loop out. If the playhead is already past the loop, it seeks to the in point |
+| Nothing saved under the playhead, no active loop | Starts an auto loop at the current length, snapped to the nearest beat |
 
-## Start and stop a loop
+The key is lit while a loop is active. Exiting does not erase the loop: its band stays on the waveform as a shaded block, and pressing **Loop** with the playhead inside that band recalls it.
 
-1. Open the **Loop** tab.
-2. Press **Loop**: an auto loop starts, or a saved loop under the playhead is recalled instead.
-3. Press **Loop** again while a loop runs to exit it.
+## Loops are remembered automatically
 
-The key is lit while a loop is active.
+You do not save loops by hand. Whenever a loop becomes active, the deck remembers it for the loaded track:
+
+- an auto loop started with **Loop**;
+- a manual loop completed with **IN** and **OUT**;
+- a loop recalled from a saved band.
+
+Up to **10** loops are remembered per track. The limit is independent of loop length: a 1-beat loop and a 32-beat loop both take one place. When an eleventh loop is remembered, the least recently updated auto-remembered loop is replaced.
+
+Resizing an active loop with **‹** or **›** updates the remembered loop in place instead of creating another one.
+
+Exit a loop and its shaded band remains on the waveform. Press **Loop** while the playhead is inside any shaded band to reloop it.
 
 ## Change the loop length
 
@@ -43,16 +51,16 @@ The chip between **‹** and **›** holds the loop length in beats: **1**, **2*
 | **›** | Double the length (tooltip "Double loop length") | At **32** |
 
 1. Press **‹** or **›** to step the length.
-2. Watch the running loop: changing the length while a loop is active resizes it from the playhead.
+2. Watch the running loop: changing the length while a loop is active resizes it from the playhead and updates the remembered loop.
 
-The chip is lit whenever a saved loop exists for that length.
+The length chip is a readout, not a save control.
 
 ## Mark a loop by hand
 
 **IN** and **OUT** mark the region by hand, always at the playhead.
 
 1. Press **IN** with no loop. A pending in-point drops, marked on the waveform with a flag.
-2. Press **OUT**. The region completes from that pending point.
+2. Press **OUT**. The region completes from that pending point and is remembered automatically.
 
 With a loop already active, **IN** and **OUT** move that region's ends instead of starting a new one.
 
@@ -65,16 +73,21 @@ The panel reports these mistakes rather than acting on a half-valid region:
 
 Loop boundaries respect the deck's **Q** setting (on by default). With it on, hand-set in and out points snap to the beat grid. With it off they land exactly where the playhead is. An auto loop always snaps its start to the nearest beat, whichever way **Q** is set.
 
-## Save, recall, and delete loops
+## Delete a remembered loop
+
+Saved loops are per track, stored in the library database next to the cues. They show as shaded blocks with in/out marker lines on both the overview strip and the scrolling waveform.
 
 | Gesture | Effect |
 | --- | --- |
-| Shift+click **Loop** while a loop is active | Saves that region into the slot for its beat length |
-| Click the length chip when its slot holds a loop | Recalls that loop: seek to in, activate, play |
-| Shift+click the length chip | Deletes the saved loop in that slot |
+| Right-click / long-press a saved band | Opens the band menu with **Delete loop** |
+| Shift+hover a saved band | Turns the band red and shows a trash glyph |
+| Shift+click a saved band | Deletes it immediately |
+| Shift+click **Loop** | Deletes the saved loop under the playhead |
 
-Saved loops are per track and per length slot, stored in the library database next to the cues. The chip is only clickable when a loop is saved for that length, which makes it a compact indicator as well as a control. Saved loops show as blocks on the waveform.
+Deleting the loop that is currently active exits it first, then removes it. Deleting a loop removes its band from the waveform.
 
-## Held rolls
+## What is not remembered
 
-Rolls that you hold are a pad mode: see [Loop Roll](/docs/users/performance-pads/loop-roll). Loop points get snapped to the beat grid, so a wrong BPM or downbeat moves them; fix that in [Beat grid](/docs/users/decks/beat-grid).
+Loop rolls that you hold on the performance pads are temporary: they are not saved to the track. Imported loops and loops saved by another tool are left untouched; automatic loop memory never overwrites or evicts them.
+
+See [Loop Roll](/docs/users/performance-pads/loop-roll) for the held-roll pad mode. Loop points get snapped to the beat grid, so a wrong BPM or downbeat moves them; fix that in [Beat grid](/docs/users/decks/beat-grid).
