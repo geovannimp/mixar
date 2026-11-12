@@ -2,7 +2,7 @@
 
 use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
-use sea_orm::{EntityName, EntityTrait, QueryFilter, Set};
+use sea_orm::{EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
 
 use library_core::{Library, LibraryError, LoopImport, Result, TrackId};
@@ -640,7 +640,8 @@ mod tests {
         }
 
         {
-            let table = track_loop::Entity::default().table_name();
+            use sea_orm::EntityName;
+            let table = track_loop::Entity.table_name();
             let conn = db.conn().unwrap();
             for i in 0..10 {
                 conn.as_connection()
