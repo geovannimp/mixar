@@ -514,18 +514,22 @@ class _LaneStrip extends ConsumerWidget {
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
     final active = activeLoop != null && activeLoop.active ? activeLoop : null;
-    final accent = context.theme.colors.primary;
-    final sections = <WaveformSection>[
+    final visibleSavedLoops = <SavedLoop>[
       for (final loop in savedLoops)
         if (active == null ||
             loop.inMs != active.inMs ||
             loop.outMs != active.outMs)
-          WaveformSection(
-            type: WaveformSectionType.loop,
-            startMs: loop.inMs,
-            endMs: loop.outMs,
-            color: accent,
-          ),
+          loop,
+    ];
+    final accent = context.theme.colors.primary;
+    final sections = <WaveformSection>[
+      for (final loop in visibleSavedLoops)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: loop.inMs,
+          endMs: loop.outMs,
+          color: accent,
+        ),
       if (active != null)
         WaveformSection(
           type: WaveformSectionType.loop,
@@ -582,7 +586,7 @@ class _LaneStrip extends ConsumerWidget {
       child: LoopBandDeleteRegion(
         deckId: deckId,
         trackId: trackId,
-        loops: savedLoops,
+        loops: visibleSavedLoops,
         originMs: stripOrigin,
         spanMs: stripSpan,
         width: displayWidth.toDouble(),
