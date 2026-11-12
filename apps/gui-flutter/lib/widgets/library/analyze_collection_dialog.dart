@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Options for collection-wide analysis. Re-analysis is also the explicit
 /// opt-in to replace existing BPM/key and beat grid.
@@ -51,28 +50,15 @@ class _AnalyzeCollectionDialogBodyState
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: 'Analyze ${widget.collectionName}',
+      description:
+          '${widget.trackCount} tracks. Tracks that already have BPM/key '
+          'or were analyzed before are skipped.',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Analyze ${widget.collectionName}',
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${widget.trackCount} tracks. Tracks that already have BPM/key '
-            'or were analyzed before are skipped.',
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: 16),
           SettingsCheckbox(
             label:
                 'Force re-analysis — replaces existing BPM/key and beat grid',
@@ -85,30 +71,26 @@ class _AnalyzeCollectionDialogBodyState
             value: _generateStems,
             onChanged: (value) => setState(() => _generateStems = value),
           ),
-          const SizedBox(height: 16),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              AppButton(
-                onPress: () {
-                  Navigator.of(context).pop(
-                    AnalyzeCollectionOptions(
-                      force: _force,
-                      generateStems: _generateStems,
-                    ),
-                  );
-                },
-                child: const Text('Start analysis'),
-              ),
-            ],
-          ),
         ],
       ),
+      actions: [
+        AppButton(
+          variant: .outline,
+          onPress: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        AppButton(
+          onPress: () {
+            Navigator.of(context).pop(
+              AnalyzeCollectionOptions(
+                force: _force,
+                generateStems: _generateStems,
+              ),
+            );
+          },
+          child: const Text('Start analysis'),
+        ),
+      ],
     );
   }
 }
@@ -140,50 +122,27 @@ class _AnalyzeTrackDialogBodyState extends State<_AnalyzeTrackDialogBody> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Analyze ${widget.trackName}',
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Existing BPM/key are kept by default; analysis fills missing '
-            'values only.',
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SettingsCheckbox(
-            label: 'Replace existing BPM/key and beat grid',
-            value: _force,
-            onChanged: (value) => setState(() => _force = value),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              AppButton(
-                onPress: () => Navigator.of(context).pop(_force),
-                child: const Text('Start analysis'),
-              ),
-            ],
-          ),
-        ],
+    return MixarDialog(
+      title: 'Analyze ${widget.trackName}',
+      description:
+          'Existing BPM/key are kept by default; analysis fills missing '
+          'values only.',
+      child: SettingsCheckbox(
+        label: 'Replace existing BPM/key and beat grid',
+        value: _force,
+        onChanged: (value) => setState(() => _force = value),
       ),
+      actions: [
+        AppButton(
+          variant: .outline,
+          onPress: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        AppButton(
+          onPress: () => Navigator.of(context).pop(_force),
+          child: const Text('Start analysis'),
+        ),
+      ],
     );
   }
 }

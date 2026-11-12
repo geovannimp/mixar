@@ -19,6 +19,129 @@ class MixarDialogAction<T> {
   final MixarButtonVariant variant;
 }
 
+/// Standard cancel + dialog-specific confirm pair for [MixarDialog.actions].
+///
+/// Keeps the cancel button and button order in one place; callers pass only
+/// their confirm action. Pass [cancelEnabled] false while a dialog is busy.
+List<Widget> mixarDialogActions({
+  required BuildContext context,
+  required String cancelLabel,
+  required Widget confirm,
+  bool cancelEnabled = true,
+}) {
+  return [
+    AppButton(
+      variant: MixarButtonVariant.outline,
+      onPress: cancelEnabled ? () => Navigator.of(context).pop() : null,
+      child: Text(cancelLabel),
+    ),
+    confirm,
+  ];
+}
+
+/// Shared dialog surface: one framed card, a title band, full-bleed rules, an
+/// optional content area, and an optional actions footer.
+///
+/// Bodies compose this widget instead of drawing their own titles, padding or
+/// frames, so every dialog in the app shares the same chrome. Content is padded
+/// by [contentPadding]; pass [EdgeInsets.zero] for full-bleed section lists.
+/// Action buttons sit in a footer below a rule and are right-aligned.
+class MixarDialog extends StatelessWidget {
+  const new({
+    this.title,
+    super.key,
+    this.description,
+    this.child,
+    this.actions = const [],
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 24,
+      vertical: 16,
+    ),
+    this.actionsPadding = const EdgeInsets.fromLTRB(24, 12, 24, 16),
+  });
+
+  final String? title;
+
+  /// Muted line under the title. Omit for a title-only header.
+  final String? description;
+
+  /// Dialog body. Omit for a message-only dialog (confirmations).
+  final Widget? child;
+
+  final List<Widget> actions;
+  final EdgeInsetsGeometry contentPadding;
+  final EdgeInsetsGeometry actionsPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+
+    Widget rule() => SizedBox(
+      width: double.infinity,
+      height: theme.style.borderWidth,
+      child: ColoredBox(color: theme.colors.border),
+    );
+
+    return DecoratedBox(
+      // Foreground: dialog content runs full-bleed, so the shell's border would
+      // otherwise be covered by the card bands.
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.colors.border,
+          width: theme.style.borderWidth,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Right inset leaves room for the shell's close button.
+          if (title case final title?) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 56, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 4,
+                children: [
+                  Text(
+                    title,
+                    style: theme.typography.body.md.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (description case final description?)
+                    Text(
+                      description,
+                      style: theme.typography.body.sm.copyWith(
+                        color: theme.colors.mutedForeground,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            rule(),
+          ],
+          if (child case final child?)
+            Padding(padding: contentPadding, child: child),
+          if (actions.isNotEmpty) ...[
+            // A message-only dialog already ends with the header rule.
+            if (child != null) rule(),
+            Padding(
+              padding: actionsPadding,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                spacing: 8,
+                children: actions,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 bool _isCompactDialog(BuildContext context) =>
     MediaQuery.sizeOf(context).width < mixarDialogBreakpoint;
 
@@ -36,27 +159,18 @@ BorderRadius _mixarDialogRadius(BuildContext context) {
 
 ShadDialog _mixarDialogShell({
   required BuildContext context,
-  Widget? child,
-  Widget? title,
-  Widget? description,
-  List<Widget> actions = const [],
-  EdgeInsetsGeometry padding = EdgeInsets.zero,
-  double gap = 0,
+  required Widget child,
 }) {
   final theme = context.theme;
-  // Title chrome (in-body or Shad title slot) sits in the 16px content inset with
-  // body.md (16px / height 1.5 → 24). Center the larger close on that title band.
+  // The shared header sits in the 16px top inset with body.md (16px / height
+  // 1.5 → 24). Center the larger close button on that title band.
   const titleInset = 16.0;
   const titleLineHeight = 24.0;
   const closeSize = 32.0;
   const closeIconSize = 20.0;
   const closeTop = titleInset + titleLineHeight / 2 - closeSize / 2;
   return ShadDialog(
-    title: title,
-    description: description,
-    actions: actions,
-    padding: padding,
-    gap: gap,
+    padding: EdgeInsets.zero,
     // Tall form/picker bodies (collections, pads, selects) must scroll.
     scrollable: true,
     backgroundColor: theme.colors.card,
@@ -71,16 +185,6 @@ ShadDialog _mixarDialogShell({
         ? Alignment.bottomCenter
         : Alignment.center,
     removeBorderRadiusWhenTiny: false,
-    expandActionsWhenTiny: false,
-    actionsAxis: Axis.horizontal,
-    actionsMainAxisSize: MainAxisSize.min,
-    actionsMainAxisAlignment: MainAxisAlignment.end,
-    titleStyle: theme.typography.body.md.copyWith(fontWeight: FontWeight.w700),
-    descriptionStyle: theme.typography.body.sm.copyWith(
-      color: theme.colors.foreground,
-    ),
-    titleTextAlign: TextAlign.start,
-    descriptionTextAlign: TextAlign.start,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     closeIcon: AppButton.icon(
       variant: MixarButtonVariant.ghost,
@@ -100,7 +204,7 @@ ShadDialog _mixarDialogShell({
   );
 }
 
-/// Confirmation with title + in-flow actions.
+/// Confirmation with title, optional body and in-flow actions.
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
   required String title,
@@ -113,25 +217,25 @@ Future<T?> showMixarConfirm<T>({
     builder: (modalContext) {
       return _mixarDialogShell(
         context: modalContext,
-        padding: const EdgeInsets.all(16),
-        gap: 16,
-        title: Text(title),
-        description: body == null ? null : Text(body),
-        actions: [
-          for (final action in actions)
-            AppButton(
-              mainAxisSize: MainAxisSize.min,
-              variant: action.variant,
-              onPress: () => Navigator.of(modalContext).pop(action.value),
-              child: Text(action.label),
-            ),
-        ],
+        child: MixarDialog(
+          title: title,
+          description: body,
+          actions: [
+            for (final action in actions)
+              AppButton(
+                mainAxisSize: MainAxisSize.min,
+                variant: action.variant,
+                onPress: () => Navigator.of(modalContext).pop(action.value),
+                child: Text(action.label),
+              ),
+          ],
+        ),
       );
     },
   );
 }
 
-/// Content-owned dialog (forms / pickers). Call site supplies title + actions.
+/// Content-owned dialog (forms / pickers). The builder returns a [MixarDialog].
 Future<T?> showMixarDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,

@@ -122,25 +122,14 @@ class _ImportVirtualDjDialogBodyState
   Widget build(BuildContext context) {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: l10n.curvesImportTitle,
+      description: l10n.curvesImportHelp,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text(
-            l10n.curvesImportTitle,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            l10n.curvesImportHelp,
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
           SettingsField(
             label: l10n.curvesImportCurveLabel,
             hint: l10n.curvesImportCurveHint,
@@ -158,21 +147,16 @@ class _ImportVirtualDjDialogBodyState
                 color: theme.colors.destructive,
               ),
             ),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: _busy ? null : () => Navigator.of(context).pop(),
-                child: Text(l10n.curvesCancel),
-              ),
-              AppButton(
-                onPress: _busy ? null : _import,
-                child: Text(_busy ? l10n.curvesImporting : l10n.curvesImport),
-              ),
-            ],
-          ),
         ],
+      ),
+      actions: mixarDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        cancelEnabled: !_busy,
+        confirm: AppButton(
+          onPress: _busy ? null : _import,
+          child: Text(_busy ? l10n.curvesImporting : l10n.curvesImport),
+        ),
       ),
     );
   }
@@ -238,19 +222,13 @@ class _ExportVirtualDjDialogBodyState
   Widget build(BuildContext context) {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: l10n.curvesExportTitle,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text(
-            l10n.curvesExportTitle,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
           if (_busy)
             Text(
               l10n.curvesExporting,
@@ -265,7 +243,7 @@ class _ExportVirtualDjDialogBodyState
                 color: theme.colors.destructive,
               ),
             )
-          else if (_script != null) ...[
+          else if (_script != null)
             SettingsField(
               label: l10n.curvesExportCustomLabel,
               child: DecoratedBox(
@@ -280,27 +258,25 @@ class _ExportVirtualDjDialogBodyState
                 ),
               ),
             ),
-            Row(
-              spacing: 8,
-              children: [
-                AppButton(
-                  size: .sm,
-                  mainAxisSize: .min,
-                  variant: .outline,
-                  onPress: _copy,
-                  child: Text(_copied ? l10n.curvesCopied : l10n.curvesCopy),
-                ),
-                AppButton(
-                  size: .sm,
-                  mainAxisSize: .min,
-                  onPress: () => Navigator.of(context).pop(),
-                  child: Text(l10n.curvesClose),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
+      actions: _script == null
+          ? const []
+          : [
+              AppButton(
+                size: .sm,
+                mainAxisSize: .min,
+                variant: .outline,
+                onPress: _copy,
+                child: Text(_copied ? l10n.curvesCopied : l10n.curvesCopy),
+              ),
+              AppButton(
+                size: .sm,
+                mainAxisSize: .min,
+                onPress: () => Navigator.of(context).pop(),
+                child: Text(l10n.curvesClose),
+              ),
+            ],
     );
   }
 }

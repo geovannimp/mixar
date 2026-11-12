@@ -160,25 +160,14 @@ class _ExportCdjUsbDialogBodyState
     final collection = widget.collection;
     final isFolder = collection.kind == _folderKind;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: l10n.cdjExportTitle,
+      description: l10n.cdjExportDescription,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 16,
         children: [
-          Text(
-            l10n.cdjExportTitle,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            l10n.cdjExportDescription,
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
           SettingsField(
             label: l10n.cdjExportCollection,
             child: Row(
@@ -244,25 +233,19 @@ class _ExportCdjUsbDialogBodyState
               ),
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: MixarButtonVariant.outline,
-                onPress: _busy ? null : () => Navigator.of(context).pop(),
-                child: Text(l10n.settingsCancel),
-              ),
-              AppButton(
-                onPress: _canExport ? _export : null,
-                child: Text(
-                  _busy ? l10n.cdjExporting : l10n.cdjExportConfirmAction,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
+      actions: [
+        AppButton(
+          variant: MixarButtonVariant.outline,
+          onPress: _busy ? null : () => Navigator.of(context).pop(),
+          child: Text(l10n.settingsCancel),
+        ),
+        AppButton(
+          onPress: _canExport ? _export : null,
+          child: Text(_busy ? l10n.cdjExporting : l10n.cdjExportConfirmAction),
+        ),
+      ],
     );
   }
 }

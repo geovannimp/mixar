@@ -90,30 +90,14 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
       builder: (dialogContext) {
         controller.attachNavigator(Navigator.of(dialogContext));
         final theme = dialogContext.theme;
-        final title = widget.dialogTitle;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+        return MixarDialog(
+          title: widget.dialogTitle,
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
               color: theme.colors.foreground,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (title != null) ...[
-                  Text(
-                    title,
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                MixarMenuDialogChrome(
-                  child: widget.menuBuilder(dialogContext, controller),
-                ),
-              ],
+            child: MixarMenuDialogChrome(
+              child: widget.menuBuilder(dialogContext, controller),
             ),
           ),
         );

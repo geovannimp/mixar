@@ -106,21 +106,14 @@ class _CurveGroupDialogBodyState extends State<_CurveGroupDialogBody> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: l10n.curvesCreateTitle,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text(
-            l10n.curvesCreateTitle,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
           SettingsField(
             label: l10n.curvesName,
             child: MixarInput(controller: _name, onChanged: _nameChanged),
@@ -149,32 +142,25 @@ class _CurveGroupDialogBodyState extends State<_CurveGroupDialogBody> {
               onChanged: (value) => setState(() => _control = value),
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: Text(l10n.curvesCancel),
-              ),
-              AppButton(
-                onPress: _canCreate
-                    ? () {
-                        Navigator.of(context).pop(
-                          newCurveGroup(
-                            id: _id.text.trim(),
-                            displayName: _name.text.trim(),
-                            channels: _control == _abControl ? 2 : 1,
-                          ),
-                        );
-                      }
-                    : null,
-                child: Text(l10n.curvesCreate),
-              ),
-            ],
-          ),
         ],
+      ),
+      actions: mixarDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
+          onPress: _canCreate
+              ? () {
+                  Navigator.of(context).pop(
+                    newCurveGroup(
+                      id: _id.text.trim(),
+                      displayName: _name.text.trim(),
+                      channels: _control == _abControl ? 2 : 1,
+                    ),
+                  );
+                }
+              : null,
+          child: Text(l10n.curvesCreate),
+        ),
       ),
     );
   }
@@ -221,21 +207,14 @@ class _CurveSetDialogBodyState extends State<_CurveSetDialogBody> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: l10n.curvesCreateSetTitle,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text(
-            l10n.curvesCreateSetTitle,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
           SettingsField(
             label: l10n.curvesName,
             child: MixarInput(controller: _name, onChanged: _nameChanged),
@@ -252,31 +231,24 @@ class _CurveSetDialogBodyState extends State<_CurveSetDialogBody> {
               errorText: _idError,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: Text(l10n.curvesCancel),
-              ),
-              AppButton(
-                onPress: _canCreate
-                    ? () {
-                        Navigator.of(context).pop(
-                          newCurveSet(
-                            id: _id.text.trim(),
-                            displayName: _name.text.trim(),
-                          ),
-                        );
-                      }
-                    : null,
-                child: Text(l10n.curvesCreate),
-              ),
-            ],
-          ),
         ],
+      ),
+      actions: mixarDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
+          onPress: _canCreate
+              ? () {
+                  Navigator.of(context).pop(
+                    newCurveSet(
+                      id: _id.text.trim(),
+                      displayName: _name.text.trim(),
+                    ),
+                  );
+                }
+              : null,
+          child: Text(l10n.curvesCreate),
+        ),
       ),
     );
   }
@@ -308,19 +280,13 @@ class _RenameDialogBodyState extends State<_RenameDialogBody> {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: widget.title,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text(
-            widget.title,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
           SettingsField(
             label: l10n.curvesName,
             child: MixarInput(
@@ -334,24 +300,17 @@ class _RenameDialogBodyState extends State<_RenameDialogBody> {
               color: theme.colors.mutedForeground,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: Text(l10n.curvesCancel),
-              ),
-              AppButton(
-                onPress: _name.text.trim().isEmpty
-                    ? null
-                    : () => Navigator.of(context).pop(_name.text.trim()),
-                child: Text(l10n.curvesSave),
-              ),
-            ],
-          ),
         ],
+      ),
+      actions: mixarDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
+          onPress: _name.text.trim().isEmpty
+              ? null
+              : () => Navigator.of(context).pop(_name.text.trim()),
+          child: Text(l10n.curvesSave),
+        ),
       ),
     );
   }

@@ -454,14 +454,14 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(AppButton, 'Enable'),
+        matching: find.widgetWithText(AppButton, 'Enable in settings'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.text('Mixing'),
+        matching: find.text('MIXING'),
       ),
       findsOneWidget,
     );
@@ -471,6 +471,20 @@ void main() {
     );
     expect(
       find.descendant(of: find.byType(MasterStrip), matching: find.text('Mst')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.text('OUTPUT LEVEL'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.text('CUE LEVEL'),
+      ),
       findsOneWidget,
     );
     final masterCue = tester.widget<MixerButton>(
@@ -543,7 +557,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(AppButton, 'Enable'),
+        matching: find.widgetWithText(AppButton, 'Enable in settings'),
       ),
       findsOneWidget,
     );
@@ -551,7 +565,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(AppButton, 'Enable'),
+        matching: find.widgetWithText(AppButton, 'Enable in settings'),
       ),
     );
     await tester.pumpAndSettle();
@@ -726,7 +740,7 @@ void main() {
     expect(
       find.descendant(
         of: master,
-        matching: find.widgetWithText(AppButton, 'Enable'),
+        matching: find.widgetWithText(AppButton, 'Enable in settings'),
       ),
       findsNothing,
     );
@@ -739,7 +753,7 @@ void main() {
     );
 
     expect(
-      find.descendant(of: master, matching: find.text('Mixing')),
+      find.descendant(of: master, matching: find.text('MIXING')),
       findsOneWidget,
     );
 

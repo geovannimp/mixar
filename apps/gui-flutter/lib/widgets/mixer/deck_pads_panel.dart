@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/stems_pads.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
@@ -544,19 +545,30 @@ class DeckPadsPanel extends StatelessWidget {
         return StatefulBuilder(
           builder: (context, setLocal) {
             final theme = context.theme;
-            return Padding(
-              padding: const EdgeInsets.all(16),
+            return MixarDialog(
+              title: bank == null ? 'New bank' : 'Bank settings',
+              actions: [
+                AppButton(
+                  variant: .outline,
+                  onPress: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                AppButton(
+                  onPress: name.trim().isEmpty
+                      ? null
+                      : () {
+                          final playMode = modeValue == 'default'
+                              ? null
+                              : modeValue;
+                          Navigator.of(context).pop((name, playMode));
+                        },
+                  child: Text(bank == null ? 'Create' : 'Save'),
+                ),
+              ],
               child: Column(
                 mainAxisSize: .min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    bank == null ? 'New bank' : 'Bank settings',
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   MixarInput(
                     label: const Text('Name'),
                     initialValue: name,
@@ -580,32 +592,6 @@ class DeckPadsPanel extends StatelessWidget {
                           onPress: () => setLocal(() => modeValue = opt),
                           child: Text(opt),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: MixerButton(
-                          variant: MixarButtonVariant.secondary,
-                          onPress: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: MixerButton(
-                          onPress: name.trim().isEmpty
-                              ? null
-                              : () {
-                                  final playMode = modeValue == 'default'
-                                      ? null
-                                      : modeValue;
-                                  Navigator.of(context).pop((name, playMode));
-                                },
-                          child: Text(bank == null ? 'Create' : 'Save'),
-                        ),
-                      ),
                     ],
                   ),
                 ],
