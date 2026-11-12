@@ -140,6 +140,76 @@ void main() {
     );
   });
 
+  test(
+    'a clamped strip that stopped covering the viewport asks to refresh',
+    () {
+      // A window clamped at the track start is only 1.5 viewports wide, so its
+      // right edge is reached while the playhead is still 25 s in: the lane's
+      // right band has no strip left to paint.
+      expect(
+        l1CoversVisible(
+          positionMs: 25_000,
+          visibleMs: 24_000,
+          startMs: 0,
+          endMs: 36_000,
+        ),
+        isFalse,
+      );
+      expect(
+        l1NeedsRefresh(
+          positionMs: 25_000,
+          detailStartMs: 0,
+          detailEndMs: 36_000,
+          visibleMs: 24_000,
+          durationMs: 180_000,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('a loaded strip covers the lane until the next refresh is queued', () {
+    // The lane paints the strip at its own origin while the playhead moves;
+    // the next window is only fetched once l1NeedsRefresh says so. Every
+    // position that keeps the current window must therefore stay covered,
+    // otherwise the lane shows a blank band until an unrelated seek arrives.
+    const visibleMs = 24_000;
+    const durationMs = 181_000;
+    const stepMs = 250;
+    for (var fetchedAt = 0; fetchedAt < durationMs; fetchedAt += 1_000) {
+      final window = l1Range(
+        positionMs: fetchedAt,
+        visibleMs: visibleMs,
+        durationMs: durationMs,
+      );
+      for (var pos = fetchedAt; pos <= durationMs; pos += stepMs) {
+        final refresh = l1NeedsRefresh(
+          positionMs: pos.toDouble(),
+          detailStartMs: window.startMs,
+          detailEndMs: window.endMs,
+          visibleMs: visibleMs,
+          durationMs: durationMs,
+        );
+        if (refresh) {
+          break;
+        }
+        expect(
+          l1CoversVisible(
+            positionMs: pos.toDouble(),
+            visibleMs: visibleMs,
+            startMs: window.startMs,
+            endMs: window.endMs,
+            durationMs: durationMs,
+          ),
+          isTrue,
+          reason:
+              'window ${window.startMs}..${window.endMs} loaded at '
+              '$fetchedAt ms leaves a blank band at $pos ms',
+        );
+      }
+    }
+  });
+
   test('centerScrubMs subtracts pointer delta across the span', () {
     expect(
       centerScrubMs(anchorPosMs: 10_000, deltaX: 50, width: 100, spanMs: 1000),
