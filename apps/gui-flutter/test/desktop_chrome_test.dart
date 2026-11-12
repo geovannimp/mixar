@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/widgets/shell/desktop_chrome.dart';
@@ -22,8 +21,6 @@ Future<void> withPlatform(
   }
 }
 
-const _windowManagerChannel = MethodChannel('window_manager');
-
 /// The window frame's stroke, if the chrome painted one.
 Finder get _windowFrame => find.byWidgetPredicate(
   (widget) =>
@@ -35,7 +32,9 @@ Finder get _windowFrame => find.byWidgetPredicate(
 
 /// Runs [body] as a desktop Linux host whose window reports [maximized].
 ///
-/// [DesktopChrome] queries window_manager, which has no host in widget tests.
+/// [DesktopChrome] asks window_manager, which reads the state from nativeapi
+/// over FFI — there is no channel to mock in a widget test, so the override
+/// stands in for the native window.
 Future<void> withWindowHost(
   WidgetTester tester, {
   required bool maximized,
@@ -43,16 +42,11 @@ Future<void> withWindowHost(
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.linux;
   debugOverrideDesktopWindow = true;
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        ..setMockMethodCallHandler(
-          _windowManagerChannel,
-          (call) async => call.method == 'isMaximized' ? maximized : null,
-        );
+  debugOverrideWindowMaximized = maximized;
   try {
     await body();
   } finally {
-    messenger.setMockMethodCallHandler(_windowManagerChannel, null);
+    debugOverrideWindowMaximized = null;
     debugDefaultTargetPlatformOverride = null;
     debugOverrideDesktopWindow = null;
   }

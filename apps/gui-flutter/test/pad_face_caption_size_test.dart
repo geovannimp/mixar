@@ -97,5 +97,17 @@ void main() {
     }
 
     expect(heights.values.toSet(), hasLength(1), reason: '$heights');
+
+    // Flutter 3.50 notifies system-font listeners asynchronously after
+    // `FontLoader.load` registers the faces. That notification schedules a
+    // relayout frame callback; if it is still pending when the test ends, the
+    // harness reports "an animation is still running even after the widget
+    // tree was disposed". Let the engine's message land, then drain it.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+    await tester.pump();
   });
 }

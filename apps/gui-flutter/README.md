@@ -35,7 +35,19 @@ npm run app:linux
 # or: moon run gui-flutter:dev-linux
 ```
 
-Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
+Desktop draws its own title bar, with in-app min/max/close controls (drag empty header regions to move; double-click to maximize). [`window_manager`](https://pub.dev/packages/window_manager) drives only those controls and the maximized state — the window itself is sized and undecorated by `linux/runner/my_application.cc`. Letting window_manager apply the size on Flutter 3.50 added its frame margin again on every resize (1280x800 → 1544x1064 → 1808x1328) while the Flutter view stayed 1280x800, inset 132 px per side, which pushed the whole UI into the window's bottom-left corner.
+
+The SDK is pinned to Flutter `master` until 3.50.1 ships: 3.50.0 misrenders Linux
+windows on NVIDIA, where `can_blit` is false and the compositor offsets every
+layer by half the window
+([flutter/flutter#195885](https://github.com/flutter/flutter/issues/195885),
+fixed by [#196083](https://github.com/flutter/flutter/pull/196083)). Re-pin to
+`^3.50.1` when it is released.
+
+Because the pin is `master`, the experimental Desktop windowing API
+(`WindowController` / `Window` / `WindowManager`) is now *available* — its
+`windowing` feature flag only exists on that channel. It is still `@internal`
+and needs `flutter config --enable-windowing`; we have not migrated to it.
 
 ### Android
 
@@ -57,7 +69,7 @@ One-time host setup (SDK location can also come from `ANDROID_HOME`):
 
 ```sh
 flutter config --android-sdk "$HOME/Android/sdk"
-mise exec -- sdkmanager "ndk;28.2.13676358"   # flutter.ndkVersion for Flutter 3.47.7
+mise exec -- sdkmanager "ndk;28.2.13676358"   # flutter.ndkVersion for Flutter 3.50.0
 rustup target add aarch64-linux-android x86_64-linux-android
 ```
 

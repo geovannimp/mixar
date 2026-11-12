@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/widgets.dart';
@@ -40,38 +38,42 @@ class DesktopChrome extends StatefulWidget {
   State<DesktopChrome> createState() => _DesktopChromeState();
 }
 
-class _DesktopChromeState extends State<DesktopChrome> with WindowListener {
-  var _maximized = false;
+class _DesktopChromeState extends State<DesktopChrome> {
+  var _maximized = debugOverrideWindowMaximized ?? false;
+  ListenerId? _listener;
 
   @override
   void initState() {
     super.initState();
-    if (!isDesktopWindow) {
+    // A test override replaces the native window entirely.
+    if (!isDesktopWindow || debugOverrideWindowMaximized != null) {
       return;
     }
-    windowManager.addListener(this);
-    unawaited(
-      windowManager.isMaximized().then((value) {
-        if (mounted) {
-          setState(() => _maximized = value);
-        }
-      }),
-    );
+    final window = WindowManager.instance.getCurrent();
+    if (window == null) {
+      return;
+    }
+    _maximized = window.isMaximized;
+    _listener = WindowManager.instance.addListener((event) {
+      final maximized = switch (event) {
+        WindowMaximizedEvent() => true,
+        WindowRestoredEvent() => false,
+        _ => null,
+      };
+      if (maximized != null && mounted) {
+        setState(() => _maximized = maximized);
+      }
+    });
   }
 
   @override
   void dispose() {
-    if (isDesktopWindow) {
-      windowManager.removeListener(this);
+    final listener = _listener;
+    if (listener != null) {
+      WindowManager.instance.removeListener(listener);
     }
     super.dispose();
   }
-
-  @override
-  void onWindowMaximize() => setState(() => _maximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _maximized = false);
 
   @override
   Widget build(BuildContext context) {

@@ -4,7 +4,10 @@
 idiomatic_version_file_enable_tools = ["node", "rust"]
 
 [tools]
-flutter = { version = "3.47.7", postinstall = "dart pub global activate dashmonx" }
+# master: 3.50.0 misrenders Linux windows on NVIDIA (can_blit blocklist,
+# flutter/flutter#195885). The fix (#196083) is on master but not in any
+# release yet -- 3.50.1 will carry it. Re-pin to ^3.50.1 when it ships.
+flutter = { version = "master", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
 "npm:@colbymchenry/codegraph" = "latest"
 # Desktop control for agents (AX/AT-SPI tree + refs, no pixels). See AGENTS.md.
