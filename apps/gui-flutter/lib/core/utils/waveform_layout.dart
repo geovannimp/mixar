@@ -11,7 +11,17 @@ const kWaveformMaxVisibleMs = 120000;
 /// Exponent per scroll pixel: one mouse notch (~53 px) zooms ~1.17x.
 const kWaveformZoomSensitivity = 0.003;
 
-const kWaveformRefreshMargin = 0.35;
+/// How far inside a strip's edges the playhead may reach before the next
+/// window is fetched, as a fraction of the visible span.
+///
+/// The lane draws the playhead at its centre, so the viewport reaches *half* a
+/// visible span past the playhead on each side. A strip therefore only covers
+/// the screen while the playhead stays at least `0.5` visible spans inside its
+/// edges: refreshing later than that leaves the strip's last pixels short of
+/// the lane edge and paints a blank band there until the position moves far
+/// enough to queue a fetch. The extra `0.25` is lead time for the async fetch,
+/// so the replacement normally lands before the old strip runs out.
+const kWaveformRefreshMargin = 0.75;
 const kWaveformSeekSnapMs = 180.0;
 const kWaveformDriftCorrectMs = 60.0;
 const kWaveformStripHeight = 128.0;
@@ -181,6 +191,19 @@ bool l1NeedsRefresh({
     return true;
   }
   if (detailEndMs <= detailStartMs || visibleMs <= 0) {
+    return true;
+  }
+  // A window that no longer covers the viewport paints a blank band on the
+  // lane, so it must never survive a build. Checking it directly (instead of
+  // trusting the margin) keeps the invariant even for windows clamped by the
+  // track edges or shorter than the nominal three visible spans.
+  if (!l1CoversVisible(
+    positionMs: positionMs,
+    visibleMs: visibleMs,
+    startMs: detailStartMs,
+    endMs: detailEndMs,
+    durationMs: durationMs,
+  )) {
     return true;
   }
   final margin = visibleMs * kWaveformRefreshMargin;
