@@ -10,12 +10,14 @@ import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -477,17 +479,6 @@ class _LaneStrip extends ConsumerWidget {
         displayWidth,
       )),
     );
-    final loops = ref.watch(
-      stripLoopPictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
-    );
-    final activeLoop = ref.watch(
-      stripActiveLoopPictureProvider((
-        deckId,
-        stripOrigin,
-        stripSpan,
-        displayWidth,
-      )),
-    );
     final pendingLoopIn = ref.watch(
       stripPendingLoopInPictureProvider((
         deckId,
@@ -496,9 +487,33 @@ class _LaneStrip extends ConsumerWidget {
         displayWidth,
       )),
     );
-    final cues = ref.watch(
-      stripCuePictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
-    );
+    final hotCues = ref.watch(deckHotCuesProvider(deckId));
+    final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
+    final accent = context.theme.colors.primary;
+    final sections = <WaveformSection>[
+      for (final loop in savedLoops)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: loop.inMs,
+          endMs: loop.outMs,
+          color: accent,
+        ),
+      if (activeLoop != null && activeLoop.active)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: activeLoop.inMs,
+          endMs: activeLoop.outMs,
+          color: accent,
+          active: true,
+        ),
+      for (final cue in hotCues)
+        WaveformSection(
+          type: WaveformSectionType.cue,
+          startMs: cue.positionMs,
+          color: hotCueAccent(cue.slot).border.withValues(alpha: 1),
+          label: '${cue.slot + 1}',
+        ),
+    ];
 
     return AnimatedBuilder(
       animation: playhead,
@@ -545,10 +560,15 @@ class _LaneStrip extends ConsumerWidget {
               CustomPaint(
                 painter: _StripOverlayPainter(
                   beatGrid: beatGrid,
-                  loops: loops,
-                  activeLoop: activeLoop,
                   pendingLoopIn: pendingLoopIn,
-                  cues: cues,
+                ),
+              ),
+              CustomPaint(
+                painter: WaveformSectionPainter(
+                  sections: sections,
+                  originMs: stripOrigin,
+                  spanMs: stripSpan,
+                  compact: false,
                 ),
               ),
             ],
@@ -592,30 +612,21 @@ class _StripWaveform extends ConsumerWidget {
 
 /// Beat grid, loops and cues, replayed at the width they were recorded at.
 class _StripOverlayPainter extends CustomPainter {
-  new({
-    required this.beatGrid,
-    required this.loops,
-    required this.activeLoop,
-    required this.pendingLoopIn,
-    required this.cues,
-  });
+  new({required this.beatGrid, required this.pendingLoopIn});
 
   final Picture? beatGrid;
-  final Picture? loops;
-  final Picture? activeLoop;
   final Picture? pendingLoopIn;
-  final Picture? cues;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) {
       return;
     }
-    // Overlays are authored at strip height; scale only vertically so their
-    // horizontal placement stays one picture pixel per canvas pixel.
+    // These pictures are authored at strip height; scale only vertically so
+    // their horizontal placement stays one picture pixel per canvas pixel.
     canvas.save();
     canvas.scale(1, size.height / kWaveformStripHeight);
-    for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
+    for (final picture in [beatGrid, pendingLoopIn]) {
       if (picture != null) {
         canvas.drawPicture(picture);
       }
@@ -626,10 +637,7 @@ class _StripOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(_StripOverlayPainter oldDelegate) =>
       !identical(beatGrid, oldDelegate.beatGrid) ||
-      !identical(loops, oldDelegate.loops) ||
-      !identical(activeLoop, oldDelegate.activeLoop) ||
-      !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
-      !identical(cues, oldDelegate.cues);
+      !identical(pendingLoopIn, oldDelegate.pendingLoopIn);
 }
 
 class _WaveformPainter extends CustomPainter {

@@ -1,16 +1,15 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
-import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -167,7 +166,7 @@ class _OverviewPlayhead extends ConsumerWidget {
 }
 
 /// Cached Loop + Cue pictures for the overview (no beat grid / active loop).
-class _OverviewOverlayLayer extends StatefulWidget {
+class _OverviewOverlayLayer extends StatelessWidget {
   const new({
     required this.durationMs,
     required this.width,
@@ -185,117 +184,33 @@ class _OverviewOverlayLayer extends StatefulWidget {
   final Color accent;
 
   @override
-  State<_OverviewOverlayLayer> createState() => _OverviewOverlayLayerState();
-}
-
-class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
-  ui.Picture? _loops;
-  ui.Picture? _cues;
-  int? _loopKey;
-  int? _cueKey;
-
-  @override
-  void didUpdateWidget(covariant _OverviewOverlayLayer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncPictures();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _syncPictures();
-  }
-
-  @override
-  void dispose() {
-    _drop(_loops);
-    _drop(_cues);
-    super.dispose();
-  }
-
-  void _drop(ui.Picture? picture) {
-    if (picture == null) {
-      return;
-    }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      picture.dispose();
-    });
-  }
-
-  void _syncPictures() {
-    final size = Size(widget.width, widget.height);
-    final loopKey = Object.hash(
-      widget.durationMs,
-      widget.width,
-      widget.height,
-      widget.accent,
-      Object.hashAll(widget.savedLoops),
-    );
-    if (loopKey != _loopKey) {
-      _drop(_loops);
-      _loops = widget.savedLoops.isEmpty
-          ? null
-          : recordLoopPicture(
-              loops: widget.savedLoops,
-              originMs: 0,
-              spanMs: widget.durationMs,
-              size: size,
-              accent: widget.accent,
-              compact: true,
-            );
-      _loopKey = loopKey;
-    }
-    final cueKey = Object.hash(
-      widget.durationMs,
-      widget.width,
-      widget.height,
-      Object.hashAll(
-        widget.hotCues.map((c) => Object.hash(c.slot, c.positionMs)),
+  Widget build(BuildContext context) {
+    final sections = <WaveformSection>[
+      for (final loop in savedLoops)
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: loop.inMs,
+          endMs: loop.outMs,
+          color: accent,
+        ),
+      for (final cue in hotCues)
+        WaveformSection(
+          type: WaveformSectionType.cue,
+          startMs: cue.positionMs,
+          color: hotCueAccent(cue.slot).border.withValues(alpha: 1),
+          label: '${cue.slot + 1}',
+        ),
+    ];
+    return CustomPaint(
+      size: Size(width, height),
+      painter: WaveformSectionPainter(
+        sections: sections,
+        originMs: 0,
+        spanMs: durationMs,
+        compact: true,
       ),
     );
-    if (cueKey != _cueKey) {
-      _drop(_cues);
-      _cues = widget.hotCues.isEmpty
-          ? null
-          : recordCuePicture(
-              cues: widget.hotCues,
-              originMs: 0,
-              spanMs: widget.durationMs,
-              size: size,
-            );
-      _cueKey = cueKey;
-    }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _OverviewOverlayPainter(loops: _loops, cues: _cues),
-      size: Size(widget.width, widget.height),
-    );
-  }
-}
-
-class _OverviewOverlayPainter extends CustomPainter {
-  new({required this.loops, required this.cues});
-
-  final ui.Picture? loops;
-  final ui.Picture? cues;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (loops != null) {
-      canvas.drawPicture(loops!);
-    }
-    if (cues != null) {
-      canvas.drawPicture(cues!);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_OverviewOverlayPainter oldDelegate) =>
-      !identical(loops, oldDelegate.loops) ||
-      !identical(cues, oldDelegate.cues);
 }
 
 Future<void> _seek(

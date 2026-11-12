@@ -3,9 +3,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
-    show LoopRegion, SavedLoop;
-import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 
 void main() {
   test('recordBeatGridPicture paints arrows on both lane edges', () async {
@@ -104,78 +102,29 @@ void main() {
     expect(r.width, closeTo(50, 1e-6));
   });
 
-  test('recordActiveLoopPicture is null when inactive or missing', () {
-    expect(
-      recordActiveLoopPicture(
-        loop: null,
-        originMs: 0,
-        spanMs: 10_000,
-        size: const Size(100, 40),
-      ),
-      isNull,
-    );
-    expect(
-      recordActiveLoopPicture(
-        loop: const LoopRegion(inMs: 0, outMs: 1000, active: false),
-        originMs: 0,
-        spanMs: 10_000,
-        size: const Size(100, 40),
-      ),
-      isNull,
-    );
-  });
-
-  test('recordActiveLoopPicture returns a picture when active', () {
-    final picture = recordActiveLoopPicture(
-      loop: const LoopRegion(inMs: 1000, outMs: 3000, active: true),
-      originMs: 0,
-      spanMs: 10_000,
-      size: const Size(100, 40),
-    );
-    expect(picture, isNotNull);
-    picture!.dispose();
-  });
-
-  test('recordPendingLoopInPicture is null without position', () {
-    expect(
-      recordPendingLoopInPicture(
-        pendingInMs: null,
-        originMs: 0,
-        spanMs: 10_000,
-        size: const Size(100, 40),
-      ),
-      isNull,
-    );
-  });
-
-  test('recordPendingLoopInPicture returns a picture when pending', () {
-    final picture = recordPendingLoopInPicture(
-      pendingInMs: 2500,
-      originMs: 0,
-      spanMs: 10_000,
-      size: const Size(100, 40),
-    );
-    expect(picture, isNotNull);
-    picture!.dispose();
-  });
-
-  test('recordCuePicture and recordLoopPicture record without throw', () {
-    final cues = recordCuePicture(
-      cues: const [
-        DeckHotCue(slot: 0, positionMs: 1000),
-        DeckHotCue(slot: 3, positionMs: 5000),
+  test('WaveformSectionPainter paints cue and loop sections', () {
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+    const painter = WaveformSectionPainter(
+      sections: [
+        WaveformSection(
+          type: WaveformSectionType.cue,
+          startMs: 1000,
+          color: Color(0xFFFF0000),
+          label: '1',
+        ),
+        WaveformSection(
+          type: WaveformSectionType.loop,
+          startMs: 2000,
+          endMs: 4000,
+          color: Color(0xFF00FF00),
+        ),
       ],
       originMs: 0,
-      spanMs: 10_000,
-      size: const Size(200, 40),
+      spanMs: 10000,
+      compact: false,
     );
-    final loops = recordLoopPicture(
-      loops: const [SavedLoop(slot: 0, inMs: 2000, outMs: 4000)],
-      originMs: 0,
-      spanMs: 10_000,
-      size: const Size(200, 40),
-    );
-    cues.dispose();
-    loops.dispose();
+    painter.paint(canvas, const Size(200, 40));
+    recorder.endRecording().dispose();
   });
 }

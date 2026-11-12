@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
-import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
@@ -294,7 +294,10 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
                   child: IgnorePointer(
                     child: CustomPaint(
                       painter: _DeleteBandPainter(
-                        rect: hoverRect,
+                        startMs: hover!.inMs,
+                        endMs: hover.outMs,
+                        originMs: widget.originMs,
+                        spanMs: widget.spanMs,
                         accent: theme.colors.destructive,
                         compact: widget.compact,
                       ),
@@ -332,27 +335,45 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
 }
 
 class _DeleteBandPainter extends CustomPainter {
-  new({required this.rect, required this.accent, required this.compact});
+  new({
+    required this.startMs,
+    required this.endMs,
+    required this.originMs,
+    required this.spanMs,
+    required this.accent,
+    required this.compact,
+  });
 
-  final Rect rect;
+  final int startMs;
+  final int endMs;
+  final int originMs;
+  final int spanMs;
   final Color accent;
   final bool compact;
 
   @override
   void paint(Canvas canvas, Size size) {
-    paintLoopBand(
+    paintWaveformSection(
       canvas: canvas,
-      rect: rect,
+      section: WaveformSection(
+        type: WaveformSectionType.loop,
+        startMs: startMs,
+        endMs: endMs,
+        color: accent,
+      ),
+      originMs: originMs,
+      spanMs: spanMs,
       size: size,
-      accent: accent,
-      fill: accent.withValues(alpha: 0.14),
       compact: compact,
     );
   }
 
   @override
   bool shouldRepaint(_DeleteBandPainter oldDelegate) =>
-      oldDelegate.rect != rect ||
+      oldDelegate.startMs != startMs ||
+      oldDelegate.endMs != endMs ||
+      oldDelegate.originMs != originMs ||
+      oldDelegate.spanMs != spanMs ||
       oldDelegate.accent != accent ||
       oldDelegate.compact != compact;
 }
