@@ -12,22 +12,6 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 const _scalarControl = 'scalar';
 const _abControl = 'ab';
 
-/// Cancel + dialog-specific confirm button for the curve dialogs.
-List<Widget> _curveDialogActions({
-  required BuildContext context,
-  required String cancelLabel,
-  required Widget confirm,
-}) {
-  return [
-    AppButton(
-      variant: .outline,
-      onPress: () => Navigator.of(context).pop(),
-      child: Text(cancelLabel),
-    ),
-    confirm,
-  ];
-}
-
 /// Create a custom curve group with a stable id.
 Future<CurveGroupSpec?> showCreateCurveGroupDialog(
   BuildContext context, {
@@ -160,7 +144,7 @@ class _CurveGroupDialogBodyState extends State<_CurveGroupDialogBody> {
           ),
         ],
       ),
-      actions: _curveDialogActions(
+      actions: mixarDialogActions(
         context: context,
         cancelLabel: l10n.curvesCancel,
         confirm: AppButton(
@@ -249,7 +233,7 @@ class _CurveSetDialogBodyState extends State<_CurveSetDialogBody> {
           ),
         ],
       ),
-      actions: _curveDialogActions(
+      actions: mixarDialogActions(
         context: context,
         cancelLabel: l10n.curvesCancel,
         confirm: AppButton(
@@ -318,7 +302,7 @@ class _RenameDialogBodyState extends State<_RenameDialogBody> {
           ),
         ],
       ),
-      actions: _curveDialogActions(
+      actions: mixarDialogActions(
         context: context,
         cancelLabel: l10n.curvesCancel,
         confirm: AppButton(

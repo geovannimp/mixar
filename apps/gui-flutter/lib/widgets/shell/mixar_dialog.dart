@@ -19,6 +19,26 @@ class MixarDialogAction<T> {
   final MixarButtonVariant variant;
 }
 
+/// Standard cancel + dialog-specific confirm pair for [MixarDialog.actions].
+///
+/// Keeps the cancel button and button order in one place; callers pass only
+/// their confirm action. Pass [cancelEnabled] false while a dialog is busy.
+List<Widget> mixarDialogActions({
+  required BuildContext context,
+  required String cancelLabel,
+  required Widget confirm,
+  bool cancelEnabled = true,
+}) {
+  return [
+    AppButton(
+      variant: MixarButtonVariant.outline,
+      onPress: cancelEnabled ? () => Navigator.of(context).pop() : null,
+      child: Text(cancelLabel),
+    ),
+    confirm,
+  ];
+}
+
 /// Shared dialog surface: one framed card, a title band, full-bleed rules, an
 /// optional content area, and an optional actions footer.
 ///

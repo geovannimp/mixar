@@ -149,17 +149,15 @@ class _ImportVirtualDjDialogBodyState
             ),
         ],
       ),
-      actions: [
-        AppButton(
-          variant: .outline,
-          onPress: _busy ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.curvesCancel),
-        ),
-        AppButton(
+      actions: mixarDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        cancelEnabled: !_busy,
+        confirm: AppButton(
           onPress: _busy ? null : _import,
           child: Text(_busy ? l10n.curvesImporting : l10n.curvesImport),
         ),
-      ],
+      ),
     );
   }
 }
