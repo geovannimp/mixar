@@ -168,18 +168,24 @@ void _paintLoopFlag(
   required double width,
 }) {
   final flagH = laneHeight >= 64 ? 20.0 : (laneHeight * 0.42).clamp(10.0, 14.0);
-  final flagW = flagH * 1.15;
+  final flagW = flagH * 1.35;
   final maxLeft = math.max(0.0, width - flagW);
-  final left = (x - flagW / 2).clamp(0.0, maxLeft);
-  final rect = RRect.fromRectAndRadius(
-    Rect.fromLTWH(left, 1, flagW, flagH),
-    Radius.circular(flagH * 0.18),
-  );
-  canvas.drawRRect(rect, Paint()..color = accent);
-  const icon = Icons.loop;
+  final left = (x + 1).clamp(0.0, maxLeft);
+  final bottom = flagH;
+  final right = left + flagW;
+  final notch = flagW * 0.20;
+  final flag = Path()
+    ..moveTo(left, 0)
+    ..lineTo(right, 0)
+    ..lineTo(right - notch, flagH / 2)
+    ..lineTo(right, bottom)
+    ..lineTo(left, bottom)
+    ..close();
+  canvas.drawPath(flag, Paint()..color = accent);
   final glyphColor = accent.computeLuminance() > 0.5
       ? const Color(0xFF000000)
       : const Color(0xFFFFFFFF);
+  const icon = Icons.loop;
   final painter = TextPainter(
     text: TextSpan(
       text: String.fromCharCode(icon.codePoint),
@@ -196,8 +202,8 @@ void _paintLoopFlag(
   painter.paint(
     canvas,
     Offset(
-      rect.center.dx - painter.width / 2,
-      rect.center.dy - painter.height / 2,
+      left + (flagW - notch - painter.width) / 2,
+      (flagH - painter.height) / 2,
     ),
   );
 }
