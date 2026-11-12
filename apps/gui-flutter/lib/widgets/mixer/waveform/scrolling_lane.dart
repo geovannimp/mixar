@@ -513,20 +513,24 @@ class _LaneStrip extends ConsumerWidget {
     final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
+    final active = activeLoop != null && activeLoop.active ? activeLoop : null;
     final accent = context.theme.colors.primary;
     final sections = <WaveformSection>[
       for (final loop in savedLoops)
+        if (active == null ||
+            loop.inMs != active.inMs ||
+            loop.outMs != active.outMs)
+          WaveformSection(
+            type: WaveformSectionType.loop,
+            startMs: loop.inMs,
+            endMs: loop.outMs,
+            color: accent,
+          ),
+      if (active != null)
         WaveformSection(
           type: WaveformSectionType.loop,
-          startMs: loop.inMs,
-          endMs: loop.outMs,
-          color: accent,
-        ),
-      if (activeLoop != null && activeLoop.active)
-        WaveformSection(
-          type: WaveformSectionType.loop,
-          startMs: activeLoop.inMs,
-          endMs: activeLoop.outMs,
+          startMs: active.inMs,
+          endMs: active.outMs,
           color: accent,
           active: true,
         ),

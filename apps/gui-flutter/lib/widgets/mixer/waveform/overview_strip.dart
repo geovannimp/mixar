@@ -165,7 +165,7 @@ class _OverviewPlayhead extends ConsumerWidget {
   }
 }
 
-/// Cached Loop + Cue pictures for the overview (no beat grid / active loop).
+/// Loop + cue sections for the overview (no beat grid / active loop).
 class _OverviewOverlayLayer extends StatelessWidget {
   const new({
     required this.durationMs,

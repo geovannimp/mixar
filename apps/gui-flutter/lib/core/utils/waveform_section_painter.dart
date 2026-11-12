@@ -112,9 +112,13 @@ void paintWaveformSection({
     width: size.width,
   );
   if (section.type == WaveformSectionType.loop) {
+    final endMs = section.endMs;
+    if (endMs == null) {
+      return;
+    }
     final rect = loopRegionRect(
       inMs: section.startMs,
-      outMs: section.endMs!,
+      outMs: endMs,
       originMs: originMs,
       spanMs: spanMs,
       width: size.width,
