@@ -22,6 +22,11 @@
         "--enable",
         "dart_format"
       ]
+    },
+    "agent-desktop": {
+      "type": "stdio",
+      "command": "mise",
+      "args": ["exec", "--", "agent-desktop", "mcp"]
     }
   }
 }
