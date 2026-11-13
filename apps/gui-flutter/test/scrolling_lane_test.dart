@@ -214,12 +214,7 @@ Future<ProviderContainer> _pumpLane(
 
   // Encoding the peak texture awaits real engine futures, which only advance
   // outside the widget test's fake clock.
-  final built = await tester.runAsync(strip);
-  _FixedStrip.strip = built;
-  addTearDown(() {
-    built?.dispose();
-    _FixedStrip.strip = null;
-  });
+  await _installFixedStrip(tester, strip);
 
   final theme = MixarThemeData.dark();
   await tester.pumpWidget(
@@ -315,6 +310,50 @@ Future<double> _startClock(
   return _sourceMsAt(_stripRect(tester), speed: speed, visibleMs: visibleMs);
 }
 
+/// Installs the fixed strip for one test and disposes it on teardown.
+Future<void> _installFixedStrip(
+  WidgetTester tester,
+  Future<WaveformStrip> Function() strip,
+) async {
+  final built = await tester.runAsync(strip);
+  _FixedStrip.strip = built;
+  addTearDown(() {
+    built?.dispose();
+    _FixedStrip.strip = null;
+  });
+}
+
+/// Pumps 16 ms frames and asserts the strip never moves backwards.
+///
+/// [sourceMsPerPx] plus [maxRate] additionally bound the forward advance in
+/// source milliseconds per wall millisecond.
+Future<void> _expectForwardMotion(
+  WidgetTester tester, {
+  int deckId = 0,
+  int frames = 40,
+  double Function()? sourceMsPerPx,
+  double? maxRate,
+}) async {
+  var previous = _stripRect(tester, deckId: deckId).left;
+  for (var frame = 0; frame < frames; frame++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    final left = _stripRect(tester, deckId: deckId).left;
+    expect(
+      left,
+      lessThanOrEqualTo(previous + 1e-6),
+      reason: 'deck $deckId moved backwards at frame $frame',
+    );
+    if (sourceMsPerPx != null && maxRate != null) {
+      expect(
+        (previous - left) * sourceMsPerPx() / 16,
+        lessThanOrEqualTo(maxRate),
+        reason: 'deck $deckId exceeded its advance bound at frame $frame',
+      );
+    }
+    previous = left;
+  }
+}
+
 /// Two lanes in one scope, each deck playing at its own actual ratio.
 Future<ProviderContainer> _pumpTwoLanes(
   WidgetTester tester, {
@@ -325,12 +364,7 @@ Future<ProviderContainer> _pumpTwoLanes(
   debugOverrideDesktopWindow = false;
   addTearDown(() => debugOverrideDesktopWindow = null);
 
-  final built = await tester.runAsync(_strip);
-  _FixedStrip.strip = built;
-  addTearDown(() {
-    built?.dispose();
-    _FixedStrip.strip = null;
-  });
+  await _installFixedStrip(tester, _strip);
 
   final theme = MixarThemeData.dark();
   await tester.pumpWidget(
@@ -1146,26 +1180,11 @@ void main() {
     _applyDeckUpdate(container, playbackRatio: 0.1);
     await tester.pump();
 
-    final msPerPx = visibleSourceMs(0.1, visibleMs) / _viewportWidth;
-    var previousLeft = _stripRect(tester).left;
-    for (var frame = 0; frame < 40; frame++) {
-      await tester.pump(const Duration(milliseconds: 16));
-      final left = _stripRect(tester).left;
-      expect(
-        left,
-        lessThanOrEqualTo(previousLeft + 1e-6),
-        reason:
-            'the retimed correction ran the slow deck backwards '
-            '(frame $frame)',
-      );
-      final advanceMs = (previousLeft - left) * msPerPx;
-      expect(
-        advanceMs / 16,
-        lessThanOrEqualTo(0.1 * 1.25 + 0.02),
-        reason: 'the pull exceeded 25% of the new speed (frame $frame)',
-      );
-      previousLeft = left;
-    }
+    await _expectForwardMotion(
+      tester,
+      sourceMsPerPx: () => visibleSourceMs(0.1, visibleMs) / _viewportWidth,
+      maxRate: 0.1 * 1.25 + 0.02,
+    );
   });
 
   testWidgets('a stopped lane detaches from the shared clock', (tester) async {
@@ -1209,25 +1228,13 @@ void main() {
     _applyDeckUpdate(container, deck: 0, playing: false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
-    final stopped = _stripRect(tester, deckId: 0).left;
-
     // The playing flag flips first; the position event arrives before any
     // rebuild can update the lane's own playing state.
     _applyDeckUpdate(container, deck: 0, playing: true);
     _applyPosition(container, 9920, deck: 0);
-    var previous = stopped;
-    for (var frame = 0; frame < 20; frame++) {
-      await tester.pump(const Duration(milliseconds: 16));
-      final left = _stripRect(tester, deckId: 0).left;
-      // Playing again legitimately moves the strip forward; a correction
-      // scheduled against the frozen anchor would move it backwards instead.
-      expect(
-        left,
-        lessThanOrEqualTo(previous + 1e-6),
-        reason: 'the resumed deck moved backwards at frame $frame',
-      );
-      previous = left;
-    }
+    // Playing again legitimately moves the strip forward; a correction
+    // scheduled against the frozen anchor would move it backwards instead.
+    await _expectForwardMotion(tester, frames: 20);
   });
 
   testWidgets('pause and vinyl freeze a pending correction', (tester) async {
