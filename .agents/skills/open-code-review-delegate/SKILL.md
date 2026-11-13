@@ -2,9 +2,9 @@
 name: open-code-review-delegate
 description: >
   Delegation mode for open-code-review (OCR). Instead of OCR calling an LLM
-  endpoint, this skill instructs the host agent to perform the code review
+  endpoint, this skill instructs a subagent to perform the code review
   itself, using OCR only for deterministic engineering: file selection and
-  rule resolution. Use when the host agent should drive the review with its
+  rule resolution. Use when a subagent should drive the review with its
   own LLM capabilities.
 license: Apache-2.0
 compatibility: >
@@ -20,7 +20,7 @@ metadata:
 
 # Open Code Review — Delegation Mode
 
-A skill for performing AI code review where OCR provides deterministic engineering (file filtering, rule resolution) and the host agent performs the actual review using its own intelligence and tools.
+A skill for performing AI code review where OCR provides deterministic engineering (file filtering, rule resolution) and a subagent performs the actual review using its own intelligence and tools.
 
 ## Workflow
 
@@ -164,7 +164,7 @@ If the user requested "review and fix":
 
 ## Gotchas
 
-- **No LLM needed on OCR side** — delegation mode never calls an LLM. All intelligence comes from the host agent.
+- **No LLM needed on OCR side** — delegation mode never calls an LLM. All intelligence comes from the reviewing subagent.
 - **Rules are grouped** — Files sharing the same rule are grouped together in the output. You can pass any number of paths per call; for large changes, fetch rules per-batch as you review.
 - **Working directory matters** — `ocr delegate` operates on the Git repo at the current directory. Use `--repo /path` to override.
 - **Untracked files in workspace mode** — `preview` includes untracked files. For these, read the file directly instead of using `git diff`.
