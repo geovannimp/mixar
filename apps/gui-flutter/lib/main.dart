@@ -62,7 +62,6 @@ Future<void> main() async {
   installAnalyticsErrorReporting(container);
   await preloadAppSettings(container);
 
-
   runApp(
     UncontrolledProviderScope(
       container: container,
