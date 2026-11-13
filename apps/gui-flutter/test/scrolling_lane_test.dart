@@ -1188,6 +1188,7 @@ void main() {
   });
 
   testWidgets('a stopped lane detaches from the shared clock', (tester) async {
+    final baseline = waveformFrameClock.attachedCount;
     final container = await _pumpLane(
       tester,
       playing: true,
@@ -1195,6 +1196,11 @@ void main() {
       strip: _strip,
     );
     await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      waveformFrameClock.attachedCount,
+      baseline + 1,
+      reason: 'a playing lane must attach to the shared clock',
+    );
     expect(
       waveformFrameClock.isRunning,
       isTrue,
@@ -1205,10 +1211,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
 
+    // The clock is process-wide, so compare with the pre-test count rather than
+    // asserting absolute ticker state.
     expect(
-      waveformFrameClock.isRunning,
-      isFalse,
-      reason: 'a stopped lane must not keep the shared ticker alive',
+      waveformFrameClock.attachedCount,
+      baseline,
+      reason: 'a stopped lane must detach from the shared clock',
     );
   });
 

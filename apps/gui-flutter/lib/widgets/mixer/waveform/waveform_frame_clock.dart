@@ -21,6 +21,13 @@ class WaveformFrameClock extends ChangeNotifier {
   /// Monotonic time of the most recent tick (zero before the first one).
   Duration get now => _now;
 
+  /// Number of lanes currently attached to the shared clock.
+  ///
+  /// Observability for tests: a lane must return this to its previous value
+  /// when it stops or is disposed, which is order-independent even though the
+  /// clock itself is process-wide.
+  int get attachedCount => _attached;
+
   /// Whether the shared ticker is running.
   ///
   /// Observability for tests: a lane that no longer needs frames must leave
