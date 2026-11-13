@@ -362,8 +362,10 @@ class VerifyStepTest(unittest.TestCase):
         # Binary, non-ASCII body past the header: never decoded, never inspected.
         return text.encode("ascii") + b"\n\x00\xff\x80\xc3\xa9not-a-header\x00"
 
-    def write_sidecar(self, path, payload):
-        path.write_bytes(payload)
+    def attach_sidecar(self, image, destination=None, **overrides):
+        """Write `image`'s sidecar, beside the image unless `destination` differs."""
+        path = destination or image.with_name(image.name + ".zsync")
+        path.write_bytes(self.make_sidecar(image, **overrides))
         return path
 
     def verify(self, update_information=UPDATE_INFORMATION):
@@ -373,9 +375,7 @@ class VerifyStepTest(unittest.TestCase):
 
     def test_sidecar_beside_image_passes(self):
         image = self.make_image()
-        sidecar = self.write_sidecar(
-            image.with_name(image.name + ".zsync"), self.make_sidecar(image)
-        )
+        sidecar = self.attach_sidecar(image)
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("dist/1.0/" + image.name, result.stdout)
@@ -383,9 +383,7 @@ class VerifyStepTest(unittest.TestCase):
 
     def test_sidecar_in_working_directory_is_relocated(self):
         image = self.make_image()
-        detached = self.write_sidecar(
-            self.cwd / (image.name + ".zsync"), self.make_sidecar(image)
-        )
+        detached = self.attach_sidecar(image, self.cwd / (image.name + ".zsync"))
         result = self.verify()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(image.with_name(image.name + ".zsync").is_file())
@@ -399,12 +397,8 @@ class VerifyStepTest(unittest.TestCase):
 
     def test_ambiguous_sidecars_fail_without_overwriting(self):
         image = self.make_image()
-        beside = self.write_sidecar(
-            image.with_name(image.name + ".zsync"), self.make_sidecar(image)
-        )
-        detached = self.write_sidecar(
-            self.cwd / (image.name + ".zsync"), self.make_sidecar(image)
-        )
+        beside = self.attach_sidecar(image)
+        detached = self.attach_sidecar(image, self.cwd / (image.name + ".zsync"))
         beside_payload = beside.read_bytes()
         detached_payload = detached.read_bytes()
         result = self.verify()
@@ -415,37 +409,28 @@ class VerifyStepTest(unittest.TestCase):
 
     def test_wrong_embedded_update_information_fails(self):
         image = self.make_image(reported="gh-releases-zsync|someone|else|latest|*")
-        self.write_sidecar(image.with_name(image.name + ".zsync"), self.make_sidecar(image))
+        self.attach_sidecar(image)
         result = self.verify()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("embedded update information", result.stderr)
 
     def test_wrong_url_fails(self):
         image = self.make_image()
-        self.write_sidecar(
-            image.with_name(image.name + ".zsync"),
-            self.make_sidecar(image, URL="other.AppImage"),
-        )
+        self.attach_sidecar(image, URL="other.AppImage")
         result = self.verify()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("URL", result.stderr)
 
     def test_wrong_length_fails(self):
         image = self.make_image()
-        self.write_sidecar(
-            image.with_name(image.name + ".zsync"),
-            self.make_sidecar(image, Length=str(image.stat().st_size + 1)),
-        )
+        self.attach_sidecar(image, Length=str(image.stat().st_size + 1))
         result = self.verify()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Length", result.stderr)
 
     def test_wrong_sha1_fails(self):
         image = self.make_image()
-        self.write_sidecar(
-            image.with_name(image.name + ".zsync"),
-            self.make_sidecar(image, **{"SHA-1": "0" * 40}),
-        )
+        self.attach_sidecar(image, **{"SHA-1": "0" * 40})
         result = self.verify()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("SHA-1", result.stderr)
@@ -458,13 +443,9 @@ class VerifyStepTest(unittest.TestCase):
 
     def test_two_images_fail(self):
         first = self.make_image()
-        self.write_sidecar(
-            first.with_name(first.name + ".zsync"), self.make_sidecar(first)
-        )
+        self.attach_sidecar(first)
         second = self.make_image(name="gui_flutter-1.0-linux-arm64.AppImage")
-        self.write_sidecar(
-            second.with_name(second.name + ".zsync"), self.make_sidecar(second)
-        )
+        self.attach_sidecar(second)
         result = self.verify()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("exactly one AppImage", result.stderr)
