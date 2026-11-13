@@ -26,12 +26,14 @@ class WaveformFrameClock extends ChangeNotifier {
   /// Observability for tests: a lane must return this to its previous value
   /// when it stops or is disposed, which is order-independent even though the
   /// clock itself is process-wide.
+  @visibleForTesting
   int get attachedCount => _attached;
 
   /// Whether the shared ticker is running.
   ///
   /// Observability for tests: a lane that no longer needs frames must leave
   /// this false, or every attached lane repaints on every frame for nothing.
+  @visibleForTesting
   bool get isRunning => _ticker.isActive;
 
   @override
