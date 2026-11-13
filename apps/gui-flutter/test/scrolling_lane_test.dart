@@ -1117,6 +1117,56 @@ void main() {
     );
   });
 
+  testWidgets('a decreasing rate retimes a pending correction', (tester) async {
+    final container = await _pumpLane(
+      tester,
+      playing: true,
+      playbackRatio: 1.0,
+      strip: _strip,
+    );
+    final visibleMs = _zoomIn(container);
+    await tester.pump();
+    final display = await _startClock(
+      tester,
+      container,
+      speed: 1.0,
+      visibleMs: visibleMs,
+    );
+
+    // Schedule a backwards pull: the engine is 120 ms behind the display, so
+    // the correction runs against the direction of playback at speed 1.0.
+    _applyPosition(container, (display - 120).round());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 32));
+
+    // Drop the rate while that pull is still gliding. Its velocity was sized
+    // for 1.0: at 25% it is 0.25 source-ms per ms, which is larger than 0.1
+    // and would make net motion negative.
+    _applyDeckUpdate(container, playbackRatio: 0.1);
+    await tester.pump();
+
+    final msPerPx = visibleSourceMs(0.1, visibleMs) / _viewportWidth;
+    var previousLeft = _stripRect(tester).left;
+    for (var frame = 0; frame < 40; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final left = _stripRect(tester).left;
+      expect(
+        left,
+        lessThanOrEqualTo(previousLeft + 1e-6),
+        reason:
+            'the retimed correction ran the slow deck backwards '
+            '(frame $frame)',
+      );
+      final advanceMs = (previousLeft - left) * msPerPx;
+      expect(
+        advanceMs / 16,
+        lessThanOrEqualTo(0.1 * 1.25 + 0.02),
+        reason: 'the pull exceeded 25% of the new speed (frame $frame)',
+      );
+      previousLeft = left;
+    }
+  });
+
   testWidgets('pause and vinyl freeze a pending correction', (tester) async {
     final container = await _pumpLane(
       tester,

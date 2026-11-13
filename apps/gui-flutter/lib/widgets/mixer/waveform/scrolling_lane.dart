@@ -234,16 +234,17 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     final speedChanged = (speed - _speed).abs() > 1e-9;
     if (!advancingNow || speedChanged || !_playing) {
       final display = _displayMs(durationMs);
-      _anchorMs = display - _drift.valueAt(now);
+      _anchorMs = display;
       _anchorFrame = now;
       _speed = speed;
+      // Absorb the pending correction into the anchor instead of letting it
+      // glide on. Its velocity was sized for the previous speed, and a pull of
+      // 0.25 x the old speed can exceed 25% of a slower deck's velocity, or
+      // even outweigh it and run the strip backwards. The residual error is
+      // re-detected on the next poll and corrected within the new bound.
+      _drift.reset();
     }
     _playing = advancingNow;
-    if (!advancingNow) {
-      // A frozen lane must freeze the correction too, or the strip keeps
-      // moving while the audio is paused or under a held jog wheel.
-      _drift.freezeAt(now);
-    }
     _syncClockAttachment();
   }
 
