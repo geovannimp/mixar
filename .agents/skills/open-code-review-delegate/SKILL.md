@@ -201,7 +201,7 @@ output; do not parse text output as JSON or invent missing schema fields. Do
 not retry without the flag for any other error; report it and stop the affected
 workflow.
 
-The host-agent Skill may consume the equivalent text output to complete its
+The reviewing subagent may consume the equivalent text output to complete its
 review checklist. Programmatic integrations that require `schema_version` or
 other JSON fields must require a JSON-capable CLI instead: verify with
 `ocr --version` and upgrade when necessary:

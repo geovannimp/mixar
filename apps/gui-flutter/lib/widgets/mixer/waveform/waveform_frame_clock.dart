@@ -34,6 +34,12 @@ class WaveformFrameClock extends ChangeNotifier {
   /// this false, or every attached lane repaints on every frame for nothing.
   bool get isRunning => _ticker.isActive;
 
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
   void attach() {
     if (_attached++ == 0) {
       _origin = _now;
@@ -117,15 +123,6 @@ class DriftGlide {
     _to = target;
     _toAt = at + glide;
     _active = true;
-  }
-
-  /// Stops interpolating and holds the value reached at [at].
-  void freezeAt(Duration at) {
-    _to = valueAt(at);
-    _from = _to;
-    _fromAt = at;
-    _toAt = at;
-    _active = false;
   }
 
   /// Drops any offset: used when the position becomes authoritative.

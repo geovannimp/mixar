@@ -147,12 +147,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // Nothing else moves the strip here: the clock may be detached, so the
       // lane has to mark its own paint side dirty.
       _anchorTicks.value++;
+      _syncClockAttachment();
       return;
     }
     // Set after the anchor so a clamped in-range position cannot publish over
     // the signed override.
     _outsideMs.value = (ms < 0 || ms > durationMs) ? ms : null;
     _anchorTicks.value++;
+    // Keep the attachment invariant true at the call site instead of relying
+    // on the next tick to notice the pending correction was dropped.
+    _syncClockAttachment();
   }
 
   void _setDisplayMs(
@@ -388,8 +392,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                     if (e.buttons != kPrimaryButton) {
                       return;
                     }
-                    // Fold a pending correction into the main clock before
-                    // freezing it: a held pointer must not keep drifting.
+                    // Pin the displayed position, then stop: a held pointer
+                    // must not keep drifting. This is authoritative, so any
+                    // pending correction is dropped rather than folded in.
                     _setDisplayMs(
                       _displayMs(durationMs),
                       durationMs: durationMs,
@@ -493,6 +498,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                             if (delta.abs() < 3) {
                               return const SizedBox.shrink();
                             }
+                            // The slip shadow is a static 1 px marker and is
+                            // deliberately snapped, unlike the scrolling strip,
+                            // which moves in fractional pixels so it can scroll
+                            // smoothly at sub-pixel rates.
                             return Positioned(
                               left: snapPx(
                                 width / 2 + delta * pxPerMs - 0.5,
