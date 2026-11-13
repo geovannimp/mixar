@@ -140,33 +140,8 @@ void main() {
   });
 
   testWidgets('a single tap still seeks the track', (tester) async {
-    final theme = MixarThemeData.dark();
-    var value = 0.2;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return SizedBox(
-                  width: 110,
-                  height: 16,
-                  child: MixarSlider(
-                    value: value,
-                    defaultValue: 0.25,
-                    onChanged: (next) => setState(() => value = next),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    final state = _ResetSliderState(0.2);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
 
     final rect = tester.getRect(find.byType(MixarSlider));
     await tester.tapAt(Offset(rect.left + rect.width * 0.75, rect.center.dy));
@@ -175,109 +150,36 @@ void main() {
     await tester.pump(const Duration(milliseconds: 150));
     await tester.pumpAndSettle();
 
-    expect(value, greaterThan(0.5));
+    expect(state.value, greaterThan(0.5));
   });
 
   testWidgets('double tap resets to the default value', (tester) async {
-    final theme = MixarThemeData.dark();
-    var value = 0.8;
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return SizedBox(
-                  width: 110,
-                  height: 16,
-                  child: MixarSlider(
-                    value: value,
-                    defaultValue: 0.25,
-                    onChanged: (next) => setState(() => value = next),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final slider = find.byType(MixarSlider);
-    final rect = tester.getRect(slider);
+    final rect = tester.getRect(find.byType(MixarSlider));
     // The thumb sits at t * width: 0.8 puts it at 88 px.
     final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
     await doubleTapAt(tester, thumb);
 
-    expect(value, closeTo(0.25, 1e-6));
+    expect(state.value, closeTo(0.25, 1e-6));
   });
 
   testWidgets('null defaultValue disables the reset', (tester) async {
-    final theme = MixarThemeData.dark();
-    var value = 0.8;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return SizedBox(
-                  width: 110,
-                  child: MixarSlider(
-                    value: value,
-                    onChanged: (next) => setState(() => value = next),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state);
 
     final rect = tester.getRect(find.byType(MixarSlider));
     final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
     await doubleTapAt(tester, thumb);
 
-    expect(value, closeTo(0.8, 1e-6));
+    expect(state.value, closeTo(0.8, 1e-6));
   });
 
   testWidgets('double tap on the visible thumb edge resets', (tester) async {
-    final theme = MixarThemeData.dark();
     for (final dy in const [-9.0, 9.0]) {
-      var value = 0.8;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
-          home: Scaffold(
-            body: Center(
-              child: StatefulBuilder(
-                builder: (context, setState) {
-                  return SizedBox(
-                    width: 110,
-                    child: MixarSlider(
-                      value: value,
-                      defaultValue: 0.25,
-                      onChanged: (next) => setState(() => value = next),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      final state = _ResetSliderState(0.8);
+      await pumpResetSlider(tester, state: state, defaultValue: 0.25);
 
       final rect = tester.getRect(find.byType(MixarSlider));
       expect(
@@ -288,49 +190,23 @@ void main() {
       final edge = Offset(rect.left + rect.width * 0.8, rect.center.dy + dy);
       await doubleTapAt(tester, edge);
 
-      expect(value, closeTo(0.25, 1e-6), reason: 'thumb edge dy=$dy');
+      expect(state.value, closeTo(0.25, 1e-6), reason: 'thumb edge dy=$dy');
     }
   });
 
   testWidgets('double tap on the track does not reset', (tester) async {
-    final theme = MixarThemeData.dark();
-    var value = 0.8;
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return SizedBox(
-                  width: 110,
-                  height: 16,
-                  child: MixarSlider(
-                    value: value,
-                    defaultValue: 0.25,
-                    onChanged: (next) => setState(() => value = next),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final slider = find.byType(MixarSlider);
-    final rect = tester.getRect(slider);
+    final rect = tester.getRect(find.byType(MixarSlider));
     // Two distinct track points: the first tap moves the thumb to 30%, so a
     // second tap at the same spot would land on the thumb.
     final first = Offset(rect.left + rect.width * 0.3, rect.center.dy);
     final second = Offset(rect.left + rect.width * 0.45, rect.center.dy);
     await doubleTapAt(tester, first, second);
 
-    expect(value, closeTo(0.45, 0.02));
-    expect(value, isNot(closeTo(0.25, 1e-6)));
+    expect(state.value, closeTo(0.45, 0.02));
+    expect(state.value, isNot(closeTo(0.25, 1e-6)));
   });
 
   testWidgets('reserves the thumb height so the card body cannot crop it', (
@@ -418,6 +294,45 @@ void main() {
       reason: 'the focused thumb and ring span the whole box: $paintedRows',
     );
   });
+}
+
+class _ResetSliderState {
+  new(this.value);
+
+  double value;
+}
+
+Future<void> pumpResetSlider(
+  WidgetTester tester, {
+  required _ResetSliderState state,
+  double? defaultValue,
+  double? height,
+}) async {
+  final theme = MixarThemeData.dark();
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: materialUiThemeFromMixar(theme),
+      builder: mixarMaterialAppBuilder(theme),
+      home: Scaffold(
+        body: Center(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return SizedBox(
+                width: 110,
+                height: height,
+                child: MixarSlider(
+                  value: state.value,
+                  defaultValue: defaultValue,
+                  onChanged: (next) => setState(() => state.value = next),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 /// Mixar's accent (`MixarTeal.s600`), the slider's active track and thumb ring.
