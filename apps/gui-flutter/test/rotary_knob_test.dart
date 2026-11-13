@@ -4,6 +4,7 @@ import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/double_tap.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -82,5 +83,105 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(value, greaterThan(0.5));
+  });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.9;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return RotaryKnob(
+                  label: 'Hi',
+                  value: value,
+                  center: kControlNormCenter,
+                  defaultValue: 0.5,
+                  onValueChange: (next) => setState(() => value = next),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final dial = find.byType(CustomPaint).last;
+    await doubleTapAt(tester, tester.getCenter(dial));
+
+    expect(value, closeTo(0.5, 1e-9));
+  });
+
+  testWidgets('double tap clamps a snapped default to the range', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.2;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return RotaryKnob(
+                  label: 'Hi',
+                  value: value,
+                  min: 0,
+                  max: 1,
+                  step: 0.6,
+                  defaultValue: 1,
+                  onValueChange: (next) => setState(() => value = next),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final dial = find.byType(CustomPaint).last;
+    await doubleTapAt(tester, tester.getCenter(dial));
+
+    expect(value, 1, reason: '0.6-step snapping would otherwise yield 1.2');
+  });
+
+  testWidgets('a single tap leaves the value alone', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.9;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return RotaryKnob(
+                  label: 'Hi',
+                  value: value,
+                  center: kControlNormCenter,
+                  defaultValue: 0.5,
+                  onValueChange: (next) => setState(() => value = next),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(CustomPaint).last);
+    await tester.pumpAndSettle();
+
+    expect(value, 0.9);
   });
 }

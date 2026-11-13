@@ -8,6 +8,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import 'support/double_tap.dart';
 import 'support/mixar_material_app.dart';
 
 /// Host whose [MixarSlider.onChanged] deliberately does not feed `value` back,
@@ -138,6 +139,76 @@ void main() {
     );
   });
 
+  testWidgets('a single tap still seeks the track', (tester) async {
+    final state = _ResetSliderState(0.2);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    await tester.tapAt(Offset(rect.left + rect.width * 0.75, rect.center.dy));
+    // Still inside the double-tap window: the seek must be immediate, not
+    // wait for the recognizer to give up at 300 ms.
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pumpAndSettle();
+
+    expect(state.value, greaterThan(0.5));
+  });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    // The thumb sits at t * width: 0.8 puts it at 88 px.
+    final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
+    await doubleTapAt(tester, thumb);
+
+    expect(state.value, closeTo(0.25, 1e-6));
+  });
+
+  testWidgets('null defaultValue disables the reset', (tester) async {
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state);
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
+    await doubleTapAt(tester, thumb);
+
+    expect(state.value, closeTo(0.8, 1e-6));
+  });
+
+  testWidgets('double tap on the visible thumb edge resets', (tester) async {
+    for (final dy in const [-9.0, 9.0]) {
+      final state = _ResetSliderState(0.8);
+      await pumpResetSlider(tester, state: state, defaultValue: 0.25);
+
+      final rect = tester.getRect(find.byType(MixarSlider));
+      expect(
+        rect.height,
+        28,
+        reason: 'the reserved thumb height is the hit target',
+      );
+      final edge = Offset(rect.left + rect.width * 0.8, rect.center.dy + dy);
+      await doubleTapAt(tester, edge);
+
+      expect(state.value, closeTo(0.25, 1e-6), reason: 'thumb edge dy=$dy');
+    }
+  });
+
+  testWidgets('double tap on the track does not reset', (tester) async {
+    final state = _ResetSliderState(0.8);
+    await pumpResetSlider(tester, state: state, defaultValue: 0.25, height: 16);
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    // Two distinct track points: the first tap moves the thumb to 30%, so a
+    // second tap at the same spot would land on the thumb.
+    final first = Offset(rect.left + rect.width * 0.3, rect.center.dy);
+    final second = Offset(rect.left + rect.width * 0.45, rect.center.dy);
+    await doubleTapAt(tester, first, second);
+
+    expect(state.value, closeTo(0.45, 0.02));
+    expect(state.value, isNot(closeTo(0.25, 1e-6)));
+  });
+
   testWidgets('reserves the thumb height so the card body cannot crop it', (
     tester,
   ) async {
@@ -223,6 +294,45 @@ void main() {
       reason: 'the focused thumb and ring span the whole box: $paintedRows',
     );
   });
+}
+
+class _ResetSliderState {
+  new(this.value);
+
+  double value;
+}
+
+Future<void> pumpResetSlider(
+  WidgetTester tester, {
+  required _ResetSliderState state,
+  double? defaultValue,
+  double? height,
+}) async {
+  final theme = MixarThemeData.dark();
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: materialUiThemeFromMixar(theme),
+      builder: mixarMaterialAppBuilder(theme),
+      home: Scaffold(
+        body: Center(
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return SizedBox(
+                width: 110,
+                height: height,
+                child: MixarSlider(
+                  value: state.value,
+                  defaultValue: defaultValue,
+                  onChanged: (next) => setState(() => state.value = next),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 /// Mixar's accent (`MixarTeal.s600`), the slider's active track and thumb ring.

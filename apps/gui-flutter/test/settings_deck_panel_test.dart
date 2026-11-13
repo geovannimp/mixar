@@ -224,7 +224,8 @@ void main() {
     await tester.pumpAndSettle();
     final box = tester.getRect(slider);
     await tester.tapAt(Offset(box.left + box.width * 0.75, box.center.dy));
-    await tester.pump();
+    // Drain the double-tap recognizer's min-interval timer.
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(emitted, isNotNull);
     expect(emitted!.trackEndWarningSecs, 45);

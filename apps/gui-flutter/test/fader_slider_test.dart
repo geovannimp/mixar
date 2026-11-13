@@ -9,6 +9,7 @@ import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/double_tap.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -293,6 +294,8 @@ void main() {
     expect(value, 80);
 
     await gesture.up();
+    // Let the double-tap recognizer's timeout expire before teardown.
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('outer half of thumb at min is grabbable', (tester) async {
@@ -340,6 +343,8 @@ void main() {
     expect(value, 20);
 
     await gesture.up();
+    // Let the double-tap recognizer's timeout expire before teardown.
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('track press still seeks absolutely', (tester) async {
@@ -612,9 +617,88 @@ void main() {
           'sky-400 is the dark-theme step and must not reach the light fader',
     );
   });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final theme = MixarThemeData.dark();
+    final state = _FaderTestState(20);
+
+    await _pumpStatefulFader(tester, theme: theme, state: state);
+
+    final fader = find.byType(FaderSlider);
+    final box = tester.getRect(fader);
+    final thumb = faderThumbHitRect(
+      size: box.size,
+      orientation: FaderOrientation.vertical,
+      t: 0.2,
+    );
+    await doubleTapAt(tester, box.topLeft + thumb.center);
+
+    expect(state.value, 100);
+    expect(state.calls, 1, reason: 'the reset is the only value change');
+  });
+
+  testWidgets('double tap on the track does not reset', (tester) async {
+    final theme = MixarThemeData.dark();
+    final state = _FaderTestState(20);
+
+    await _pumpStatefulFader(tester, theme: theme, state: state);
+
+    final box = tester.getRect(find.byType(FaderSlider));
+    final first = box.center;
+    // Move 11 px below centre: outside the grip, so both presses are on the
+    // track and the first seek does not put the grip under the second tap.
+    final second = first + const Offset(0, 11);
+    await doubleTapAt(tester, first, second);
+
+    expect(state.value, closeTo(40, 2));
+    expect(state.value, isNot(100));
+    expect(state.calls, 2, reason: 'each track press seeks once');
+  });
 }
 
 void _ignore(double _) {}
+
+class _FaderTestState {
+  new(this.value);
+
+  double value;
+  int calls = 0;
+}
+
+Future<void> _pumpStatefulFader(
+  WidgetTester tester, {
+  required MixarThemeData theme,
+  required _FaderTestState state,
+  double defaultValue = 100,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: materialUiThemeFromMixar(theme),
+      builder: mixarMaterialAppBuilder(theme),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 40,
+            height: 120,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return FaderSlider(
+                  value: state.value,
+                  defaultValue: defaultValue,
+                  accent: DeckAccent.a,
+                  onValueChange: (next) {
+                    state.calls += 1;
+                    setState(() => state.value = next);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 /// One fader on a card-coloured boundary, padded so paint outside the fader's
 /// box still lands inside the capture. Defaults to the 40x120 vertical case.

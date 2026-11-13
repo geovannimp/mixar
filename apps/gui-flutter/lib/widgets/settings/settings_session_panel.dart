@@ -156,6 +156,7 @@ class _MinDeckVolumeSlider extends StatelessWidget {
         const SizedBox(height: 8),
         MixarSlider(
           value: snapped,
+          defaultValue: kDefaultHistoryMinDeckVolume,
           divisions: 100,
           onChanged: (v) => onChanged(_snap(v)),
           semanticFormatterCallback: (v) =>

@@ -202,6 +202,7 @@ class DeckTempoPanel extends StatelessWidget {
                 child: FaderSlider(
                   accent: this.accent,
                   value: sliderValue,
+                  defaultValue: speedToPitchSlider(0.5),
                   step: 0.05,
                   showIndicator: false,
                   showMarkers: true,

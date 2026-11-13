@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -25,6 +26,7 @@ class MixarSlider extends StatefulWidget {
     this.max = 1,
     this.divisions,
     this.enabled = true,
+    this.defaultValue,
     this.semanticFormatterCallback,
     this.trackHeight,
     this.thumbRadius,
@@ -36,6 +38,11 @@ class MixarSlider extends StatefulWidget {
   final double max;
   final int? divisions;
   final bool enabled;
+
+  /// Value a double click/tap on the thumb returns to. `null` disables the
+  /// reset.
+  final double? defaultValue;
+
   final String Function(double value)? semanticFormatterCallback;
 
   /// Track thickness; `null` uses the theme default (8).
@@ -57,6 +64,12 @@ class _MixarSliderState extends State<MixarSlider> {
   /// True between [ShadSlider]'s drag start and end.
   bool _dragging = false;
 
+  /// The last two presses, so a double tap resets only when both land on the
+  /// thumb.
+  bool _previousPressOnThumb = false;
+  bool _lastPressOnThumb = false;
+  bool _doubleTapOnThumb = false;
+
   /// [ShadSlider]'s own fallbacks for the track height and the thumb radius.
   static const _fallbackTrackHeight = 8.0;
   static const _fallbackThumbRadius = 10.0;
@@ -67,6 +80,62 @@ class _MixarSliderState extends State<MixarSlider> {
   static const _focusRingRoom = 8.0;
 
   double get _clampedValue => widget.value.clamp(widget.min, widget.max);
+
+  void _resetToDefault() {
+    final target = widget.defaultValue;
+    if (target == null || !widget.enabled) {
+      return;
+    }
+    final next = _snapValue(target);
+    if (_controller.value != next) {
+      _controller.value = next;
+      widget.onChanged(next);
+    }
+  }
+
+  /// Clamp to the range and snap to [MixarSlider.divisions], mirroring
+  /// [ShadSlider]'s own value update.
+  double _snapValue(double value) {
+    final range = widget.max - widget.min;
+    var next = value.clamp(widget.min, widget.max);
+    final divisions = widget.divisions;
+    if (divisions != null && divisions > 0 && range > 0) {
+      final step = range / divisions;
+      next = ((next - widget.min) / step).round() * step + widget.min;
+      next = next.clamp(widget.min, widget.max);
+    }
+    return next;
+  }
+
+  /// True when [local] lands on the thumb. Seeking there on pointer-down
+  /// would jump the value before the thumb's own absolute pan starts.
+  bool _isOnThumb(Offset local, double width, double thumbRadius) {
+    final range = widget.max - widget.min;
+    if (range <= 0 || width <= 0) {
+      return false;
+    }
+    final t = ((_controller.value - widget.min) / range).clamp(0.0, 1.0);
+    return (local.dx - t * width).abs() <= thumbRadius;
+  }
+
+  /// Seek the same way [ShadSlider]'s `tapAndSlide` does.
+  ///
+  /// The double-tap recognizer holds the gesture arena for the first tap, so
+  /// [ShadSlider]'s tap recognizer resolves a single click only after the
+  /// double-tap timeout. This raw listener keeps the click-to-seek immediate
+  /// instead of waiting out that window.
+  void _seekTo(Offset local, double width) {
+    if (!widget.enabled || width <= 0) {
+      return;
+    }
+    final next = _snapValue(
+      widget.min + (local.dx / width) * (widget.max - widget.min),
+    );
+    if (_controller.value != next) {
+      _controller.value = next;
+      widget.onChanged(next);
+    }
+  }
 
   @override
   void didUpdateWidget(covariant MixarSlider oldWidget) {
@@ -105,27 +174,73 @@ class _MixarSliderState extends State<MixarSlider> {
         widget.thumbRadius ??
         shad.sliderTheme.thumbRadius ??
         _fallbackThumbRadius;
+    final hitHeight = math.max(trackHeight, thumbRadius * 2 + _focusRingRoom);
+    final canReset = widget.enabled && widget.defaultValue != null;
+    // ShadSlider paints the thumb outside its short track box, so the whole
+    // reserved height must be the hit target.
     return SizedBox(
       // Constrained parents (a fixed-height row) keep their height; the track
       // then centres in it exactly as before.
-      height: math.max(trackHeight, thumbRadius * 2 + _focusRingRoom),
-      child: Center(
-        child: SizedBox(
-          height: trackHeight,
-          child: ShadSlider(
-            controller: _controller,
-            min: widget.min,
-            max: widget.max,
-            divisions: widget.divisions,
-            enabled: widget.enabled,
-            trackHeight: widget.trackHeight,
-            thumbRadius: widget.thumbRadius,
-            onChanged: widget.onChanged,
-            onChangeStart: (_) => _dragging = true,
-            onChangeEnd: (_) => _dragging = false,
-            semanticFormatterCallback: widget.semanticFormatterCallback,
-          ),
-        ),
+      height: hitHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackTop = (constraints.maxHeight - trackHeight) / 2;
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            excludeFromSemantics: true,
+            onDoubleTapDown: canReset
+                ? (_) {
+                    _doubleTapOnThumb =
+                        _previousPressOnThumb && _lastPressOnThumb;
+                  }
+                : null,
+            onDoubleTap: canReset
+                ? () {
+                    if (_doubleTapOnThumb) {
+                      _doubleTapOnThumb = false;
+                      _resetToDefault();
+                    }
+                  }
+                : null,
+            onDoubleTapCancel: canReset
+                ? () => _doubleTapOnThumb = false
+                : null,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (event) {
+                final width = constraints.maxWidth;
+                final local = event.localPosition;
+                final onThumb = _isOnThumb(local, width, thumbRadius);
+                _previousPressOnThumb = _lastPressOnThumb;
+                _lastPressOnThumb = onThumb;
+                final onTrack =
+                    local.dy >= trackTop && local.dy <= trackTop + trackHeight;
+                if (event.buttons == kPrimaryButton && !onThumb && onTrack) {
+                  _seekTo(local, width);
+                }
+              },
+              child: Center(
+                child: SizedBox(
+                  height: trackHeight,
+                  child: ShadSlider(
+                    controller: _controller,
+                    min: widget.min,
+                    max: widget.max,
+                    divisions: widget.divisions,
+                    enabled: widget.enabled,
+                    allowedInteraction: ShadSliderInteraction.slideOnly,
+                    trackHeight: widget.trackHeight,
+                    thumbRadius: widget.thumbRadius,
+                    onChanged: widget.onChanged,
+                    onChangeStart: (_) => _dragging = true,
+                    onChangeEnd: (_) => _dragging = false,
+                    semanticFormatterCallback: widget.semanticFormatterCallback,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

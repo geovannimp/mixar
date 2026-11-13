@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -113,6 +114,7 @@ class MasterStrip extends ConsumerWidget {
                 child: FaderSlider(
                   orientation: .horizontal,
                   value: masterVolume,
+                  defaultValue: EngineUiSnapshot.empty.masterVolume * 100,
                   step: 0.05,
                   semanticLabel: 'Master level',
                   onValueChange: (next) {
@@ -190,6 +192,7 @@ class MasterStrip extends ConsumerWidget {
                     child: FaderSlider(
                       orientation: .horizontal,
                       value: cueVolume,
+                      defaultValue: EngineUiSnapshot.empty.cueVolume * 100,
                       step: 0.05,
                       semanticLabel: 'Headphone level',
                       onValueChange: (next) {
@@ -215,6 +218,7 @@ class MasterStrip extends ConsumerWidget {
                           child: FaderSlider(
                             orientation: .horizontal,
                             value: cueMix,
+                            defaultValue: EngineUiSnapshot.empty.cueMix * 100,
                             step: 0.05,
                             showIndicator: false,
                             showMarkers: true,
