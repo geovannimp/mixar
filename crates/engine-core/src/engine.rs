@@ -56,6 +56,8 @@ pub struct Engine {
     pub(crate) tempo_curve_selections: Vec<crate::tempo_curve::TempoCurveSelection>,
     /// Active FX level/depth curve selection (compiled curve lives on the FX chain).
     pub(crate) fx_level_selection: crate::fx_level_curve::FxLevelCurveSelection,
+    /// CDJ Auto Cue: a deck load moves the playhead to the track cue.
+    pub(crate) auto_cue: bool,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -175,6 +177,7 @@ impl Engine {
                 .map(|_| tempo_curve_selection.clone())
                 .collect(),
             fx_level_selection,
+            auto_cue: true,
         })
     }
 

@@ -198,6 +198,40 @@ pub fn write_two_second_wav(path: &Path) {
     file.write_all(&pcm).unwrap();
 }
 
+/// Write a mono 16-bit PCM WAV of `silence_ms` digital silence followed by
+/// `tone_ms` of a 0.5-amplitude 440 Hz tone, so the first sound sits exactly at
+/// `silence_ms`.
+pub fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sample_rate: u32) {
+    let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
+    let mut pcm = Vec::with_capacity((frames(silence_ms) + frames(tone_ms)) * 2);
+    for _ in 0..frames(silence_ms) {
+        pcm.extend_from_slice(&0i16.to_le_bytes());
+    }
+    for index in 0..frames(tone_ms) {
+        let t = index as f32 / sample_rate as f32;
+        let sample =
+            (0.5 * (2.0 * std::f32::consts::PI * 440.0 * t).sin() * i16::MAX as f32) as i16;
+        pcm.extend_from_slice(&sample.to_le_bytes());
+    }
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap();
+    file.write_all(&16u16.to_le_bytes()).unwrap();
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
+}
+
 /// Wait until `deck_id` engine memory reports `count` hot cues (library ack).
 pub fn wait_engine_hot_cue_count(session: &EngineSession, deck_id: usize, count: usize) {
     let deadline = Instant::now() + Duration::from_secs(5);

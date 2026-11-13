@@ -26,6 +26,11 @@ Future<List<OutputDevice>> listOutputDevices() =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>>
 abstract class EngineTransport implements RustOpaqueInterface {
+  /// Push the Auto Cue preference to the running engine after a settings save.
+  ///
+  /// Load-time only: playing decks are untouched; the next load uses it.
+  Future<void> applyAutoCueSettings();
+
   Future<void> assignSampler({
     required int deckId,
     required int slot,

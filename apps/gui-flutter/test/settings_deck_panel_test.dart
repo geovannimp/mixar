@@ -256,6 +256,26 @@ void main() {
     expect(find.text(l10n.settingsDeckEndWarningSeconds(30)), findsOneWidget);
   });
 
+  testWidgets('the auto cue switch reports the toggle', (tester) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    AppSettings? emitted;
+    await pumpDeckPanel(
+      tester,
+      draft: defaultAppSettings(),
+      onChanged: (settings) => emitted = settings,
+    );
+
+    expect(l10n.settingsDeckAutoCue, isNotEmpty);
+    final toggle = find.bySemanticsLabel(l10n.settingsDeckAutoCueToggle);
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pump();
+
+    expect(emitted, isNotNull);
+    expect(emitted!.autoCue, isFalse);
+  });
+
   testWidgets('the warning switch reports the toggle', (tester) async {
     final l10n = lookupAppLocalizations(const Locale('en'));
     AppSettings? emitted;

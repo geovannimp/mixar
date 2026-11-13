@@ -216,6 +216,7 @@ impl AudioAnalyzer for QmdspAnalyzer {
                 sample_rate: sr,
                 duration_analyzed_ms,
             },
+            cue_ms: None,
         };
 
         if config.targets.bpm {

@@ -10,7 +10,9 @@ mod snap;
 mod traits;
 
 pub use beat_utils::{calculate_bpm, calculate_bpm_from_seconds, ConstRegion};
-pub use config::{AnalysisConfig, AnalysisDurationMode, AnalysisTargets, SnapConfig};
+pub use config::{
+    AnalysisConfig, AnalysisDurationMode, AnalysisTargets, SnapConfig, DEFAULT_CUE_THRESHOLD_DB,
+};
 pub use error::{AnalyzerError, Result};
 pub use loudness::{
     auto_gain_db, loudness_lufs_from_replaygain_track_gain_db, AUTO_GAIN_CLAMP_DB,
@@ -42,6 +44,7 @@ mod tests {
                 sample_rate: 44100,
                 duration_analyzed_ms: 1000,
             },
+            cue_ms: None,
         };
         let json = serde_json::to_string(&analysis).unwrap();
         let back: TrackAnalysis = serde_json::from_str(&json).unwrap();

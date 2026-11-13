@@ -19,7 +19,7 @@ mod source;
 mod traits;
 mod types;
 
-pub use analyzer_core::AnalysisDurationMode;
+pub use analyzer_core::{AnalysisDurationMode, DEFAULT_CUE_THRESHOLD_DB};
 pub use audio_core::{LoadableAudio, LoadedAudio, SpectralPeak};
 pub use error::{path_label, LibraryError, Result};
 pub use export::{
@@ -35,9 +35,9 @@ pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider
 pub use traits::{Library, Migratable, WritableLibrary};
 pub use types::{
     AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, ColorLabel, HotCueImport, ImportedTrack,
-    LibraryConfig, LoopImport, MigrateOptions, MigrateReport, NewCollection, ScanReport,
-    TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
+    CollectionEntryId, CollectionId, CollectionType, ColorLabel, CueSource, HotCueImport,
+    ImportedTrack, LibraryConfig, LoopImport, MigrateOptions, MigrateReport, NewCollection,
+    ScanReport, TagWriteBack, TrackCue, TrackId, TrackMetadata, UpdateCollection,
 };
 
 #[cfg(test)]

@@ -734,6 +734,11 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         // ── cue / loop ───────────────────────────────────────────────────────
         Event::SetCuePoint(bus_api::SetCuePoint { deck }) => deck_cmd(*deck, engine, |eng, id| {
             eng.set_deck_cue_point_at_playhead(id)?;
+            // Persist the snapped cue as the track's manual cue (best effort, like
+            // auto-saved loops: a deck action never fails on the library bus).
+            if let Err(err) = eng.save_deck_track_cue(id) {
+                tracing::warn!(error = %err, "failed to persist track cue");
+            }
             Ok(CmdOutcome::DeckUpdated(id))
         }),
         Event::BeginCueHold(bus_api::BeginCueHold { deck }) => {
@@ -1145,6 +1150,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         | Event::GenerateStems(_)
         | Event::RefreshTrack(_)
         | Event::SaveBeatGrid(_)
+        | Event::SaveTrackCue(_)
         | Event::SaveTrackHotCue(_)
         | Event::DeleteTrackHotCue(_)
         | Event::SaveTrackLoop(_)

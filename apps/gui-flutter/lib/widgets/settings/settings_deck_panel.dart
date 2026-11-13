@@ -71,6 +71,15 @@ class SettingsDeckPanel extends ConsumerWidget {
           ),
         ),
         SettingsSectionCard(
+          title: l10n.settingsDeckAutoCue,
+          subtitle: l10n.settingsDeckAutoCueHint,
+          trailing: SettingsHeaderSwitch(
+            value: draft.autoCue,
+            semanticsLabel: l10n.settingsDeckAutoCueToggle,
+            onChanged: (v) => onChanged(copyAppSettings(draft, autoCue: v)),
+          ),
+        ),
+        SettingsSectionCard(
           title: l10n.settingsDeckEndWarning,
           subtitle: l10n.settingsDeckEndWarningHint,
           trailing: SettingsHeaderSwitch(

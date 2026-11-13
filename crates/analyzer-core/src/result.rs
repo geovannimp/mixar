@@ -8,6 +8,10 @@ pub struct TrackAnalysis {
     pub beat_grid: Option<BeatGridAnalysis>,
     pub loudness_lufs: Option<f64>,
     pub metadata: AnalysisRunMetadata,
+    /// Main cue: first audible frame of the analyzed window, in milliseconds.
+    /// Filled by the `analyzer` facade; backends leave it `None`.
+    #[serde(default)]
+    pub cue_ms: Option<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

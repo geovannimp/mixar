@@ -684,6 +684,18 @@ impl WritableLibrary for LibraryManager {
         )
     }
 
+    fn import_track_cue(&mut self, id: &TrackId, cue_ms: i32) -> Result<()> {
+        // Only fills a track that has no cue yet: a manual set wins.
+        crate::deck_data::fill_track_cue(
+            &self.db,
+            id,
+            cue_ms,
+            library_core::CueSource::Import,
+            crate::unix_secs_string(),
+        )?;
+        Ok(())
+    }
+
     fn import_loop(&mut self, track_id: &TrackId, saved: &LoopImport) -> Result<()> {
         // Not `save_track_loop`: that keeps the target's label/colour when the
         // source has none, which would leak values from an earlier import.

@@ -507,6 +507,45 @@ impl UpdateCollection {
     }
 }
 
+/// Where a track's main cue came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CueSource {
+    /// Set on the deck with the CUE button.
+    Manual,
+    /// Read from another DJ application's library.
+    Import,
+    /// Detected by offline analysis (first audible frame).
+    Analysis,
+}
+
+impl CueSource {
+    /// Stable DB token.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Manual => "manual",
+            Self::Import => "import",
+            Self::Analysis => "analysis",
+        }
+    }
+
+    /// Parse a stored token; unknown values read as `Analysis`.
+    pub fn parse_token(value: &str) -> Self {
+        match value {
+            "manual" => Self::Manual,
+            "import" => Self::Import,
+            _ => Self::Analysis,
+        }
+    }
+}
+
+/// Persisted main cue of a track.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrackCue {
+    pub position_ms: i32,
+    pub source: CueSource,
+}
+
 /// Options for [`WritableLibrary::analyze_track`].
 ///
 /// Analysis only — stem generation is a separate action, so nothing here
@@ -519,6 +558,8 @@ pub struct AnalyzeTrackOptions {
     pub force: bool,
     /// How much of the track to analyze.
     pub analysis_duration: AnalysisDurationMode,
+    /// Silence threshold (dBFS) for cue detection; `None` = analyzer default (−60).
+    pub cue_threshold_db: Option<f32>,
 }
 
 impl AnalyzeTrackOptions {
@@ -527,6 +568,7 @@ impl AnalyzeTrackOptions {
         Self {
             force: true,
             analysis_duration: AnalysisDurationMode::Complete,
+            cue_threshold_db: None,
         }
     }
 }

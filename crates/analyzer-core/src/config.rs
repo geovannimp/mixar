@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+/// Default silence threshold for cue detection (−60 dBFS peak).
+pub const DEFAULT_CUE_THRESHOLD_DB: f32 = -60.0;
+
+/// Serde default for [`AnalysisConfig::cue_threshold_db`].
+fn default_cue_threshold_db() -> f32 {
+    DEFAULT_CUE_THRESHOLD_DB
+}
+
 /// Which analysis outputs to compute.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnalysisTargets {
@@ -136,6 +144,9 @@ pub struct AnalysisConfig {
     pub max_duration_ms: Option<i32>,
     /// Preferred analysis sample rate (`None` = native or backend default).
     pub sample_rate: Option<u32>,
+    /// Peak level (dBFS) at or below which a frame counts as silence for cue detection.
+    #[serde(default = "default_cue_threshold_db")]
+    pub cue_threshold_db: f32,
     /// Reduce raw beats to a clean constant grid.
     #[serde(default)]
     pub snap: SnapConfig,
@@ -149,6 +160,7 @@ impl Default for AnalysisConfig {
             min_key_confidence: 0.5,
             max_duration_ms: None,
             sample_rate: None,
+            cue_threshold_db: DEFAULT_CUE_THRESHOLD_DB,
             snap: SnapConfig::default(),
         }
     }

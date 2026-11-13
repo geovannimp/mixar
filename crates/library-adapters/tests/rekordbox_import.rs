@@ -8,7 +8,9 @@ use std::path::PathBuf;
 
 use library::{LibraryConfig, LibraryManager};
 use library_adapters::rekordbox::RekordboxLibrary;
-use library_core::{CollectionType, Library, LibraryError, Migratable, MigrateOptions, TrackId};
+use library_core::{
+    CollectionType, CueSource, Library, LibraryError, Migratable, MigrateOptions, TrackCue, TrackId,
+};
 use rusqlite::{params, Connection};
 
 /// Passphrase the fixture is encrypted with. Deliberately not the constant the
@@ -266,9 +268,13 @@ fn hot_cues_and_loops_are_grouped_per_track() {
     assert_eq!(cues.loops[0].in_ms, 20_000);
     assert_eq!(cues.loops[0].out_ms, 25_000);
 
+    // The only memory cue is also the track's main cue.
+    assert_eq!(cues.main_cue_ms, Some(20_000));
+
     // A track with no cue rows yields empty sets rather than an error.
     let none = library.cues_for(&TrackId::new("rekordbox:track:t2"));
     assert!(none.hot_cues.is_empty() && none.loops.is_empty());
+    assert_eq!(none.main_cue_ms, None);
 }
 
 #[test]
@@ -343,6 +349,14 @@ fn migration_imports_tracks_lists_and_cues_then_repeats_idempotently() {
     let loops = manager.list_track_loops(&imported_id).unwrap();
     assert_eq!(loops.len(), 1);
     assert_eq!(loops[0].out_ms, 25_000);
+    assert_eq!(
+        manager.track_cue(&imported_id).unwrap(),
+        Some(TrackCue {
+            position_ms: 20_000,
+            source: CueSource::Import,
+        }),
+        "the memory cue lands as the track cue"
+    );
 
     // The generic invariants (re-import idempotency, catch-all contents, source
     // left untouched) run here so the opt-in real-library test exercises the
@@ -350,6 +364,52 @@ fn migration_imports_tracks_lists_and_cues_then_repeats_idempotently() {
     let (_, second) = support::migrate_twice(&library, &fixture.db_path);
     assert_eq!(second.tracks_updated, 2);
     assert_eq!(second.collections_skipped, 2);
+}
+
+/// A re-import must not overwrite a cue the user set on the deck.
+#[test]
+fn migration_keeps_an_existing_manual_cue() {
+    let fixture = build_fixture();
+    let library = open(&fixture);
+    let target_dir = tempfile::tempdir().unwrap();
+    let mut manager = LibraryManager::open(
+        target_dir.path().join("library.db"),
+        LibraryConfig::default(),
+    )
+    .unwrap();
+    library
+        .migrate(&mut manager, &MigrateOptions::default())
+        .unwrap();
+
+    let catch_all = manager
+        .list_collections()
+        .unwrap()
+        .into_iter()
+        .find(|collection| collection.name == "Rekordbox")
+        .unwrap();
+    let imported_id = manager
+        .list_collection_tracks(&catch_all.id)
+        .unwrap()
+        .into_iter()
+        .find(|source| source.metadata().title.as_deref() == Some("Ivy"))
+        .unwrap()
+        .id()
+        .clone();
+    manager
+        .save_track_cue(&imported_id, 250, CueSource::Manual)
+        .unwrap();
+
+    library
+        .migrate(&mut manager, &MigrateOptions::default())
+        .unwrap();
+
+    assert_eq!(
+        manager.track_cue(&imported_id).unwrap(),
+        Some(TrackCue {
+            position_ms: 250,
+            source: CueSource::Manual,
+        })
+    );
 }
 
 #[test]

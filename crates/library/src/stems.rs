@@ -700,16 +700,23 @@ pub(crate) fn prepare_native_stem_for_playback(
         message: format!("failed to decode native stem file {}: {e}", path.display()),
     })?;
 
-    let needs = {
+    let (needs, cue_threshold_db) = {
         let lib = LibraryManager::lock_library(library)?;
-        lib.needs_playback_analysis(&track_id)?
+        (
+            lib.needs_playback_analysis(&track_id)?,
+            lib.cue_threshold_db(),
+        )
     };
     if needs {
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: AnalysisDurationMode::Fast,
+            cue_threshold_db: Some(cue_threshold_db),
         };
-        let mut config = AnalysisConfig::default();
+        let mut config = AnalysisConfig {
+            cue_threshold_db,
+            ..Default::default()
+        };
         let tag_metadata = crate::tags::read_tags(&path)?;
         config.max_duration_ms = options
             .analysis_duration

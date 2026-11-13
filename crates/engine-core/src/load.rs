@@ -64,6 +64,7 @@ impl Engine {
         self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
+        self.hydrate_track_cue(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Track loaded into deck {}", deck_id);
         Ok(())
@@ -125,6 +126,7 @@ impl Engine {
         self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
+        self.hydrate_track_cue(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
@@ -159,6 +161,18 @@ impl Engine {
         let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_normalizer_target(target_lufs);
         Ok(())
+    }
+
+    /// Set whether a deck load moves the playhead to the track cue.
+    ///
+    /// Takes effect on the next load; already-loaded decks keep their position.
+    pub fn set_auto_cue(&mut self, enabled: bool) {
+        self.auto_cue = enabled;
+    }
+
+    /// Whether a deck load moves the playhead to the track cue.
+    pub fn auto_cue(&self) -> bool {
+        self.auto_cue
     }
 
     /// Cached auto-gain (dB) for a deck's mixer channel, when the engine is running.
@@ -271,6 +285,43 @@ impl Engine {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Apply the persisted track cue to a freshly loaded deck.
+    ///
+    /// The cue point is always set from the track cue; the Auto Cue switch only
+    /// decides whether the playhead starts there.
+    fn hydrate_track_cue(&mut self, deck_id: usize) -> Result<()> {
+        let Some(track_id) = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|control| control.track_id.clone())
+        else {
+            return Ok(());
+        };
+        let Some(library) = self.library.as_ref() else {
+            return Ok(());
+        };
+        let cue = {
+            let lib = library
+                .lock()
+                .map_err(|_| anyhow::anyhow!("library lock poisoned"))?;
+            lib.track_cue(&track_id)
+                .map_err(|e| anyhow::anyhow!("track cue: {e}"))?
+        };
+        let Some(dsp_engine) = self.dsp_engine.as_ref() else {
+            return Ok(());
+        };
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        let Some(deck) = dsp.deck_mut(deck_id) else {
+            return Ok(());
+        };
+        let position_ms = cue.map_or(0, |cue| cue.position_ms);
+        deck.set_cue_point_ms(position_ms)?;
+        if self.auto_cue && position_ms > 0 {
+            deck.seek_ms(position_ms)?;
         }
         Ok(())
     }

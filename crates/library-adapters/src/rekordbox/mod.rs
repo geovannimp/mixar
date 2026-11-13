@@ -11,11 +11,11 @@
 //!
 //! # What is dropped
 //!
-//! Documented lossiness, mirroring the Mixxx adapter's approach: memory cues
-//! that are not loops (the canonical model stores hot cues and loops only),
-//! playlist-folder nesting (folders become a name prefix, see [`list_name`]),
-//! beat grids and waveforms (they live in ANLZ analysis files, not the
-//! database), and My Tag / history.
+//! Documented lossiness, mirroring the Mixxx adapter's approach: only the
+//! earliest memory cue survives (it becomes the track cue; a memory cue with an
+//! out point is additionally stored as a saved loop), playlist-folder nesting
+//! (folders become a name prefix, see [`list_name`]), beat grids and waveforms
+//! (they live in ANLZ analysis files, not the database), and My Tag / history.
 
 mod crypto;
 mod schema;
@@ -95,6 +95,8 @@ pub struct CueSet {
     pub hot_cues: Vec<HotCueImport>,
     /// Saved loops, ordered by slot.
     pub loops: Vec<LoopImport>,
+    /// Position (ms) of the earliest memory cue: the track's main cue.
+    pub main_cue_ms: Option<i32>,
 }
 
 /// Counts used to confirm an import before running it.
@@ -383,6 +385,12 @@ impl Migratable for RekordboxLibrary {
                                 .errors
                                 .push(format!("{} loop {}: {err}", content_id, saved.slot));
                         }
+                    }
+                }
+                if let Some(cue_ms) = cues.main_cue_ms {
+                    if let Err(err) = target.import_track_cue(track_id, cue_ms) {
+                        report.failed += 1;
+                        report.errors.push(format!("{content_id} cue: {err}"));
                     }
                 }
             }
@@ -1009,20 +1017,26 @@ fn load_cues(
                 color,
                 label,
             });
-        } else if let Some(out_ms) = out_ms {
-            // A memory loop is the only memory-cue form the library model has.
-            let slot = next_loop_slot.get(&content_id).copied().unwrap_or(0);
-            if slot > 15 {
-                continue;
+        } else {
+            // A memory cue is the track's main cue; the earliest one wins. A
+            // memory *loop* (out point set) is additionally a saved loop.
+            if set.main_cue_ms.is_none() {
+                set.main_cue_ms = Some(in_ms);
             }
-            next_loop_slot.insert(content_id, slot + 1);
-            set.loops.push(LoopImport {
-                slot,
-                in_ms,
-                out_ms,
-                label,
-                color,
-            });
+            if let Some(out_ms) = out_ms {
+                let slot = next_loop_slot.get(&content_id).copied().unwrap_or(0);
+                if slot > 15 {
+                    continue;
+                }
+                next_loop_slot.insert(content_id, slot + 1);
+                set.loops.push(LoopImport {
+                    slot,
+                    in_ms,
+                    out_ms,
+                    label,
+                    color,
+                });
+            }
         }
     }
 

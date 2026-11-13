@@ -160,11 +160,30 @@ void main() {
     await pumpSettings(tester);
     final l10n = lookupAppLocalizations(const Locale('en'));
 
-    await search(tester, 'cue');
+    // "headphones" only appears in the Preview bus card's description.
+    await search(tester, 'headphones');
 
     expect(find.text(l10n.settingsAudioPreviewBusTitle), findsOneWidget);
     expect(find.text(l10n.settingsAudioEngineTitle), findsNothing);
     expect(find.text(l10n.settingsAudioMasterBus), findsNothing);
+  });
+
+  testWidgets('a section description outranks a card term', (tester) async {
+    await pumpSettings(tester);
+    final l10n = lookupAppLocalizations(const Locale('en'));
+
+    // "cue" is in the Analysis description, so the section wins over the
+    // Audio card that also mentions a cue output.
+    await search(tester, 'cue');
+
+    expect(
+      find.descendant(
+        of: find.byType(SettingsSidebar),
+        matching: find.text(l10n.settingsSectionAnalysis),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.settingsAnalysisCueTitle), findsOneWidget);
   });
 
   testWidgets('field-label terms keep the owning card in the panel', (

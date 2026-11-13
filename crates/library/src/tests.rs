@@ -53,6 +53,40 @@ fn write_analysis_wav(path: &Path) {
     file.write_all(&pcm).unwrap();
 }
 
+/// Mono 16-bit PCM: `silence_ms` of digital silence, then a 0.5-amplitude
+/// 440 Hz tone for `tone_ms`, so the cue is always at `silence_ms`.
+#[cfg(feature = "analysis")]
+fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sample_rate: u32) {
+    let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
+    let mut pcm = Vec::with_capacity((frames(silence_ms) + frames(tone_ms)) * 2);
+    for _ in 0..frames(silence_ms) {
+        pcm.extend_from_slice(&0i16.to_le_bytes());
+    }
+    for index in 0..frames(tone_ms) {
+        let time = index as f32 / sample_rate as f32;
+        let sample =
+            (0.5 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
+        pcm.extend_from_slice(&sample.to_le_bytes());
+    }
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
+    file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
+    file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
+}
+
 #[test]
 fn import_and_get_track_round_trip() {
     let dir = tempfile::tempdir().unwrap();
@@ -707,6 +741,7 @@ fn analyze_track_off_mutex_does_not_recreate_deleted_track() {
     let options = AnalyzeTrackOptions {
         force: true,
         analysis_duration: AnalysisDurationMode::Fast,
+        cue_threshold_db: None,
     };
     let _computed = compute_file_analysis(&path, options).unwrap();
 
@@ -1153,6 +1188,7 @@ fn collection_analyze_targets_skips_tagged_and_analyzed() {
                 sample_rate: 8000,
                 duration_analyzed_ms: 2,
             },
+            cue_ms: None,
         },
         false,
     )
@@ -1804,4 +1840,154 @@ fn refresh_preserves_edited_metadata() {
     assert_eq!(stored.track_number, Some(7));
     assert_eq!(stored.disc_number, Some(2));
     assert_eq!(stored.color_label, Some(library_core::ColorLabel::Aqua));
+}
+
+/// A library holding one already-analyzed `silence + tone` track.
+#[cfg(feature = "analysis")]
+struct CueFixture {
+    _dir: tempfile::TempDir,
+    lib: LibraryManager,
+    wav: PathBuf,
+    id: TrackId,
+}
+
+#[cfg(feature = "analysis")]
+fn cue_fixture(silence_ms: u32) -> CueFixture {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("cue.wav");
+    write_silence_then_tone_wav(&wav, silence_ms, 500, 48_000);
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::force()).unwrap();
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    CueFixture {
+        _dir: dir,
+        lib,
+        wav,
+        id,
+    }
+}
+
+#[cfg(feature = "analysis")]
+fn delete_cue_row(lib: &LibraryManager, id: &TrackId) {
+    use sea_orm::EntityTrait;
+    crate::entity::TrackCueEntity::delete_by_id(id.as_str())
+        .exec(lib.db.conn().unwrap().as_connection())
+        .unwrap();
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_fills_the_track_cue_when_absent() {
+    let fixture = cue_fixture(1000);
+
+    assert_eq!(
+        fixture.lib.track_cue(&fixture.id).unwrap(),
+        Some(TrackCue {
+            position_ms: 1000,
+            source: CueSource::Analysis,
+        })
+    );
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_refreshes_its_own_cue() {
+    let fixture = cue_fixture(1000);
+    assert_eq!(
+        fixture
+            .lib
+            .track_cue(&fixture.id)
+            .unwrap()
+            .unwrap()
+            .position_ms,
+        1000
+    );
+
+    // A second analysis run (e.g. after a threshold change) owns its row.
+    let mut computed = compute_file_analysis(&fixture.wav, AnalyzeTrackOptions::force()).unwrap();
+    computed.analysis.cue_ms = Some(750);
+    fixture
+        .lib
+        .persist_file_analysis(&fixture.wav, &computed, false)
+        .unwrap();
+
+    assert_eq!(
+        fixture.lib.track_cue(&fixture.id).unwrap(),
+        Some(TrackCue {
+            position_ms: 750,
+            source: CueSource::Analysis,
+        })
+    );
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_does_not_overwrite_a_manual_cue() {
+    let fixture = cue_fixture(1000);
+    fixture
+        .lib
+        .save_track_cue(&fixture.id, 250, CueSource::Manual)
+        .unwrap();
+
+    let mut computed = compute_file_analysis(&fixture.wav, AnalyzeTrackOptions::force()).unwrap();
+    computed.analysis.cue_ms = Some(1000);
+    fixture
+        .lib
+        .persist_file_analysis(&fixture.wav, &computed, false)
+        .unwrap();
+
+    assert_eq!(
+        fixture.lib.track_cue(&fixture.id).unwrap(),
+        Some(TrackCue {
+            position_ms: 250,
+            source: CueSource::Manual,
+        })
+    );
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn import_fills_only_without_a_cue() {
+    let mut fixture = cue_fixture(1000);
+    fixture
+        .lib
+        .save_track_cue(&fixture.id, 250, CueSource::Manual)
+        .unwrap();
+    WritableLibrary::import_track_cue(&mut fixture.lib, &fixture.id, 900).unwrap();
+    assert_eq!(
+        fixture.lib.track_cue(&fixture.id).unwrap(),
+        Some(TrackCue {
+            position_ms: 250,
+            source: CueSource::Manual,
+        }),
+        "an import never beats a manual cue"
+    );
+
+    delete_cue_row(&fixture.lib, &fixture.id);
+    assert_eq!(fixture.lib.track_cue(&fixture.id).unwrap(), None);
+    WritableLibrary::import_track_cue(&mut fixture.lib, &fixture.id, 900).unwrap();
+    assert_eq!(
+        fixture.lib.track_cue(&fixture.id).unwrap(),
+        Some(TrackCue {
+            position_ms: 900,
+            source: CueSource::Import,
+        })
+    );
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn needs_playback_analysis_waits_for_the_cue() {
+    let fixture = cue_fixture(1000);
+    assert!(
+        !fixture.lib.needs_playback_analysis(&fixture.id).unwrap(),
+        "a loud, cued track needs no further analysis"
+    );
+
+    delete_cue_row(&fixture.lib, &fixture.id);
+    assert!(
+        fixture.lib.needs_playback_analysis(&fixture.id).unwrap(),
+        "a track with no cue row must be analyzed again"
+    );
 }

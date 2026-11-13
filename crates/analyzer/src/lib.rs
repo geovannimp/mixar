@@ -1,5 +1,6 @@
 //! Offline audio analysis: decode files to mono PCM and run the qm-dsp backend.
 
+mod cue;
 mod loudness;
 mod preprocess;
 
@@ -58,6 +59,7 @@ fn analyze_prepared(
     let samples = &processed.samples;
     let sample_rate = processed.sample_rate;
     let mut track = default_analyzer().analyze_pcm(samples, sample_rate, config)?;
+    track.cue_ms = cue::first_sound_ms(samples, sample_rate, config.cue_threshold_db);
     track.loudness_lufs = Some(loudness_lufs_or_quiet(samples, sample_rate)?);
     snap_grid(&mut track, &config.snap);
     Ok(track)
@@ -249,5 +251,70 @@ mod tests {
         let bpm = analysis.bpm.expect("2 Hz click is a detectable tempo");
         assert!((bpm.bpm - 120.0).abs() < 3.0, "got {} BPM", bpm.bpm);
         assert!(analysis.loudness_lufs.is_some_and(f64::is_finite));
+    }
+
+    /// One second of digital silence, then half a second of a 0.5-amplitude
+    /// tone: the cue is where the tone starts.
+    fn silence_then_tone(silence_ms: u32, tone_ms: u32, sample_rate: u32) -> Vec<f32> {
+        let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
+        let mut samples = vec![0.0; frames(silence_ms)];
+        let start = samples.len();
+        samples.extend((0..frames(tone_ms)).map(|index| {
+            let t = index as f32 / sample_rate as f32;
+            0.5 * (2.0 * std::f32::consts::PI * 440.0 * t).sin()
+        }));
+        assert!(samples[start..].iter().any(|sample| sample.abs() > 0.4));
+        samples
+    }
+
+    #[test]
+    fn analyze_pcm_cues_at_the_first_sound() {
+        let samples = silence_then_tone(1000, 500, 48_000);
+        let analysis = analyze_pcm(&samples, 48_000, &AnalysisConfig::default()).unwrap();
+        assert_eq!(analysis.cue_ms, Some(1000));
+    }
+
+    #[test]
+    fn analyze_pcm_cue_follows_the_configured_threshold() {
+        let frames = |ms: u32| (48_000u64 * u64::from(ms) / 1000) as usize;
+        // A −40 dBFS lead-in (0.01): sound at the −60 default, silence once the
+        // threshold rises to −30 (0.0316), where the tone is the first sound.
+        let mut lead_in = vec![0.01f32; frames(1000)];
+        lead_in.extend_from_slice(&silence_then_tone(0, 500, 48_000));
+        let strict = AnalysisConfig {
+            cue_threshold_db: -30.0,
+            ..Default::default()
+        };
+        assert_eq!(
+            analyze_pcm(&lead_in, 48_000, &AnalysisConfig::default())
+                .unwrap()
+                .cue_ms,
+            Some(0)
+        );
+        assert_eq!(
+            analyze_pcm(&lead_in, 48_000, &strict).unwrap().cue_ms,
+            Some(1000)
+        );
+
+        // A −66 dBFS lead-in (0.0005) is silence at the −60 default, but sound
+        // once the threshold drops to −72.
+        let mut faint_lead_in = vec![0.0005f32; frames(1000)];
+        faint_lead_in.extend_from_slice(&silence_then_tone(0, 500, 48_000));
+        let sensitive = AnalysisConfig {
+            cue_threshold_db: -72.0,
+            ..Default::default()
+        };
+        assert_eq!(
+            analyze_pcm(&faint_lead_in, 48_000, &AnalysisConfig::default())
+                .unwrap()
+                .cue_ms,
+            Some(1000)
+        );
+        assert_eq!(
+            analyze_pcm(&faint_lead_in, 48_000, &sensitive)
+                .unwrap()
+                .cue_ms,
+            Some(0)
+        );
     }
 }

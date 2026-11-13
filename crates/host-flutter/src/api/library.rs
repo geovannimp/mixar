@@ -989,6 +989,15 @@ impl LibraryTransport {
         Ok(())
     }
 
+    /// Push the cue-detection threshold to the running library worker.
+    ///
+    /// Analysis-time only; safe to call repeatedly (no engine restart).
+    pub fn apply_cue_threshold(&self) -> Result<(), String> {
+        self.buses
+            .set_cue_threshold_db(crate::api::settings::settings_cue_threshold_db());
+        Ok(())
+    }
+
     /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
     pub fn storage_usage(&self) -> Result<StorageUsage, String> {
         let stems_root = self.buses.stems_root();

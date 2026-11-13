@@ -75,6 +75,11 @@ pub trait WritableLibrary: Library {
     /// `track_hot_cue` through the same store path the deck writes.
     fn import_hot_cue(&mut self, track_id: &TrackId, cue: &HotCueImport) -> Result<()>;
 
+    /// Persist a main cue imported from another application.
+    ///
+    /// A track that already has a cue keeps it: manual sets and earlier imports win.
+    fn import_track_cue(&mut self, id: &TrackId, cue_ms: i32) -> Result<()>;
+
     /// Copy one saved loop into the target, upserting `slot` for this track.
     fn import_loop(&mut self, track_id: &TrackId, saved: &LoopImport) -> Result<()>;
 

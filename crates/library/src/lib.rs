@@ -48,10 +48,10 @@ use std::sync::{Arc, Mutex};
 pub use library_core::{
     path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
+    CueSource, FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
     LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
-    WritableLibrary,
+    StreamAudioSource, StreamProvider, TagWriteBack, TrackCue, TrackId, TrackMetadata,
+    UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{LibraryBus, LibraryBuses, DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL, STEM_MODELS};
@@ -206,6 +206,13 @@ impl LibraryManager {
     pub fn set_analysis_duration(&self, duration: AnalysisDurationMode) -> Result<()> {
         self.require_buses()?.set_analysis_duration(duration);
         Ok(())
+    }
+
+    /// Cue-detection threshold (dBFS) shared with the analysis worker.
+    pub fn cue_threshold_db(&self) -> f32 {
+        self.require_buses()
+            .map(LibraryBuses::cue_threshold_db)
+            .unwrap_or(library_core::DEFAULT_CUE_THRESHOLD_DB)
     }
 
     /// Borrow the library configuration.

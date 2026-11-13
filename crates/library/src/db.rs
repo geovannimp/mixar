@@ -168,6 +168,7 @@ mod tests {
             "collections",
             "collection_entries",
             "track_analysis",
+            "track_cue",
             "track_waveform",
             "track_stem",
             "track_hot_cue",
@@ -210,6 +211,34 @@ mod tests {
 
     fn track_columns(db: &Db) -> Vec<String> {
         table_columns(db, "tracks")
+    }
+
+    /// The main cue table is created on an existing database by `sync`, with the
+    /// two columns the cue store reads and writes.
+    #[test]
+    fn sync_creates_track_cue() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("library.db");
+        // An older database: `sync` has to add `track_cue` on open.
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE tracks (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    source_type TEXT NOT NULL,
+                    source_ref TEXT NOT NULL,
+                    added_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );",
+            )
+            .unwrap();
+        }
+
+        let db = open(&db_path).unwrap();
+        let columns = table_columns(&db, "track_cue");
+        for column in ["track_id", "cue_ms", "source", "updated_at"] {
+            assert!(columns.iter().any(|name| name == column), "{column}");
+        }
     }
 
     #[test]

@@ -332,6 +332,13 @@ impl Engine {
         })
     }
 
+    /// Deck's current cue point in milliseconds, when a track is loaded.
+    pub fn deck_cue_point(&self, deck_id: usize) -> Option<i32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        dsp.deck(deck_id).and_then(|deck| deck.cue_point_ms())
+    }
+
     /// Set cue point to the snapped playhead.
     pub fn set_deck_cue_point_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {

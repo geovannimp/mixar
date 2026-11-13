@@ -103,6 +103,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionLibrary => 'Library';
 
   @override
+  String get settingsSectionAnalysis => 'Analysis';
+
+  @override
+  String get settingsAnalysisDescription =>
+      'Offline analysis: how much audio is scanned and how the main cue is detected.';
+
+  @override
+  String get settingsAnalysisCueTitle => 'Cue detection';
+
+  @override
+  String get settingsAnalysisCueDescription =>
+      'Analysis sets a track\'s cue to its first sound. A cue you set or import is never overwritten.';
+
+  @override
+  String get settingsAnalysisCueThreshold => 'Silence threshold';
+
+  @override
+  String get settingsAnalysisCueThresholdHint =>
+      'Audio quieter than this counts as silence; the cue is the first frame above it.';
+
+  @override
   String get settingsSectionIntegrations => 'Integrations';
 
   @override
@@ -904,6 +925,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeckEndWarningToggle => 'Blink before the track ends';
+
+  @override
+  String get settingsDeckAutoCue => 'Auto cue';
+
+  @override
+  String get settingsDeckAutoCueHint =>
+      'On load, move the playhead to the track\'s cue instead of the start of the file.';
+
+  @override
+  String get settingsDeckAutoCueToggle => 'Cue to the track cue on load';
 
   @override
   String settingsDeckEndWarningSeconds(int count) {

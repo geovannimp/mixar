@@ -10,7 +10,7 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
 use std::path::Path;
 
-use library_core::{AnalyzeTrackOptions, LibraryError, Result, TrackId};
+use library_core::{AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_analysis, TrackAnalysisEntity};
@@ -82,6 +82,19 @@ pub(crate) fn upsert_track_analysis(
         )
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
+
+    // The analyzed cue owns only analysis-sourced rows: a manual set or an
+    // imported memory cue is returned untouched, while a re-analysis (e.g. after
+    // a threshold change) refreshes the previous analysis cue.
+    if let Some(cue_ms) = analysis.cue_ms {
+        crate::deck_data::refresh_track_cue(
+            db,
+            track_id,
+            cue_ms,
+            CueSource::Analysis,
+            analysis.metadata.analyzed_at.clone(),
+        )?;
+    }
     Ok(())
 }
 
@@ -121,6 +134,9 @@ pub(crate) fn compute_file_analysis(
     }
 
     let mut config = AnalysisConfig::default();
+    if let Some(cue_threshold_db) = options.cue_threshold_db {
+        config.cue_threshold_db = cue_threshold_db;
+    }
     let tag_metadata = tags::read_tags(&path)?;
     config.max_duration_ms = options
         .analysis_duration
