@@ -34,7 +34,12 @@ dependencies:
   host_flutter:
     path: rust_builder
   flutter_rust_bridge: 2.13.0
-  window_manager: ^0.5.2
+  # 0.7.x is the nativeapi rewrite: it requires Flutter 3.50/Dart 3.14, needs no
+  # runner/plugin setup, and only drives the in-app caption buttons and the
+  # maximized state. The window's size and decorations belong to
+  # linux/runner/my_application.cc -- letting this package apply them grew the
+  # window by its frame margin on every resize and shrank the Flutter view.
+  window_manager: ^0.7.0
   flutter_riverpod: ^3.4.2
   path_provider: ^2.1.6
   path: ^1.9.1
@@ -134,3 +139,11 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+# Flutter master's ResizeImagePolicy gained `cover`; extended_image_library has
+# no release (or git fix) that handles it, and it is pulled in through
+# shadcn_ui -> universal_image -> extended_image. third_party holds 5.0.1 with
+# only that case added. Remove both the copy and this override once a release
+# supports it (independent of the 3.50.1 re-pin).
+dependency_overrides:
+  extended_image_library:
+    path: third_party/extended_image_library
