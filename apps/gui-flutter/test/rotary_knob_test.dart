@@ -83,4 +83,71 @@ void main() {
 
     expect(value, greaterThan(0.5));
   });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.9;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return RotaryKnob(
+                  label: 'Hi',
+                  value: value,
+                  center: kControlNormCenter,
+                  defaultValue: 0.5,
+                  onValueChange: (next) => setState(() => value = next),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final dial = find.byType(CustomPaint).last;
+    await tester.tap(dial);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(dial);
+    await tester.pumpAndSettle();
+
+    expect(value, closeTo(0.5, 1e-9));
+  });
+
+  testWidgets('a single tap leaves the value alone', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.9;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return RotaryKnob(
+                  label: 'Hi',
+                  value: value,
+                  center: kControlNormCenter,
+                  defaultValue: 0.5,
+                  onValueChange: (next) => setState(() => value = next),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(CustomPaint).last);
+    await tester.pumpAndSettle();
+
+    expect(value, 0.9);
+  });
 }

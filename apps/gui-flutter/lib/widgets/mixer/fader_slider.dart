@@ -301,6 +301,7 @@ class FaderSlider extends StatefulWidget {
     this.showMarkers = false,
     this.centerNotch = false,
     this.crossfaderTrack = false,
+    this.defaultValue,
     this.disabled = false,
     this.semanticLabel,
     super.key,
@@ -319,6 +320,11 @@ class FaderSlider extends StatefulWidget {
   final bool showMarkers;
   final bool centerNotch;
   final bool crossfaderTrack;
+
+  /// Value a double click/tap on the grip returns to. Defaults to the center
+  /// for a [centerNotch] fader, else [max] (a channel at unity).
+  final double? defaultValue;
+
   final bool disabled;
   final String? semanticLabel;
 
@@ -336,6 +342,31 @@ class _FaderSliderState extends State<FaderSlider> {
   bool _relative = false;
   double? _startValue;
   double? _startAxis;
+
+  /// The last two presses, so a double tap resets only when both land on the
+  /// grip.
+  bool _previousPressOnThumb = false;
+  bool _lastPressOnThumb = false;
+  bool _doubleTapOnThumb = false;
+
+  double get _resetValue {
+    final target =
+        widget.defaultValue ??
+        (widget.centerNotch ? (widget.min + widget.max) / 2 : widget.max);
+    return _finishFaderValue(
+      target.clamp(widget.min, widget.max),
+      min: widget.min,
+      max: widget.max,
+      step: widget.step,
+      centerNotch: widget.centerNotch,
+    );
+  }
+
+  void _resetToDefault() {
+    if (!widget.disabled) {
+      widget.onValueChange(_resetValue);
+    }
+  }
 
   void _clearDrag() {
     setState(() {
@@ -455,66 +486,87 @@ class _FaderSliderState extends State<FaderSlider> {
                             .toStringAsFixed(2),
                   onIncrease: widget.disabled ? null : () => _nudgeBy(step),
                   onDecrease: widget.disabled ? null : () => _nudgeBy(-step),
-                  child: Listener(
+                  child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onPointerDown: widget.disabled
+                    excludeFromSemantics: true,
+                    onDoubleTapDown: widget.disabled
                         ? null
-                        : (event) {
-                            final onThumb = faderThumbHitRect(
-                              size: size,
-                              orientation: widget.orientation,
-                              t: t,
-                            ).contains(event.localPosition);
-                            setState(() {
-                              _dragging = true;
-                              _relative = onThumb;
-                              if (onThumb) {
-                                _startValue = widget.value;
-                                _startAxis = switch (widget.orientation) {
-                                  FaderOrientation.vertical =>
-                                    event.localPosition.dy,
-                                  FaderOrientation.horizontal =>
-                                    event.localPosition.dx,
-                                };
-                              } else {
-                                _startValue = null;
-                                _startAxis = null;
+                        : (_) {
+                            _doubleTapOnThumb =
+                                _previousPressOnThumb && _lastPressOnThumb;
+                          },
+                    onDoubleTap: widget.disabled
+                        ? null
+                        : () {
+                            if (_doubleTapOnThumb) {
+                              _doubleTapOnThumb = false;
+                              _resetToDefault();
+                            }
+                          },
+                    onDoubleTapCancel: () => _doubleTapOnThumb = false,
+                    child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: widget.disabled
+                          ? null
+                          : (event) {
+                              final onThumb = faderThumbHitRect(
+                                size: size,
+                                orientation: widget.orientation,
+                                t: t,
+                              ).contains(event.localPosition);
+                              _previousPressOnThumb = _lastPressOnThumb;
+                              _lastPressOnThumb = onThumb;
+                              setState(() {
+                                _dragging = true;
+                                _relative = onThumb;
+                                if (onThumb) {
+                                  _startValue = widget.value;
+                                  _startAxis = switch (widget.orientation) {
+                                    FaderOrientation.vertical =>
+                                      event.localPosition.dy,
+                                    FaderOrientation.horizontal =>
+                                      event.localPosition.dx,
+                                  };
+                                } else {
+                                  _startValue = null;
+                                  _startAxis = null;
+                                }
+                              });
+                              if (!onThumb) {
+                                _emitFromLocal(event.localPosition, size);
                               }
-                            });
-                            if (!onThumb) {
-                              _emitFromLocal(event.localPosition, size);
-                            }
-                          },
-                    onPointerMove: widget.disabled
-                        ? null
-                        : (event) {
-                            if (!_dragging) {
-                              return;
-                            }
-                            if (_relative) {
-                              _emitRelative(event.localPosition, size);
-                            } else {
-                              _emitFromLocal(event.localPosition, size);
-                            }
-                          },
-                    onPointerUp: (_) => _clearDrag(),
-                    onPointerCancel: (_) => _clearDrag(),
-                    child: CustomPaint(
-                      size: size,
-                      painter: _FaderPainter(
-                        t: t,
-                        orientation: widget.orientation,
-                        colors: colors,
-                        grooveColor: theme.colors.background,
-                        edgeColor: theme.colors.border,
-                        faceColor: theme.colors.brightness == Brightness.dark
-                            ? MixarZinc.s600
-                            : MixarZinc.s400,
-                        showIndicator: widget.showIndicator,
-                        showMarkers: widget.showMarkers,
-                        centerNotch: widget.centerNotch,
-                        crossfaderTrack: widget.crossfaderTrack,
-                        dragging: _dragging,
+                            },
+                      onPointerMove: widget.disabled
+                          ? null
+                          : (event) {
+                              if (!_dragging) {
+                                return;
+                              }
+                              if (_relative) {
+                                _emitRelative(event.localPosition, size);
+                              } else {
+                                _emitFromLocal(event.localPosition, size);
+                              }
+                            },
+                      onPointerUp: (_) => _clearDrag(),
+                      onPointerCancel: (_) => _clearDrag(),
+                      child: CustomPaint(
+                        size: size,
+                        painter: _FaderPainter(
+                          t: t,
+                          orientation: widget.orientation,
+                          colors: colors,
+                          grooveColor: theme.colors.background,
+                          edgeColor: theme.colors.border,
+                          faceColor: theme.colors.brightness == Brightness.dark
+                              ? MixarZinc.s600
+                              : MixarZinc.s400,
+                          showIndicator: widget.showIndicator,
+                          showMarkers: widget.showMarkers,
+                          centerNotch: widget.centerNotch,
+                          crossfaderTrack: widget.crossfaderTrack,
+                          dragging: _dragging,
+                        ),
                       ),
                     ),
                   ),

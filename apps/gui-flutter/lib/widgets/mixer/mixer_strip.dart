@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -254,6 +255,7 @@ class _CrossfaderStrip extends ConsumerWidget {
                 child: FaderSlider(
                   orientation: .horizontal,
                   value: crossfader,
+                  defaultValue: EngineUiSnapshot.empty.crossfader * 100,
                   step: 0.05,
                   showIndicator: false,
                   showMarkers: true,
@@ -532,6 +534,7 @@ class _VolumeColumn extends ConsumerWidget {
                 child: FaderSlider(
                   accent: accent,
                   value: ch.volume * 100,
+                  defaultValue: MixerChannelUi.defaults.volume * 100,
                   semanticLabel: '${deckDisplayLabel(deckId)} volume',
                   showMarkers: true,
                   disabled: !enabled,

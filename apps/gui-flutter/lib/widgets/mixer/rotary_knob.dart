@@ -96,6 +96,7 @@ class RotaryKnob extends StatefulWidget {
     this.max = kControlNormMax,
     this.step = kControlNormStep,
     this.center,
+    this.defaultValue,
     this.disabled = false,
     this.size = RotaryKnobSize.md,
     this.accentColor,
@@ -112,6 +113,11 @@ class RotaryKnob extends StatefulWidget {
   final double max;
   final double step;
   final double? center;
+
+  /// Value a double click/tap on the dial returns to. Defaults to [center],
+  /// then the midpoint of [min] and [max].
+  final double? defaultValue;
+
   final bool disabled;
   final RotaryKnobSize size;
   final Color? accentColor;
@@ -124,6 +130,22 @@ class RotaryKnob extends StatefulWidget {
 class _RotaryKnobState extends State<RotaryKnob> {
   double? _startY;
   double? _startValue;
+
+  double get _resetValue {
+    final target =
+        widget.defaultValue ?? widget.center ?? (widget.min + widget.max) / 2;
+    return snapToStep(
+      target.clamp(widget.min, widget.max),
+      widget.step,
+      origin: widget.min,
+    );
+  }
+
+  void _reset() {
+    if (!widget.disabled) {
+      widget.onValueChange(_resetValue);
+    }
+  }
 
   double get _dialExtent => widget.size == RotaryKnobSize.sm ? 24.0 : 36.0;
 
@@ -160,59 +182,64 @@ class _RotaryKnobState extends State<RotaryKnob> {
             ),
           ),
           const SizedBox(height: 2),
-          Listener(
+          GestureDetector(
             behavior: .opaque,
-            onPointerDown: widget.disabled
-                ? null
-                : (event) {
-                    _startY = event.position.dy;
-                    _startValue = widget.value;
-                  },
-            onPointerMove: widget.disabled
-                ? null
-                : (event) {
-                    final startY = _startY;
-                    final startValue = _startValue;
-                    if (startY == null || startValue == null) {
-                      return;
-                    }
-                    widget.onValueChange(
-                      valueFromVerticalDrag(
-                        startValue: startValue,
-                        startY: startY,
-                        clientY: event.position.dy,
-                        min: widget.min,
-                        max: widget.max,
-                        step: widget.step,
-                      ),
-                    );
-                  },
-            onPointerUp: (_) {
-              _startY = null;
-              _startValue = null;
-            },
-            onPointerCancel: (_) {
-              _startY = null;
-              _startValue = null;
-            },
-            child: SizedBox(
-              width: _dialExtent,
-              height: _dialExtent,
-              child: CustomPaint(
-                painter: _RotaryKnobPainter(
-                  fillFromDeg: fill.from,
-                  fillToDeg: fill.to,
-                  angleDeg: angle,
-                  strokeWidth: _strokeWidth,
-                  trackColor: theme.colors.secondary,
-                  fillColor: ringColor,
-                  faceColor: Color.lerp(
-                    theme.colors.secondary,
-                    theme.colors.foreground,
-                    0.28,
-                  )!,
-                  tickColor: theme.colors.foreground,
-                  size: widget.size,
+            excludeFromSemantics: true,
+            onDoubleTap: widget.disabled ? null : _reset,
+            child: Listener(
+              behavior: .opaque,
+              onPointerDown: widget.disabled
+                  ? null
+                  : (event) {
+                      _startY = event.position.dy;
+                      _startValue = widget.value;
+                    },
+              onPointerMove: widget.disabled
+                  ? null
+                  : (event) {
+                      final startY = _startY;
+                      final startValue = _startValue;
+                      if (startY == null || startValue == null) {
+                        return;
+                      }
+                      widget.onValueChange(
+                        valueFromVerticalDrag(
+                          startValue: startValue,
+                          startY: startY,
+                          clientY: event.position.dy,
+                          min: widget.min,
+                          max: widget.max,
+                          step: widget.step,
+                        ),
+                      );
+                    },
+              onPointerUp: (_) {
+                _startY = null;
+                _startValue = null;
+              },
+              onPointerCancel: (_) {
+                _startY = null;
+                _startValue = null;
+              },
+              child: SizedBox(
+                width: _dialExtent,
+                height: _dialExtent,
+                child: CustomPaint(
+                  painter: _RotaryKnobPainter(
+                    fillFromDeg: fill.from,
+                    fillToDeg: fill.to,
+                    angleDeg: angle,
+                    strokeWidth: _strokeWidth,
+                    trackColor: theme.colors.secondary,
+                    fillColor: ringColor,
+                    faceColor: Color.lerp(
+                      theme.colors.secondary,
+                      theme.colors.foreground,
+                      0.28,
+                    )!,
+                    tickColor: theme.colors.foreground,
+                    size: widget.size,
+                  ),
                 ),
               ),
             ),

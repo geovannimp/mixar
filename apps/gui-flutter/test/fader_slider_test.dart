@@ -293,6 +293,8 @@ void main() {
     expect(value, 80);
 
     await gesture.up();
+    // Let the double-tap recognizer's timeout expire before teardown.
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('outer half of thumb at min is grabbable', (tester) async {
@@ -340,6 +342,8 @@ void main() {
     expect(value, 20);
 
     await gesture.up();
+    // Let the double-tap recognizer's timeout expire before teardown.
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('track press still seeks absolutely', (tester) async {
@@ -611,6 +615,99 @@ void main() {
       reason:
           'sky-400 is the dark-theme step and must not reach the light fader',
     );
+  });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 20.0;
+    var calls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 40,
+              height: 120,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return FaderSlider(
+                    value: value,
+                    defaultValue: 100,
+                    accent: DeckAccent.a,
+                    onValueChange: (next) {
+                      calls += 1;
+                      setState(() => value = next);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final fader = find.byType(FaderSlider);
+    final box = tester.getRect(fader);
+    final thumb = faderThumbHitRect(
+      size: box.size,
+      orientation: FaderOrientation.vertical,
+      t: 0.2,
+    );
+    final thumbCenter = box.topLeft + thumb.center;
+    await tester.tapAt(thumbCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(thumbCenter);
+    await tester.pumpAndSettle();
+
+    expect(value, 100);
+    expect(calls, 1, reason: 'the reset is the only value change');
+  });
+
+  testWidgets('double tap on the track does not reset', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 20.0;
+    var calls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 40,
+              height: 120,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return FaderSlider(
+                    value: value,
+                    defaultValue: 100,
+                    accent: DeckAccent.a,
+                    onValueChange: (next) {
+                      calls += 1;
+                      setState(() => value = next);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(FaderSlider));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byType(FaderSlider));
+    await tester.pumpAndSettle();
+
+    expect(value, closeTo(50, 1));
+    expect(value, isNot(100));
+    expect(calls, 1, reason: 'the first seek is the only value change');
   });
 }
 

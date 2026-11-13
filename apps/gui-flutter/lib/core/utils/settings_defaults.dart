@@ -98,6 +98,7 @@ LibraryRowDensity libraryRowDensityFromSettings(
 };
 
 const kDefaultBufferSize = 512;
+const kDefaultHistoryMinDeckVolume = 0.05;
 const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
 const kMaxTargetLufs = -9.0;
@@ -196,7 +197,7 @@ AppSettings defaultAppSettings() {
     historyEnabled: true,
     historySessionIdleMinutes: 5,
     historyMinPlaySeconds: 5,
-    historyMinDeckVolume: 0.05,
+    historyMinDeckVolume: kDefaultHistoryMinDeckVolume,
     showTooltips: true,
     mixerMeters: MixerMetersSetting.mono,
     selectStyle: SelectStyleSetting.auto,

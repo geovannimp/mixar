@@ -185,6 +185,7 @@ class _CurveSetEditorState extends State<CurveSetEditor> {
             ),
             MixarSlider(
               value: _morph,
+              defaultValue: 0,
               semanticFormatterCallback: (value) => value.toStringAsFixed(2),
               onChanged: (value) => setState(() => _morph = value),
             ),

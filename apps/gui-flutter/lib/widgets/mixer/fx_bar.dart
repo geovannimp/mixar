@@ -78,6 +78,7 @@ class FxBar extends ConsumerWidget {
           child: Center(
             child: MixarSlider(
               value: wet,
+              defaultValue: 0.5,
               enabled: selected,
               trackHeight: 4,
               thumbRadius: 6,

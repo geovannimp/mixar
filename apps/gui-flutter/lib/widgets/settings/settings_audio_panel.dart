@@ -221,6 +221,7 @@ class _BufferSizeSlider extends StatelessWidget {
         const SizedBox(height: 8),
         MixarSlider(
           value: _toNorm(snapped),
+          defaultValue: _toNorm(kDefaultBufferSize),
           divisions: _indexMax,
           onChanged: (norm) => onChanged(_fromNorm(norm)),
           semanticFormatterCallback: (norm) =>

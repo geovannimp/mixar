@@ -315,6 +315,7 @@ class _EndWarningSlider extends StatelessWidget {
         const SizedBox(height: 8),
         MixarSlider(
           value: seconds.toDouble(),
+          defaultValue: kDefaultTrackEndWarningSecs.toDouble(),
           min: kMinTrackEndWarningSecs.toDouble(),
           max: kMaxTrackEndWarningSecs.toDouble(),
           divisions:

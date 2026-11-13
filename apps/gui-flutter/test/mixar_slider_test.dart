@@ -138,6 +138,172 @@ void main() {
     );
   });
 
+  testWidgets('a single tap still seeks the track', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.2;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return SizedBox(
+                  width: 110,
+                  height: 16,
+                  child: MixarSlider(
+                    value: value,
+                    defaultValue: 0.25,
+                    onChanged: (next) => setState(() => value = next),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    await tester.tapAt(Offset(rect.left + rect.width * 0.75, rect.center.dy));
+    // Still inside the double-tap window: the seek must be immediate, not
+    // wait for the recognizer to give up at 300 ms.
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pumpAndSettle();
+
+    expect(value, greaterThan(0.5));
+  });
+
+  testWidgets('double tap resets to the default value', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.8;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return SizedBox(
+                  width: 110,
+                  height: 16,
+                  child: MixarSlider(
+                    value: value,
+                    defaultValue: 0.25,
+                    onChanged: (next) => setState(() => value = next),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final slider = find.byType(MixarSlider);
+    final rect = tester.getRect(slider);
+    // The thumb sits at t * width: 0.8 puts it at 88 px.
+    final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
+    await tester.tapAt(thumb);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(thumb);
+    await tester.pumpAndSettle();
+
+    expect(value, closeTo(0.25, 1e-6));
+  });
+
+  testWidgets('double tap on the visible thumb edge resets', (tester) async {
+    final theme = MixarThemeData.dark();
+    for (final dy in const [-9.0, 9.0]) {
+      var value = 0.8;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: Scaffold(
+            body: Center(
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return SizedBox(
+                    width: 110,
+                    child: MixarSlider(
+                      value: value,
+                      defaultValue: 0.25,
+                      onChanged: (next) => setState(() => value = next),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byType(MixarSlider));
+      expect(
+        rect.height,
+        28,
+        reason: 'the reserved thumb height is the hit target',
+      );
+      final edge = Offset(rect.left + rect.width * 0.8, rect.center.dy + dy);
+      await tester.tapAt(edge);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(edge);
+      await tester.pumpAndSettle();
+
+      expect(value, closeTo(0.25, 1e-6), reason: 'thumb edge dy=$dy');
+    }
+  });
+
+  testWidgets('double tap on the track does not reset', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.8;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return SizedBox(
+                  width: 110,
+                  height: 16,
+                  child: MixarSlider(
+                    value: value,
+                    defaultValue: 0.25,
+                    onChanged: (next) => setState(() => value = next),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final slider = find.byType(MixarSlider);
+    final rect = tester.getRect(slider);
+    final track = Offset(rect.left + rect.width * 0.3, rect.center.dy);
+    await tester.tapAt(track);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(track);
+    await tester.pumpAndSettle();
+
+    expect(value, closeTo(0.3, 0.02));
+    expect(value, isNot(closeTo(0.25, 1e-6)));
+  });
+
   testWidgets('reserves the thumb height so the card body cannot crop it', (
     tester,
   ) async {
