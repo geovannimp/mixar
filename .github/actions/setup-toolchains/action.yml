@@ -1,9 +1,32 @@
 name: Setup toolchains
-description: Install Node and Rust via mise (reads .node-version and rust-toolchain.toml)
+description: Install Node, Rust and Flutter via mise (reads .node-version, rust-toolchain.toml and mise.toml)
 
 runs:
   using: composite
   steps:
+    # mise resolves `flutter` against the release archive index, which lists
+    # releases only: a channel pin (master) is turned into
+    # releases/stable/linux/flutter_linux_master-stable.tar.xz and answers 404.
+    # mise treats any version whose install directory exists as already
+    # installed, so clone the channel branch there before mise install runs.
+    # Once mise.toml names a release again this step does nothing.
+    - name: Install Flutter from git when pinned to a channel
+      shell: bash
+      run: |
+        set -euo pipefail
+        pin="$(sed -n 's/^flutter = { version = "\([^"]*\)".*/\1/p' mise.toml | head -n1)"
+        case "$pin" in
+          master|beta|dev)
+            data_dir="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
+            dest="$data_dir/installs/flutter/$pin"
+            if [ ! -d "$dest/.git" ]; then
+              # Shallow: the SDK bootstraps its own Dart SDK from here.
+              git clone --depth 1 --branch "$pin" \
+                https://github.com/flutter/flutter.git "$dest"
+            fi
+            ;;
+        esac
+
     - name: Setup mise
       uses: jdx/mise-action@v4
       with:
