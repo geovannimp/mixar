@@ -12,14 +12,11 @@ use library_core::{
     CollectionType, CueSource, Library, LibraryError, Migratable, MigrateOptions, TrackCue, TrackId,
 };
 use rusqlite::{params, Connection};
+use support::CATCH_ALL_NAME;
 
 /// Passphrase the fixture is encrypted with. Deliberately not the constant the
 /// adapter ships with: every test goes through the explicit-key entry point.
 const KEY: &str = "test-passphrase";
-
-/// Name of the adapter's catch-all playlist; referenced, never retyped, so an
-/// importer rename cannot leave these assertions looking for a stale name.
-const CATCH_ALL_NAME: &str = "Rekordbox";
 
 struct Fixture {
     _dir: tempfile::TempDir,

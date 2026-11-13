@@ -113,9 +113,9 @@ impl LibraryBuses {
 
     /// Update the cue-detection silence threshold (dBFS), clamped to the
     /// [`library_core::MIN_CUE_THRESHOLD_DB`]…[`library_core::MAX_CUE_THRESHOLD_DB`] range.
-    pub fn set_cue_threshold_db(&self, db: f32) {
-        let db = if db.is_finite() {
-            db.clamp(
+    pub fn set_cue_threshold_db(&self, threshold_db: f32) {
+        let threshold_db = if threshold_db.is_finite() {
+            threshold_db.clamp(
                 library_core::MIN_CUE_THRESHOLD_DB,
                 library_core::MAX_CUE_THRESHOLD_DB,
             )
@@ -125,7 +125,7 @@ impl LibraryBuses {
         *self
             .cue_threshold_db
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = db;
+            .unwrap_or_else(|e| e.into_inner()) = threshold_db;
     }
 
     /// Current cue-detection threshold (dBFS).

@@ -118,9 +118,9 @@ pub(crate) fn upsert_track_analysis(
 /// `AnalysisConfig` accepts a wider span because it is the analyzer's own knob;
 /// at this boundary every stored cue stays inside what the bus setter and the
 /// host settings accept, so a saved value always means what the UI showed.
-fn clamp_cue_threshold_db(db: f32) -> f32 {
-    if db.is_finite() {
-        db.clamp(
+fn clamp_cue_threshold_db(threshold_db: f32) -> f32 {
+    if threshold_db.is_finite() {
+        threshold_db.clamp(
             library_core::MIN_CUE_THRESHOLD_DB,
             library_core::MAX_CUE_THRESHOLD_DB,
         )

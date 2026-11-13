@@ -176,22 +176,35 @@ mod tests {
             "sampler_bank",
             "sampler_slot",
         ] {
-            let count: i64 = db
-                .conn()
-                .unwrap()
-                .as_connection()
-                .query_one_raw(Statement::from_sql_and_values(
-                    sea_orm::DatabaseBackend::Sqlite,
-                    "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name=?",
-                    [name.into()],
-                ))
-                .map_err(db_err)
-                .unwrap()
-                .unwrap()
-                .try_get("", "count")
-                .unwrap();
+            let count = count_rows(
+                &db,
+                format!(
+                    "SELECT COUNT(*) AS count FROM sqlite_master \
+                     WHERE type='table' AND name='{name}'"
+                ),
+            );
             assert_eq!(count, 1, "missing table {name}");
         }
+    }
+
+    /// Row count from a `SELECT COUNT(*) AS count …` statement.
+    ///
+    /// Every schema assertion asks the same shape of question; keeping the
+    /// connection/lock/`try_get` boilerplate here means a change to it lands in
+    /// one place instead of once per test.
+    fn count_rows(db: &Db, sql: impl Into<String>) -> i64 {
+        db.conn()
+            .unwrap()
+            .as_connection()
+            .query_one_raw(Statement::from_string(
+                sea_orm::DatabaseBackend::Sqlite,
+                sql.into(),
+            ))
+            .map_err(db_err)
+            .unwrap()
+            .unwrap()
+            .try_get("", "count")
+            .unwrap()
     }
 
     fn table_columns(db: &Db, table: &str) -> Vec<String> {
@@ -242,20 +255,11 @@ mod tests {
 
         // `track_id` is the primary key, so SQLite builds the index every cue
         // lookup (`find_by_id`) uses; the table needs no separate one.
-        let conn = db.conn().unwrap();
-        let index_count: i64 = conn
-            .as_connection()
-            .query_one_raw(Statement::from_string(
-                sea_orm::DatabaseBackend::Sqlite,
-                "SELECT COUNT(*) AS count FROM sqlite_master \
-                 WHERE type='index' AND tbl_name='track_cue'"
-                    .to_string(),
-            ))
-            .map_err(db_err)
-            .unwrap()
-            .unwrap()
-            .try_get("", "count")
-            .unwrap();
+        let index_count = count_rows(
+            &db,
+            "SELECT COUNT(*) AS count FROM sqlite_master \
+             WHERE type='index' AND tbl_name='track_cue'",
+        );
         assert!(index_count >= 1, "the primary key must back cue lookups");
     }
 
@@ -391,31 +395,12 @@ mod tests {
             .unwrap();
         }
         let db = open(db_path.as_path()).unwrap();
-        let conn = db.conn().unwrap();
-        let has_path: i64 = conn
-            .as_connection()
-            .query_one_raw(Statement::from_string(
-                sea_orm::DatabaseBackend::Sqlite,
-                "SELECT COUNT(*) AS count FROM pragma_table_info('track_stem') WHERE name='path'"
-                    .to_string(),
-            ))
-            .map_err(db_err)
-            .unwrap()
-            .unwrap()
-            .try_get("", "count")
-            .unwrap();
+        let has_path = count_rows(
+            &db,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('track_stem') WHERE name='path'",
+        );
         assert_eq!(has_path, 1);
-        let rows: i64 = conn
-            .as_connection()
-            .query_one_raw(Statement::from_string(
-                sea_orm::DatabaseBackend::Sqlite,
-                "SELECT COUNT(*) AS count FROM track_stem".to_string(),
-            ))
-            .map_err(db_err)
-            .unwrap()
-            .unwrap()
-            .try_get("", "count")
-            .unwrap();
+        let rows = count_rows(&db, "SELECT COUNT(*) AS count FROM track_stem");
         assert_eq!(rows, 0, "legacy stem rows should be dropped with the table");
     }
 }

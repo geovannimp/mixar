@@ -11,6 +11,12 @@ use library::{LibraryConfig, LibraryManager};
 use library_adapters::rekordbox::RekordboxLibrary;
 use library_core::{Library, Migratable, MigrateOptions, MigrateReport};
 
+/// Name of the adapter's catch-all playlist.
+///
+/// The fixture suite and the opt-in real-library smoke test both locate it, so
+/// the name is declared once instead of retyped per assertion.
+pub const CATCH_ALL_NAME: &str = "Rekordbox";
+
 /// Cheap fingerprint that catches any write: length, mtime, and the first and
 /// last 4 KiB (a rewritten page changes one of them without reading a
 /// multi-hundred-megabyte database twice).
@@ -79,7 +85,7 @@ pub fn migrate_twice(library: &RekordboxLibrary, source: &Path) -> (MigrateRepor
     let collections = manager.list_collections().unwrap();
     let catch_all = collections
         .iter()
-        .find(|collection| collection.name == "Rekordbox" && !collection.sortable())
+        .find(|collection| collection.name == CATCH_ALL_NAME && !collection.sortable())
         .expect("catch-all playlist");
     assert!(!catch_all.sortable(), "catch-all is an unsortable set");
     assert_eq!(
