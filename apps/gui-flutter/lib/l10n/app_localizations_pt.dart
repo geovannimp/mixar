@@ -934,7 +934,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsDeckEndWarningToggle => 'Piscar antes do fim da faixa';
 
   @override
-  String get settingsDeckAutoCue => 'Auto cue';
+  String get settingsDeckAutoCue => 'Cue automático';
 
   @override
   String get settingsDeckAutoCueHint =>

@@ -298,7 +298,7 @@
   "settingsDeckEndWarningHint": "Faz a waveform e os detalhes da faixa piscarem quando uma faixa tocando está perto do fim.",
   "settingsDeckEndWarningWindow": "Avisar antes do fim",
   "settingsDeckEndWarningToggle": "Piscar antes do fim da faixa",
-  "settingsDeckAutoCue": "Auto cue",
+  "settingsDeckAutoCue": "Cue automático",
   "settingsDeckAutoCueHint": "Ao carregar, posiciona o playhead no cue da faixa em vez do início do arquivo.",
   "settingsDeckAutoCueToggle": "Posicionar no cue da faixa ao carregar",
   "settingsDeckEndWarningSeconds": "{count, plural, =1{1 segundo} other{{count} segundos}}",
