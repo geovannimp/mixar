@@ -10364,6 +10364,8 @@ impl SseDecode for crate::api::library::BeatGridData {
         let mut var_beatUnit = <u8>::sse_decode(deserializer);
         let mut var_firstDownbeatMs = <i64>::sse_decode(deserializer);
         let mut var_segmentCount = <i32>::sse_decode(deserializer);
+        let mut var_segments =
+            <Vec<crate::api::library::BeatGridSegmentData>>::sse_decode(deserializer);
         return crate::api::library::BeatGridData {
             bpm: var_bpm,
             first_beat_ms: var_firstBeatMs,
@@ -10371,6 +10373,29 @@ impl SseDecode for crate::api::library::BeatGridData {
             beat_unit: var_beatUnit,
             first_downbeat_ms: var_firstDownbeatMs,
             segment_count: var_segmentCount,
+            segments: var_segments,
+        };
+    }
+}
+
+impl SseDecode for crate::api::library::BeatGridSegmentData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_startTimeMs = <i64>::sse_decode(deserializer);
+        let mut var_bpm = <f64>::sse_decode(deserializer);
+        let mut var_beatsPerBar = <u8>::sse_decode(deserializer);
+        let mut var_beatUnit = <u8>::sse_decode(deserializer);
+        let mut var_startBeatIndex = <i64>::sse_decode(deserializer);
+        let mut var_beatsToNext = <Option<i64>>::sse_decode(deserializer);
+        let mut var_downbeatOffsetBeats = <u8>::sse_decode(deserializer);
+        return crate::api::library::BeatGridSegmentData {
+            start_time_ms: var_startTimeMs,
+            bpm: var_bpm,
+            beats_per_bar: var_beatsPerBar,
+            beat_unit: var_beatUnit,
+            start_beat_index: var_startBeatIndex,
+            beats_to_next: var_beatsToNext,
+            downbeat_offset_beats: var_downbeatOffsetBeats,
         };
     }
 }
@@ -12353,6 +12378,20 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::library::BeatGridSegmentData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::library::BeatGridSegmentData>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -15894,6 +15933,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::BeatGridData {
             self.beat_unit.into_into_dart().into_dart(),
             self.first_downbeat_ms.into_into_dart().into_dart(),
             self.segment_count.into_into_dart().into_dart(),
+            self.segments.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15906,6 +15946,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::BeatGridData>
     for crate::api::library::BeatGridData
 {
     fn into_into_dart(self) -> crate::api::library::BeatGridData {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::library::BeatGridSegmentData {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.start_time_ms.into_into_dart().into_dart(),
+            self.bpm.into_into_dart().into_dart(),
+            self.beats_per_bar.into_into_dart().into_dart(),
+            self.beat_unit.into_into_dart().into_dart(),
+            self.start_beat_index.into_into_dart().into_dart(),
+            self.beats_to_next.into_into_dart().into_dart(),
+            self.downbeat_offset_beats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::library::BeatGridSegmentData
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::library::BeatGridSegmentData>
+    for crate::api::library::BeatGridSegmentData
+{
+    fn into_into_dart(self) -> crate::api::library::BeatGridSegmentData {
         self
     }
 }
@@ -20733,6 +20799,20 @@ impl SseEncode for crate::api::library::BeatGridData {
         <u8>::sse_encode(self.beat_unit, serializer);
         <i64>::sse_encode(self.first_downbeat_ms, serializer);
         <i32>::sse_encode(self.segment_count, serializer);
+        <Vec<crate::api::library::BeatGridSegmentData>>::sse_encode(self.segments, serializer);
+    }
+}
+
+impl SseEncode for crate::api::library::BeatGridSegmentData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.start_time_ms, serializer);
+        <f64>::sse_encode(self.bpm, serializer);
+        <u8>::sse_encode(self.beats_per_bar, serializer);
+        <u8>::sse_encode(self.beat_unit, serializer);
+        <i64>::sse_encode(self.start_beat_index, serializer);
+        <Option<i64>>::sse_encode(self.beats_to_next, serializer);
+        <u8>::sse_encode(self.downbeat_offset_beats, serializer);
     }
 }
 
@@ -22237,6 +22317,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::library::BeatGridSegmentData> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::library::BeatGridSegmentData>::sse_encode(item, serializer);
         }
     }
 }

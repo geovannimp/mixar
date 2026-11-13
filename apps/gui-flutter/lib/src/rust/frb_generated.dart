@@ -8057,8 +8057,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BeatGridData dco_decode_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return BeatGridData(
       bpm: dco_decode_opt_box_autoadd_f_64(arr[0]),
       firstBeatMs: dco_decode_i_64(arr[1]),
@@ -8066,6 +8066,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       beatUnit: dco_decode_u_8(arr[3]),
       firstDownbeatMs: dco_decode_i_64(arr[4]),
       segmentCount: dco_decode_i_32(arr[5]),
+      segments: dco_decode_list_beat_grid_segment_data(arr[6]),
+    );
+  }
+
+  @protected
+  BeatGridSegmentData dco_decode_beat_grid_segment_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return BeatGridSegmentData(
+      startTimeMs: dco_decode_i_64(arr[0]),
+      bpm: dco_decode_f_64(arr[1]),
+      beatsPerBar: dco_decode_u_8(arr[2]),
+      beatUnit: dco_decode_u_8(arr[3]),
+      startBeatIndex: dco_decode_i_64(arr[4]),
+      beatsToNext: dco_decode_opt_box_autoadd_i_64(arr[5]),
+      downbeatOffsetBeats: dco_decode_u_8(arr[6]),
     );
   }
 
@@ -10328,6 +10346,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BeatGridSegmentData> dco_decode_list_beat_grid_segment_data(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_beat_grid_segment_data)
+        .toList();
+  }
+
+  @protected
   List<BeatSegment> dco_decode_list_beat_segment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_beat_segment).toList();
@@ -12493,6 +12521,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_beatUnit = sse_decode_u_8(deserializer);
     var var_firstDownbeatMs = sse_decode_i_64(deserializer);
     var var_segmentCount = sse_decode_i_32(deserializer);
+    var var_segments = sse_decode_list_beat_grid_segment_data(deserializer);
     return BeatGridData(
       bpm: var_bpm,
       firstBeatMs: var_firstBeatMs,
@@ -12500,6 +12529,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       beatUnit: var_beatUnit,
       firstDownbeatMs: var_firstDownbeatMs,
       segmentCount: var_segmentCount,
+      segments: var_segments,
+    );
+  }
+
+  @protected
+  BeatGridSegmentData sse_decode_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_startTimeMs = sse_decode_i_64(deserializer);
+    var var_bpm = sse_decode_f_64(deserializer);
+    var var_beatsPerBar = sse_decode_u_8(deserializer);
+    var var_beatUnit = sse_decode_u_8(deserializer);
+    var var_startBeatIndex = sse_decode_i_64(deserializer);
+    var var_beatsToNext = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_downbeatOffsetBeats = sse_decode_u_8(deserializer);
+    return BeatGridSegmentData(
+      startTimeMs: var_startTimeMs,
+      bpm: var_bpm,
+      beatsPerBar: var_beatsPerBar,
+      beatUnit: var_beatUnit,
+      startBeatIndex: var_startBeatIndex,
+      beatsToNext: var_beatsToNext,
+      downbeatOffsetBeats: var_downbeatOffsetBeats,
     );
   }
 
@@ -15101,6 +15154,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BeatGridSegmentData> sse_decode_list_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BeatGridSegmentData>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_beat_grid_segment_data(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<BeatSegment> sse_decode_list_beat_segment(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -17419,6 +17486,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_8(self.beatUnit, serializer);
     sse_encode_i_64(self.firstDownbeatMs, serializer);
     sse_encode_i_32(self.segmentCount, serializer);
+    sse_encode_list_beat_grid_segment_data(self.segments, serializer);
+  }
+
+  @protected
+  void sse_encode_beat_grid_segment_data(
+    BeatGridSegmentData self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.startTimeMs, serializer);
+    sse_encode_f_64(self.bpm, serializer);
+    sse_encode_u_8(self.beatsPerBar, serializer);
+    sse_encode_u_8(self.beatUnit, serializer);
+    sse_encode_i_64(self.startBeatIndex, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.beatsToNext, serializer);
+    sse_encode_u_8(self.downbeatOffsetBeats, serializer);
   }
 
   @protected
@@ -19819,6 +19902,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_beat_grid_segment_data(
+    List<BeatGridSegmentData> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_beat_grid_segment_data(item, serializer);
     }
   }
 

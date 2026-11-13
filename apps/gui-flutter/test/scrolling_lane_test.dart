@@ -12,7 +12,8 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
-import 'package:gui_flutter/src/rust/api/library.dart' show BeatGridData;
+import 'package:gui_flutter/src/rust/api/library.dart'
+    show BeatGridData, BeatGridSegmentData;
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -447,13 +448,23 @@ void main() {
       tester,
       playing: false,
       strip: _strip,
-      beatGrid: BeatGridData(
+      beatGrid: const BeatGridData(
         bpm: 120,
         firstBeatMs: 0,
         beatsPerBar: 4,
         beatUnit: 4,
         firstDownbeatMs: 0,
         segmentCount: 1,
+        segments: [
+          BeatGridSegmentData(
+            startTimeMs: 0,
+            bpm: 120,
+            beatsPerBar: 4,
+            beatUnit: 4,
+            startBeatIndex: 0,
+            downbeatOffsetBeats: 0,
+          ),
+        ],
       ),
     );
     await tester.pump();

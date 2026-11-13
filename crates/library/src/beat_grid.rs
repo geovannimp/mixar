@@ -258,39 +258,38 @@ impl CanonicalBeatGrid {
                 ));
             }
 
-            if let Some(previous) = previous {
-                let Some(count) = previous.beats_to_next else {
+            if let Some(prev) = previous {
+                let Some(count) = prev.beats_to_next else {
                     return Err(GridError::Invalid(format!(
                         "segment {} is not last but has no beat count",
-                        previous.segment_index
+                        prev.segment_index
                     )));
                 };
                 if count <= 0 {
                     return Err(GridError::Invalid(format!(
                         "segment {} has a non-positive beat count",
-                        previous.segment_index
+                        prev.segment_index
                     )));
                 }
-                if segment.start_beat_index != previous.start_beat_index + count {
+                if segment.start_beat_index != prev.start_beat_index + count {
                     return Err(GridError::Invalid(format!(
                         "segment {} does not continue beat {}",
                         segment.segment_index,
-                        previous.start_beat_index + count
+                        prev.start_beat_index + count
                     )));
                 }
-                if segment.start_time_ms < previous.start_time_ms {
+                if segment.start_time_ms < prev.start_time_ms {
                     return Err(GridError::Invalid(format!(
                         "segment {} starts before segment {}",
-                        segment.segment_index, previous.segment_index
+                        segment.segment_index, prev.segment_index
                     )));
                 }
-                let expected =
-                    previous.start_time_ms as f64 + count as f64 * 60_000.0 / previous.bpm;
-                let tolerance = (60_000.0 / previous.bpm * 0.05).max(2.0);
+                let expected = prev.start_time_ms as f64 + count as f64 * 60_000.0 / prev.bpm;
+                let tolerance = (60_000.0 / prev.bpm * 0.05).max(2.0);
                 if (segment.start_time_ms as f64 - expected).abs() > tolerance {
                     return Err(GridError::Invalid(format!(
                         "segment {} start does not match segment {} tempo",
-                        segment.segment_index, previous.segment_index
+                        segment.segment_index, prev.segment_index
                     )));
                 }
             }

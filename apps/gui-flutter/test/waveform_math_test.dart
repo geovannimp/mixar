@@ -2,6 +2,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/src/rust/api/library.dart' show BeatGridSegmentData;
+
+BeatGridSegmentData segment({
+  double startMs = 0,
+  double bpm = 120,
+  int beatsPerBar = 4,
+  int startBeat = 0,
+  int? beatsToNext,
+  int downbeatOffset = 0,
+}) => BeatGridSegmentData(
+  startTimeMs: startMs.round(),
+  bpm: bpm,
+  beatsPerBar: beatsPerBar,
+  beatUnit: 4,
+  startBeatIndex: startBeat,
+  beatsToNext: beatsToNext,
+  downbeatOffsetBeats: downbeatOffset,
+);
 
 void main() {
   test('decodeRgbPeaks maps uint8 triples to 0..1 peaks', () {
@@ -232,10 +250,7 @@ void main() {
     'beatGridXs is origin-relative so marks stay put while the lane scrolls',
     () {
       final xs = beatGridXs(
-        bpm: 120,
-        firstBeatSecs: 0,
-        beatsPerBar: 4,
-        firstDownbeatSecs: 0,
+        segments: [segment()],
         originMs: 0,
         spanMs: 2000,
         width: 200,
@@ -251,9 +266,7 @@ void main() {
     // 120 bpm, 4/4: one bar every 2 s, so arrows run 2 s apart from the first
     // downbeat (1 s here). A window starting at 0 has nothing before it.
     final xs = phaseMarkXs(
-      bpm: 120,
-      firstDownbeatSecs: 1,
-      beatsPerBar: 4,
+      segments: [segment(downbeatOffset: 2)],
       originMs: 0,
       spanMs: 40_000,
       width: 400,
@@ -270,9 +283,7 @@ void main() {
 
   test('phaseMarkXs extrapolates bars before the track starts', () {
     final xs = phaseMarkXs(
-      bpm: 120,
-      firstDownbeatSecs: 1,
-      beatsPerBar: 4,
+      segments: [segment(downbeatOffset: 2)],
       originMs: -4000,
       spanMs: 8000,
       width: 800,
@@ -287,10 +298,7 @@ void main() {
 
   test('beatGridXs extrapolates beats before the track starts', () {
     final xs = beatGridXs(
-      bpm: 120,
-      firstBeatSecs: 0,
-      beatsPerBar: 4,
-      firstDownbeatSecs: 0,
+      segments: [segment()],
       originMs: -1000,
       spanMs: 2000,
       width: 200,
@@ -306,9 +314,7 @@ void main() {
 
   test('phaseMarkXs keeps arrowing past the analyzed span', () {
     final xs = phaseMarkXs(
-      bpm: 96,
-      firstDownbeatSecs: 0.6888549,
-      beatsPerBar: 4,
+      segments: [segment(startMs: 63.8549, bpm: 96, downbeatOffset: 1)],
       originMs: 0,
       spanMs: 200_000,
       width: 200,
@@ -325,9 +331,7 @@ void main() {
   test('phaseMarkXs follows the segment meter, not 4/4', () {
     // 3/4 at 60 bpm: bars every 3 s.
     final xs = phaseMarkXs(
-      bpm: 60,
-      firstDownbeatSecs: 0,
-      beatsPerBar: 3,
+      segments: [segment(bpm: 60, beatsPerBar: 3)],
       originMs: 0,
       spanMs: 30_000,
       width: 300,
@@ -340,16 +344,32 @@ void main() {
     expect(xs, hasLength(11));
   });
 
+  test('beatGridXs follows a tempo change at the segment boundary', () {
+    final xs = beatGridXs(
+      segments: [
+        segment(beatsToNext: 4),
+        segment(startMs: 2000, startBeat: 4, bpm: 60),
+      ],
+      originMs: 0,
+      spanMs: 6000,
+      width: 600,
+    );
+    expect(xs.map((mark) => mark.x), [
+      closeTo(0, 1e-6),
+      closeTo(50, 1e-6),
+      closeTo(100, 1e-6),
+      closeTo(150, 1e-6),
+      closeTo(200, 1e-6),
+      closeTo(300, 1e-6),
+      closeTo(400, 1e-6),
+      closeTo(500, 1e-6),
+      closeTo(600, 1e-6),
+    ]);
+  });
+
   test('phaseMarkXs yields nothing without a BPM', () {
     expect(
-      phaseMarkXs(
-        bpm: null,
-        firstDownbeatSecs: 0,
-        beatsPerBar: 4,
-        originMs: 0,
-        spanMs: 20_000,
-        width: 200,
-      ),
+      phaseMarkXs(segments: const [], originMs: 0, spanMs: 20_000, width: 200),
       isEmpty,
     );
   });

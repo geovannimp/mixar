@@ -205,7 +205,18 @@ pub struct WaveformPeaks {
     pub end_ms: i32,
 }
 
-/// Beat-grid overlay data (beat times in seconds).
+/// Beat-grid overlay segment.
+#[derive(Clone, Debug)]
+pub struct BeatGridSegmentData {
+    pub start_time_ms: i64,
+    pub bpm: f64,
+    pub beats_per_bar: u8,
+    pub beat_unit: u8,
+    pub start_beat_index: i64,
+    pub beats_to_next: Option<i64>,
+    pub downbeat_offset_beats: u8,
+}
+
 #[derive(Clone, Debug)]
 pub struct BeatGridData {
     pub bpm: Option<f64>,
@@ -215,6 +226,7 @@ pub struct BeatGridData {
     pub first_downbeat_ms: i64,
     /// Number of tempo segments in the canonical grid.
     pub segment_count: i32,
+    pub segments: Vec<BeatGridSegmentData>,
 }
 
 /// Performance history session row for the Flutter History pane.
@@ -883,6 +895,19 @@ impl LibraryTransport {
         let Some(segment) = grid.segments.first() else {
             return Ok(None);
         };
+        let segments = grid
+            .segments
+            .iter()
+            .map(|segment| BeatGridSegmentData {
+                start_time_ms: segment.start_time_ms,
+                bpm: segment.bpm,
+                beats_per_bar: segment.beats_per_bar,
+                beat_unit: segment.beat_unit,
+                start_beat_index: segment.start_beat_index,
+                beats_to_next: segment.beats_to_next,
+                downbeat_offset_beats: segment.downbeat_offset_beats,
+            })
+            .collect();
         Ok(Some(BeatGridData {
             bpm: Some(segment.bpm),
             first_beat_ms: segment.start_time_ms,
@@ -890,6 +915,7 @@ impl LibraryTransport {
             beat_unit: segment.beat_unit,
             first_downbeat_ms: grid.first_downbeat_ms().unwrap_or(segment.start_time_ms),
             segment_count: grid.segments.len() as i32,
+            segments,
         }))
     }
 

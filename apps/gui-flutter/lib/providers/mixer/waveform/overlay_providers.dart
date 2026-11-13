@@ -77,18 +77,13 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?>
     }
     final size = _stripSize(widthPx);
     final marks = beatGridXs(
-      bpm: grid.bpm!,
-      firstBeatSecs: grid.firstBeatMs / 1000.0,
-      beatsPerBar: grid.beatsPerBar,
-      firstDownbeatSecs: grid.firstDownbeatMs / 1000.0,
+      segments: grid.segments,
       originMs: originMs.toDouble(),
       spanMs: spanMs.toDouble(),
       width: size.width,
     );
     final arrows = phaseMarkXs(
-      bpm: grid.bpm,
-      firstDownbeatSecs: grid.firstDownbeatMs / 1000.0,
-      beatsPerBar: grid.beatsPerBar,
+      segments: grid.segments,
       originMs: originMs.toDouble(),
       spanMs: spanMs.toDouble(),
       width: size.width,

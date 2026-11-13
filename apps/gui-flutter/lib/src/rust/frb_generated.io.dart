@@ -211,6 +211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData dco_decode_beat_grid_data(dynamic raw);
 
   @protected
+  BeatGridSegmentData dco_decode_beat_grid_segment_data(dynamic raw);
+
+  @protected
   BeatJump dco_decode_beat_jump(dynamic raw);
 
   @protected
@@ -887,6 +890,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<BeatGridSegmentData> dco_decode_list_beat_grid_segment_data(dynamic raw);
 
   @protected
   List<BeatSegment> dco_decode_list_beat_segment(dynamic raw);
@@ -1589,6 +1595,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BeatGridData sse_decode_beat_grid_data(SseDeserializer deserializer);
+
+  @protected
+  BeatGridSegmentData sse_decode_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BeatJump sse_decode_beat_jump(SseDeserializer deserializer);
@@ -2477,6 +2488,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<BeatGridSegmentData> sse_decode_list_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<BeatSegment> sse_decode_list_beat_segment(SseDeserializer deserializer);
 
   @protected
@@ -3293,6 +3309,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_beat_grid_data(BeatGridData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_beat_grid_segment_data(
+    BeatGridSegmentData self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_beat_jump(BeatJump self, SseSerializer serializer);
@@ -4424,6 +4446,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_beat_grid_segment_data(
+    List<BeatGridSegmentData> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_beat_segment(

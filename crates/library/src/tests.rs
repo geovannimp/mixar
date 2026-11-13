@@ -1485,19 +1485,61 @@ fn short_beats_fixture_copy(dir: &Path) -> PathBuf {
     path
 }
 
-#[test]
 #[cfg(feature = "analysis")]
-fn analysis_writes_a_canonical_grid_at_the_tagged_bpm() {
-    let dir = tempfile::tempdir().unwrap();
-    let wav = short_beats_fixture_copy(dir.path());
+fn tagged_short_beats_fixture(dir: &Path, bpm: f64, key: Option<&str>) -> PathBuf {
+    let wav = short_beats_fixture_copy(dir);
     codec::write_track_tags(
         &wav,
         &codec::TrackTags {
-            bpm: Some(80.0),
+            bpm: Some(bpm),
+            key: key.map(str::to_string),
             ..Default::default()
         },
     )
     .unwrap();
+    wav
+}
+
+#[test]
+fn file_upsert_preserves_canonical_grid_bpm_over_tag_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("grid-bpm.wav");
+    write_minimal_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.save_track_beat_grid(&id, 128.0, 0.0, false).unwrap();
+
+    let mut metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    metadata.bpm = Some(90.0);
+    lib.upsert_file_source(&wav, &metadata).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap().metadata().bpm;
+    assert_eq!(stored, Some(128.0));
+}
+
+#[test]
+fn file_upsert_without_grid_keeps_tag_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("tag-bpm.wav");
+    write_minimal_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+
+    let mut metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    metadata.bpm = Some(90.0);
+    lib.upsert_file_source(&wav, &metadata).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap().metadata().bpm;
+    assert_eq!(stored, Some(90.0));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_writes_a_canonical_grid_at_the_tagged_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 80.0, None);
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let id = lib.import_file_path(&wav).unwrap().id().clone();
@@ -1517,16 +1559,7 @@ fn analysis_writes_a_canonical_grid_at_the_tagged_bpm() {
 #[cfg(feature = "analysis")]
 fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
     let dir = tempfile::tempdir().unwrap();
-    let wav = short_beats_fixture_copy(dir.path());
-    codec::write_track_tags(
-        &wav,
-        &codec::TrackTags {
-            bpm: Some(87.0),
-            key: Some("Cm".into()),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 87.0, Some("Cm"));
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig {
         tag_write_back: TagWriteBack::On,
@@ -1557,15 +1590,7 @@ fn analysis_without_force_retunes_a_metrical_family_lock_to_the_tagged_bpm() {
     // 120 BPM clicks tagged 80 BPM — a 3:2 detector lock. Without `force` the
     // tag wins, so the analysis grid must be rebuilt at 80, not left at 120.
     let dir = tempfile::tempdir().unwrap();
-    let wav = short_beats_fixture_copy(dir.path());
-    codec::write_track_tags(
-        &wav,
-        &codec::TrackTags {
-            bpm: Some(80.0),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 80.0, None);
 
     let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::default()).unwrap();
     assert_eq!(computed.metadata.bpm, Some(80.0));

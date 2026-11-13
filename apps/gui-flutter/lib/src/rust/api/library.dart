@@ -9,7 +9,7 @@ import 'bus.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `library_arc`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bus`, `library_buses`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -360,7 +360,6 @@ class AnalyzeCollectionResult {
           stemTrackIds == other.stemTrackIds;
 }
 
-/// Beat-grid overlay data (beat times in seconds).
 class BeatGridData {
   final double? bpm;
   final PlatformInt64 firstBeatMs;
@@ -370,6 +369,7 @@ class BeatGridData {
 
   /// Number of tempo segments in the canonical grid.
   final int segmentCount;
+  final List<BeatGridSegmentData> segments;
 
   const BeatGridData({
     this.bpm,
@@ -378,6 +378,7 @@ class BeatGridData {
     required this.beatUnit,
     required this.firstDownbeatMs,
     required this.segmentCount,
+    required this.segments,
   });
 
   @override
@@ -387,7 +388,8 @@ class BeatGridData {
       beatsPerBar.hashCode ^
       beatUnit.hashCode ^
       firstDownbeatMs.hashCode ^
-      segmentCount.hashCode;
+      segmentCount.hashCode ^
+      segments.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -399,7 +401,52 @@ class BeatGridData {
           beatsPerBar == other.beatsPerBar &&
           beatUnit == other.beatUnit &&
           firstDownbeatMs == other.firstDownbeatMs &&
-          segmentCount == other.segmentCount;
+          segmentCount == other.segmentCount &&
+          segments == other.segments;
+}
+
+/// Beat-grid overlay segment.
+class BeatGridSegmentData {
+  final PlatformInt64 startTimeMs;
+  final double bpm;
+  final int beatsPerBar;
+  final int beatUnit;
+  final PlatformInt64 startBeatIndex;
+  final PlatformInt64? beatsToNext;
+  final int downbeatOffsetBeats;
+
+  const BeatGridSegmentData({
+    required this.startTimeMs,
+    required this.bpm,
+    required this.beatsPerBar,
+    required this.beatUnit,
+    required this.startBeatIndex,
+    this.beatsToNext,
+    required this.downbeatOffsetBeats,
+  });
+
+  @override
+  int get hashCode =>
+      startTimeMs.hashCode ^
+      bpm.hashCode ^
+      beatsPerBar.hashCode ^
+      beatUnit.hashCode ^
+      startBeatIndex.hashCode ^
+      beatsToNext.hashCode ^
+      downbeatOffsetBeats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BeatGridSegmentData &&
+          runtimeType == other.runtimeType &&
+          startTimeMs == other.startTimeMs &&
+          bpm == other.bpm &&
+          beatsPerBar == other.beatsPerBar &&
+          beatUnit == other.beatUnit &&
+          startBeatIndex == other.startBeatIndex &&
+          beatsToNext == other.beatsToNext &&
+          downbeatOffsetBeats == other.downbeatOffsetBeats;
 }
 
 /// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.

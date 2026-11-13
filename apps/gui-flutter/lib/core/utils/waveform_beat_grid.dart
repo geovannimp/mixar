@@ -78,71 +78,81 @@ List<({int index, double x})> evenGridXs({
 }
 
 /// X positions of the phase arrows in the scrolling buffer (origin at the left
-/// edge): one arrow per bar, anchored on the first downbeat.
-///
-/// Bars also run before the first downbeat when the window starts before it, so
-/// the lane keeps its grid before the track's audio.
+/// edge): one arrow per bar. Bars are derived from the segment-local downbeat
+/// and meter, so variable-tempo grids keep their phase past each change.
 List<double> phaseMarkXs({
-  required double? bpm,
-  required double firstDownbeatSecs,
-  required int beatsPerBar,
+  required List<BeatGridSegmentData> segments,
   required double originMs,
   required double spanMs,
   required double width,
-}) {
-  final gridBpm = bpm;
-  if (gridBpm == null || !(gridBpm > 0)) {
-    return const [];
-  }
-  final meter = beatsPerBar.clamp(1, 16);
-  final barMs = meter * 60_000 / gridBpm;
-  final anchorMs = firstDownbeatSecs * 1000;
-  return [
-    for (final mark in evenGridXs(
-      anchorMs: anchorMs,
-      stepMs: barMs,
-      originMs: originMs,
-      spanMs: spanMs,
-      width: width,
-      firstIndex: ((originMs - anchorMs) / barMs).floor(),
-    ))
-      mark.x,
-  ];
-}
+}) => [
+  for (final mark in beatGridXs(
+    segments: segments,
+    originMs: originMs,
+    spanMs: spanMs,
+    width: width,
+  ))
+    if (mark.isBar) mark.x,
+];
 
 /// Beat x positions in the scrolling buffer (origin at the left edge).
 ///
-/// Bars are marked from the first downbeat and the segment's meter, so a 3/4
-/// grid arrows every third beat instead of assuming 4/4.
+/// Each canonical segment contributes its own beats. The first segment runs
+/// before the track starts, and the terminal segment runs past its last marker,
+/// matching the old constant-grid extrapolation without flattening a
+/// variable-tempo grid.
 List<BeatMark> beatGridXs({
-  required double bpm,
-  required double firstBeatSecs,
-  required int beatsPerBar,
-  required double firstDownbeatSecs,
+  required List<BeatGridSegmentData> segments,
   required double originMs,
   required double spanMs,
   required double width,
 }) {
-  if (!(bpm > 20 && bpm < 400) || spanMs <= 0 || width <= 0) {
+  if (segments.isEmpty || spanMs <= 0 || width <= 0) {
     return const [];
   }
-  final meter = beatsPerBar.clamp(1, 16);
-  final beatPeriodMs = 60_000 / bpm;
-  final phaseMs = firstBeatSecs * 1000;
-  final firstDownbeatIndex =
-      ((firstDownbeatSecs * 1000 - phaseMs) / beatPeriodMs).round();
-  return [
-    for (final mark in evenGridXs(
-      anchorMs: phaseMs,
-      stepMs: beatPeriodMs,
-      originMs: originMs,
-      spanMs: spanMs,
-      width: width,
-      firstIndex: ((originMs - phaseMs) / beatPeriodMs).floor(),
-    ))
-      BeatMark(
-        x: mark.x,
-        isBar: (mark.index - firstDownbeatIndex) % meter == 0,
-      ),
-  ];
+
+  final windowStart = originMs;
+  final windowEnd = originMs + spanMs;
+  final byTime = <int, BeatMark>{};
+  for (var i = 0; i < segments.length; i++) {
+    final segment = segments[i];
+    final bpm = segment.bpm;
+    if (!(bpm > 20 && bpm < 400)) {
+      continue;
+    }
+    final meter = segment.beatsPerBar.clamp(1, 16);
+    final beatMs = 60_000 / bpm;
+    final startMs = segment.startTimeMs.toDouble();
+    // PlatformInt64 is int on native builds; convert for the web BigInt alias.
+    // ignore: noop_primitive_operations
+    final startBeat = segment.startBeatIndex.toInt();
+    // PlatformInt64 is int on native builds; convert for the web BigInt alias.
+    // ignore: noop_primitive_operations
+    final count = segment.beatsToNext?.toInt();
+    final firstIndex = i == 0
+        ? ((windowStart - startMs) / beatMs).floor() + startBeat
+        : ((windowStart - startMs) / beatMs).floor().clamp(
+            startBeat,
+            count == null ? startBeat : startBeat + count - 1,
+          );
+    final lastIndex = count == null
+        ? ((windowEnd - startMs) / beatMs).ceil() + startBeat
+        : startBeat + count - 1;
+    final downbeatIndex = startBeat + segment.downbeatOffsetBeats;
+
+    for (var index = firstIndex; index <= lastIndex; index++) {
+      final time = startMs + (index - startBeat) * beatMs;
+      if (time < windowStart - 1e-6 || time > windowEnd + 1e-6) {
+        continue;
+      }
+      byTime[time.round()] = BeatMark(
+        x: (time - originMs) / spanMs * width,
+        isBar: (index - downbeatIndex) % meter == 0,
+      );
+    }
+    if (byTime.length > 10000) {
+      break;
+    }
+  }
+  return byTime.values.toList()..sort((a, b) => a.x.compareTo(b.x));
 }
