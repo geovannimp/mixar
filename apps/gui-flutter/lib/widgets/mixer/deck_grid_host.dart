@@ -93,7 +93,7 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
           trackId: trackId,
           bpm: bpm,
           firstBeatSecs: firstBeatSecs,
-          replace: false,
+          replace: true,
         );
       } catch (e) {
         _toast(e);

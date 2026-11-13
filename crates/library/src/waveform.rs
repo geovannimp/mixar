@@ -231,12 +231,15 @@ pub(crate) fn save_track_beat_grid(
     let beats_per_bar = first_segment.map_or(4, |segment| segment.beats_per_bar);
     let beat_unit = first_segment.map_or(4, |segment| segment.beat_unit);
     let first_beat_ms = (f64::from(first_beat_secs) * 1000.0).round() as i64;
+    let first_downbeat_ms = first_segment.map_or(first_beat_ms, |segment| {
+        first_beat_ms + (f64::from(segment.downbeat_offset_beats) * 60_000.0 / bpm).round() as i64
+    });
     let grid = beat_grid::from_constant(
         bpm,
         first_beat_ms,
         beats_per_bar,
         beat_unit,
-        first_beat_ms,
+        first_downbeat_ms,
         None,
         SOURCE_MANUAL,
     );
@@ -471,6 +474,47 @@ mod tests {
 
         let track = store.get_track(&id).unwrap().unwrap();
         assert_eq!(track.metadata().bpm, Some(130.0));
+    }
+
+    #[test]
+    fn save_track_beat_grid_preserves_the_existing_downbeat_offset() {
+        use crate::beat_grid::{
+            write_track_beat_grid, BeatSegment, CanonicalBeatGrid, SOURCE_ANALYSIS,
+        };
+
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/offset.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/offset.wav"),
+                &TrackMetadata {
+                    bpm: Some(120.0),
+                    duration_ms: Some(60_000),
+                    ..TrackMetadata::default()
+                },
+                "1",
+            )
+            .unwrap();
+        let grid = CanonicalBeatGrid {
+            source: SOURCE_ANALYSIS.into(),
+            covered_to_ms: None,
+            segments: vec![BeatSegment {
+                segment_index: 0,
+                start_time_ms: 0,
+                bpm: 120.0,
+                beats_per_bar: 4,
+                beat_unit: 4,
+                start_beat_index: 0,
+                beats_to_next: None,
+                downbeat_offset_beats: 2,
+            }],
+        };
+        write_track_beat_grid(&db, &id, &grid).unwrap();
+
+        let saved = save_track_beat_grid(&db, &id, 130.0, 0.25, false).unwrap();
+        assert_eq!(saved.first_segment().unwrap().downbeat_offset_beats, 2);
     }
 
     #[test]

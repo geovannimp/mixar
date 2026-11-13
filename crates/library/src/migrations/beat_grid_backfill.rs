@@ -4,6 +4,7 @@ use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
 use super::{Migration, MigrationError};
 use crate::beat_grid;
+use crate::db::{TRACKS_TABLE, TRACK_ANALYSIS_TABLE, TRACK_BEAT_GRID_TABLE};
 
 pub(crate) const VERSION: &str = "2026111201_beat_grid_backfill";
 
@@ -16,7 +17,8 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
     let rows = conn
         .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
-            r#"
+            format!(
+                r#"
             SELECT t.id AS track_id,
                    t.bpm AS tracks_bpm,
                    t.duration_ms AS track_duration_ms,
@@ -24,15 +26,16 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
                    a.beat_grid_json,
                    a.backend,
                    a.duration_analyzed_ms
-            FROM tracks t
-            LEFT JOIN track_analysis a ON a.track_id = t.id
+            FROM {TRACKS_TABLE} t
+            LEFT JOIN {TRACK_ANALYSIS_TABLE} a ON a.track_id = t.id
             WHERE a.beat_grid_json IS NOT NULL
               AND a.beat_grid_json NOT IN ('null', '')
               AND NOT EXISTS (
-                  SELECT 1 FROM track_beat_grid g WHERE g.track_id = t.id
+                  SELECT 1 FROM {TRACK_BEAT_GRID_TABLE} g WHERE g.track_id = t.id
               )
             ORDER BY t.id
-            "#,
+            "#
+            ),
         ))
         .map_err(|err| MigrationError::new(VERSION, err.to_string()))?;
 
@@ -105,13 +108,17 @@ mod tests {
         let conn = conn.as_connection();
         conn.execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "INSERT INTO tracks (id, source_type, source_ref, bpm, duration_ms, added_at, updated_at) VALUES (?, 'file', ?, ?, 180000, 'now', 'now')",
+            format!(
+                "INSERT INTO {TRACKS_TABLE} (id, source_type, source_ref, bpm, duration_ms, added_at, updated_at) VALUES (?, 'file', ?, ?, 180000, 'now', 'now')"
+            ),
             [id.into(), id.into(), tracks_bpm.into()],
         ))
         .unwrap();
         conn.execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "INSERT INTO track_analysis (track_id, backend, backend_version, analyzed_at, bpm, sample_rate, duration_analyzed_ms, beat_grid_json) VALUES (?, ?, 'test', 'now', ?, 44100, 180000, ?)",
+            format!(
+                "INSERT INTO {TRACK_ANALYSIS_TABLE} (track_id, backend, backend_version, analyzed_at, bpm, sample_rate, duration_analyzed_ms, beat_grid_json) VALUES (?, ?, 'test', 'now', ?, 44100, 180000, ?)"
+            ),
             [id.into(), backend.into(), analysis_bpm.into(), json.into()],
         ))
         .unwrap();
@@ -123,7 +130,7 @@ mod tests {
             .as_connection()
             .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
-                "SELECT bpm FROM tracks WHERE id = ?",
+                format!("SELECT bpm FROM {TRACKS_TABLE} WHERE id = ?"),
                 [id.into()],
             ))
             .unwrap()

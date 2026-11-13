@@ -139,9 +139,9 @@ impl Engine {
     /// Returns deck ids whose BPM or first-beat phase changed (caller publishes `DeckUpdated`).
     pub fn apply_track_beat_grid(&mut self, track_id: &str, beat_grid: &BeatGrid) -> Vec<usize> {
         let segment = beat_grid.segments.first();
-        let first_beat_ms = segment.map_or(0.0, |segment| segment.start_time_ms as f64);
+        let first_beat_ms = segment.map_or(0.0, |seg| seg.start_time_ms as f64);
         let new_bpm = segment
-            .map(|segment| segment.bpm)
+            .map(|seg| seg.bpm)
             .filter(|bpm| bpm.is_finite() && *bpm > 0.0);
 
         let mut changed = Vec::new();

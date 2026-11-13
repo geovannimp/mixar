@@ -6,6 +6,13 @@ use std::sync::Mutex;
 use library_core::{LibraryError, Result};
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
 
+pub(crate) const SEAQL_MIGRATIONS_TABLE: &str = "seaql_migrations";
+pub(crate) const TRACKS_TABLE: &str = "tracks";
+pub(crate) const TRACK_ANALYSIS_TABLE: &str = "track_analysis";
+pub(crate) const TRACK_BEAT_GRID_TABLE: &str = "track_beat_grid";
+#[allow(dead_code)]
+pub(crate) const TRACK_BEAT_SEGMENT_TABLE: &str = "track_beat_segment";
+
 /// Wrapper so `Db` can satisfy `Library: Send + Sync`.
 ///
 /// SeaORM sync's `DatabaseConnection` is `!Send` because of an optional metric
@@ -37,6 +44,21 @@ impl Db {
     }
 
     fn connect(url: &str) -> Result<Self> {
+        let conn = Self::open_connection(url)?;
+        crate::migrations::run_pending_migrations(conn.as_connection()).map_err(|err| {
+            LibraryError::Backend {
+                backend: "library",
+                message: err.to_string(),
+            }
+        })?;
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
+    /// Shared connection bootstrap: options, schema sync, and the Send+Sync
+    /// wrapper. Migrations are layered on top by [`Self::connect`].
+    fn open_connection(url: &str) -> Result<SyncConnection> {
         let mut opts = ConnectOptions::new(url.to_string());
         // SeaORM logs queries (with bound parameters) via the `sea_orm` target when
         // RUST_LOG includes `sea_orm=debug`; keep sqlx's own logging off.
@@ -44,13 +66,7 @@ impl Db {
 
         let conn = Database::connect(opts).map_err(db_err)?;
         sync_schema(&conn).map_err(db_err)?;
-        crate::migrations::run_pending_migrations(&conn).map_err(|err| LibraryError::Backend {
-            backend: "library",
-            message: err.to_string(),
-        })?;
-        Ok(Self {
-            conn: Mutex::new(SyncConnection(conn)),
-        })
+        Ok(SyncConnection(conn))
     }
 
     /// Open an in-memory database without running migrations.
@@ -63,12 +79,8 @@ impl Db {
 
     #[allow(dead_code)]
     fn connect_unmigrated(url: &str) -> Result<Self> {
-        let mut opts = ConnectOptions::new(url.to_string());
-        opts.max_connections(1).sqlx_logging(false);
-        let conn = Database::connect(opts).map_err(db_err)?;
-        sync_schema(&conn).map_err(db_err)?;
         Ok(Self {
-            conn: Mutex::new(SyncConnection(conn)),
+            conn: Mutex::new(Self::open_connection(url)?),
         })
     }
 

@@ -153,38 +153,21 @@ impl CanonicalBeatGrid {
 
     /// Beat times from the grid start up to `until_ms`, capped at `max_beats`.
     pub fn materialize_beats(&self, until_ms: i64, max_beats: usize) -> Vec<i64> {
-        let mut beats = Vec::new();
-        for segment in &self.segments {
-            if beats.len() >= max_beats {
-                break;
-            }
-            let count = match segment.beats_to_next {
-                Some(count) => count.max(0) as usize,
-                None => {
-                    let beat_ms = 60_000.0 / segment.bpm;
-                    if beat_ms <= 0.0 || until_ms < segment.start_time_ms {
-                        break;
-                    }
-                    let remaining = (until_ms - segment.start_time_ms) as f64;
-                    (remaining / beat_ms).floor() as usize + 1
-                }
-            };
-            for offset in 0..count {
-                if beats.len() >= max_beats {
-                    return beats;
-                }
-                let time = beat_time_in_segment(segment, offset as i64);
-                if time > until_ms {
-                    return beats;
-                }
-                beats.push(time);
-            }
-        }
-        beats
+        self.materialize_beat_times(until_ms, max_beats)
+            .into_iter()
+            .map(|time_ms| time_ms.round() as i64)
+            .collect()
     }
 
     /// Beat times in seconds, without millisecond rounding, for exporters.
     pub fn materialize_beat_secs(&self, until_ms: i64, max_beats: usize) -> Vec<f32> {
+        self.materialize_beat_times(until_ms, max_beats)
+            .into_iter()
+            .map(|time_ms| (time_ms / 1000.0) as f32)
+            .collect()
+    }
+
+    fn materialize_beat_times(&self, until_ms: i64, max_beats: usize) -> Vec<f64> {
         let mut beats = Vec::new();
         for segment in &self.segments {
             if beats.len() >= max_beats {
@@ -209,7 +192,7 @@ impl CanonicalBeatGrid {
                 if time_ms > until_ms as f64 {
                     return beats;
                 }
-                beats.push((time_ms / 1000.0) as f32);
+                beats.push(time_ms);
             }
         }
         beats
@@ -928,7 +911,7 @@ mod tests {
             .as_connection()
             .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
-                "INSERT INTO tracks (id, source_type, source_ref, added_at, updated_at) VALUES (?, 'file', ?, 'now', 'now')",
+                format!("INSERT INTO {} (id, source_type, source_ref, added_at, updated_at) VALUES (?, 'file', ?, 'now', 'now')", crate::db::TRACKS_TABLE),
                 [id.into(), id.into()],
             ))
             .unwrap();
@@ -940,7 +923,7 @@ mod tests {
             .as_connection()
             .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
-                "SELECT bpm FROM tracks WHERE id = ?",
+                format!("SELECT bpm FROM {} WHERE id = ?", crate::db::TRACKS_TABLE),
                 [id.into()],
             ))
             .unwrap()
@@ -953,7 +936,10 @@ mod tests {
             .as_connection()
             .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
-                "SELECT COUNT(*) AS count FROM track_beat_segment WHERE track_id = ?",
+                format!(
+                    "SELECT COUNT(*) AS count FROM {} WHERE track_id = ?",
+                    crate::db::TRACK_BEAT_SEGMENT_TABLE
+                ),
                 [id.into()],
             ))
             .unwrap()

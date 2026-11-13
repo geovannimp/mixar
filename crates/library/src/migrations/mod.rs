@@ -8,6 +8,8 @@ use std::fmt;
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
+use crate::db::SEAQL_MIGRATIONS_TABLE;
+
 pub(crate) mod beat_grid_backfill;
 
 /// One migration step. Versions sort lexicographically and must be unique.
@@ -75,7 +77,7 @@ pub(crate) fn run_migrations(
 
         let insert = Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "INSERT INTO seaql_migrations (version, applied_at) VALUES (?, ?)",
+            format!("INSERT INTO {SEAQL_MIGRATIONS_TABLE} (version, applied_at) VALUES (?, ?)"),
             [
                 migration.version.into(),
                 chrono::Utc::now().to_rfc3339().into(),
@@ -111,7 +113,7 @@ fn applied_versions(conn: &DatabaseConnection) -> Result<Vec<String>, MigrationE
     let rows = conn
         .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "SELECT version FROM seaql_migrations".to_string(),
+            format!("SELECT version FROM {SEAQL_MIGRATIONS_TABLE}"),
         ))
         .map_err(|err| MigrationError::new("", err.to_string()))?;
     let mut versions = Vec::with_capacity(rows.len());
@@ -167,7 +169,7 @@ mod tests {
             .as_connection()
             .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
-                "SELECT version FROM seaql_migrations".to_string(),
+                format!("SELECT version FROM {SEAQL_MIGRATIONS_TABLE}"),
             ))
             .unwrap();
         assert_eq!(rows.len(), 1);
@@ -190,7 +192,7 @@ mod tests {
             .as_connection()
             .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
-                "SELECT version FROM seaql_migrations".to_string(),
+                format!("SELECT version FROM {SEAQL_MIGRATIONS_TABLE}"),
             ))
             .unwrap();
         assert!(rows.is_empty());
@@ -205,8 +207,9 @@ mod tests {
             .as_connection()
             .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'seaql_migrations'"
-                    .to_string(),
+                format!(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '{SEAQL_MIGRATIONS_TABLE}'"
+                ),
             ))
             .unwrap();
         assert_eq!(rows.len(), 1);
