@@ -20,6 +20,10 @@ mod traits;
 mod types;
 
 pub use analyzer_core::{AnalysisDurationMode, DEFAULT_CUE_THRESHOLD_DB};
+
+/// Bounds for the cue-detection silence threshold, in dBFS (Settings → Analysis).
+pub const MIN_CUE_THRESHOLD_DB: f32 = -90.0;
+pub const MAX_CUE_THRESHOLD_DB: f32 = -30.0;
 pub use audio_core::{LoadableAudio, LoadedAudio, SpectralPeak};
 pub use error::{path_label, LibraryError, Result};
 pub use export::{

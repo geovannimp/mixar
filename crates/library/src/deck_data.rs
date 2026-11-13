@@ -1,6 +1,6 @@
 //! Hot cue and loop persistence for deck performance data.
 
-use sea_orm::sea_query::OnConflict;
+use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::ColumnTrait;
 use sea_orm::{EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
@@ -130,6 +130,10 @@ pub fn store_track_cue(
 /// A cue from the same writer is replaced, so re-analysis after a threshold
 /// change updates the cue; a cue from another writer (manual, import) wins and
 /// is returned unchanged.
+///
+/// The ownership check is part of each statement rather than a read-then-write
+/// pair: the UPDATE can only match this writer's row, and the INSERT only fills
+/// an empty track, so a concurrent manual set can never be overwritten.
 pub fn refresh_track_cue(
     db: &Db,
     track_id: &TrackId,
@@ -137,12 +141,17 @@ pub fn refresh_track_cue(
     source: CueSource,
     updated_at: String,
 ) -> Result<Option<TrackCue>> {
-    match get_track_cue(db, track_id)? {
-        Some(existing) if existing.source != source => Ok(Some(existing)),
-        _ => Ok(Some(store_track_cue(
-            db, track_id, cue_ms, source, updated_at,
-        )?)),
-    }
+    TrackCueEntity::update_many()
+        .col_expr(track_cue::Column::CueMs, Expr::value(cue_ms))
+        .col_expr(
+            track_cue::Column::UpdatedAt,
+            Expr::value(updated_at.clone()),
+        )
+        .filter(track_cue::Column::TrackId.eq(track_id.as_str()))
+        .filter(track_cue::Column::Source.eq(source.as_str()))
+        .exec(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    fill_track_cue(db, track_id, cue_ms, source, updated_at)
 }
 
 pub fn save_hot_cue(
@@ -513,14 +522,18 @@ impl LibraryManager {
         crate::deck_data::get_track_cue(&self.db, track_id)
     }
 
-    /// Overwrite the main cue (manual set), stamping `updated_at` now.
-    pub fn save_track_cue(
-        &self,
-        track_id: &TrackId,
-        cue_ms: i32,
-        source: CueSource,
-    ) -> Result<TrackCue> {
-        crate::deck_data::store_track_cue(&self.db, track_id, cue_ms, source, unix_secs_string())
+    /// Overwrite the main cue with a manual set, stamping `updated_at` now.
+    ///
+    /// Only [`CueSource::Manual`] is written here: the analysis path owns the
+    /// rows it refreshes, so a caller cannot mark a user's cue re-analyzable.
+    pub fn save_track_cue(&self, track_id: &TrackId, cue_ms: i32) -> Result<TrackCue> {
+        crate::deck_data::store_track_cue(
+            &self.db,
+            track_id,
+            cue_ms,
+            CueSource::Manual,
+            unix_secs_string(),
+        )
     }
 
     pub fn save_track_loop(

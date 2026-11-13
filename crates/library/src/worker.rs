@@ -349,11 +349,7 @@ fn handle_save_track_cue(
     } = cmd;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.save_track_cue(
-            &TrackId::new(track_id.clone()),
-            position_ms,
-            library_core::CueSource::Manual,
-        )
+        lib.save_track_cue(&TrackId::new(track_id.clone()), position_ms)
     };
     if let Err(err) = result {
         publish_error(buses, err.to_string(), Some(track_id));

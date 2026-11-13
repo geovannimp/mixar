@@ -1925,10 +1925,7 @@ fn analysis_refreshes_its_own_cue() {
 #[cfg(feature = "analysis")]
 fn analysis_does_not_overwrite_a_manual_cue() {
     let fixture = cue_fixture(1000);
-    fixture
-        .lib
-        .save_track_cue(&fixture.id, 250, CueSource::Manual)
-        .unwrap();
+    fixture.lib.save_track_cue(&fixture.id, 250).unwrap();
 
     let mut computed = compute_file_analysis(&fixture.wav, AnalyzeTrackOptions::force()).unwrap();
     computed.analysis.cue_ms = Some(1000);
@@ -1950,10 +1947,7 @@ fn analysis_does_not_overwrite_a_manual_cue() {
 #[cfg(feature = "analysis")]
 fn import_fills_only_without_a_cue() {
     let mut fixture = cue_fixture(1000);
-    fixture
-        .lib
-        .save_track_cue(&fixture.id, 250, CueSource::Manual)
-        .unwrap();
+    fixture.lib.save_track_cue(&fixture.id, 250).unwrap();
     WritableLibrary::import_track_cue(&mut fixture.lib, &fixture.id, 900).unwrap();
     assert_eq!(
         fixture.lib.track_cue(&fixture.id).unwrap(),

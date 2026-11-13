@@ -17,6 +17,10 @@ use rusqlite::{params, Connection};
 /// adapter ships with: every test goes through the explicit-key entry point.
 const KEY: &str = "test-passphrase";
 
+/// Name of the adapter's catch-all playlist; referenced, never retyped, so an
+/// importer rename cannot leave these assertions looking for a stale name.
+const CATCH_ALL_NAME: &str = "Rekordbox";
+
 struct Fixture {
     _dir: tempfile::TempDir,
     db_path: PathBuf,
@@ -302,11 +306,14 @@ fn migration_imports_tracks_lists_and_cues_then_repeats_idempotently() {
 
     let collections = manager.list_collections().unwrap();
     let names: Vec<&str> = collections.iter().map(|c| c.name.as_str()).collect();
-    assert!(names.contains(&"Rekordbox"), "{names:?}");
+    assert!(names.contains(&CATCH_ALL_NAME), "{names:?}");
     assert!(names.contains(&"House / Warmup"), "{names:?}");
     assert!(names.contains(&"Smart"), "{names:?}");
 
-    let catch_all = collections.iter().find(|c| c.name == "Rekordbox").unwrap();
+    let catch_all = collections
+        .iter()
+        .find(|c| c.name == CATCH_ALL_NAME)
+        .unwrap();
     assert!(!catch_all.sortable(), "catch-all is an unsortable set");
     assert_eq!(
         manager
@@ -385,7 +392,7 @@ fn migration_keeps_an_existing_manual_cue() {
         .list_collections()
         .unwrap()
         .into_iter()
-        .find(|collection| collection.name == "Rekordbox")
+        .find(|collection| collection.name == CATCH_ALL_NAME)
         .unwrap();
     let imported_id = manager
         .list_collection_tracks(&catch_all.id)
@@ -395,9 +402,7 @@ fn migration_keeps_an_existing_manual_cue() {
         .unwrap()
         .id()
         .clone();
-    manager
-        .save_track_cue(&imported_id, 250, CueSource::Manual)
-        .unwrap();
+    manager.save_track_cue(&imported_id, 250).unwrap();
 
     library
         .migrate(&mut manager, &MigrateOptions::default())

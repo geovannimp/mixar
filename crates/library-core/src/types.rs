@@ -529,12 +529,15 @@ impl CueSource {
         }
     }
 
-    /// Parse a stored token; unknown values read as `Analysis`.
+    /// Parse a stored token; unknown values read as `Manual`.
+    ///
+    /// `Manual` is the sticky source, so a corrupt or future token can never be
+    /// overwritten by the next analysis run.
     pub fn parse_token(value: &str) -> Self {
         match value {
-            "manual" => Self::Manual,
+            "analysis" => Self::Analysis,
             "import" => Self::Import,
-            _ => Self::Analysis,
+            _ => Self::Manual,
         }
     }
 }
@@ -710,6 +713,17 @@ mod tests {
         }
         assert_eq!("  PINK ".parse(), Ok(ColorLabel::Pink));
         assert_eq!("mauve".parse::<ColorLabel>(), Err(()));
+    }
+
+    #[test]
+    fn cue_source_tokens_round_trip_and_unknown_reads_manual() {
+        for source in [CueSource::Manual, CueSource::Import, CueSource::Analysis] {
+            assert_eq!(CueSource::parse_token(source.as_str()), source);
+        }
+        // A corrupt or future token must never read as analysis-owned, or the
+        // next analysis run would overwrite a cue it does not own.
+        assert_eq!(CueSource::parse_token("bogus"), CueSource::Manual);
+        assert_eq!(CueSource::parse_token(""), CueSource::Manual);
     }
 
     #[test]

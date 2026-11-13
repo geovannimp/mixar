@@ -86,16 +86,47 @@ pub(crate) fn upsert_track_analysis(
     // The analyzed cue owns only analysis-sourced rows: a manual set or an
     // imported memory cue is returned untouched, while a re-analysis (e.g. after
     // a threshold change) refreshes the previous analysis cue.
-    if let Some(cue_ms) = analysis.cue_ms {
-        crate::deck_data::refresh_track_cue(
-            db,
-            track_id,
-            cue_ms,
-            CueSource::Analysis,
-            analysis.metadata.analyzed_at.clone(),
-        )?;
+    match analysis.cue_ms {
+        Some(cue_ms) => {
+            crate::deck_data::refresh_track_cue(
+                db,
+                track_id,
+                cue_ms,
+                CueSource::Analysis,
+                analysis.metadata.analyzed_at.clone(),
+            )?;
+        }
+        // `None` means "nothing detectable in the analyzed window", not "clear
+        // the cue": an existing row is kept (re-analysis must not drop a good
+        // cue), but a fresh track still gets an analysis row at 0 ms so the
+        // load gate cannot re-analyze it on every load.
+        None => {
+            crate::deck_data::fill_track_cue(
+                db,
+                track_id,
+                0,
+                CueSource::Analysis,
+                analysis.metadata.analyzed_at.clone(),
+            )?;
+        }
     }
     Ok(())
+}
+
+/// Clamp a caller-supplied cue threshold into the range Settings exposes.
+///
+/// `AnalysisConfig` accepts a wider span because it is the analyzer's own knob;
+/// at this boundary every stored cue stays inside what the bus setter and the
+/// host settings accept, so a saved value always means what the UI showed.
+fn clamp_cue_threshold_db(db: f32) -> f32 {
+    if db.is_finite() {
+        db.clamp(
+            library_core::MIN_CUE_THRESHOLD_DB,
+            library_core::MAX_CUE_THRESHOLD_DB,
+        )
+    } else {
+        library_core::DEFAULT_CUE_THRESHOLD_DB
+    }
 }
 
 pub(crate) fn analyzer_error(err: AnalyzerError) -> LibraryError {
@@ -135,7 +166,7 @@ pub(crate) fn compute_file_analysis(
 
     let mut config = AnalysisConfig::default();
     if let Some(cue_threshold_db) = options.cue_threshold_db {
-        config.cue_threshold_db = cue_threshold_db;
+        config.cue_threshold_db = clamp_cue_threshold_db(cue_threshold_db);
     }
     let tag_metadata = tags::read_tags(&path)?;
     config.max_duration_ms = options

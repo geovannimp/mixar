@@ -19,8 +19,8 @@ const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
 /// Bounds for the cue-detection silence threshold, in dBFS (Settings → Analysis).
-const CUE_THRESHOLD_DB_MIN: f32 = -90.0;
-const CUE_THRESHOLD_DB_MAX: f32 = -30.0;
+const CUE_THRESHOLD_DB_MIN: f32 = library_core::MIN_CUE_THRESHOLD_DB;
+const CUE_THRESHOLD_DB_MAX: f32 = library_core::MAX_CUE_THRESHOLD_DB;
 /// Bounds for the end-of-track warning window, in seconds. The window only
 /// matters while `track_end_warning` is on; the toggle, not a zero window,
 /// turns the cue off.

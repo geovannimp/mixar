@@ -239,6 +239,24 @@ mod tests {
         for column in ["track_id", "cue_ms", "source", "updated_at"] {
             assert!(columns.iter().any(|name| name == column), "{column}");
         }
+
+        // `track_id` is the primary key, so SQLite builds the index every cue
+        // lookup (`find_by_id`) uses; the table needs no separate one.
+        let conn = db.conn().unwrap();
+        let index_count: i64 = conn
+            .as_connection()
+            .query_one_raw(Statement::from_string(
+                sea_orm::DatabaseBackend::Sqlite,
+                "SELECT COUNT(*) AS count FROM sqlite_master \
+                 WHERE type='index' AND tbl_name='track_cue'"
+                    .to_string(),
+            ))
+            .map_err(db_err)
+            .unwrap()
+            .unwrap()
+            .try_get("", "count")
+            .unwrap();
+        assert!(index_count >= 1, "the primary key must back cue lookups");
     }
 
     #[test]
