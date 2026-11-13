@@ -102,9 +102,18 @@ Widget _harness({
   );
 }
 
+/// Top-left of the viewport in global coordinates.
+Offset _viewportOrigin(WidgetTester tester) =>
+    tester.getTopLeft(find.byType(WaveformScrollViewport));
+
 /// Painted strip rect, in viewport-local coordinates.
+///
+/// [WidgetTester.getRect] walks `RenderObject.applyPaintTransform`, so the
+/// result includes the translate the delegate paints — the child's layout
+/// offset stays at zero, so a fixed translate would show up here as the same
+/// rect on every position.
 Rect _stripRect(WidgetTester tester, {Finder? strip}) {
-  final origin = tester.getTopLeft(find.byType(WaveformScrollViewport));
+  final origin = _viewportOrigin(tester);
   final rect = tester.getRect(strip ?? find.byKey(_stripKey));
   return rect.translate(-origin.dx, -origin.dy);
 }
@@ -132,6 +141,13 @@ void main() {
     );
 
     expect(_stripRect(tester).left, 200);
+
+    // That rect is the *painted* position, not a layout offset: the child's
+    // layout offset stays zero and only this transform moves it.
+    final flow = tester.renderObject<RenderFlow>(find.byType(Flow));
+    final painted = Matrix4.identity();
+    flow.applyPaintTransform(flow.firstChild!, painted);
+    expect(painted.getTranslation().x, 200);
 
     await _tick(tester, position, 2000);
     expect(_stripRect(tester).left, 100);
@@ -402,8 +418,9 @@ void main() {
 }
 
 Future<void> _tapAt(WidgetTester tester, Offset localPosition) async {
-  final origin = tester.getTopLeft(find.byType(WaveformScrollViewport));
-  final gesture = await tester.startGesture(origin + localPosition);
+  final gesture = await tester.startGesture(
+    _viewportOrigin(tester) + localPosition,
+  );
   await gesture.up();
 }
 

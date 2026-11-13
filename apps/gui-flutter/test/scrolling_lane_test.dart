@@ -109,6 +109,10 @@ double _expectedLeft(double positionMs, {double speed = 1.0}) {
 }
 
 /// Painted strip rect, in lane-local coordinates.
+///
+/// [WidgetTester.getRect] walks `RenderObject.applyPaintTransform`, so this is
+/// the strip's painted position: the lane moves it only by painting, and its
+/// layout offset stays at zero.
 Rect _stripRect(WidgetTester tester) {
   final viewport = find.byType(WaveformScrollViewport);
   final region = find.descendant(
