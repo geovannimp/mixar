@@ -14,7 +14,9 @@ import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/src/rust/api/library.dart'
     show BeatGridData, BeatGridSegmentData;
+import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/waveform_scroll_viewport.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -106,15 +108,16 @@ double _expectedLeft(double positionMs, {double speed = 1.0}) {
   );
 }
 
-Positioned _stripPositioned(WidgetTester tester) {
-  final positioned = find.descendant(
-    of: find.byType(ScrollingLane),
-    matching: find.byWidgetPredicate(
-      (w) => w is Positioned && (w.width ?? 0) > 1,
-    ),
+/// Painted strip rect, in lane-local coordinates.
+Rect _stripRect(WidgetTester tester) {
+  final viewport = find.byType(WaveformScrollViewport);
+  final region = find.descendant(
+    of: viewport,
+    matching: find.byType(LoopBandDeleteRegion),
   );
-  expect(positioned, findsOneWidget);
-  return tester.widget<Positioned>(positioned);
+  expect(region, findsOneWidget);
+  final origin = tester.getTopLeft(viewport);
+  return tester.getRect(region).translate(-origin.dx, -origin.dy);
 }
 
 Future<ProviderContainer> _pumpLane(
@@ -206,18 +209,18 @@ void main() {
   testWidgets('paused position ticks move strip translate', (tester) async {
     final container = await _pumpLane(tester, playing: false, strip: _strip);
 
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(0), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(0), 0.5));
 
     _applyPosition(container, 25000);
     await tester.pump();
 
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(25000), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(25000), 0.5));
   });
 
   testWidgets('wheel over the lane zooms the shared span in', (tester) async {
     final container = await _pumpLane(tester, playing: false, strip: _strip);
     expect(container.read(waveformZoomProvider), kWaveformVisibleMs);
-    final widthBefore = _stripPositioned(tester).width ?? 0;
+    final widthBefore = _stripRect(tester).width;
 
     await tester.sendEventToBinding(
       PointerScrollEvent(
@@ -229,7 +232,7 @@ void main() {
 
     expect(container.read(waveformZoomProvider), lessThan(kWaveformVisibleMs));
     expect(
-      _stripPositioned(tester).width ?? 0,
+      _stripRect(tester).width,
       greaterThan(widthBefore),
       reason: 'zooming in shows fewer milliseconds, so the strip paints wider',
     );
@@ -266,12 +269,12 @@ void main() {
       strip: _strip,
     );
 
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(10000), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(10000), 0.5));
 
     _applyPosition(container, 14000);
     await tester.pump();
 
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(14000), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(14000), 0.5));
   });
 
   testWidgets('playing large engine jump snaps strip translate', (
@@ -288,7 +291,7 @@ void main() {
     await tester.pump();
 
     expect(
-      _stripPositioned(tester).left,
+      _stripRect(tester).left,
       closeTo(_expectedLeft(1000 + kWaveformSeekSnapMs), 0.5),
     );
   });
@@ -338,7 +341,7 @@ void main() {
       0,
       reason: 'paused Position ticks should sync via listen, not rebuild',
     );
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(4000), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(4000), 0.5));
   });
 
   testWidgets('vinyl position ticks do not rebuild ScrollingLane', (
@@ -365,7 +368,7 @@ void main() {
       0,
       reason: 'vinyl Position ticks should sync via listen, not rebuild',
     );
-    expect(_stripPositioned(tester).left, closeTo(_expectedLeft(12000), 0.5));
+    expect(_stripRect(tester).left, closeTo(_expectedLeft(12000), 0.5));
   });
 
   testWidgets(
@@ -421,7 +424,7 @@ void main() {
     final engine = FakeEngineTransport();
     await _pumpLane(tester, playing: false, strip: _strip, engine: engine);
 
-    final restingLeft = _stripPositioned(tester).left!;
+    final restingLeft = _stripRect(tester).left;
     final center = tester.getCenter(find.byType(ScrollingLane));
     final gesture = await tester.startGesture(center);
     await tester.pump();
@@ -432,7 +435,7 @@ void main() {
     await gesture.moveBy(const Offset(40, 0));
     await tester.pump();
 
-    final movedLeft = _stripPositioned(tester).left!;
+    final movedLeft = _stripRect(tester).left;
     expect(movedLeft, greaterThan(restingLeft));
     expect(movedLeft, closeTo(restingLeft + 40, 0.5));
     expect(engine.seeks, isNotEmpty);

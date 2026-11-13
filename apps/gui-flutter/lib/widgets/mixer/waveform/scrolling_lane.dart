@@ -20,6 +20,7 @@ import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/waveform_scroll_viewport.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -357,7 +358,6 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                           trackId: trackId,
                           durationMs: durationMs,
                           visibleSpanMs: visibleSpanMs,
-                          width: width,
                           height: height,
                           pxPerMs: pxPerMs,
                           playhead: _displayTicks,
@@ -462,15 +462,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
 /// The windowed waveform picture, positioned so the playhead sits at center.
 ///
 /// Splitting it out keeps the ~30Hz playhead animation away from the lane's
-/// build: only the [Positioned] moves each frame, the strip and its overlays
-/// are rebuilt when the window or the strip changes.
+/// build: [WaveformScrollViewport] moves the strip during paint, so a tick
+/// neither rebuilds this subtree nor relays it out, and the strip and its
+/// overlays are only rebuilt when the window or the strip changes.
 class _LaneStrip extends ConsumerWidget {
   const new({
     required this.deckId,
     required this.trackId,
     required this.durationMs,
     required this.visibleSpanMs,
-    required this.width,
     required this.height,
     required this.pxPerMs,
     required this.playhead,
@@ -483,7 +483,6 @@ class _LaneStrip extends ConsumerWidget {
   final String trackId;
   final int durationMs;
   final int visibleSpanMs;
-  final double width;
   final double height;
   final double pxPerMs;
   final Listenable playhead;
@@ -573,23 +572,13 @@ class _LaneStrip extends ConsumerWidget {
     );
     final beatGridLeft = (gridOrigin - stripOrigin) * pxPerMs;
 
-    return AnimatedBuilder(
-      animation: playhead,
-      builder: (context, child) => Positioned(
-        left: snapPx(
-          stripTranslateX(
-            positionMs: displayMs(),
-            originMs: stripOrigin,
-            viewportWidth: width,
-            pxPerMs: pxPerMs,
-          ),
-          dpr,
-        ),
-        top: 0,
-        bottom: 0,
-        width: displayWidth.toDouble(),
-        child: child!,
-      ),
+    return WaveformScrollViewport(
+      playhead: playhead,
+      displayMs: displayMs,
+      originMs: stripOrigin,
+      pxPerMs: pxPerMs,
+      stripSize: Size(displayWidth.toDouble(), height),
+      dpr: dpr,
       child: LoopBandDeleteRegion(
         deckId: deckId,
         trackId: trackId,
