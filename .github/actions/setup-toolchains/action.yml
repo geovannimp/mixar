@@ -24,6 +24,13 @@ runs:
               git clone --depth 1 --branch "$pin" \
                 https://github.com/flutter/flutter.git "$dest"
             fi
+            # A branch checkout carries no tags, so `git describe` fails and
+            # Flutter reports 0.0.0-unknown -- every `flutter: >=x` constraint
+            # in pub then fails to solve. Tag the commit with the dev line the
+            # channel is on; bump it when master moves past a release.
+            if ! git -C "$dest" describe --match '*.*.*' --tags >/dev/null 2>&1; then
+              git -C "$dest" tag -f 3.51.0 HEAD
+            fi
             ;;
         esac
 
