@@ -898,14 +898,14 @@ impl LibraryTransport {
         let segments = grid
             .segments
             .iter()
-            .map(|segment| BeatGridSegmentData {
-                start_time_ms: segment.start_time_ms,
-                bpm: segment.bpm,
-                beats_per_bar: segment.beats_per_bar,
-                beat_unit: segment.beat_unit,
-                start_beat_index: segment.start_beat_index,
-                beats_to_next: segment.beats_to_next,
-                downbeat_offset_beats: segment.downbeat_offset_beats,
+            .map(|seg| BeatGridSegmentData {
+                start_time_ms: seg.start_time_ms,
+                bpm: seg.bpm,
+                beats_per_bar: seg.beats_per_bar,
+                beat_unit: seg.beat_unit,
+                start_beat_index: seg.start_beat_index,
+                beats_to_next: seg.beats_to_next,
+                downbeat_offset_beats: seg.downbeat_offset_beats,
             })
             .collect();
         Ok(Some(BeatGridData {

@@ -68,7 +68,7 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?>
     final (trackId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(dropPicture);
     final grid = ref.watch(beatGridProvider(trackId));
-    if (grid == null || grid.bpm == null) {
+    if (grid == null || grid.segments.isEmpty) {
       dropPicture();
       return null;
     }

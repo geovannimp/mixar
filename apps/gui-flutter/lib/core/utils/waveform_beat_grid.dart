@@ -43,40 +43,6 @@ class BeatMark {
   int get hashCode => Object.hash(x, isBar);
 }
 
-/// Evenly spaced marks of a constant-tempo grid, as buffer x positions paired
-/// with the grid index that produced them.
-///
-/// [firstIndex] is the index of the first mark to consider; it keeps the phase
-/// of the grid relative to [anchorMs]. Marks outside the buffer or the window
-/// are dropped.
-List<({int index, double x})> evenGridXs({
-  required double anchorMs,
-  required double stepMs,
-  required double originMs,
-  required double spanMs,
-  required double width,
-  required int firstIndex,
-}) {
-  final marks = <({int index, double x})>[];
-  if (!(stepMs > 0) || spanMs <= 0 || width <= 0) {
-    return marks;
-  }
-  final pxPerMs = width / spanMs;
-  final endMs = originMs + spanMs;
-  var index = firstIndex;
-  for (var n = 0; n < 10000; n++, index++) {
-    final ms = anchorMs + index * stepMs;
-    if (ms > endMs + 1e-6) {
-      break;
-    }
-    final x = (ms - originMs) * pxPerMs;
-    if (x >= 0 && x <= width) {
-      marks.add((index: index, x: x));
-    }
-  }
-  return marks;
-}
-
 /// X positions of the phase arrows in the scrolling buffer (origin at the left
 /// edge): one arrow per bar. Bars are derived from the segment-local downbeat
 /// and meter, so variable-tempo grids keep their phase past each change.
