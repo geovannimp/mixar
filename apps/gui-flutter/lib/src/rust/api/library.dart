@@ -251,6 +251,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required String trackId,
     required double bpm,
     required double firstBeatSecs,
+    required bool replace,
   });
 
   Future<LibraryCollectionSummary> saveHistoryAsPlaylist({
@@ -361,23 +362,38 @@ class AnalyzeCollectionResult {
 
 /// Beat-grid overlay data (beat times in seconds).
 class BeatGridData {
-  final Float32List beats;
-  final Float32List downbeats;
   final double? bpm;
+  final PlatformInt64 firstBeatMs;
+  final int beatsPerBar;
+  final int beatUnit;
+  final PlatformInt64 firstDownbeatMs;
 
-  const BeatGridData({required this.beats, required this.downbeats, this.bpm});
+  const BeatGridData({
+    this.bpm,
+    required this.firstBeatMs,
+    required this.beatsPerBar,
+    required this.beatUnit,
+    required this.firstDownbeatMs,
+  });
 
   @override
-  int get hashCode => beats.hashCode ^ downbeats.hashCode ^ bpm.hashCode;
+  int get hashCode =>
+      bpm.hashCode ^
+      firstBeatMs.hashCode ^
+      beatsPerBar.hashCode ^
+      beatUnit.hashCode ^
+      firstDownbeatMs.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BeatGridData &&
           runtimeType == other.runtimeType &&
-          beats == other.beats &&
-          downbeats == other.downbeats &&
-          bpm == other.bpm;
+          bpm == other.bpm &&
+          firstBeatMs == other.firstBeatMs &&
+          beatsPerBar == other.beatsPerBar &&
+          beatUnit == other.beatUnit &&
+          firstDownbeatMs == other.firstDownbeatMs;
 }
 
 /// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.

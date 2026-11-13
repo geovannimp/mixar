@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -450,9 +448,11 @@ void main() {
       playing: false,
       strip: _strip,
       beatGrid: BeatGridData(
-        beats: Float32List.fromList(const [0, 0.5, 1, 1.5, 2]),
-        downbeats: Float32List.fromList(const [0, 2]),
         bpm: 120,
+        firstBeatMs: 0,
+        beatsPerBar: 4,
+        beatUnit: 4,
+        firstDownbeatMs: 0,
       ),
     );
     await tester.pump();

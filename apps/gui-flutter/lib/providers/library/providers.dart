@@ -669,8 +669,21 @@ LibraryTrackSummary libraryTrackSummary(TrackSummary track) =>
     );
 
 /// Bus beat grid → the row shape the waveform lane consumes.
-BeatGridData beatGridData(BeatGrid grid) =>
-    BeatGridData(beats: grid.beats, downbeats: grid.downbeats, bpm: grid.bpm);
+BeatGridData? beatGridData(BeatGrid grid) {
+  if (grid.segments.isEmpty) {
+    return null;
+  }
+  final first = grid.segments.first;
+  final beatMs = 60_000 / first.bpm;
+  return BeatGridData(
+    bpm: first.bpm,
+    firstBeatMs: first.startTimeMs,
+    beatsPerBar: first.beatsPerBar,
+    beatUnit: first.beatUnit,
+    firstDownbeatMs:
+        first.startTimeMs + (first.downbeatOffsetBeats * beatMs).round(),
+  );
+}
 
 /// Wire colour label → the closed UI enum; unknown values are dropped.
 LibraryColorLabel? _colorLabelFromWire(String? label) => switch (label) {

@@ -204,6 +204,12 @@ impl LibraryManager {
         let id = Self::track_id_for(path);
         let now = unix_secs_string();
         self.store().upsert_file_track(&id, path, metadata, &now)?;
+        // A canonical grid owns the BPM mirror; a tag refresh must not move it.
+        if let Some(grid) = crate::beat_grid::get_track_beat_grid(&self.db, &id)? {
+            if let Some(bpm) = grid.bpm() {
+                crate::beat_grid::set_track_bpm(&self.db, &id, bpm)?;
+            }
+        }
         Ok(AudioSource::File(FileAudioSource::new(
             id,
             path.to_path_buf(),

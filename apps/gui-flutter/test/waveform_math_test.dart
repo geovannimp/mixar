@@ -234,6 +234,8 @@ void main() {
       final xs = beatGridXs(
         bpm: 120,
         firstBeatSecs: 0,
+        beatsPerBar: 4,
+        firstDownbeatSecs: 0,
         originMs: 0,
         spanMs: 2000,
         width: 200,
@@ -250,8 +252,8 @@ void main() {
     // downbeat (1 s here). A window starting at 0 has nothing before it.
     final xs = phaseMarkXs(
       bpm: 120,
-      downbeatsSecs: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
-      firstBeatSecs: 1,
+      firstDownbeatSecs: 1,
+      beatsPerBar: 4,
       originMs: 0,
       spanMs: 40_000,
       width: 400,
@@ -262,18 +264,15 @@ void main() {
       closeTo(50, 1e-6), // 5 s
       closeTo(70, 1e-6), // 7 s
     ]);
-    // Extrapolated past the stored downbeats (they stop at 19 s).
     expect(xs, hasLength(20));
     expect(xs.last, closeTo(390, 1e-6)); // 39 s
   });
 
   test('phaseMarkXs extrapolates bars before the track starts', () {
-    // Negative source time is the silence before the track: the established
-    // bar phase keeps running, so the lane's leading edge is not gridless.
     final xs = phaseMarkXs(
       bpm: 120,
-      downbeatsSecs: [1, 3, 5, 7],
-      firstBeatSecs: 1,
+      firstDownbeatSecs: 1,
+      beatsPerBar: 4,
       originMs: -4000,
       spanMs: 8000,
       width: 800,
@@ -290,6 +289,8 @@ void main() {
     final xs = beatGridXs(
       bpm: 120,
       firstBeatSecs: 0,
+      beatsPerBar: 4,
+      firstDownbeatSecs: 0,
       originMs: -1000,
       spanMs: 2000,
       width: 200,
@@ -304,12 +305,10 @@ void main() {
   });
 
   test('phaseMarkXs keeps arrowing past the analyzed span', () {
-    // Stored grids stop at the analysis window (30 s here) on a 200 s track:
-    // arrows still run the whole buffer at the detected 4/4 bar period.
     final xs = phaseMarkXs(
       bpm: 96,
-      downbeatsSecs: [for (var i = 0; i < 12; i++) 0.6888549 + 2.5 * i],
-      firstBeatSecs: 0.06385487,
+      firstDownbeatSecs: 0.6888549,
+      beatsPerBar: 4,
       originMs: 0,
       spanMs: 200_000,
       width: 200,
@@ -323,12 +322,12 @@ void main() {
     }
   });
 
-  test('phaseMarkXs follows the meter in the downbeats, not 4/4', () {
-    // 3/4 at 60 bpm: downbeats every 3 s, so arrows land every 3 s.
+  test('phaseMarkXs follows the segment meter, not 4/4', () {
+    // 3/4 at 60 bpm: bars every 3 s.
     final xs = phaseMarkXs(
       bpm: 60,
-      downbeatsSecs: [0, 3, 6, 9, 12, 15, 18, 21, 24],
-      firstBeatSecs: 0,
+      firstDownbeatSecs: 0,
+      beatsPerBar: 3,
       originMs: 0,
       spanMs: 30_000,
       width: 300,
@@ -338,57 +337,15 @@ void main() {
       closeTo(30, 1e-6),
       closeTo(60, 1e-6),
     ]);
-    // 0..30 s inclusive, one bar (3 s) each.
     expect(xs, hasLength(11));
-    expect(beatsPerBarFrom(downbeats: [0, 3, 6], bpm: 60), 3);
   });
 
-  test('phaseMarkXs falls back to an even 4/4 grid without downbeats', () {
-    // 120 bpm, no downbeats: first bar at the first beat, one arrow per bar.
-    final xs = phaseMarkXs(
-      bpm: 120,
-      downbeatsSecs: const [],
-      firstBeatSecs: 0.5,
-      originMs: 0,
-      spanMs: 20_000,
-      width: 200,
-    );
-    expect(xs.take(3), [
-      closeTo(5, 1e-6),
-      closeTo(25, 1e-6),
-      closeTo(45, 1e-6),
-    ]);
-    expect(xs, hasLength(10));
-  });
-
-  test('barPeriodMs falls back to downbeat spacing without a BPM', () {
-    // No BPM: the meter cannot be derived, so the stored spacing is the bar.
-    expect(barPeriodMs(downbeats: [0, 3, 6]), closeTo(3000, 1e-6));
-    expect(barPeriodMs(downbeats: const []), isNull);
-    expect(barPeriodMs(downbeats: [0, 2.5, 5], bpm: 96), closeTo(2500, 1e-6));
-    expect(beatsPerBarFrom(downbeats: [0, 3, 6], bpm: 60), 3);
-    expect(beatsPerBarFrom(downbeats: [0, 2, 4], bpm: 120), 4);
-    expect(beatsPerBarFrom(downbeats: [0], bpm: 120), 4);
-  });
-
-  test('beatsPerBarFrom ignores a skipped downbeat', () {
-    // First stored pair spans four bars (a skipped downbeat at 2.5 s); the
-    // median gap still reads 4/4 at 96 bpm instead of 16 beats per bar.
-    expect(beatsPerBarFrom(downbeats: [0, 10, 12.5, 15, 17.5, 20], bpm: 96), 4);
-    expect(
-      barPeriodMs(downbeats: [0, 10, 12.5, 15, 17.5, 20], bpm: 96),
-      closeTo(2500, 1e-6),
-    );
-    // No usable BPM and one gap only: the stored spacing is still the bar.
-    expect(barPeriodMs(downbeats: [0, 2.6]), closeTo(2600, 1e-6));
-  });
-
-  test('phaseMarkXs yields nothing without a grid', () {
+  test('phaseMarkXs yields nothing without a BPM', () {
     expect(
       phaseMarkXs(
         bpm: null,
-        downbeatsSecs: const [],
-        firstBeatSecs: 0,
+        firstDownbeatSecs: 0,
+        beatsPerBar: 4,
         originMs: 0,
         spanMs: 20_000,
         width: 200,

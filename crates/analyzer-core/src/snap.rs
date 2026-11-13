@@ -68,24 +68,90 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
         return;
     }
     let snapped = snapped.clamp(min_bpm, max_bpm);
-    let snapped_period = 60.0 / snapped;
+    let Some(rebuilt) = build_constant_grid(grid, snapped) else {
+        return;
+    };
+    track.beat_grid = Some(rebuilt);
+    if let Some(bpm) = track.bpm.as_mut() {
+        bpm.bpm = snapped;
+    }
+}
+
+/// Rebuild `track`'s beat grid at `bpm`, keeping the detected phase.
+///
+/// Use this when a tempo other than the detector's wins the metadata merge (a
+/// file tag without `force`): the grid and the track BPM must describe the same
+/// tempo, because the deck reads the grid BPM. A detector that locked onto a
+/// metrical family (3:2, half/double) would otherwise show a second BPM for the
+/// same track.
+///
+/// Unlike [`snap_grid`], `bpm` is already the chosen tempo; it is not folded
+/// into a canonical range. Returns `false` when there is nothing to rebuild.
+pub fn retune_grid(track: &mut TrackAnalysis, bpm: f64) -> bool {
+    let Some(grid) = track.beat_grid.as_ref() else {
+        return false;
+    };
+    let Some(rebuilt) = build_constant_grid(grid, bpm) else {
+        return false;
+    };
+    track.beat_grid = Some(rebuilt);
+    if let Some(analysis) = track.bpm.as_mut() {
+        analysis.bpm = bpm;
+    }
+    true
+}
+
+/// Rebuild a constant-tempo beat list at `bpm` from `beats`, keeping phase.
+///
+/// Returns `(beats, downbeats)` or `None` when the grid cannot be rebuilt.
+pub fn rebuild_grid_at(
+    beats: &[f32],
+    downbeats: &[f32],
+    bpm: f64,
+    beats_per_bar: u8,
+) -> Option<(Vec<f32>, Vec<f32>)> {
+    let grid = BeatGridAnalysis {
+        beats: beats.to_vec(),
+        bars: Vec::new(),
+        downbeats: downbeats.to_vec(),
+        grid_stability: 0.0,
+        beats_per_bar,
+    };
+    build_constant_grid(&grid, bpm).map(|grid| (grid.beats, grid.downbeats))
+}
+
+/// True when `a` and `b` are the same tempo family — within 1.5 % of a
+/// half/double, triple or 3:2 (dotted) relation. These are the detector
+/// mistakes that produce a second visible BPM for one track.
+pub fn is_metrical_tempo_relation(a: f64, b: f64) -> bool {
+    if !a.is_finite() || !b.is_finite() || a <= 0.0 || b <= 0.0 || a == b {
+        return false;
+    }
+    let ratio = if a > b { a / b } else { b / a };
+    const TOLERANCE: f64 = 0.015;
+    [2.0, 4.0 / 3.0, 3.0 / 2.0, 3.0]
+        .iter()
+        .any(|family| (ratio - family).abs() / family <= TOLERANCE)
+}
+
+/// Build a constant-tempo grid at `bpm` anchored on `grid`'s detected beats.
+fn build_constant_grid(grid: &BeatGridAnalysis, bpm: f64) -> Option<BeatGridAnalysis> {
+    if !bpm.is_finite() || bpm <= 0.0 || grid.beats.is_empty() {
+        return None;
+    }
+    let period = 60.0 / bpm;
 
     // Best-fit anchor (Mixxx `adjustPhase`).
-    let anchor = fit_anchor(&grid.beats, snapped_period);
+    let anchor = fit_anchor(&grid.beats, period);
 
     let first = f64::from(grid.beats[0]);
-    let last = f64::from(
-        *grid
-            .beats
-            .last()
-            .expect("`grid.beats[0]` is read on the line above, so the grid is non-empty"),
-    );
-    let k0 = ((first - anchor) / snapped_period).floor() as i64;
-    let k1 = ((last - anchor) / snapped_period).ceil() as i64;
-    // Guard against a misconfigured (very high) `max_bpm` producing an enormous grid.
+    let last = f64::from(*grid.beats.last()?);
+    let k0 = ((first - anchor) / period).floor() as i64;
+    let k1 = ((last - anchor) / period).ceil() as i64;
+    // Guard against a very low `bpm` producing an enormous grid.
     const MAX_GRID_BEATS: i64 = 1_000_000;
     if k1 - k0 + 1 > MAX_GRID_BEATS {
-        return;
+        return None;
     }
 
     // Downbeat phase: the bar position the detected downbeats agree on.
@@ -95,7 +161,7 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     let mut beats: Vec<f32> = Vec::with_capacity((k1 - k0 + 1).max(0) as usize);
     let mut downbeats: Vec<f32> = Vec::new();
     for k in k0..=k1 {
-        let t = anchor + k as f64 * snapped_period;
+        let t = anchor + k as f64 * period;
         if t < 0.0 {
             continue;
         }
@@ -106,23 +172,18 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
         }
     }
     if beats.is_empty() {
-        return;
+        return None;
     }
 
     // Keep the backend's own stability — recomputing it against the changed
     // period would be dominated by the tiny BPM edit over a full track.
-    let stability = grid.grid_stability;
-
-    track.beat_grid = Some(BeatGridAnalysis {
+    Some(BeatGridAnalysis {
         beats,
         bars: downbeats.clone(),
         downbeats,
-        grid_stability: stability,
+        grid_stability: grid.grid_stability,
         beats_per_bar,
-    });
-    if let Some(bpm) = track.bpm.as_mut() {
-        bpm.bpm = snapped;
-    }
+    })
 }
 
 /// Round to `decimals` decimal places, half-to-even (so `124.25 -> 124.2` and
@@ -447,5 +508,53 @@ mod tests {
         );
         let bpm = track.bpm.as_ref().unwrap().bpm;
         assert!((bpm - 140.0).abs() < 1e-9, "bpm {bpm} dropped an octave");
+    }
+
+    #[test]
+    fn retunes_a_three_two_lock_to_the_chosen_bpm() {
+        // 117 BPM detected for a 78 BPM track (the detector locked 3:2). The
+        // metadata merge picks 78; the grid must follow it.
+        let period = 60.0 / 117.0;
+        let beats: Vec<f32> = (0..100)
+            .map(|i| (0.02 + i as f64 * period) as f32)
+            .collect();
+        let mut track = track_with(beats, 117.0);
+
+        assert!(retune_grid(&mut track, 78.0));
+        assert!((track.bpm.as_ref().unwrap().bpm - 78.0).abs() < 1e-9);
+        let grid = track.beat_grid.as_ref().unwrap();
+        let expected = 60.0 / 78.0;
+        assert!(
+            grid.beats
+                .windows(2)
+                .all(|w| (f64::from(w[1] - w[0]) - expected).abs() < 1e-3),
+            "grid is not a constant 78 BPM"
+        );
+        assert!(
+            (f64::from(grid.beats[0]) - 0.02).abs() < 0.01,
+            "phase drifted: {}",
+            grid.beats[0]
+        );
+    }
+
+    #[test]
+    fn retune_does_not_fold_the_chosen_tempo() {
+        // The tag can sit outside SnapConfig's 70..140 window; retuning must
+        // not octave-fold it back into the window.
+        let beats: Vec<f32> = (0..64).map(|i| i as f32 * 0.5).collect();
+        let mut track = track_with(beats, 120.0);
+        assert!(retune_grid(&mut track, 65.0));
+        assert!((track.bpm.as_ref().unwrap().bpm - 65.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn metrical_family_relations_are_recognized() {
+        assert!(is_metrical_tempo_relation(117.0, 78.0), "3:2");
+        assert!(is_metrical_tempo_relation(156.0, 78.0), "double");
+        assert!(is_metrical_tempo_relation(104.0, 78.0), "4:3");
+        assert!(is_metrical_tempo_relation(52.0, 156.0), "triple");
+        assert!(!is_metrical_tempo_relation(120.0, 87.0));
+        assert!(!is_metrical_tempo_relation(120.0, 120.0));
+        assert!(!is_metrical_tempo_relation(0.0, 0.0));
     }
 }

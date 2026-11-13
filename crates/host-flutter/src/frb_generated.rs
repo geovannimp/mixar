@@ -7195,6 +7195,7 @@ fn wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
             let api_track_id = <String>::sse_decode(&mut deserializer);
             let api_bpm = <f64>::sse_decode(&mut deserializer);
             let api_first_beat_secs = <f32>::sse_decode(&mut deserializer);
+            let api_replace = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -7217,6 +7218,7 @@ fn wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
                         api_track_id,
                         api_bpm,
                         api_first_beat_secs,
+                        api_replace,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -8751,9 +8753,9 @@ const _: fn() = || {
     }
     {
         let BeatGrid = None::<crate::api::event_mirrors::BeatGrid>.unwrap();
-        let _: Vec<f32> = BeatGrid.beats;
-        let _: Vec<f32> = BeatGrid.downbeats;
-        let _: f64 = BeatGrid.bpm;
+        let _: String = BeatGrid.source;
+        let _: Option<i64> = BeatGrid.covered_to_ms;
+        let _: Vec<crate::api::event_mirrors::BeatSegment> = BeatGrid.segments;
     }
     {
         let BeatGridChanged = None::<crate::api::event_mirrors::BeatGridChanged>.unwrap();
@@ -8774,6 +8776,17 @@ const _: fn() = || {
         let BeatJumpPadRelease = None::<crate::api::event_mirrors::BeatJumpPadRelease>.unwrap();
         let _: u16 = BeatJumpPadRelease.deck;
         let _: u8 = BeatJumpPadRelease.slot;
+    }
+    {
+        let BeatSegment = None::<crate::api::event_mirrors::BeatSegment>.unwrap();
+        let _: i32 = BeatSegment.segment_index;
+        let _: i64 = BeatSegment.start_time_ms;
+        let _: f64 = BeatSegment.bpm;
+        let _: u8 = BeatSegment.beats_per_bar;
+        let _: u8 = BeatSegment.beat_unit;
+        let _: i64 = BeatSegment.start_beat_index;
+        let _: Option<i64> = BeatSegment.beats_to_next;
+        let _: u8 = BeatSegment.downbeat_offset_beats;
     }
     {
         let BeginCueHold = None::<crate::api::event_mirrors::BeginCueHold>.unwrap();
@@ -9560,6 +9573,7 @@ const _: fn() = || {
         let _: String = SaveBeatGrid.track_id;
         let _: f64 = SaveBeatGrid.bpm;
         let _: f32 = SaveBeatGrid.first_beat_secs;
+        let _: bool = SaveBeatGrid.replace;
     }
     {
         let SaveDeckHotCue = None::<crate::api::event_mirrors::SaveDeckHotCue>.unwrap();
@@ -10317,13 +10331,14 @@ impl SseDecode for crate::api::event_mirrors::AssignSamplerTrack {
 impl SseDecode for crate::api::event_mirrors::BeatGrid {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_beats = <Vec<f32>>::sse_decode(deserializer);
-        let mut var_downbeats = <Vec<f32>>::sse_decode(deserializer);
-        let mut var_bpm = <f64>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_coveredToMs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_segments =
+            <Vec<crate::api::event_mirrors::BeatSegment>>::sse_decode(deserializer);
         return crate::api::event_mirrors::BeatGrid {
-            beats: var_beats,
-            downbeats: var_downbeats,
-            bpm: var_bpm,
+            source: var_source,
+            covered_to_ms: var_coveredToMs,
+            segments: var_segments,
         };
     }
 }
@@ -10343,13 +10358,17 @@ impl SseDecode for crate::api::event_mirrors::BeatGridChanged {
 impl SseDecode for crate::api::library::BeatGridData {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_beats = <Vec<f32>>::sse_decode(deserializer);
-        let mut var_downbeats = <Vec<f32>>::sse_decode(deserializer);
         let mut var_bpm = <Option<f64>>::sse_decode(deserializer);
+        let mut var_firstBeatMs = <i64>::sse_decode(deserializer);
+        let mut var_beatsPerBar = <u8>::sse_decode(deserializer);
+        let mut var_beatUnit = <u8>::sse_decode(deserializer);
+        let mut var_firstDownbeatMs = <i64>::sse_decode(deserializer);
         return crate::api::library::BeatGridData {
-            beats: var_beats,
-            downbeats: var_downbeats,
             bpm: var_bpm,
+            first_beat_ms: var_firstBeatMs,
+            beats_per_bar: var_beatsPerBar,
+            beat_unit: var_beatUnit,
+            first_downbeat_ms: var_firstDownbeatMs,
         };
     }
 }
@@ -10386,6 +10405,30 @@ impl SseDecode for crate::api::event_mirrors::BeatJumpPadRelease {
         return crate::api::event_mirrors::BeatJumpPadRelease {
             deck: var_deck,
             slot: var_slot,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::BeatSegment {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_segmentIndex = <i32>::sse_decode(deserializer);
+        let mut var_startTimeMs = <i64>::sse_decode(deserializer);
+        let mut var_bpm = <f64>::sse_decode(deserializer);
+        let mut var_beatsPerBar = <u8>::sse_decode(deserializer);
+        let mut var_beatUnit = <u8>::sse_decode(deserializer);
+        let mut var_startBeatIndex = <i64>::sse_decode(deserializer);
+        let mut var_beatsToNext = <Option<i64>>::sse_decode(deserializer);
+        let mut var_downbeatOffsetBeats = <u8>::sse_decode(deserializer);
+        return crate::api::event_mirrors::BeatSegment {
+            segment_index: var_segmentIndex,
+            start_time_ms: var_startTimeMs,
+            bpm: var_bpm,
+            beats_per_bar: var_beatsPerBar,
+            beat_unit: var_beatUnit,
+            start_beat_index: var_startBeatIndex,
+            beats_to_next: var_beatsToNext,
+            downbeat_offset_beats: var_downbeatOffsetBeats,
         };
     }
 }
@@ -12313,6 +12356,20 @@ impl SseDecode for Vec<String> {
     }
 }
 
+impl SseDecode for Vec<crate::api::event_mirrors::BeatSegment> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::event_mirrors::BeatSegment>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<bool> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13527,10 +13584,12 @@ impl SseDecode for crate::api::event_mirrors::SaveBeatGrid {
         let mut var_trackId = <String>::sse_decode(deserializer);
         let mut var_bpm = <f64>::sse_decode(deserializer);
         let mut var_firstBeatSecs = <f32>::sse_decode(deserializer);
+        let mut var_replace = <bool>::sse_decode(deserializer);
         return crate::api::event_mirrors::SaveBeatGrid {
             track_id: var_trackId,
             bpm: var_bpm,
             first_beat_secs: var_firstBeatSecs,
+            replace: var_replace,
         };
     }
 }
@@ -15784,9 +15843,9 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Ass
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatGrid> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.0.beats.into_into_dart().into_dart(),
-            self.0.downbeats.into_into_dart().into_dart(),
-            self.0.bpm.into_into_dart().into_dart(),
+            self.0.source.into_into_dart().into_dart(),
+            self.0.covered_to_ms.into_into_dart().into_dart(),
+            self.0.segments.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15827,9 +15886,11 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Bea
 impl flutter_rust_bridge::IntoDart for crate::api::library::BeatGridData {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.beats.into_into_dart().into_dart(),
-            self.downbeats.into_into_dart().into_dart(),
             self.bpm.into_into_dart().into_dart(),
+            self.first_beat_ms.into_into_dart().into_dart(),
+            self.beats_per_bar.into_into_dart().into_dart(),
+            self.beat_unit.into_into_dart().into_dart(),
+            self.first_downbeat_ms.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15905,6 +15966,33 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Bea
     for crate::api::event_mirrors::BeatJumpPadRelease
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatJumpPadRelease> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatSegment> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.segment_index.into_into_dart().into_dart(),
+            self.0.start_time_ms.into_into_dart().into_dart(),
+            self.0.bpm.into_into_dart().into_dart(),
+            self.0.beats_per_bar.into_into_dart().into_dart(),
+            self.0.beat_unit.into_into_dart().into_dart(),
+            self.0.start_beat_index.into_into_dart().into_dart(),
+            self.0.beats_to_next.into_into_dart().into_dart(),
+            self.0.downbeat_offset_beats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::BeatSegment>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatSegment>>
+    for crate::api::event_mirrors::BeatSegment
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatSegment> {
         self.into()
     }
 }
@@ -18830,6 +18918,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Sav
             self.0.track_id.into_into_dart().into_dart(),
             self.0.bpm.into_into_dart().into_dart(),
             self.0.first_beat_secs.into_into_dart().into_dart(),
+            self.0.replace.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -20618,9 +20707,9 @@ impl SseEncode for crate::api::event_mirrors::AssignSamplerTrack {
 impl SseEncode for crate::api::event_mirrors::BeatGrid {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<f32>>::sse_encode(self.beats, serializer);
-        <Vec<f32>>::sse_encode(self.downbeats, serializer);
-        <f64>::sse_encode(self.bpm, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <Option<i64>>::sse_encode(self.covered_to_ms, serializer);
+        <Vec<crate::api::event_mirrors::BeatSegment>>::sse_encode(self.segments, serializer);
     }
 }
 
@@ -20635,9 +20724,11 @@ impl SseEncode for crate::api::event_mirrors::BeatGridChanged {
 impl SseEncode for crate::api::library::BeatGridData {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<f32>>::sse_encode(self.beats, serializer);
-        <Vec<f32>>::sse_encode(self.downbeats, serializer);
         <Option<f64>>::sse_encode(self.bpm, serializer);
+        <i64>::sse_encode(self.first_beat_ms, serializer);
+        <u8>::sse_encode(self.beats_per_bar, serializer);
+        <u8>::sse_encode(self.beat_unit, serializer);
+        <i64>::sse_encode(self.first_downbeat_ms, serializer);
     }
 }
 
@@ -20662,6 +20753,20 @@ impl SseEncode for crate::api::event_mirrors::BeatJumpPadRelease {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u16>::sse_encode(self.deck, serializer);
         <u8>::sse_encode(self.slot, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::BeatSegment {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.segment_index, serializer);
+        <i64>::sse_encode(self.start_time_ms, serializer);
+        <f64>::sse_encode(self.bpm, serializer);
+        <u8>::sse_encode(self.beats_per_bar, serializer);
+        <u8>::sse_encode(self.beat_unit, serializer);
+        <i64>::sse_encode(self.start_beat_index, serializer);
+        <Option<i64>>::sse_encode(self.beats_to_next, serializer);
+        <u8>::sse_encode(self.downbeat_offset_beats, serializer);
     }
 }
 
@@ -22132,6 +22237,16 @@ impl SseEncode for Vec<String> {
     }
 }
 
+impl SseEncode for Vec<crate::api::event_mirrors::BeatSegment> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::event_mirrors::BeatSegment>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<bool> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -23050,6 +23165,7 @@ impl SseEncode for crate::api::event_mirrors::SaveBeatGrid {
         <String>::sse_encode(self.track_id, serializer);
         <f64>::sse_encode(self.bpm, serializer);
         <f32>::sse_encode(self.first_beat_secs, serializer);
+        <bool>::sse_encode(self.replace, serializer);
     }
 }
 

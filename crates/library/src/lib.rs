@@ -18,6 +18,7 @@
 
 #[cfg(feature = "analysis")]
 mod analysis;
+mod beat_grid;
 mod bus;
 mod collections;
 mod db;
@@ -26,6 +27,7 @@ mod decode_cache;
 mod entity;
 mod export;
 mod history;
+mod migrations;
 mod model;
 mod playback;
 mod sampler_data;
@@ -54,6 +56,9 @@ pub use library_core::{
     UpdateCollection, WritableLibrary,
 };
 
+pub use beat_grid::{
+    BeatSegment, CanonicalBeatGrid, GridError, SOURCE_ANALYSIS, SOURCE_IMPORT, SOURCE_MANUAL,
+};
 pub use bus::{LibraryBus, LibraryBuses, DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL, STEM_MODELS};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
@@ -79,9 +84,7 @@ pub use stems::{
 };
 pub use store::TrackMetadataEdit;
 pub use tags::{read_artwork, ARTWORK_UI_EDGE_PX};
-pub use waveform::{
-    clear_all_track_waveforms, waveform_cache_bytes, BeatGridSnapshot, TrackWaveformOverview,
-};
+pub use waveform::{clear_all_track_waveforms, waveform_cache_bytes, TrackWaveformOverview};
 pub use worker::{spawn_library_worker, LibraryWorker};
 
 /// Library-owned playback handoff for engine/sampler consumers.
@@ -277,6 +280,13 @@ impl LibraryManager {
         }
         let source = self.upsert_file_source(&path, &metadata)?;
         analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis, computed.force)?;
+        analysis::persist_analysis_grid(
+            &self.db,
+            source.id(),
+            &metadata,
+            &computed.analysis,
+            computed.force,
+        )?;
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }

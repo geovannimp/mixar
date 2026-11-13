@@ -18,6 +18,7 @@ pub const AUTO_LOOP_SLOT: u8 = u8::MAX;
 
 pub use audio_core::CrossfaderAssign;
 pub use library::BeatGrid;
+pub use library::BeatSegment;
 pub use library::HotCue;
 pub use library::SavedLoop;
 pub use library::TrackSummary;

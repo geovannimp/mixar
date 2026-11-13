@@ -360,9 +360,9 @@ pub struct AnalyzeTrackOptions {
 2. Read tags via `tags::read_tags` → baseline `TrackMetadata`.
 3. Run `analyzer::analyze_file(path, &library_analysis_config)`.
 4. **Merge policy** (via `merge_analyzed_metadata`):
-   - **`force: false` (default):** keep tag BPM/key and any stored beat grid; analysis fills missing BPM/key and generates a beat grid only when none is stored.
-   - **`force: true`:** explicit user opt-in; replace tag BPM/key and any stored beat grid with analysis results.
-5. Upsert `tracks` row (`key` column = musical string only) + `track_analysis` / beat grid storage (§11).
+   - **`force: false` (default):** keep tag BPM/key and any canonical beat grid; analysis fills missing BPM/key and generates a canonical grid only when none is stored. A tag BPM wins for a constant grid, so the canonical grid, deck, and library row report the same tempo. A genuinely variable grid keeps its analyzed tempo runs.
+   - **`force: true`:** explicit user opt-in; replace tag BPM/key and the canonical grid with analysis results.
+5. Upsert `tracks` row (`key` column = musical string only) and write the canonical grid through `write_track_beat_grid`, which mirrors segment 0 onto `tracks.bpm` (§11).
 6. Return updated `AudioSource`.
 
 ### 9.4 Key notation policy (library)
@@ -440,15 +440,39 @@ CREATE TABLE IF NOT EXISTS track_analysis (
 
 ### 11.3 Beat grid storage
 
-**Option A (MVP):** JSON blob column on `track_analysis`:
+Canonical storage is a header row plus ordered segments:
 
 ```sql
-beat_grid_json TEXT  -- {"beats":[...],"bars":[...],"downbeats":[...]}
+CREATE TABLE track_beat_grid (
+    track_id TEXT PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+    source TEXT NOT NULL,              -- analysis | manual | import
+    covered_to_ms INTEGER,             -- NULL when the grid covers the whole track
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE track_beat_segment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL REFERENCES track_beat_grid(track_id) ON DELETE CASCADE,
+    segment_index INTEGER NOT NULL,
+    start_time_ms INTEGER NOT NULL,
+    bpm REAL NOT NULL,
+    beats_per_bar INTEGER NOT NULL,
+    beat_unit INTEGER NOT NULL,
+    start_beat_index INTEGER NOT NULL,
+    beats_to_next INTEGER,             -- NULL only on the last segment
+    downbeat_offset_beats INTEGER NOT NULL
+);
 ```
 
-**Option B (Phase 2):** normalized `track_beats (track_id, kind, index, time_secs)` for partial queries.
+Invariants:
 
-Start with **Option A** for simplicity; migrate if grid editing/hotcue sync needs indexed beats.
+- Segment 0 starts at beat 0; `start_beat_index` chains exactly and only the last segment may be terminal.
+- `tracks.bpm` mirrors segment 0. A non-grid metadata refresh must not move it.
+- `write_track_beat_grid` writes header, segments, and `tracks.bpm` in one transaction.
+- Constant analyses use one segment; variable analyses split at detected tempo changes. A tag/user BPM wins for a constant grid, not for a genuinely variable one.
+- The legacy `track_analysis.beat_grid_json` column is migration input only. The `2026111201_beat_grid_backfill` migration copies it into the canonical tables once and is then ignored.
+- Manual edits create/replace one segment; replacing a segmented grid requires `replace = true`.
 
 ### 11.4 library-core exposure
 
@@ -558,7 +582,7 @@ Mitigations:
 ### Acceptance (Phase 1 done when)
 
 - [ ] `cargo nextest run -p analyzer-core -p analyzer-qmdsp -p analyzer` passes on Linux CI.
-- [ ] `library` with `analysis` feature: `analyze_track` persists BPM, key, and beat grid JSON.
+- [ ] `library` with `analysis` feature: `analyze_track` persists BPM, key, and the canonical beat grid; `tracks.bpm` mirrors segment 0.
 - [ ] Documented backend choice and confidence merge policy.
 - [ ] No new dependencies on audio callback / producer code paths.
 

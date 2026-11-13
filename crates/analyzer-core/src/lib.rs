@@ -20,7 +20,7 @@ pub use loudness::{
 };
 pub use merge::{merge_track_metadata, TagMetadata};
 pub use result::{AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, TrackAnalysis};
-pub use snap::snap_grid;
+pub use snap::{is_metrical_tempo_relation, rebuild_grid_at, retune_grid, snap_grid};
 pub use traits::{backend_err, AudioAnalyzer};
 
 #[cfg(test)]

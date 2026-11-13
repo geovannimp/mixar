@@ -44,6 +44,29 @@ impl Db {
 
         let conn = Database::connect(opts).map_err(db_err)?;
         sync_schema(&conn).map_err(db_err)?;
+        crate::migrations::run_pending_migrations(&conn).map_err(|err| LibraryError::Backend {
+            backend: "library",
+            message: err.to_string(),
+        })?;
+        Ok(Self {
+            conn: Mutex::new(SyncConnection(conn)),
+        })
+    }
+
+    /// Open an in-memory database without running migrations.
+    ///
+    /// Migration tests need to insert legacy rows before the runner sees them.
+    #[allow(dead_code)]
+    pub(crate) fn open_in_memory_unmigrated() -> Result<Self> {
+        Self::connect_unmigrated("sqlite::memory:")
+    }
+
+    #[allow(dead_code)]
+    fn connect_unmigrated(url: &str) -> Result<Self> {
+        let mut opts = ConnectOptions::new(url.to_string());
+        opts.max_connections(1).sqlx_logging(false);
+        let conn = Database::connect(opts).map_err(db_err)?;
+        sync_schema(&conn).map_err(db_err)?;
         Ok(Self {
             conn: Mutex::new(SyncConnection(conn)),
         })
@@ -69,6 +92,11 @@ pub fn open(db_path: &Path) -> Result<Db> {
 
 pub fn open_in_memory() -> Result<Db> {
     Db::open_in_memory()
+}
+
+#[allow(dead_code)]
+pub(crate) fn open_in_memory_unmigrated() -> Result<Db> {
+    Db::open_in_memory_unmigrated()
 }
 
 fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {

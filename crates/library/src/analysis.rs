@@ -4,17 +4,85 @@ use analyzer::{
     analyze_file, analyze_pcm, merge_track_metadata, AnalysisConfig, AnalyzerError, TagMetadata,
     TrackAnalysis,
 };
-use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
+use analyzer_core::{
+    is_metrical_tempo_relation, loudness_lufs_from_replaygain_track_gain_db, retune_grid,
+};
 use codec::{decode_stem_file, is_stem_path};
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
 use std::path::Path;
 
-use library_core::{AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId};
+use library_core::{
+    AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId, TrackMetadata,
+};
 
+use crate::beat_grid::{self, CanonicalBeatGrid};
 use crate::db::{self, Db};
 use crate::entity::{track_analysis, TrackAnalysisEntity};
 use crate::{is_audio_file, normalize_path, path_label, tags};
+
+/// Build the canonical grid for an analysis result.
+///
+/// The analysis markers are serialized into the legacy shape and run through the
+/// same converter as the migration, so constant/variable rules stay identical.
+pub(crate) fn analysis_to_grid(
+    metadata: &TrackMetadata,
+    analysis: &TrackAnalysis,
+) -> Result<Option<CanonicalBeatGrid>> {
+    let Some(grid) = analysis.beat_grid.as_ref() else {
+        return Ok(None);
+    };
+    let json = serde_json::to_string(grid).map_err(|err| LibraryError::Backend {
+        backend: "library",
+        message: err.to_string(),
+    })?;
+    let covered_to_ms = analysis
+        .metadata
+        .duration_analyzed_ms
+        .checked_into_positive()
+        .filter(|analyzed| {
+            metadata
+                .duration_ms
+                .is_none_or(|track| *analyzed < i64::from(track))
+        });
+    let fallback = metadata
+        .bpm
+        .or_else(|| analysis.bpm.as_ref().map(|bpm| bpm.bpm));
+    match beat_grid::from_legacy_json(&json, fallback, &analysis.metadata.backend, covered_to_ms) {
+        Ok(grid) => Ok(grid),
+        Err(err) => Err(LibraryError::Backend {
+            backend: "library",
+            message: err.to_string(),
+        }),
+    }
+}
+
+/// Persist an analysis grid unless a manual/canonical grid already exists.
+pub(crate) fn persist_analysis_grid(
+    db: &Db,
+    track_id: &TrackId,
+    metadata: &TrackMetadata,
+    analysis: &TrackAnalysis,
+    force: bool,
+) -> Result<()> {
+    if !force && beat_grid::has_track_beat_grid(db, track_id)? {
+        return Ok(());
+    }
+    let Some(grid) = analysis_to_grid(metadata, analysis)? else {
+        return Ok(());
+    };
+    beat_grid::write_track_beat_grid(db, track_id, &grid)
+}
+
+trait CheckedIntoPositive {
+    fn checked_into_positive(self) -> Option<i64>;
+}
+
+impl CheckedIntoPositive for i32 {
+    fn checked_into_positive(self) -> Option<i64> {
+        (self > 0).then(|| i64::from(self))
+    }
+}
 
 pub(crate) fn upsert_track_analysis(
     db: &Db,
@@ -22,12 +90,8 @@ pub(crate) fn upsert_track_analysis(
     analysis: &TrackAnalysis,
     force: bool,
 ) -> Result<()> {
-    // User-edited grids share this row; non-forced analysis keeps their BPM and grid.
-    let has_existing_grid = !force
-        && TrackAnalysisEntity::find_by_id(track_id.as_str())
-            .one(db.conn()?.as_connection())
-            .map_err(db::db_err)?
-            .is_some_and(|row| row.beat_grid_json.is_some());
+    // A canonical grid (manual or prior analysis) owns BPM/grid unless forced.
+    let has_existing_grid = !force && beat_grid::has_track_beat_grid(db, track_id)?;
     let beat_grid_json = analysis
         .beat_grid
         .as_ref()
@@ -196,6 +260,21 @@ pub(crate) fn compute_file_analysis(
     let mut metadata = tag_metadata;
     metadata.bpm = merged.bpm;
     metadata.key = merged.key;
+
+    // Without `force` the tag BPM wins. Keep the analysis grid on that tempo:
+    // the deck reads the grid BPM, so a detector that locked onto a metrical
+    // family (3:2, half/double) would otherwise surface a second BPM for the
+    // same track. Only metrical families are retuned — a genuinely different
+    // tag tempo stays the detector's call.
+    if !options.force {
+        if let (Some(bpm), Some(analysis_bpm)) =
+            (metadata.bpm, analysis.bpm.as_ref().map(|b| b.bpm))
+        {
+            if (analysis_bpm - bpm).abs() > 0.5 && is_metrical_tempo_relation(analysis_bpm, bpm) {
+                retune_grid(&mut analysis, bpm);
+            }
+        }
+    }
 
     Ok(ComputedFileAnalysis {
         metadata,

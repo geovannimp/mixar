@@ -78,27 +78,28 @@ class AssignSamplerTrack {
 }
 
 class BeatGrid {
-  final Float32List beats;
-  final Float32List downbeats;
-  final double bpm;
+  final String source;
+  final PlatformInt64? coveredToMs;
+  final List<BeatSegment> segments;
 
   const BeatGrid({
-    required this.beats,
-    required this.downbeats,
-    required this.bpm,
+    required this.source,
+    this.coveredToMs,
+    required this.segments,
   });
 
   @override
-  int get hashCode => beats.hashCode ^ downbeats.hashCode ^ bpm.hashCode;
+  int get hashCode =>
+      source.hashCode ^ coveredToMs.hashCode ^ segments.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BeatGrid &&
           runtimeType == other.runtimeType &&
-          beats == other.beats &&
-          downbeats == other.downbeats &&
-          bpm == other.bpm;
+          source == other.source &&
+          coveredToMs == other.coveredToMs &&
+          segments == other.segments;
 }
 
 class BeatGridChanged {
@@ -171,6 +172,53 @@ class BeatJumpPadRelease {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           slot == other.slot;
+}
+
+class BeatSegment {
+  final int segmentIndex;
+  final PlatformInt64 startTimeMs;
+  final double bpm;
+  final int beatsPerBar;
+  final int beatUnit;
+  final PlatformInt64 startBeatIndex;
+  final PlatformInt64? beatsToNext;
+  final int downbeatOffsetBeats;
+
+  const BeatSegment({
+    required this.segmentIndex,
+    required this.startTimeMs,
+    required this.bpm,
+    required this.beatsPerBar,
+    required this.beatUnit,
+    required this.startBeatIndex,
+    this.beatsToNext,
+    required this.downbeatOffsetBeats,
+  });
+
+  @override
+  int get hashCode =>
+      segmentIndex.hashCode ^
+      startTimeMs.hashCode ^
+      bpm.hashCode ^
+      beatsPerBar.hashCode ^
+      beatUnit.hashCode ^
+      startBeatIndex.hashCode ^
+      beatsToNext.hashCode ^
+      downbeatOffsetBeats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BeatSegment &&
+          runtimeType == other.runtimeType &&
+          segmentIndex == other.segmentIndex &&
+          startTimeMs == other.startTimeMs &&
+          bpm == other.bpm &&
+          beatsPerBar == other.beatsPerBar &&
+          beatUnit == other.beatUnit &&
+          startBeatIndex == other.startBeatIndex &&
+          beatsToNext == other.beatsToNext &&
+          downbeatOffsetBeats == other.downbeatOffsetBeats;
 }
 
 class BeginCueHold {
@@ -2091,15 +2139,21 @@ class SaveBeatGrid {
   final String trackId;
   final double bpm;
   final double firstBeatSecs;
+  final bool replace;
 
   const SaveBeatGrid({
     required this.trackId,
     required this.bpm,
     required this.firstBeatSecs,
+    required this.replace,
   });
 
   @override
-  int get hashCode => trackId.hashCode ^ bpm.hashCode ^ firstBeatSecs.hashCode;
+  int get hashCode =>
+      trackId.hashCode ^
+      bpm.hashCode ^
+      firstBeatSecs.hashCode ^
+      replace.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -2108,7 +2162,8 @@ class SaveBeatGrid {
           runtimeType == other.runtimeType &&
           trackId == other.trackId &&
           bpm == other.bpm &&
-          firstBeatSecs == other.firstBeatSecs;
+          firstBeatSecs == other.firstBeatSecs &&
+          replace == other.replace;
 }
 
 class SaveDeckHotCue {

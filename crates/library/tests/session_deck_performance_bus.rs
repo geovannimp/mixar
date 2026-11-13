@@ -133,6 +133,7 @@ fn save_beat_grid_cmd_emits_beat_grid_changed_for_track() {
             track_id: track_id.clone(),
             bpm: 128.0,
             first_beat_secs: 0.5,
+            replace: false,
         }))
         .unwrap();
 
@@ -143,8 +144,9 @@ fn save_beat_grid_cmd_emits_beat_grid_changed_for_track() {
     match event {
         Event::BeatGridChanged(changed) => {
             assert_eq!(changed.track_id, track_id);
-            assert_eq!(changed.beat_grid.bpm, 128.0);
-            assert_eq!(changed.beat_grid.beats.first(), Some(&0.5));
+            let segment = changed.beat_grid.segments.first().expect("segment");
+            assert_eq!(segment.bpm, 128.0);
+            assert_eq!(segment.start_time_ms, 500);
         }
         other => panic!("unexpected evt: {other:?}"),
     }
