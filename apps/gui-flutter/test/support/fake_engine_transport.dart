@@ -53,6 +53,9 @@ class FakeEngineTransport implements EngineTransport {
   }
 
   @override
+  Future<void> applyAutoCueSettings() async {}
+
+  @override
   Future<void> assignSampler({
     required int deckId,
     required int slot,

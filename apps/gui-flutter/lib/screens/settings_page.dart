@@ -10,6 +10,7 @@ import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_analysis_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_curves_panel.dart';
@@ -819,6 +820,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         onChanged: onChanged,
       ),
       SettingsSection.library => SettingsLibraryPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.analysis => SettingsAnalysisPanel(
         draft: draft,
         onChanged: onChanged,
       ),

@@ -472,5 +472,39 @@ void main() {
       expect(snap.keyShiftPageFor(1), kDefaultPitchPage);
       expect(snap.keyboardRootFor(1), 0);
     });
+
+    test('deck update carries the main cue and an unload clears it', () {
+      var snap = applyEngineEvent(
+        EngineUiSnapshot.empty,
+        deckUpdatedEvent(
+          update: deckUpdated(
+            trackPath: '/cued.flac',
+            durationMs: 30_000,
+            cuePointMs: 1500,
+          ),
+        ),
+      );
+      expect(snap.cuePointMsFor(0), 1500);
+      expect(snap.cuePointMsFor(1), isNull);
+
+      // A null cue clears the flag without unloading the deck...
+      snap = applyEngineEvent(
+        snap,
+        deckUpdatedEvent(update: deckUpdated(durationMs: 30_000)),
+      );
+      expect(snap.cuePointMsFor(0), isNull);
+      expect(snap.durationMsFor(0), 30_000);
+
+      // ...and an unload (no duration) clears whatever was left.
+      snap = applyEngineEvent(
+        snap,
+        deckUpdatedEvent(
+          update: deckUpdated(durationMs: 30_000, cuePointMs: 900),
+        ),
+      );
+      expect(snap.cuePointMsFor(0), 900);
+      snap = applyEngineEvent(snap, deckUpdatedEvent(update: deckUpdated()));
+      expect(snap.cuePointMsFor(0), isNull);
+    });
   });
 }

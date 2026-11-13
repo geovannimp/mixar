@@ -279,6 +279,42 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get settingsSectionLibrary;
 
+  /// No description provided for @settingsSectionAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis'**
+  String get settingsSectionAnalysis;
+
+  /// No description provided for @settingsAnalysisDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline analysis: how much audio is scanned and how the main cue is detected.'**
+  String get settingsAnalysisDescription;
+
+  /// No description provided for @settingsAnalysisCueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cue detection'**
+  String get settingsAnalysisCueTitle;
+
+  /// No description provided for @settingsAnalysisCueDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis sets a track\'s cue to its first sound. A cue you set or import is never overwritten.'**
+  String get settingsAnalysisCueDescription;
+
+  /// No description provided for @settingsAnalysisCueThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Silence threshold'**
+  String get settingsAnalysisCueThreshold;
+
+  /// No description provided for @settingsAnalysisCueThresholdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio quieter than this counts as silence; the cue is the first frame above it.'**
+  String get settingsAnalysisCueThresholdHint;
+
   /// No description provided for @settingsSectionIntegrations.
   ///
   /// In en, this message translates to:
@@ -1712,6 +1748,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Blink before the track ends'**
   String get settingsDeckEndWarningToggle;
+
+  /// No description provided for @settingsDeckAutoCue.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto cue'**
+  String get settingsDeckAutoCue;
+
+  /// No description provided for @settingsDeckAutoCueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On load, move the playhead to the track\'s cue instead of the start of the file.'**
+  String get settingsDeckAutoCueHint;
+
+  /// No description provided for @settingsDeckAutoCueToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cue to the track cue on load'**
+  String get settingsDeckAutoCueToggle;
 
   /// Length of the end-of-track warning window, read aloud by screen readers.
   ///

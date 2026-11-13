@@ -457,6 +457,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SaveDeckHotCue dco_decode_box_autoadd_save_deck_hot_cue(dynamic raw);
 
   @protected
+  SaveTrackCue dco_decode_box_autoadd_save_track_cue(dynamic raw);
+
+  @protected
   SaveTrackHotCue dco_decode_box_autoadd_save_track_hot_cue(dynamic raw);
 
   @protected
@@ -1190,6 +1193,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SaveDeckHotCue dco_decode_save_deck_hot_cue(dynamic raw);
 
   @protected
+  SaveTrackCue dco_decode_save_track_cue(dynamic raw);
+
+  @protected
   SaveTrackHotCue dco_decode_save_track_hot_cue(dynamic raw);
 
   @protected
@@ -1905,6 +1911,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SaveDeckHotCue sse_decode_box_autoadd_save_deck_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SaveTrackCue sse_decode_box_autoadd_save_track_cue(
     SseDeserializer deserializer,
   );
 
@@ -2826,6 +2837,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SaveDeckHotCue sse_decode_save_deck_hot_cue(SseDeserializer deserializer);
 
   @protected
+  SaveTrackCue sse_decode_save_track_cue(SseDeserializer deserializer);
+
+  @protected
   SaveTrackHotCue sse_decode_save_track_hot_cue(SseDeserializer deserializer);
 
   @protected
@@ -3679,6 +3693,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_save_deck_hot_cue(
     SaveDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_save_track_cue(
+    SaveTrackCue self,
     SseSerializer serializer,
   );
 
@@ -4857,6 +4877,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SaveDeckHotCue self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_save_track_cue(SaveTrackCue self, SseSerializer serializer);
 
   @protected
   void sse_encode_save_track_hot_cue(

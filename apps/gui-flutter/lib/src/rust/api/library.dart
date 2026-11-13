@@ -77,6 +77,11 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
 
+  /// Push the cue-detection threshold to the running library worker.
+  ///
+  /// Analysis-time only; safe to call repeatedly (no engine restart).
+  Future<void> applyCueThreshold();
+
   /// Apply performance history settings from app settings.
   Future<void> applyHistorySettings({
     required bool enabled,

@@ -44,6 +44,8 @@ pub const STEM_MODELS: [&str; 2] = [DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL];
 pub struct LibraryBuses {
     buses: EventBus<Event>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
+    /// Silence threshold (dBFS) cue detection uses for load-time analysis.
+    cue_threshold_db: Arc<Mutex<f32>>,
     stems_format: Arc<Mutex<String>>,
     stems_model: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
@@ -67,6 +69,7 @@ impl LibraryBuses {
         Self {
             buses: bus,
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
+            cue_threshold_db: Arc::new(Mutex::new(library_core::DEFAULT_CUE_THRESHOLD_DB)),
             stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_model: Arc::new(Mutex::new(DEFAULT_STEMS_MODEL.to_string())),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
@@ -106,6 +109,31 @@ impl LibraryBuses {
             .analysis_duration
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = duration;
+    }
+
+    /// Update the cue-detection silence threshold (dBFS), clamped to the
+    /// [`library_core::MIN_CUE_THRESHOLD_DB`]…[`library_core::MAX_CUE_THRESHOLD_DB`] range.
+    pub fn set_cue_threshold_db(&self, threshold_db: f32) {
+        let threshold_db = if threshold_db.is_finite() {
+            threshold_db.clamp(
+                library_core::MIN_CUE_THRESHOLD_DB,
+                library_core::MAX_CUE_THRESHOLD_DB,
+            )
+        } else {
+            library_core::DEFAULT_CUE_THRESHOLD_DB
+        };
+        *self
+            .cue_threshold_db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = threshold_db;
+    }
+
+    /// Current cue-detection threshold (dBFS).
+    pub fn cue_threshold_db(&self) -> f32 {
+        *self
+            .cue_threshold_db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// Stem cache codec (`opus` | `flac`). AAC is normalized to opus until encode ships.
@@ -203,6 +231,24 @@ fn omnibus_err(e: event_bus::BusError) -> LibraryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cue_threshold_defaults_and_clamps() {
+        let buses = LibraryBuses::new();
+        assert_eq!(
+            buses.cue_threshold_db(),
+            library_core::DEFAULT_CUE_THRESHOLD_DB
+        );
+        buses.set_cue_threshold_db(-72.0);
+        assert_eq!(buses.cue_threshold_db(), -72.0);
+        buses.set_cue_threshold_db(-10.0);
+        assert_eq!(buses.cue_threshold_db(), -30.0);
+        buses.set_cue_threshold_db(f32::NAN);
+        assert_eq!(
+            buses.cue_threshold_db(),
+            library_core::DEFAULT_CUE_THRESHOLD_DB
+        );
+    }
 
     #[test]
     fn stems_model_defaults_and_normalizes() {

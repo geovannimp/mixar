@@ -15,6 +15,7 @@ use bus_api::HotCuesChanged;
 use bus_api::LoopsChanged;
 use bus_api::RefreshTrack;
 use bus_api::SaveBeatGrid;
+use bus_api::SaveTrackCue;
 use bus_api::SaveTrackHotCue;
 use bus_api::SaveTrackLoop;
 use bus_api::SavedLoop;
@@ -143,6 +144,7 @@ fn handle_cmd(event: Event, library: &Arc<Mutex<LibraryManager>>, buses: &Librar
         Event::SaveTrackLoop(cmd) => handle_save_loop(cmd, library, buses),
         Event::DeleteTrackLoop(cmd) => handle_delete_loop(cmd, library, buses),
         Event::SaveBeatGrid(cmd) => handle_save_beat_grid(cmd, library, buses),
+        Event::SaveTrackCue(cmd) => handle_save_track_cue(cmd, library, buses),
         // Egress events published onto cmd by mistake, plus engine and controller
         // commands that are not the library worker's business.
         _ => {}
@@ -205,10 +207,12 @@ fn handle_analyze(cmd: AnalyzeTrack, library: &Arc<Mutex<LibraryManager>>, buses
         .analysis_duration_arc()
         .lock()
         .unwrap_or_else(|e| e.into_inner());
+    let cue_threshold_db = buses.cue_threshold_db();
 
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
+        cue_threshold_db: Some(cue_threshold_db),
     };
 
     let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
@@ -332,6 +336,24 @@ fn spawn_stem_ensure_job(
         .spawn(move || {
             run_stem_ensure_job(&library, &buses, &track_id);
         });
+}
+
+fn handle_save_track_cue(
+    cmd: SaveTrackCue,
+    library: &Arc<Mutex<LibraryManager>>,
+    buses: &LibraryBuses,
+) {
+    let SaveTrackCue {
+        track_id,
+        position_ms,
+    } = cmd;
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.save_track_cue(&TrackId::new(track_id.clone()), position_ms)
+    };
+    if let Err(err) = result {
+        publish_error(buses, err.to_string(), Some(track_id));
+    }
 }
 
 fn handle_save_hot_cue(

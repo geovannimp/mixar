@@ -4,6 +4,7 @@ use bus_api::BeatGrid;
 use bus_api::DeleteTrackHotCue;
 use bus_api::Event;
 use bus_api::HotCue;
+use bus_api::SaveTrackCue;
 use bus_api::SaveTrackHotCue;
 use bus_api::SaveTrackLoop;
 use bus_api::AUTO_LOOP_SLOT;
@@ -37,6 +38,29 @@ impl Engine {
             label: None,
         }))?;
         Ok(())
+    }
+
+    /// Persist the cue point the deck currently shows as the track's manual cue.
+    ///
+    /// Non-library audio is skipped; a missing library bus is a normal no-op.
+    pub fn save_deck_track_cue(&mut self, deck_id: usize) -> Result<()> {
+        let Some(track_id) = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|control| control.track_id.clone())
+        else {
+            return Ok(());
+        };
+        let Some(cue_ms) = self.deck_cue_point(deck_id) else {
+            return Ok(());
+        };
+        if self.library_cmd.is_none() {
+            return Ok(());
+        }
+        self.publish_library_cmd(Event::SaveTrackCue(SaveTrackCue {
+            track_id: track_id.as_str().to_string(),
+            position_ms: cue_ms,
+        }))
     }
 
     /// Persist a delete for `slot` via the library cmd bus.

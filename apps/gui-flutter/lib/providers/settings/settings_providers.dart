@@ -241,6 +241,7 @@ final librarySettingsBootstrapProvider = Provider<void>((ref) {
         tagWriteBack: settings.value.tagWriteBack,
       ),
     );
+    unawaited(library.value.applyCueThreshold());
   }
 });
 
@@ -336,6 +337,10 @@ Future<SaveAppSettingsResult> saveAppSettings(
       // audio.
       trackEndWarning: previous.trackEndWarning,
       trackEndWarningSecs: previous.trackEndWarningSecs,
+      // Auto cue and the cue threshold: load-time and analysis-time values, so
+      // neither needs an engine restart.
+      autoCue: previous.autoCue,
+      cueThresholdDb: previous.cueThresholdDb,
       showMixer: previous.showMixer,
       showFxBar: previous.showFxBar,
       showCrossfader: previous.showCrossfader,
@@ -357,6 +362,24 @@ Future<SaveAppSettingsResult> saveAppSettings(
       await analytics.setEnabled(enabled: normalized.analyticsEnabled);
     } on Object {
       // Analytics must never turn a successful settings save into a failure.
+    }
+  }
+  if (normalized.cueThresholdDb != previous.cueThresholdDb) {
+    try {
+      final library = await read(libraryTransportProvider.future);
+      await library.applyCueThreshold();
+    } on Object {
+      // The next library start applies it again.
+    }
+  }
+  if (normalized.autoCue != previous.autoCue) {
+    try {
+      final engine = await read(engineTransportProvider.future);
+      if (engine != null && await engine.isRunning()) {
+        await engine.applyAutoCueSettings();
+      }
+    } on Object {
+      // Load-time only: the next engine start/restart pushes it again.
     }
   }
   if (viewOnly) {

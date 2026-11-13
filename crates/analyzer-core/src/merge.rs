@@ -60,6 +60,7 @@ mod tests {
                 sample_rate: 44100,
                 duration_analyzed_ms: 1000,
             },
+            cue_ms: None,
         }
     }
 

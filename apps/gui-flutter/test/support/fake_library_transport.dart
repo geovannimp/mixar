@@ -222,6 +222,9 @@ class FakeLibraryTransport implements LibraryTransport {
   }
 
   @override
+  Future<void> applyCueThreshold() async {}
+
+  @override
   Future<void> applyHistorySettings({
     required bool enabled,
     required int sessionIdleMinutes,

@@ -891,6 +891,12 @@ pub struct _SaveBeatGrid {
     pub first_beat_secs: f32,
 }
 
+#[flutter_rust_bridge::frb(mirror(SaveTrackCue))]
+pub struct _SaveTrackCue {
+    pub track_id: String,
+    pub position_ms: i32,
+}
+
 #[flutter_rust_bridge::frb(mirror(SaveTrackHotCue))]
 pub struct _SaveTrackHotCue {
     pub track_id: String,
@@ -1092,6 +1098,7 @@ pub enum _Event {
     GenerateStems(GenerateStems),
     RefreshTrack(RefreshTrack),
     SaveBeatGrid(SaveBeatGrid),
+    SaveTrackCue(SaveTrackCue),
     SaveTrackHotCue(SaveTrackHotCue),
     DeleteTrackHotCue(DeleteTrackHotCue),
     SaveTrackLoop(SaveTrackLoop),
@@ -1205,6 +1212,7 @@ pub enum _Topic {
     GenerateStems,
     RefreshTrack,
     SaveBeatGrid,
+    SaveTrackCue,
     SaveTrackHotCue,
     DeleteTrackHotCue,
     SaveTrackLoop,

@@ -20,7 +20,6 @@ class SettingsLibraryPanel extends StatelessWidget {
   final ValueChanged<AppSettings> onChanged;
 
   static const _stemsFormats = ['opus', 'flac'];
-  static const _analysisModes = AnalysisDurationSetting.values;
   static const _keyDisplayModes = KeyDisplayModeSetting.values;
   static const _keyColorModes = KeyColorModeSetting.values;
 
@@ -33,26 +32,6 @@ class SettingsLibraryPanel extends StatelessWidget {
   static String _stemsModelLabel(String model) => switch (model) {
     'scnet_int8_v1' => 'SCNet (int8)',
     _ => 'HTDemucs',
-  };
-
-  static String _analysisLabel(
-    AppLocalizations l10n,
-    AnalysisDurationSetting mode,
-  ) => switch (mode) {
-    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFast,
-    AnalysisDurationSetting.precise => l10n.settingsLibraryAnalysisPrecise,
-    AnalysisDurationSetting.complete => l10n.settingsLibraryAnalysisComplete,
-  };
-
-  static String _analysisSubtitle(
-    AppLocalizations l10n,
-    AnalysisDurationSetting mode,
-  ) => switch (mode) {
-    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFastSubtitle,
-    AnalysisDurationSetting.precise =>
-      l10n.settingsLibraryAnalysisPreciseSubtitle,
-    AnalysisDurationSetting.complete =>
-      l10n.settingsLibraryAnalysisCompleteSubtitle,
   };
 
   static String _keyDisplayLabel(
@@ -125,22 +104,6 @@ class SettingsLibraryPanel extends StatelessWidget {
       title: l10n.settingsSectionLibrary,
       description: l10n.settingsLibraryDescription,
       cards: [
-        SettingsSectionCard(
-          title: l10n.settingsLibraryAnalysisTitle,
-          subtitle: l10n.settingsLibraryAnalysisDescription,
-          child: SettingsField(
-            label: l10n.settingsLibraryAnalysisQuality,
-            child: SettingsSelect(
-              dialogTitle: l10n.settingsLibraryAnalysisQuality,
-              value: draft.analysisDuration,
-              options: _analysisModes,
-              labelBuilder: (mode) => _analysisLabel(l10n, mode),
-              subtitleBuilder: (mode) => _analysisSubtitle(l10n, mode),
-              onChanged: (mode) =>
-                  onChanged(copyAppSettings(draft, analysisDuration: mode)),
-            ),
-          ),
-        ),
         SettingsSectionCard(
           title: l10n.settingsLibraryTagWriteBackTitle,
           subtitle: l10n.settingsLibraryTagWriteBackDescription,

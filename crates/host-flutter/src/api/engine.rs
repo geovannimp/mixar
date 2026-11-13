@@ -402,6 +402,10 @@ impl EngineTransport {
         top_jog: bus_api::JogMode,
         outer_jog: bus_api::JogMode,
     ) -> Result<(), String> {
+        // Read host settings before taking the engine lock: the host has its own
+        // lock, and a settings save runs the same reads, so keeping the host lock
+        // out of the engine critical section avoids any chance of a cycle.
+        let auto_cue = crate::api::settings::settings_auto_cue();
         let mut guard = self
             .engine
             .lock()
@@ -410,12 +414,30 @@ impl EngineTransport {
             .as_mut()
             .ok_or_else(|| "engine not available".to_string())?;
         engine.set_normalizer_target(normalizer_target).bridge()?;
+        engine.set_auto_cue(auto_cue);
         // Read under the engine lock: restart updates the count while holding it.
         let deck_count = self.deck_count.load(Ordering::Acquire);
         for deck_id in 0..deck_count {
             engine
                 .set_deck_jog_mode(deck_id, top_jog, outer_jog)
                 .bridge()?;
+        }
+        Ok(())
+    }
+
+    /// Push the Auto Cue preference to the running engine after a settings save.
+    ///
+    /// Load-time only: playing decks are untouched; the next load uses it.
+    pub fn apply_auto_cue_settings(&self) -> Result<(), String> {
+        // Host settings first, then the engine lock (see `apply_host_settings`):
+        // the host lock is never held while this call's engine lock is taken.
+        let auto_cue = crate::api::settings::settings_auto_cue();
+        let mut guard = self
+            .engine
+            .lock()
+            .map_err(|_| "engine lock poisoned".to_string())?;
+        if let Some(engine) = guard.as_mut() {
+            engine.set_auto_cue(auto_cue);
         }
         Ok(())
     }

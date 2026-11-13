@@ -8,6 +8,10 @@ pub struct TrackAnalysis {
     pub beat_grid: Option<BeatGridAnalysis>,
     pub loudness_lufs: Option<f64>,
     pub metadata: AnalysisRunMetadata,
+    /// Main cue: first audible frame of the analyzed window, in milliseconds.
+    /// Filled by the `analyzer` facade; backends leave it `None`.
+    #[serde(default)]
+    pub cue_ms: Option<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -58,6 +62,47 @@ mod tests {
         }"#;
         let grid: BeatGridAnalysis = serde_json::from_str(json).unwrap();
         assert_eq!(grid.beats_per_bar, 4);
+    }
+
+    #[test]
+    fn cue_ms_defaults_to_none_when_absent() {
+        // Persisted JSON written before cue detection has no `cue_ms` field.
+        let json = r#"{
+            "bpm": null,
+            "key": null,
+            "beat_grid": null,
+            "loudness_lufs": null,
+            "metadata": {
+                "backend": "test",
+                "backend_version": "0",
+                "analyzed_at": "1",
+                "sample_rate": 44100,
+                "duration_analyzed_ms": 1000
+            }
+        }"#;
+        let analysis: TrackAnalysis = serde_json::from_str(json).unwrap();
+        assert_eq!(analysis.cue_ms, None);
+    }
+
+    #[test]
+    fn cue_ms_round_trips() {
+        let analysis = TrackAnalysis {
+            bpm: None,
+            key: None,
+            beat_grid: None,
+            loudness_lufs: None,
+            metadata: AnalysisRunMetadata {
+                backend: "test".into(),
+                backend_version: "0".into(),
+                analyzed_at: "1".into(),
+                sample_rate: 44_100,
+                duration_analyzed_ms: 1000,
+            },
+            cue_ms: Some(1234),
+        };
+        let json = serde_json::to_string(&analysis).unwrap();
+        let back: TrackAnalysis = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, analysis);
     }
 
     #[test]

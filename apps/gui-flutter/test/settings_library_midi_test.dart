@@ -13,7 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
-  testWidgets('library settings shows analysis quality', (tester) async {
+  testWidgets('library settings shows the key options', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       ProviderScope(
@@ -30,7 +30,8 @@ void main() {
         ),
       ),
     );
-    expect(find.text('ANALYSIS QUALITY'), findsOneWidget);
+    // Analysis quality moved to Settings → Analysis.
+    expect(find.text('ANALYSIS QUALITY'), findsNothing);
     expect(find.text('Musical key'), findsOneWidget);
     expect(find.text('KEY DISPLAY MODE'), findsOneWidget);
     expect(find.text('KEY COLOR MODE'), findsOneWidget);

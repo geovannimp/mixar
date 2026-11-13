@@ -601,4 +601,27 @@ void main() {
       isTrue,
     );
   });
+  test('auto cue defaults on and a threshold edit is dirty', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.autoCue, isTrue);
+    expect(baseline.cueThresholdDb, kDefaultCueThresholdDb);
+    expect(
+      appSettingsDirty(
+        baseline,
+        copyAppSettings(baseline, cueThresholdDb: -48),
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(baseline, copyAppSettings(baseline, autoCue: false)),
+      isTrue,
+    );
+  });
+
+  test('an out-of-range cue threshold normalizes to the floor', () {
+    final normalized = normalizeAppSettings(
+      copyAppSettings(defaultAppSettings(), cueThresholdDb: -200),
+    );
+    expect(normalized.cueThresholdDb, kMinCueThresholdDb);
+  });
 }

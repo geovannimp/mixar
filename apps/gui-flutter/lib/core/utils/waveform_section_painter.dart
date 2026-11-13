@@ -6,12 +6,12 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/rendering.dart' show CustomPainter;
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
 
-enum WaveformSectionType { cue, loop }
+enum WaveformSectionType { cue, loop, mainCue }
 
-/// One cue or loop drawn on a waveform.
+/// One cue, loop or main cue drawn on a waveform.
 ///
-/// Cues have only [startMs]; loops also have [endMs]. Flags use one shared
-/// design regardless of type.
+/// Cues and the main cue have only [startMs]; loops also have [endMs]. Flags
+/// use one shared design regardless of type; the glyph tells them apart.
 @immutable
 class WaveformSection {
   const new({
@@ -22,7 +22,7 @@ class WaveformSection {
     this.label,
     this.active = false,
   }) : assert(
-         type == WaveformSectionType.cue || endMs != null,
+         type != WaveformSectionType.loop || endMs != null,
          'loops need an end',
        );
 
@@ -211,8 +211,12 @@ void _paintFlag(
       ? const Color(0xFF000000)
       : const Color(0xFFFFFFFF);
   final glyphWidth = flagW - notch;
-  if (section.type == WaveformSectionType.loop) {
-    const icon = Icons.loop;
+  final icon = switch (section.type) {
+    WaveformSectionType.loop => Icons.loop,
+    WaveformSectionType.mainCue => Icons.play_arrow_rounded,
+    WaveformSectionType.cue => null,
+  };
+  if (icon != null) {
     final painter = TextPainter(
       text: TextSpan(
         text: String.fromCharCode(icon.codePoint),

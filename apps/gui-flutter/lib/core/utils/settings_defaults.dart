@@ -102,6 +102,11 @@ const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
 const kMaxTargetLufs = -9.0;
 const kDefaultVinylBrakeStopSecs = 0.5;
+
+/// Cue-detection silence threshold (dBFS), mirroring the host clamp.
+const kMinCueThresholdDb = -90.0;
+const kMaxCueThresholdDb = -30.0;
+const kDefaultCueThresholdDb = -60.0;
 const kMinVinylBrakeStopSecs = 0.05;
 const kMaxVinylBrakeStopSecs = 3.0;
 const kVinylBrakeStopSecsStep = 0.05;
@@ -180,6 +185,8 @@ AppSettings defaultAppSettings() {
     vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
     trackEndWarning: kDefaultTrackEndWarningEnabled,
     trackEndWarningSecs: kDefaultTrackEndWarningSecs,
+    autoCue: true,
+    cueThresholdDb: kDefaultCueThresholdDb,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     waveformGainEqShaping: true,
     keyDisplayMode: KeyDisplayModeSetting.musical,
@@ -232,6 +239,9 @@ AppSettings normalizeAppSettings(AppSettings settings) {
       kMinTrackEndWarningSecs,
       kMaxTrackEndWarningSecs,
     ),
+    cueThresholdDb: settings.cueThresholdDb.isFinite
+        ? settings.cueThresholdDb.clamp(kMinCueThresholdDb, kMaxCueThresholdDb)
+        : kDefaultCueThresholdDb,
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
@@ -316,6 +326,8 @@ AppSettings copyAppSettings(
   double? vinylBrakeStopSecs,
   bool? trackEndWarning,
   int? trackEndWarningSecs,
+  bool? autoCue,
+  double? cueThresholdDb,
   WaveformDisplayModeSetting? waveformDisplayMode,
   bool? waveformGainEqShaping,
   KeyDisplayModeSetting? keyDisplayMode,
@@ -381,6 +393,8 @@ AppSettings copyAppSettings(
     vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
     trackEndWarning: trackEndWarning ?? base.trackEndWarning,
     trackEndWarningSecs: trackEndWarningSecs ?? base.trackEndWarningSecs,
+    autoCue: autoCue ?? base.autoCue,
+    cueThresholdDb: cueThresholdDb ?? base.cueThresholdDb,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     waveformGainEqShaping: waveformGainEqShaping ?? base.waveformGainEqShaping,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
@@ -449,6 +463,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
       draft.trackEndWarning != baseline.trackEndWarning ||
       draft.trackEndWarningSecs != baseline.trackEndWarningSecs ||
+      draft.autoCue != baseline.autoCue ||
+      draft.cueThresholdDb != baseline.cueThresholdDb ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.waveformGainEqShaping != baseline.waveformGainEqShaping ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||

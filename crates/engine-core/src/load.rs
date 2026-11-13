@@ -64,6 +64,7 @@ impl Engine {
         self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
+        self.hydrate_track_cue(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Track loaded into deck {}", deck_id);
         Ok(())
@@ -125,6 +126,7 @@ impl Engine {
         self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
+        self.hydrate_track_cue(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
@@ -161,6 +163,18 @@ impl Engine {
         Ok(())
     }
 
+    /// Set whether a deck load moves the playhead to the track cue.
+    ///
+    /// Takes effect on the next load; already-loaded decks keep their position.
+    pub fn set_auto_cue(&mut self, enabled: bool) {
+        self.auto_cue = enabled;
+    }
+
+    /// Whether a deck load moves the playhead to the track cue.
+    pub fn auto_cue(&self) -> bool {
+        self.auto_cue
+    }
+
     /// Cached auto-gain (dB) for a deck's mixer channel, when the engine is running.
     pub fn deck_auto_gain_db(&self, deck_id: usize) -> Option<f32> {
         let dsp_engine = self.dsp_engine.as_ref()?;
@@ -194,24 +208,40 @@ impl Engine {
         Ok(())
     }
 
-    fn hydrate_hot_cues(&mut self, deck_id: usize) -> Result<()> {
+    /// Run `load` with the deck's track id and the locked library.
+    ///
+    /// Every hydration path (hot cues, beat grid, track cue) needs the same
+    /// "track id + library lock" preamble; keeping it here means a change to how
+    /// a deck resolves its track, or how a poisoned lock is reported, lands once.
+    fn with_deck_track<T>(
+        &self,
+        deck_id: usize,
+        load: impl FnOnce(&LibraryManager, &TrackId) -> Result<T>,
+    ) -> Result<Option<T>> {
         let Some(track_id) = self
             .deck_control
             .get(deck_id)
             .and_then(|c| c.track_id.clone())
         else {
-            return Ok(());
+            return Ok(None);
         };
         let Some(library) = self.library.as_ref() else {
-            return Ok(());
+            return Ok(None);
         };
         let lib = library
             .lock()
             .map_err(|_| anyhow::anyhow!("library lock poisoned"))?;
-        let cues = lib
-            .list_track_hot_cues(&track_id)
-            .map_err(|e| anyhow::anyhow!("list hot cues: {e}"))?;
-        drop(lib);
+        load(&lib, &track_id).map(Some)
+    }
+
+    fn hydrate_hot_cues(&mut self, deck_id: usize) -> Result<()> {
+        let Some(cues) = self.with_deck_track(deck_id, |lib, track_id| {
+            lib.list_track_hot_cues(track_id)
+                .map_err(|e| anyhow::anyhow!("list hot cues: {e}"))
+        })?
+        else {
+            return Ok(());
+        };
         let Some(control) = self.deck_control.get_mut(deck_id) else {
             return Ok(());
         };
@@ -227,23 +257,13 @@ impl Engine {
 
     /// Load persisted beat-grid BPM + first-beat phase for quantize snap.
     fn hydrate_beat_grid(&mut self, deck_id: usize) -> Result<()> {
-        let Some(track_id) = self
-            .deck_control
-            .get(deck_id)
-            .and_then(|c| c.track_id.clone())
+        let Some(grid) = self.with_deck_track(deck_id, |lib, track_id| {
+            lib.get_track_beat_grid(track_id)
+                .map_err(|e| anyhow::anyhow!("get beat grid: {e}"))
+        })?
         else {
             return Ok(());
         };
-        let Some(library) = self.library.as_ref() else {
-            return Ok(());
-        };
-        let lib = library
-            .lock()
-            .map_err(|_| anyhow::anyhow!("library lock poisoned"))?;
-        let grid = lib
-            .get_track_beat_grid(&track_id)
-            .map_err(|e| anyhow::anyhow!("get beat grid: {e}"))?;
-        drop(lib);
         let Some(control) = self.deck_control.get_mut(deck_id) else {
             return Ok(());
         };
@@ -271,6 +291,36 @@ impl Engine {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Apply the persisted track cue to a freshly loaded deck.
+    ///
+    /// The cue point is set from the track cue; the Auto Cue switch only decides
+    /// whether the playhead starts there. A track with no persisted cue keeps
+    /// the cue the load itself set (the start of the audio).
+    fn hydrate_track_cue(&mut self, deck_id: usize) -> Result<()> {
+        let Some(cue) = self.with_deck_track(deck_id, |lib, track_id| {
+            lib.track_cue(track_id)
+                .map_err(|e| anyhow::anyhow!("track cue: {e}"))
+        })?
+        else {
+            return Ok(());
+        };
+        let Some(cue) = cue else {
+            return Ok(());
+        };
+        let Some(dsp_engine) = self.dsp_engine.as_ref() else {
+            return Ok(());
+        };
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        let Some(deck) = dsp.deck_mut(deck_id) else {
+            return Ok(());
+        };
+        deck.set_cue_point_ms(cue.position_ms)?;
+        if self.auto_cue && cue.position_ms > 0 {
+            deck.seek_ms(cue.position_ms)?;
         }
         Ok(())
     }

@@ -148,6 +148,7 @@ class EngineUiSnapshot {
     this.syncModes = const {},
     this.activeLoops = const {},
     this.pendingLoopInMs = const {},
+    this.cuePoints = const {},
     this.quantize = const {},
     this.slipEnabled = const {},
     this.jogTouching = const {},
@@ -198,6 +199,9 @@ class EngineUiSnapshot {
   final Map<int, SyncMode> syncModes;
   final Map<int, LoopRegion> activeLoops;
   final Map<int, int> pendingLoopInMs;
+
+  /// Per-deck main cue position in milliseconds (the track cue the deck holds).
+  final Map<int, int> cuePoints;
   final Map<int, bool> quantize;
   final Map<int, bool> slipEnabled;
 
@@ -255,6 +259,8 @@ class EngineUiSnapshot {
 
   int? pendingLoopInMsFor(int deckId) => pendingLoopInMs[deckId];
 
+  int? cuePointMsFor(int deckId) => cuePoints[deckId];
+
   bool quantizeFor(int deckId) => quantize[deckId] ?? true;
 
   bool slipEnabledFor(int deckId) => slipEnabled[deckId] ?? false;
@@ -306,6 +312,7 @@ class EngineUiSnapshot {
     Map<int, SyncMode>? syncModes,
     Map<int, LoopRegion>? activeLoops,
     Map<int, int>? pendingLoopInMs,
+    Map<int, int>? cuePoints,
     Map<int, bool>? quantize,
     Map<int, bool>? slipEnabled,
     Map<int, bool>? stemEqEnabled,
@@ -347,6 +354,7 @@ class EngineUiSnapshot {
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
     pendingLoopInMs: pendingLoopInMs ?? this.pendingLoopInMs,
+    cuePoints: cuePoints ?? this.cuePoints,
     quantize: quantize ?? this.quantize,
     slipEnabled: slipEnabled ?? this.slipEnabled,
     stemEqEnabled: stemEqEnabled ?? this.stemEqEnabled,
@@ -407,6 +415,7 @@ EngineUiSnapshot _applyDeckUpdate(
   final syncModes = Map<int, SyncMode>.from(prev.syncModes);
   final activeLoops = Map<int, LoopRegion>.from(prev.activeLoops);
   final pendingLoopInMs = Map<int, int>.from(prev.pendingLoopInMs);
+  final cuePoints = Map<int, int>.from(prev.cuePoints);
   final quantize = Map<int, bool>.from(prev.quantize);
   final slipEnabled = Map<int, bool>.from(prev.slipEnabled);
   final stemEqEnabled = Map<int, bool>.from(prev.stemEqEnabled);
@@ -441,6 +450,7 @@ EngineUiSnapshot _applyDeckUpdate(
     keyShifts.remove(id);
     activeLoops.remove(id);
     pendingLoopInMs.remove(id);
+    cuePoints.remove(id);
     loudnessLufs.remove(id);
     autoGainDb.remove(id);
     activeSamplerBankIds.remove(id);
@@ -470,6 +480,12 @@ EngineUiSnapshot _applyDeckUpdate(
       activeLoops[id] = loop;
     } else {
       activeLoops.remove(id);
+    }
+    final cuePoint = update.cuePointMs;
+    if (cuePoint != null) {
+      cuePoints[id] = cuePoint;
+    } else {
+      cuePoints.remove(id);
     }
     final pending = update.pendingLoopInMs;
     if (pending != null) {
@@ -527,6 +543,7 @@ EngineUiSnapshot _applyDeckUpdate(
     syncModes: syncModes,
     activeLoops: activeLoops,
     pendingLoopInMs: pendingLoopInMs,
+    cuePoints: cuePoints,
     quantize: quantize,
     slipEnabled: slipEnabled,
     stemEqEnabled: stemEqEnabled,

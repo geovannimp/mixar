@@ -18,6 +18,9 @@ const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
+/// Bounds for the cue-detection silence threshold, in dBFS (Settings → Analysis).
+const CUE_THRESHOLD_DB_MIN: f32 = library_core::MIN_CUE_THRESHOLD_DB;
+const CUE_THRESHOLD_DB_MAX: f32 = library_core::MAX_CUE_THRESHOLD_DB;
 /// Bounds for the end-of-track warning window, in seconds. The window only
 /// matters while `track_end_warning` is on; the toggle, not a zero window,
 /// turns the cue off.
@@ -619,6 +622,12 @@ fn default_vinyl_brake_stop_secs() -> f32 {
 fn default_show_waveform() -> bool {
     true
 }
+fn default_auto_cue() -> bool {
+    true
+}
+fn default_cue_threshold_db() -> f32 {
+    library_core::DEFAULT_CUE_THRESHOLD_DB
+}
 fn default_track_end_warning() -> bool {
     true
 }
@@ -734,6 +743,12 @@ pub struct AppSettings {
     pub vinyl_brake_pause: bool,
     #[serde(default = "default_vinyl_brake_stop_secs")]
     pub vinyl_brake_stop_secs: f32,
+    /// On deck load, move the playhead to the track cue (CDJ Auto Cue).
+    #[serde(default = "default_auto_cue")]
+    pub auto_cue: bool,
+    /// Silence threshold (dBFS) for analysis cue detection.
+    #[serde(default = "default_cue_threshold_db")]
+    pub cue_threshold_db: f32,
     pub waveform_display_mode: WaveformDisplayModeSetting,
     /// Shape the scrolling lane with the deck's channel gain and EQ
     /// (Settings → Waveform). Off draws the recorded peaks at unity, so the
@@ -844,6 +859,8 @@ struct SettingsHost {
     deck_default_sampler_bank_id: Vec<Option<String>>,
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
+    auto_cue: bool,
+    cue_threshold_db: f32,
     waveform_display_mode: WaveformDisplayModeSetting,
     waveform_gain_eq_shaping: bool,
     track_end_warning: bool,
@@ -900,6 +917,8 @@ impl Default for SettingsHost {
             waveform_gain_eq_shaping: default_waveform_gain_eq_shaping(),
             track_end_warning: default_track_end_warning(),
             track_end_warning_secs: default_track_end_warning_secs(),
+            auto_cue: default_auto_cue(),
+            cue_threshold_db: default_cue_threshold_db(),
             key_display_mode: KeyDisplayModeSetting::Musical,
             key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
@@ -1114,6 +1133,14 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         0.5
     };
 
+    if !settings.cue_threshold_db.is_finite() {
+        errors.push("cue_threshold_db must be finite".into());
+    } else if !(CUE_THRESHOLD_DB_MIN..=CUE_THRESHOLD_DB_MAX).contains(&settings.cue_threshold_db) {
+        errors.push(format!(
+            "cue_threshold_db must be between {CUE_THRESHOLD_DB_MIN} and {CUE_THRESHOLD_DB_MAX}"
+        ));
+    }
+
     let mut banks = settings.deck_default_sampler_bank_id;
     let num_decks = usize::from(settings.num_decks);
     banks.resize(num_decks, None);
@@ -1319,6 +1346,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         deck_default_sampler_bank_id: host.deck_default_sampler_bank_id.clone(),
         default_top_jog_mode: host.default_top_jog_mode,
         default_outer_jog_mode: host.default_outer_jog_mode,
+        auto_cue: host.auto_cue,
+        cue_threshold_db: host.cue_threshold_db,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
         default_tempo_curve: config.default_tempo_curve(),
@@ -1404,6 +1433,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
+    host.auto_cue = settings.auto_cue;
+    host.cue_threshold_db = settings.cue_threshold_db;
     host.waveform_display_mode = settings.waveform_display_mode;
     host.waveform_gain_eq_shaping = settings.waveform_gain_eq_shaping;
     host.track_end_warning = settings.track_end_warning;
@@ -1610,6 +1641,26 @@ fn replace_bus(buses: &mut Vec<BusConfig>, id: &str, name: &str, route: &BusRout
 /// audio/load path never starts live separation unexpectedly. The opt-in is
 /// gated when it is turned on (`save_settings`); once saved it is honoured on
 /// later launches without re-running the benchmark.
+/// Auto Cue preference for deck loads; a poisoned lock falls back to on.
+pub(crate) fn settings_auto_cue() -> bool {
+    let host = shared_host();
+    host.lock().map(|host| host.auto_cue).unwrap_or(true)
+}
+
+/// Cue-detection threshold (dBFS), clamped to the settings range.
+pub(crate) fn settings_cue_threshold_db() -> f32 {
+    let host = shared_host();
+    let value = host
+        .lock()
+        .map(|host| host.cue_threshold_db)
+        .unwrap_or_else(|_| default_cue_threshold_db());
+    if value.is_finite() {
+        value.clamp(CUE_THRESHOLD_DB_MIN, CUE_THRESHOLD_DB_MAX)
+    } else {
+        default_cue_threshold_db()
+    }
+}
+
 #[cfg(feature = "stems")]
 pub(crate) fn settings_realtime_stems_enabled() -> bool {
     let host = shared_host();
@@ -2698,6 +2749,47 @@ mod tests {
         settings.analytics_enabled = true;
         apply_to_host(&mut host, settings).expect("settings apply");
         assert!(settings_from_host(&host).analytics_enabled);
+    }
+
+    #[test]
+    fn apply_to_host_persists_auto_cue() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.auto_cue = false;
+        apply_to_host(&mut host, settings).expect("settings apply");
+        assert!(!settings_from_host(&host).auto_cue);
+    }
+
+    #[test]
+    fn apply_to_host_persists_cue_threshold_db() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.cue_threshold_db = -72.0;
+        apply_to_host(&mut host, settings).expect("settings apply");
+        assert!((settings_from_host(&host).cue_threshold_db + 72.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn missing_cue_fields_default_on_at_minus_60() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("auto_cue");
+        object.remove("cue_threshold_db");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(restored.auto_cue);
+        assert!((restored.cue_threshold_db + 60.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cue_threshold_out_of_range_is_an_error() {
+        let mut settings = sample_settings();
+        settings.cue_threshold_db = -10.0;
+        let err = parse_settings(settings).expect_err("out of range");
+        assert!(err.contains("cue_threshold_db"), "{err}");
     }
 
     #[test]

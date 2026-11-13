@@ -1348,6 +1348,7 @@ sealed class Event with _$Event {
   const factory Event.generateStems(GenerateStems field0) = Event_GenerateStems;
   const factory Event.refreshTrack(RefreshTrack field0) = Event_RefreshTrack;
   const factory Event.saveBeatGrid(SaveBeatGrid field0) = Event_SaveBeatGrid;
+  const factory Event.saveTrackCue(SaveTrackCue field0) = Event_SaveTrackCue;
   const factory Event.saveTrackHotCue(SaveTrackHotCue field0) =
       Event_SaveTrackHotCue;
   const factory Event.deleteTrackHotCue(DeleteTrackHotCue field0) =
@@ -2126,6 +2127,24 @@ class SaveDeckHotCue {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           slot == other.slot;
+}
+
+class SaveTrackCue {
+  final String trackId;
+  final int positionMs;
+
+  const SaveTrackCue({required this.trackId, required this.positionMs});
+
+  @override
+  int get hashCode => trackId.hashCode ^ positionMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SaveTrackCue &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          positionMs == other.positionMs;
 }
 
 class SaveTrackHotCue {

@@ -1,14 +1,16 @@
 //! Hot cue and loop persistence for deck performance data.
 
-use sea_orm::sea_query::OnConflict;
+use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::ColumnTrait;
 use sea_orm::{EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
 
-use library_core::{Library, LibraryError, LoopImport, Result, TrackId};
+use library_core::{CueSource, Library, LibraryError, LoopImport, Result, TrackCue, TrackId};
 
 use crate::db::{self, Db};
-use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
+use crate::entity::{
+    track_cue, track_hot_cue, track_loop, TrackCueEntity, TrackHotCueEntity, TrackLoopEntity,
+};
 use crate::{tags, unix_millis_string, unix_secs_string, LibraryManager, TrackMetadataEdit};
 
 /// Maximum automatic loop rows kept per track (rekordbox parity).
@@ -51,6 +53,105 @@ pub fn list_hot_cues(db: &Db, track_id: &TrackId) -> Result<Vec<HotCueRecord>> {
         .collect();
     cues.sort_by_key(|cue| cue.slot_index);
     Ok(cues)
+}
+
+pub fn get_track_cue(db: &Db, track_id: &TrackId) -> Result<Option<TrackCue>> {
+    Ok(TrackCueEntity::find_by_id(track_id.as_str())
+        .one(db.conn()?.as_connection())
+        .map_err(db::db_err)?
+        .map(|row| TrackCue {
+            position_ms: row.cue_ms,
+            source: CueSource::parse_token(&row.source),
+        }))
+}
+
+/// Insert the cue only when the track has none (import).
+pub fn fill_track_cue(
+    db: &Db,
+    track_id: &TrackId,
+    cue_ms: i32,
+    source: CueSource,
+    updated_at: String,
+) -> Result<Option<TrackCue>> {
+    // A conflicting row means the track already has a cue; keeping it is the
+    // point, so the "nothing was inserted" error is the success path here.
+    match TrackCueEntity::insert(track_cue::ActiveModel {
+        track_id: Set(track_id.as_str().to_string()),
+        cue_ms: Set(cue_ms),
+        source: Set(source.as_str().to_string()),
+        updated_at: Set(updated_at),
+    })
+    .on_conflict(
+        OnConflict::column(track_cue::Column::TrackId)
+            .do_nothing()
+            .to_owned(),
+    )
+    .exec(db.conn()?.as_connection())
+    {
+        Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => {}
+        Err(err) => return Err(db::db_err(err)),
+    }
+    get_track_cue(db, track_id)
+}
+
+/// Overwrite the cue (manual set).
+pub fn store_track_cue(
+    db: &Db,
+    track_id: &TrackId,
+    cue_ms: i32,
+    source: CueSource,
+    updated_at: String,
+) -> Result<TrackCue> {
+    TrackCueEntity::insert(track_cue::ActiveModel {
+        track_id: Set(track_id.as_str().to_string()),
+        cue_ms: Set(cue_ms),
+        source: Set(source.as_str().to_string()),
+        updated_at: Set(updated_at),
+    })
+    .on_conflict(
+        OnConflict::column(track_cue::Column::TrackId)
+            .update_columns([
+                track_cue::Column::CueMs,
+                track_cue::Column::Source,
+                track_cue::Column::UpdatedAt,
+            ])
+            .to_owned(),
+    )
+    .exec(db.conn()?.as_connection())
+    .map_err(db::db_err)?;
+    Ok(TrackCue {
+        position_ms: cue_ms,
+        source,
+    })
+}
+
+/// Insert the cue when absent, or refresh a row this writer owns.
+///
+/// A cue from the same writer is replaced, so re-analysis after a threshold
+/// change updates the cue; a cue from another writer (manual, import) wins and
+/// is returned unchanged.
+///
+/// The ownership check is part of each statement rather than a read-then-write
+/// pair: the UPDATE can only match this writer's row, and the INSERT only fills
+/// an empty track, so a concurrent manual set can never be overwritten.
+pub fn refresh_track_cue(
+    db: &Db,
+    track_id: &TrackId,
+    cue_ms: i32,
+    source: CueSource,
+    updated_at: String,
+) -> Result<Option<TrackCue>> {
+    TrackCueEntity::update_many()
+        .col_expr(track_cue::Column::CueMs, Expr::value(cue_ms))
+        .col_expr(
+            track_cue::Column::UpdatedAt,
+            Expr::value(updated_at.clone()),
+        )
+        .filter(track_cue::Column::TrackId.eq(track_id.as_str()))
+        .filter(track_cue::Column::Source.eq(source.as_str()))
+        .exec(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    fill_track_cue(db, track_id, cue_ms, source, updated_at)
 }
 
 pub fn save_hot_cue(
@@ -414,6 +515,25 @@ impl LibraryManager {
 
     pub fn delete_track_hot_cue(&self, id: &TrackId, slot_index: u8) -> Result<()> {
         crate::deck_data::delete_hot_cue(&self.db, id, slot_index)
+    }
+
+    /// Persisted main cue for a track (`None` = never set/detected).
+    pub fn track_cue(&self, track_id: &TrackId) -> Result<Option<TrackCue>> {
+        crate::deck_data::get_track_cue(&self.db, track_id)
+    }
+
+    /// Overwrite the main cue with a manual set, stamping `updated_at` now.
+    ///
+    /// Only [`CueSource::Manual`] is written here: the analysis path owns the
+    /// rows it refreshes, so a caller cannot mark a user's cue re-analyzable.
+    pub fn save_track_cue(&self, track_id: &TrackId, cue_ms: i32) -> Result<TrackCue> {
+        crate::deck_data::store_track_cue(
+            &self.db,
+            track_id,
+            cue_ms,
+            CueSource::Manual,
+            unix_secs_string(),
+        )
     }
 
     pub fn save_track_loop(

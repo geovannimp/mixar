@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 impl LibraryManager {
-    /// True when BPM, key, or loudness needed for playback is missing.
+    /// True when BPM, key, loudness, or the analyzed cue is missing.
     ///
     /// shortcut: if an analysis row already exists with loudness but BPM/key stay
     /// empty (analyzer could not detect them), do not re-run forever. Upgrade:
@@ -29,6 +29,10 @@ impl LibraryManager {
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
         let meta = source.metadata();
         if self.track_loudness_lufs(id)?.is_none() {
+            return Ok(true);
+        }
+        // Auto Cue needs a track cue; no row means detection never ran for this track.
+        if self.track_cue(id)?.is_none() {
             return Ok(true);
         }
         let bpm_ok = meta.bpm.is_some();
@@ -45,24 +49,27 @@ impl LibraryManager {
     /// not hold the library lock.
     #[cfg(feature = "analysis")]
     pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
-        let path = {
+        let (path, cue_threshold_db) = {
             let lib = Self::lock_library(library)?;
             if !lib.needs_playback_analysis(id)? {
                 return Ok(());
             }
-            lib.get_track(id)?
+            let path = lib
+                .get_track(id)?
                 .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
                 .file()
                 .ok_or(LibraryError::Unsupported(
                     "stream track analysis not implemented",
                 ))?
                 .path()
-                .to_path_buf()
+                .to_path_buf();
+            (path, lib.cue_threshold_db())
         };
 
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: AnalysisDurationMode::Fast,
+            cue_threshold_db: Some(cue_threshold_db),
         };
         let computed = compute_file_analysis(&path, options)?;
 

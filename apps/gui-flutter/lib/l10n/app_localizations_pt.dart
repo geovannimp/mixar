@@ -104,6 +104,27 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSectionLibrary => 'Biblioteca';
 
   @override
+  String get settingsSectionAnalysis => 'Análise';
+
+  @override
+  String get settingsAnalysisDescription =>
+      'Análise offline: quanto áudio é escaneado e como o cue principal é detectado.';
+
+  @override
+  String get settingsAnalysisCueTitle => 'Detecção de cue';
+
+  @override
+  String get settingsAnalysisCueDescription =>
+      'A análise define o cue da faixa no primeiro som. Um cue definido por você ou importado nunca é sobrescrito.';
+
+  @override
+  String get settingsAnalysisCueThreshold => 'Limiar de silêncio';
+
+  @override
+  String get settingsAnalysisCueThresholdHint =>
+      'Áudio mais baixo que isso conta como silêncio; o cue é o primeiro frame acima do limiar.';
+
+  @override
   String get settingsSectionIntegrations => 'Integrações';
 
   @override
@@ -911,6 +932,17 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsDeckEndWarningToggle => 'Piscar antes do fim da faixa';
+
+  @override
+  String get settingsDeckAutoCue => 'Cue automático';
+
+  @override
+  String get settingsDeckAutoCueHint =>
+      'Ao carregar, posiciona o playhead no cue da faixa em vez do início do arquivo.';
+
+  @override
+  String get settingsDeckAutoCueToggle =>
+      'Posicionar no cue da faixa ao carregar';
 
   @override
   String settingsDeckEndWarningSeconds(int count) {
