@@ -12,9 +12,7 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
 use std::path::Path;
 
-use library_core::{
-    AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId, TrackMetadata,
-};
+use library_core::{AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId, TrackMetadata};
 
 use crate::beat_grid::{self, CanonicalBeatGrid};
 use crate::db::{self, Db};

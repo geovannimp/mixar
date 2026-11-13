@@ -682,6 +682,7 @@ BeatGridData? beatGridData(BeatGrid grid) {
     beatUnit: first.beatUnit,
     firstDownbeatMs:
         first.startTimeMs + (first.downbeatOffsetBeats * beatMs).round(),
+    segmentCount: grid.segments.length,
   );
 }
 

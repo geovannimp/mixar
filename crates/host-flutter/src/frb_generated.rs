@@ -10363,12 +10363,14 @@ impl SseDecode for crate::api::library::BeatGridData {
         let mut var_beatsPerBar = <u8>::sse_decode(deserializer);
         let mut var_beatUnit = <u8>::sse_decode(deserializer);
         let mut var_firstDownbeatMs = <i64>::sse_decode(deserializer);
+        let mut var_segmentCount = <i32>::sse_decode(deserializer);
         return crate::api::library::BeatGridData {
             bpm: var_bpm,
             first_beat_ms: var_firstBeatMs,
             beats_per_bar: var_beatsPerBar,
             beat_unit: var_beatUnit,
             first_downbeat_ms: var_firstDownbeatMs,
+            segment_count: var_segmentCount,
         };
     }
 }
@@ -15891,6 +15893,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::BeatGridData {
             self.beats_per_bar.into_into_dart().into_dart(),
             self.beat_unit.into_into_dart().into_dart(),
             self.first_downbeat_ms.into_into_dart().into_dart(),
+            self.segment_count.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -20729,6 +20732,7 @@ impl SseEncode for crate::api::library::BeatGridData {
         <u8>::sse_encode(self.beats_per_bar, serializer);
         <u8>::sse_encode(self.beat_unit, serializer);
         <i64>::sse_encode(self.first_downbeat_ms, serializer);
+        <i32>::sse_encode(self.segment_count, serializer);
     }
 }
 

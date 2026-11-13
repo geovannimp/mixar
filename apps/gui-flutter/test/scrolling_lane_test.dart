@@ -453,6 +453,7 @@ void main() {
         beatsPerBar: 4,
         beatUnit: 4,
         firstDownbeatMs: 0,
+        segmentCount: 1,
       ),
     );
     await tester.pump();

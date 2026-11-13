@@ -213,6 +213,8 @@ pub struct BeatGridData {
     pub beats_per_bar: u8,
     pub beat_unit: u8,
     pub first_downbeat_ms: i64,
+    /// Number of tempo segments in the canonical grid.
+    pub segment_count: i32,
 }
 
 /// Performance history session row for the Flutter History pane.
@@ -887,6 +889,7 @@ impl LibraryTransport {
             beats_per_bar: segment.beats_per_bar,
             beat_unit: segment.beat_unit,
             first_downbeat_ms: grid.first_downbeat_ms().unwrap_or(segment.start_time_ms),
+            segment_count: grid.segments.len() as i32,
         }))
     }
 

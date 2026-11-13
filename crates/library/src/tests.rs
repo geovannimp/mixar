@@ -1617,6 +1617,7 @@ fn beat_grid_read_heals_a_metrical_family_mismatch_to_the_track_bpm() {
             bpm: 117.0,
             confidence: 0.99,
         }),
+        cue_ms: None,
         key: None,
         beat_grid: Some(BeatGridAnalysis {
             beats,

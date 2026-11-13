@@ -368,12 +368,16 @@ class BeatGridData {
   final int beatUnit;
   final PlatformInt64 firstDownbeatMs;
 
+  /// Number of tempo segments in the canonical grid.
+  final int segmentCount;
+
   const BeatGridData({
     this.bpm,
     required this.firstBeatMs,
     required this.beatsPerBar,
     required this.beatUnit,
     required this.firstDownbeatMs,
+    required this.segmentCount,
   });
 
   @override
@@ -382,7 +386,8 @@ class BeatGridData {
       firstBeatMs.hashCode ^
       beatsPerBar.hashCode ^
       beatUnit.hashCode ^
-      firstDownbeatMs.hashCode;
+      firstDownbeatMs.hashCode ^
+      segmentCount.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -393,7 +398,8 @@ class BeatGridData {
           firstBeatMs == other.firstBeatMs &&
           beatsPerBar == other.beatsPerBar &&
           beatUnit == other.beatUnit &&
-          firstDownbeatMs == other.firstDownbeatMs;
+          firstDownbeatMs == other.firstDownbeatMs &&
+          segmentCount == other.segmentCount;
 }
 
 /// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.

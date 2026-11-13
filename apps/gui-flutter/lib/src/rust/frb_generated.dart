@@ -8057,14 +8057,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BeatGridData dco_decode_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return BeatGridData(
       bpm: dco_decode_opt_box_autoadd_f_64(arr[0]),
       firstBeatMs: dco_decode_i_64(arr[1]),
       beatsPerBar: dco_decode_u_8(arr[2]),
       beatUnit: dco_decode_u_8(arr[3]),
       firstDownbeatMs: dco_decode_i_64(arr[4]),
+      segmentCount: dco_decode_i_32(arr[5]),
     );
   }
 
@@ -12491,12 +12492,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_beatsPerBar = sse_decode_u_8(deserializer);
     var var_beatUnit = sse_decode_u_8(deserializer);
     var var_firstDownbeatMs = sse_decode_i_64(deserializer);
+    var var_segmentCount = sse_decode_i_32(deserializer);
     return BeatGridData(
       bpm: var_bpm,
       firstBeatMs: var_firstBeatMs,
       beatsPerBar: var_beatsPerBar,
       beatUnit: var_beatUnit,
       firstDownbeatMs: var_firstDownbeatMs,
+      segmentCount: var_segmentCount,
     );
   }
 
@@ -17415,6 +17418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_8(self.beatsPerBar, serializer);
     sse_encode_u_8(self.beatUnit, serializer);
     sse_encode_i_64(self.firstDownbeatMs, serializer);
+    sse_encode_i_32(self.segmentCount, serializer);
   }
 
   @protected
