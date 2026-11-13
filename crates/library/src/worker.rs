@@ -5,6 +5,7 @@ use crate::{HotCueRecord, LibraryError, LibraryManager, LoopRecord};
 use bus_api::AnalyzeTrack;
 use bus_api::BeatGrid;
 use bus_api::BeatGridChanged;
+use bus_api::BeatSegment;
 use bus_api::DeleteTrackHotCue;
 use bus_api::DeleteTrackLoop;
 use bus_api::Error;
@@ -447,6 +448,7 @@ fn handle_save_beat_grid(
         track_id,
         bpm,
         first_beat_secs,
+        replace,
     } = cmd;
 
     let id = TrackId::new(track_id.clone());
@@ -455,7 +457,7 @@ fn handle_save_beat_grid(
     let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.save_track_beat_grid(&id, bpm, first_beat_secs)
+        lib.save_track_beat_grid(&id, bpm, first_beat_secs, replace)
             .and_then(|grid| {
                 let source = lib.get_track(&id)?;
                 let file = source.as_ref().and_then(AudioSource::file);
@@ -484,18 +486,31 @@ fn handle_save_beat_grid(
 fn publish_beat_grid_result(
     buses: &LibraryBuses,
     track_id: String,
-    result: crate::Result<(crate::waveform::BeatGridSnapshot, Option<AudioSource>)>,
+    result: crate::Result<(crate::CanonicalBeatGrid, Option<AudioSource>)>,
 ) {
     match result {
         Ok((grid, source)) => {
-            let bpm = grid.bpm.unwrap_or(0.0);
+            let beat_grid = BeatGrid {
+                source: grid.source,
+                covered_to_ms: grid.covered_to_ms,
+                segments: grid
+                    .segments
+                    .into_iter()
+                    .map(|segment| BeatSegment {
+                        segment_index: segment.segment_index,
+                        start_time_ms: segment.start_time_ms,
+                        bpm: segment.bpm,
+                        beats_per_bar: segment.beats_per_bar,
+                        beat_unit: segment.beat_unit,
+                        start_beat_index: segment.start_beat_index,
+                        beats_to_next: segment.beats_to_next,
+                        downbeat_offset_beats: segment.downbeat_offset_beats,
+                    })
+                    .collect(),
+            };
             let _ = buses.publish_evt(Event::BeatGridChanged(BeatGridChanged {
                 track_id: track_id.clone(),
-                beat_grid: BeatGrid {
-                    beats: grid.beats,
-                    downbeats: grid.downbeats,
-                    bpm,
-                },
+                beat_grid,
             }));
             if let Some(source) = source {
                 if let Some(track) = track_summary(&source) {

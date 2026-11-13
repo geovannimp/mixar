@@ -271,13 +271,12 @@ impl Engine {
             control.first_beat_ms = 0.0;
             return Ok(());
         };
-        control.first_beat_ms = grid
-            .beats
-            .first()
-            .copied()
-            .map(|s| f64::from(s) * 1000.0)
-            .unwrap_or(0.0);
-        let grid_bpm = grid.bpm.filter(|b| b.is_finite() && *b > 0.0);
+        let Some(segment) = grid.segments.first() else {
+            control.first_beat_ms = 0.0;
+            return Ok(());
+        };
+        control.first_beat_ms = segment.start_time_ms as f64;
+        let grid_bpm = Some(segment.bpm).filter(|b| b.is_finite() && *b > 0.0);
         if let Some(b) = grid_bpm {
             control.bpm = Some(b);
         }

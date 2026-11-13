@@ -375,6 +375,7 @@ class FakeLibraryTransport implements LibraryTransport {
     required String trackId,
     required double bpm,
     required double firstBeatSecs,
+    required bool replace,
   }) async {}
 
   @override

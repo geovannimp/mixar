@@ -178,7 +178,7 @@ impl Fixture {
                 .add_collection_entry(&playlist.id, id, None)
                 .expect("add playlist entry");
             library
-                .save_track_beat_grid(id, BPM, 0.0)
+                .save_track_beat_grid(id, BPM, 0.0, false)
                 .expect("beat grid");
         }
         library

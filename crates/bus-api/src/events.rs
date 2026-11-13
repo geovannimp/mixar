@@ -285,7 +285,7 @@ bus_events! {
     RefreshTrack: Update, Entity::Track(track_id.clone()), Part::Whole,
         { track_id: String };
     SaveBeatGrid: Update, Entity::Track(track_id.clone()), Part::Whole,
-        { track_id: String, bpm: f64, first_beat_secs: f32 };
+        { track_id: String, bpm: f64, first_beat_secs: f32, replace: bool };
     /// Persist a deck's cue point as the track's manual cue.
     SaveTrackCue: Update, Entity::Track(track_id.clone()), Part::Whole,
         { track_id: String, position_ms: i32 };

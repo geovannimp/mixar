@@ -1485,27 +1485,88 @@ fn short_beats_fixture_copy(dir: &Path) -> PathBuf {
     path
 }
 
-#[test]
 #[cfg(feature = "analysis")]
-fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
-    let dir = tempfile::tempdir().unwrap();
-    let wav = short_beats_fixture_copy(dir.path());
+fn tagged_short_beats_fixture(dir: &Path, bpm: f64, key: Option<&str>) -> PathBuf {
+    let wav = short_beats_fixture_copy(dir);
     codec::write_track_tags(
         &wav,
         &codec::TrackTags {
-            bpm: Some(87.0),
-            key: Some("Cm".into()),
+            bpm: Some(bpm),
+            key: key.map(str::to_string),
             ..Default::default()
         },
     )
     .unwrap();
+    wav
+}
+
+#[test]
+fn file_upsert_preserves_canonical_grid_bpm_over_tag_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("grid-bpm.wav");
+    write_minimal_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.save_track_beat_grid(&id, 128.0, 0.0, false).unwrap();
+
+    let mut metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    metadata.bpm = Some(90.0);
+    lib.upsert_file_source(&wav, &metadata).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap().metadata().bpm;
+    assert_eq!(stored, Some(128.0));
+}
+
+#[test]
+fn file_upsert_without_grid_keeps_tag_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("tag-bpm.wav");
+    write_minimal_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+
+    let mut metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    metadata.bpm = Some(90.0);
+    lib.upsert_file_source(&wav, &metadata).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap().metadata().bpm;
+    assert_eq!(stored, Some(90.0));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_writes_a_canonical_grid_at_the_tagged_bpm() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 80.0, None);
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.analyze_track(&id, AnalyzeTrackOptions::default())
+        .unwrap();
+
+    let grid = crate::beat_grid::get_track_beat_grid(&lib.db, &id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(grid.source, crate::beat_grid::SOURCE_ANALYSIS);
+    assert!((grid.bpm().unwrap() - 80.0).abs() < 0.01);
+    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    assert!((metadata.bpm.unwrap() - 80.0).abs() < 0.01);
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 87.0, Some("Cm"));
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig {
         tag_write_back: TagWriteBack::On,
     })
     .unwrap();
     let id = lib.import_file_path(&wav).unwrap().id().clone();
-    let original_grid = lib.save_track_beat_grid(&id, 87.0, 0.25).unwrap();
+    let original_grid = lib.save_track_beat_grid(&id, 87.0, 0.25, false).unwrap();
     lib.analyze_track(&id, AnalyzeTrackOptions::default())
         .unwrap();
 
@@ -1513,11 +1574,99 @@ fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
     assert_eq!(metadata.bpm, Some(87.0));
     assert_eq!(metadata.key.as_deref(), Some("Cm"));
     let preserved_grid = lib.get_track_beat_grid(&id).unwrap().unwrap();
-    assert_eq!(preserved_grid.bpm, original_grid.bpm);
-    assert_eq!(preserved_grid.beats, original_grid.beats);
+    assert_eq!(preserved_grid.bpm(), original_grid.bpm());
+    assert_eq!(
+        preserved_grid.first_beat_ms(),
+        original_grid.first_beat_ms()
+    );
     let tags = crate::tags::read_tags(&wav).unwrap();
     assert_eq!(tags.bpm, Some(87.0));
     assert_eq!(tags.key.as_deref(), Some("Cm"));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_without_force_retunes_a_metrical_family_lock_to_the_tagged_bpm() {
+    // 120 BPM clicks tagged 80 BPM — a 3:2 detector lock. Without `force` the
+    // tag wins, so the analysis grid must be rebuilt at 80, not left at 120.
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 80.0, None);
+
+    let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::default()).unwrap();
+    assert_eq!(computed.metadata.bpm, Some(80.0));
+    assert_eq!(computed.analysis.bpm.as_ref().map(|b| b.bpm), Some(80.0));
+    let grid = computed.analysis.beat_grid.as_ref().unwrap();
+    let period = f64::from(grid.beats[1] - grid.beats[0]);
+    assert!((period - 60.0 / 80.0).abs() < 1e-3, "grid period {period}");
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn beat_grid_read_heals_a_metrical_family_mismatch_to_the_track_bpm() {
+    use analyzer_core::{AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis};
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("heal.wav");
+    write_analysis_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.update_track_metadata(
+        &id,
+        crate::store::TrackMetadataEdit {
+            title: None,
+            artist: None,
+            album: None,
+            genre: None,
+            bpm: Some(78.0),
+            key: None,
+            isrc: None,
+            rating: None,
+            comment: None,
+            year: None,
+            track_number: None,
+            disc_number: None,
+            color_label: None,
+        },
+    )
+    .unwrap();
+
+    // What a legacy row looks like: the detector reported the 3:2 harmonic.
+    let period = 60.0 / 117.0;
+    let beats: Vec<f32> = (0..100)
+        .map(|i| (0.02 + i as f64 * period) as f32)
+        .collect();
+    let downbeats: Vec<f32> = beats.iter().copied().step_by(4).collect();
+    let analysis = analyzer::TrackAnalysis {
+        bpm: Some(BpmAnalysis {
+            bpm: 117.0,
+            confidence: 0.99,
+        }),
+        cue_ms: None,
+        key: None,
+        beat_grid: Some(BeatGridAnalysis {
+            beats,
+            bars: downbeats.clone(),
+            downbeats,
+            grid_stability: 0.99,
+            beats_per_bar: 4,
+        }),
+        loudness_lufs: None,
+        metadata: AnalysisRunMetadata {
+            backend: "qmdsp".into(),
+            backend_version: "1".into(),
+            analyzed_at: "now".into(),
+            sample_rate: 8_000,
+            duration_analyzed_ms: 1_000,
+        },
+    };
+    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    crate::analysis::persist_analysis_grid(&lib.db, &id, &metadata, &analysis, false).unwrap();
+
+    let grid = lib.get_track_beat_grid(&id).unwrap().unwrap();
+    assert_eq!(grid.bpm(), Some(78.0));
+    assert_eq!(grid.source, crate::beat_grid::SOURCE_ANALYSIS);
+    assert_eq!(grid.first_segment().unwrap().bpm, 78.0);
 }
 
 #[test]
@@ -1626,6 +1775,7 @@ fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
             track_id: track_id.as_str().to_string(),
             bpm: 124.0,
             first_beat_secs: 0.25,
+            replace: false,
         }))
         .unwrap();
 

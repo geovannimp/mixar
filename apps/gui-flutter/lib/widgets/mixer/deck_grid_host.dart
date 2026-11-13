@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -70,9 +70,38 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
     required BeatGridData? grid,
     required double? bpmOverride,
     required double? firstBeatOverride,
-  }) {
+  }) async {
     final bpm = bpmOverride ?? _baseBpm(grid);
     final firstBeatSecs = firstBeatOverride ?? _baseFirstBeat(grid);
+    final replace = (grid?.segmentCount ?? 0) > 1;
+    if (replace) {
+      if (!mounted) {
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Replace variable-tempo grid?'),
+          content: const Text(
+            'This track has multiple tempo segments. This edit will replace '
+            'them with one constant-tempo grid. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
     setState(() {
       _pendingTrackId = trackId;
       _pendingBpm = bpm;
@@ -93,6 +122,7 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
           trackId: trackId,
           bpm: bpm,
           firstBeatSecs: firstBeatSecs,
+          replace: replace,
         );
       } catch (e) {
         _toast(e);

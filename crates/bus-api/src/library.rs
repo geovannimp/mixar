@@ -38,12 +38,25 @@ pub struct HotCue {
     pub label: Option<String>,
 }
 
-/// Beat grid snapshot (matches the library's JSON storage).
+/// One constant-tempo run in a bus beat grid.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeatSegment {
+    pub segment_index: i32,
+    pub start_time_ms: i64,
+    pub bpm: f64,
+    pub beats_per_bar: u8,
+    pub beat_unit: u8,
+    pub start_beat_index: i64,
+    pub beats_to_next: Option<i64>,
+    pub downbeat_offset_beats: u8,
+}
+
+/// Canonical beat grid carried by bus events.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BeatGrid {
-    pub beats: Vec<f32>,
-    pub downbeats: Vec<f32>,
-    pub bpm: f64,
+    pub source: String,
+    pub covered_to_ms: Option<i64>,
+    pub segments: Vec<BeatSegment>,
 }
 
 /// Persisted saved-loop row.

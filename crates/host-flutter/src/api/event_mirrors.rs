@@ -217,11 +217,23 @@ pub struct _HotCue {
     pub label: Option<String>,
 }
 
+#[flutter_rust_bridge::frb(mirror(BeatSegment))]
+pub struct _BeatSegment {
+    pub segment_index: i32,
+    pub start_time_ms: i64,
+    pub bpm: f64,
+    pub beats_per_bar: u8,
+    pub beat_unit: u8,
+    pub start_beat_index: i64,
+    pub beats_to_next: Option<i64>,
+    pub downbeat_offset_beats: u8,
+}
+
 #[flutter_rust_bridge::frb(mirror(BeatGrid))]
 pub struct _BeatGrid {
-    pub beats: Vec<f32>,
-    pub downbeats: Vec<f32>,
-    pub bpm: f64,
+    pub source: String,
+    pub covered_to_ms: Option<i64>,
+    pub segments: Vec<BeatSegment>,
 }
 
 #[flutter_rust_bridge::frb(mirror(SavedLoop))]
@@ -889,6 +901,7 @@ pub struct _SaveBeatGrid {
     pub track_id: String,
     pub bpm: f64,
     pub first_beat_secs: f32,
+    pub replace: bool,
 }
 
 #[flutter_rust_bridge::frb(mirror(SaveTrackCue))]

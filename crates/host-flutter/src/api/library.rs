@@ -205,12 +205,28 @@ pub struct WaveformPeaks {
     pub end_ms: i32,
 }
 
-/// Beat-grid overlay data (beat times in seconds).
+/// Beat-grid overlay segment.
+#[derive(Clone, Debug)]
+pub struct BeatGridSegmentData {
+    pub start_time_ms: i64,
+    pub bpm: f64,
+    pub beats_per_bar: u8,
+    pub beat_unit: u8,
+    pub start_beat_index: i64,
+    pub beats_to_next: Option<i64>,
+    pub downbeat_offset_beats: u8,
+}
+
 #[derive(Clone, Debug)]
 pub struct BeatGridData {
-    pub beats: Vec<f32>,
-    pub downbeats: Vec<f32>,
     pub bpm: Option<f64>,
+    pub first_beat_ms: i64,
+    pub beats_per_bar: u8,
+    pub beat_unit: u8,
+    pub first_downbeat_ms: i64,
+    /// Number of tempo segments in the canonical grid.
+    pub segment_count: i32,
+    pub segments: Vec<BeatGridSegmentData>,
 }
 
 /// Performance history session row for the Flutter History pane.
@@ -876,10 +892,30 @@ impl LibraryTransport {
         let Some(grid) = lib.get_track_beat_grid(&TrackId::new(track_id)).bridge()? else {
             return Ok(None);
         };
+        let Some(segment) = grid.segments.first() else {
+            return Ok(None);
+        };
+        let segments = grid
+            .segments
+            .iter()
+            .map(|seg| BeatGridSegmentData {
+                start_time_ms: seg.start_time_ms,
+                bpm: seg.bpm,
+                beats_per_bar: seg.beats_per_bar,
+                beat_unit: seg.beat_unit,
+                start_beat_index: seg.start_beat_index,
+                beats_to_next: seg.beats_to_next,
+                downbeat_offset_beats: seg.downbeat_offset_beats,
+            })
+            .collect();
         Ok(Some(BeatGridData {
-            beats: grid.beats,
-            downbeats: grid.downbeats,
-            bpm: grid.bpm,
+            bpm: Some(segment.bpm),
+            first_beat_ms: segment.start_time_ms,
+            beats_per_bar: segment.beats_per_bar,
+            beat_unit: segment.beat_unit,
+            first_downbeat_ms: grid.first_downbeat_ms().unwrap_or(segment.start_time_ms),
+            segment_count: grid.segments.len() as i32,
+            segments,
         }))
     }
 
@@ -932,6 +968,7 @@ impl LibraryTransport {
         track_id: String,
         bpm: f64,
         first_beat_secs: f32,
+        replace: bool,
     ) -> Result<(), String> {
         if !(bpm > 20.0 && bpm < 400.0) {
             return Err("beat grid bpm must be between 20 and 400".into());
@@ -944,6 +981,7 @@ impl LibraryTransport {
                 track_id,
                 bpm,
                 first_beat_secs,
+                replace,
             }))
             .bridge()
     }

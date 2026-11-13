@@ -68,7 +68,7 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?>
     final (trackId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(dropPicture);
     final grid = ref.watch(beatGridProvider(trackId));
-    if (grid == null || grid.bpm == null) {
+    if (grid == null || grid.segments.isEmpty) {
       dropPicture();
       return null;
     }
@@ -77,16 +77,13 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?>
     }
     final size = _stripSize(widthPx);
     final marks = beatGridXs(
-      bpm: grid.bpm!,
-      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      segments: grid.segments,
       originMs: originMs.toDouble(),
       spanMs: spanMs.toDouble(),
       width: size.width,
     );
     final arrows = phaseMarkXs(
-      bpm: grid.bpm,
-      downbeatsSecs: grid.downbeats,
-      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      segments: grid.segments,
       originMs: originMs.toDouble(),
       spanMs: spanMs.toDouble(),
       width: size.width,

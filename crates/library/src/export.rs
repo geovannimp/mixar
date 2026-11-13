@@ -29,9 +29,9 @@ use library_core::{
     Result, TrackExportData, TrackId, EXPORT_ARTWORK_EDGE_PX, EXPORT_WAVEFORM_ENTRIES_PER_SECOND,
 };
 
+use crate::beat_grid::CanonicalBeatGrid;
 use crate::db;
 use crate::entity::TrackEntity;
-use crate::waveform::BeatGridSnapshot;
 use crate::LibraryManager;
 
 impl ExportSource for LibraryManager {
@@ -77,7 +77,7 @@ pub(crate) struct TrackExportFacts {
     /// Date the track entered the library as `YYYY-MM-DD`.
     pub added_at: Option<String>,
     /// Stored beat grid, when the track has been analyzed.
-    pub beat_grid: Option<BeatGridSnapshot>,
+    pub beat_grid: Option<CanonicalBeatGrid>,
     /// Stored overview waveform peaks, when the track has one.
     pub waveform_overview: Option<Vec<SpectralPeak>>,
     /// Hot cues, saved loops and memory cues in export shape.
@@ -117,7 +117,7 @@ impl LibraryManager {
             path: file.path().to_path_buf(),
             file_bpm: file.metadata.bpm,
             added_at: self.track_added_at(id)?,
-            cues: self.cues_for_export(id, grid_bpm(beat_grid.as_ref()))?,
+            cues: self.cues_for_export(id, beat_grid.as_ref().and_then(CanonicalBeatGrid::bpm))?,
             beat_grid,
             waveform_overview,
             cached_audio,
@@ -383,15 +383,23 @@ fn assemble_export_data(
 
     if let Some(grid) = &facts.beat_grid {
         if data.bpm.is_none() {
-            data.bpm = grid.bpm;
+            data.bpm = grid.bpm();
         }
+        let channels = usize::from(audio.channels.max(1));
+        let until_ms = if audio.sample_rate > 0 {
+            (audio.samples.len() as f64 / (f64::from(audio.sample_rate) * channels as f64) * 1000.0)
+                .round() as i64
+        } else {
+            0
+        };
+        let beats = grid.materialize_beat_secs(until_ms, 1_000_000);
+        let beats_per_bar = grid
+            .first_segment()
+            .map_or(4, |segment| segment.beats_per_bar.max(1));
         data.beat_grid = Some(ExportBeatGrid {
-            beats: grid.beats.clone(),
-            beats_per_bar: grid.beats_per_bar.max(1),
+            beats,
+            beats_per_bar,
         });
-    }
-    if data.bpm.is_none() {
-        data.bpm = grid_bpm(facts.beat_grid.as_ref());
     }
 
     // The library's own overview is display resolution; only synthesize one when
@@ -402,12 +410,6 @@ fn assemble_export_data(
     };
     data.waveform_detail = compute_full_track_envelope(audio, detail_buckets(audio), &config);
     data
-}
-
-/// BPM from a stored beat grid, when it is usable as a tempo.
-fn grid_bpm(grid: Option<&BeatGridSnapshot>) -> Option<f64> {
-    grid.and_then(|grid| grid.bpm)
-        .filter(|bpm| bpm.is_finite() && *bpm > 0.0)
 }
 
 /// Per-run artwork cache key: 64-bit hash of the raw picture bytes.

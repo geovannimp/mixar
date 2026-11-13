@@ -211,6 +211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData dco_decode_beat_grid_data(dynamic raw);
 
   @protected
+  BeatGridSegmentData dco_decode_beat_grid_segment_data(dynamic raw);
+
+  @protected
   BeatJump dco_decode_beat_jump(dynamic raw);
 
   @protected
@@ -218,6 +221,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BeatJumpPadRelease dco_decode_beat_jump_pad_release(dynamic raw);
+
+  @protected
+  BeatSegment dco_decode_beat_segment(dynamic raw);
 
   @protected
   BeginCueHold dco_decode_begin_cue_hold(dynamic raw);
@@ -884,6 +890,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<BeatGridSegmentData> dco_decode_list_beat_grid_segment_data(dynamic raw);
+
+  @protected
+  List<BeatSegment> dco_decode_list_beat_segment(dynamic raw);
 
   @protected
   List<bool> dco_decode_list_bool(dynamic raw);
@@ -1585,6 +1597,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData sse_decode_beat_grid_data(SseDeserializer deserializer);
 
   @protected
+  BeatGridSegmentData sse_decode_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BeatJump sse_decode_beat_jump(SseDeserializer deserializer);
 
   @protected
@@ -1594,6 +1611,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatJumpPadRelease sse_decode_beat_jump_pad_release(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BeatSegment sse_decode_beat_segment(SseDeserializer deserializer);
 
   @protected
   BeginCueHold sse_decode_begin_cue_hold(SseDeserializer deserializer);
@@ -2468,6 +2488,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<BeatGridSegmentData> sse_decode_list_beat_grid_segment_data(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BeatSegment> sse_decode_list_beat_segment(SseDeserializer deserializer);
+
+  @protected
   List<bool> sse_decode_list_bool(SseDeserializer deserializer);
 
   @protected
@@ -3283,6 +3311,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_beat_grid_data(BeatGridData self, SseSerializer serializer);
 
   @protected
+  void sse_encode_beat_grid_segment_data(
+    BeatGridSegmentData self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_beat_jump(BeatJump self, SseSerializer serializer);
 
   @protected
@@ -3296,6 +3330,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     BeatJumpPadRelease self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_beat_segment(BeatSegment self, SseSerializer serializer);
 
   @protected
   void sse_encode_begin_cue_hold(BeginCueHold self, SseSerializer serializer);
@@ -4409,6 +4446,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_beat_grid_segment_data(
+    List<BeatGridSegmentData> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_beat_segment(
+    List<BeatSegment> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_bool(List<bool> self, SseSerializer serializer);

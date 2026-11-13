@@ -5,6 +5,7 @@ mod common;
 
 use bus_api::BeatGrid;
 use bus_api::BeatJump;
+use bus_api::BeatSegment;
 use bus_api::Event;
 use bus_api::ExitLoop;
 use bus_api::LoopIn;
@@ -185,12 +186,25 @@ fn loop_in_snaps_when_quantize_on() {
     assert_eq!(loop_in.pending_loop_in_ms, Some(0));
 }
 
-fn phase_grid(first_beat_secs: f32) -> BeatGrid {
+fn grid_at(first_beat_ms: i64, bpm: f64) -> BeatGrid {
     BeatGrid {
-        beats: vec![first_beat_secs],
-        downbeats: vec![first_beat_secs],
-        bpm: 120.0,
+        source: "analysis".into(),
+        covered_to_ms: None,
+        segments: vec![BeatSegment {
+            segment_index: 0,
+            start_time_ms: first_beat_ms,
+            bpm,
+            beats_per_bar: 4,
+            beat_unit: 4,
+            start_beat_index: 0,
+            beats_to_next: None,
+            downbeat_offset_beats: 0,
+        }],
     }
+}
+
+fn phase_grid(first_beat_secs: f32) -> BeatGrid {
+    grid_at((f64::from(first_beat_secs) * 1000.0).round() as i64, 120.0)
 }
 
 #[test]
@@ -210,7 +224,7 @@ fn loop_in_snaps_to_first_beat_phase_when_quantize_on() {
         let tracks = library.list_collection_tracks(&folder.id).unwrap();
         let id = tracks[0].id().clone();
         library
-            .save_track_beat_grid(&id, 120.0, 0.1)
+            .save_track_beat_grid(&id, 120.0, 0.1, false)
             .expect("save beat grid");
         id
     };
@@ -689,11 +703,7 @@ fn quantize_keeps_stored_loops_on_the_acting_decks_own_grid() {
     session
         .with_engine(|engine| {
             // Deck B plays on a 100 BPM grid with its first beat at 100 ms.
-            let grid = BeatGrid {
-                beats: vec![0.1],
-                downbeats: vec![0.1],
-                bpm: 100.0,
-            };
+            let grid = grid_at(100, 100.0);
             assert_eq!(engine.apply_track_beat_grid("deck-b.wav", &grid), vec![1]);
             Ok(())
         })
