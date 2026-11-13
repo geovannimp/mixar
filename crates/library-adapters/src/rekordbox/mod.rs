@@ -1018,9 +1018,11 @@ fn load_cues(
                 label,
             });
         } else {
-            // A memory cue is the track's main cue; the earliest one wins. A
-            // memory *loop* (out point set) is additionally a saved loop.
-            if set.main_cue_ms.is_none() {
+            // A memory cue is the track's main cue; the earliest one wins. The
+            // query already orders by `InMsec`, but taking the minimum here keeps
+            // that contract local instead of depending on the SQL order. A memory
+            // *loop* (out point set) is additionally a saved loop.
+            if set.main_cue_ms.is_none_or(|earliest| in_ms < earliest) {
                 set.main_cue_ms = Some(in_ms);
             }
             if let Some(out_ms) = out_ms {
