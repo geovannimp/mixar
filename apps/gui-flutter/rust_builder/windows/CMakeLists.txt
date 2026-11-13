@@ -20,6 +20,11 @@ apply_cargokit(${PROJECT_NAME} ../../../../crates/host-flutter host_flutter "")
 # shader compiler that Dawn's D3D12 backend opens at runtime. The Windows ORT
 # WebGPU distribution is the only one that ships more than the Dawn library.
 #
+# ORT 1.31's Windows WebGPU dist (ort-sys 2.0.0-rc.14) ships only
+# `webgpu_dawn.dll` and `dxcompiler.dll`; `dxil.dll` was in 1.24.2 (rc.12) and
+# is gone now. Listing a file the dist never produces fails the INSTALL project,
+# whose CMake output Flutter swallows (only the bare MSB3073 line survives).
+#
 # Windows uses the multi-config VS generator, so cargokit writes every artifact
 # into ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> (cargokit.cmake CARGOKIT_OUTPUT_DIR).
 # The $<CONFIG> is required here: without it install() looks one level too high,
@@ -28,6 +33,5 @@ set(host_flutter_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
   "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/webgpu_dawn.dll"
   "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dxcompiler.dll"
-  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dxil.dll"
   PARENT_SCOPE
 )
