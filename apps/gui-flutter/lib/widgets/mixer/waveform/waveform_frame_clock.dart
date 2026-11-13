@@ -21,6 +21,12 @@ class WaveformFrameClock extends ChangeNotifier {
   /// Monotonic time of the most recent tick (zero before the first one).
   Duration get now => _now;
 
+  /// Whether the shared ticker is running.
+  ///
+  /// Observability for tests: a lane that no longer needs frames must leave
+  /// this false, or every attached lane repaints on every frame for nothing.
+  bool get isRunning => _ticker.isActive;
+
   void attach() {
     if (_attached++ == 0) {
       _origin = _now;

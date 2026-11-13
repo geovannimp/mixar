@@ -16,6 +16,7 @@ import 'package:gui_flutter/src/rust/api/library.dart'
     show BeatGridData, BeatGridSegmentData;
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/waveform_frame_clock.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/waveform_scroll_viewport.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -1165,6 +1166,31 @@ void main() {
       );
       previousLeft = left;
     }
+  });
+
+  testWidgets('a stopped lane detaches from the shared clock', (tester) async {
+    final container = await _pumpLane(
+      tester,
+      playing: true,
+      playbackRatio: 1.0,
+      strip: _strip,
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      waveformFrameClock.isRunning,
+      isTrue,
+      reason: 'a playing lane must drive the shared clock',
+    );
+
+    _applyDeckUpdate(container, playing: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    expect(
+      waveformFrameClock.isRunning,
+      isFalse,
+      reason: 'a stopped lane must not keep the shared ticker alive',
+    );
   });
 
   testWidgets('a starting deck is not pulled by a position event before it '
