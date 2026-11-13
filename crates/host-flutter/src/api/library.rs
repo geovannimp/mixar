@@ -993,6 +993,8 @@ impl LibraryTransport {
     ///
     /// Analysis-time only; safe to call repeatedly (no engine restart).
     pub fn apply_cue_threshold(&self) -> Result<(), String> {
+        // `buses` is always present once the transport exists (`from_manager`),
+        // so there is no "not attached" state to report here.
         self.buses
             .set_cue_threshold_db(crate::api::settings::settings_cue_threshold_db());
         Ok(())
