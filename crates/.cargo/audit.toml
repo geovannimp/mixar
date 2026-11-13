@@ -18,4 +18,28 @@ ignore = [
     # states 0.39.0/0.39.1 still bundle affected SQLite 3.53.4 there; re-check
     # when sea-query-rusqlite and sqlcipher-src catch up.
     "RUSTSEC-2026-0459",
+    # `paste` is unmaintained; no fixed upgrade exists. Transitive via
+    # codec/host-flutter/library → lofty 0.25.5, which is the latest release.
+    # Build-time proc-macro only — never linked into the runtime binary.
+    # Re-check when lofty moves off `paste`.
+    "RUSTSEC-2024-0436",
+    # `proc-macro-error2` is unmaintained; no fixed upgrade exists. Transitive
+    # via library → sea-orm-sync → sea-orm-macros → sea-bae. sea-orm-sync 2.0.4
+    # (latest) still depends on sea-bae 0.2.1, which pins proc-macro-error2 2.0.
+    # Build-time proc-macro only.
+    "RUSTSEC-2026-0173",
+    # `smartstring` is unmaintained; no fixed upgrade exists (2.0.0 is a
+    # semver-breaking release that rhai does not adopt). Transitive via
+    # controller → rhai 1.25.1; rhai 1.27.0 (latest) still depends on
+    # smartstring 1.0, so a bump does not clear it. Unmaintained only — no
+    # known vulnerability.
+    "RUSTSEC-2026-0249",
+    # `faster-hex` 0.9.0 `hex_decode_unchecked` AVX2 decode path reads past
+    # `src`. Transitive via library-adapters (dev-dependency) → rekordcrate
+    # 0.3.0, a git dependency pinned to rev 14d54ed whose upstream `main`
+    # still declares `faster-hex = "0.9"` (0.10 is semver-breaking upstream).
+    # rekordcrate only calls `faster_hex::hex_string` (encode) in
+    # `src/util.rs`; the vulnerable decode entry point is never reachable.
+    # Re-check when rekordcrate bumps to faster-hex >=0.10.1.
+    "RUSTSEC-2026-0306",
 ]
