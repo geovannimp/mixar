@@ -1,6 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/waveform_frame_clock.dart';
 
+void _disposeFrameClock(WaveformFrameClock clock) {
+  addTearDown(() {
+    // Leave no transient callback behind: detach, then dispose.
+    while (clock.attachedCount > 0) {
+      clock.detach();
+    }
+    clock.dispose();
+  });
+}
+
 void main() {
   test('a zero-length glide settles at the retarget instant', () {
     final glide = DriftGlide();
@@ -28,13 +38,7 @@ void main() {
 
   testWidgets('the clock ref-counts attachments', (tester) async {
     final clock = WaveformFrameClock();
-    addTearDown(() {
-      // Leave no transient callback behind: detach, then dispose.
-      while (clock.attachedCount > 0) {
-        clock.detach();
-      }
-      clock.dispose();
-    });
+    _disposeFrameClock(clock);
     expect(clock.attachedCount, 0);
     expect(clock.isRunning, isFalse);
 
@@ -59,15 +63,46 @@ void main() {
     expect(clock.isRunning, isFalse);
   });
 
+  testWidgets('two attachments share the ticker until both detach', (
+    tester,
+  ) async {
+    final clock = WaveformFrameClock();
+    _disposeFrameClock(clock);
+
+    clock.attach();
+    clock.attach();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 50));
+    final whileBoth = clock.now;
+    expect(whileBoth, greaterThan(Duration.zero));
+    expect(clock.isRunning, isTrue);
+
+    // Detach in the opposite order to exercise ref-counting, not stack order.
+    clock.detach();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(clock.attachedCount, 1);
+    expect(
+      clock.isRunning,
+      isTrue,
+      reason: 'the other lane still needs frames',
+    );
+    final withOne = clock.now;
+    expect(withOne, greaterThanOrEqualTo(whileBoth));
+
+    clock.detach();
+    expect(clock.attachedCount, 0);
+    expect(clock.isRunning, isFalse);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      clock.now,
+      withOne,
+      reason: 'a fully detached clock must stop advancing',
+    );
+  });
+
   testWidgets('now keeps advancing across a stop and start', (tester) async {
     final clock = WaveformFrameClock();
-    addTearDown(() {
-      // Leave no transient callback behind: detach, then dispose.
-      while (clock.attachedCount > 0) {
-        clock.detach();
-      }
-      clock.dispose();
-    });
+    _disposeFrameClock(clock);
 
     clock.attach();
     await tester.pump(const Duration(milliseconds: 16));

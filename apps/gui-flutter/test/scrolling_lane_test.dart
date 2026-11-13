@@ -1218,6 +1218,11 @@ void main() {
       baseline,
       reason: 'a stopped lane must detach from the shared clock',
     );
+    expect(
+      waveformFrameClock.isRunning,
+      baseline > 0,
+      reason: 'detaching this lane must only stop a clock it solely owned',
+    );
   });
 
   testWidgets('a starting deck is not pulled by a position event before it '
