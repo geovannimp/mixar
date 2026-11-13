@@ -38,6 +38,7 @@ class OverviewStrip extends ConsumerWidget {
     final mode = ref.watch(waveformDisplayModeProvider);
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
+    final cuePointMs = ref.watch(deckCuePointMsProvider(deckId));
 
     return Skeletonizer(
       enabled: skeleton,
@@ -86,7 +87,9 @@ class OverviewStrip extends ConsumerWidget {
                             height: height,
                             hotCues: hotCues,
                             savedLoops: savedLoops,
+                            cuePointMs: cuePointMs,
                             accent: theme.colors.primary,
+                            cueColor: theme.colors.cueOn,
                           ),
                         ),
                       if (durationMs > 0)
@@ -173,7 +176,9 @@ class _OverviewOverlayLayer extends StatelessWidget {
     required this.height,
     required this.hotCues,
     required this.savedLoops,
+    required this.cuePointMs,
     required this.accent,
+    required this.cueColor,
   });
 
   final int durationMs;
@@ -181,7 +186,11 @@ class _OverviewOverlayLayer extends StatelessWidget {
   final double height;
   final List<DeckHotCue> hotCues;
   final List<SavedLoop> savedLoops;
+
+  /// The deck's main cue, flagged apart from the numbered hot cues.
+  final int? cuePointMs;
   final Color accent;
+  final Color cueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +201,12 @@ class _OverviewOverlayLayer extends StatelessWidget {
           startMs: loop.inMs,
           endMs: loop.outMs,
           color: accent,
+        ),
+      if (cuePointMs case final cuePoint?)
+        WaveformSection(
+          type: WaveformSectionType.mainCue,
+          startMs: cuePoint,
+          color: cueColor,
         ),
       for (final cue in hotCues)
         WaveformSection(

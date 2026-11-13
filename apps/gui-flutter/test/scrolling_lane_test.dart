@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/core/utils/waveform_section_painter.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
@@ -39,10 +40,11 @@ Future<WaveformStrip> _strip() async => WaveformStrip(
 );
 
 class _SeededEngineUi extends EngineUi {
-  new({this.playing = false, this.jogTouching = false});
+  new({this.playing = false, this.jogTouching = false, this.cuePointMs});
 
   final bool playing;
   final bool jogTouching;
+  final int? cuePointMs;
 
   @override
   EngineUiSnapshot build() {
@@ -54,6 +56,7 @@ class _SeededEngineUi extends EngineUi {
           trackId: 't1',
           durationMs: _durationMs,
           tempoRange: 0.08,
+          cuePointMs: cuePointMs,
         ),
       ),
     );
@@ -120,6 +123,7 @@ Future<ProviderContainer> _pumpLane(
   required bool playing,
   required Future<WaveformStrip> Function() strip,
   bool jogTouching = false,
+  int? cuePointMs,
   int positionMs = 0,
   FakeEngineTransport? engine,
   BeatGridData? beatGrid,
@@ -144,7 +148,11 @@ Future<ProviderContainer> _pumpLane(
         if (engine != null)
           engineTransportProvider.overrideWith((ref) async => engine),
         engineUiProvider.overrideWith(
-          () => _SeededEngineUi(playing: playing, jogTouching: jogTouching),
+          () => _SeededEngineUi(
+            playing: playing,
+            jogTouching: jogTouching,
+            cuePointMs: cuePointMs,
+          ),
         ),
         deckPlayheadsProvider.overrideWith(
           () => _FixedPlayheads({0: positionMs}),
@@ -470,4 +478,33 @@ void main() {
     expect(gridIndex, isNonNegative);
     expect(overlayIndex, greaterThan(gridIndex));
   });
+
+  testWidgets('the main cue is flagged on the lane', (tester) async {
+    await _pumpLane(tester, playing: false, strip: _strip, cuePointMs: 25000);
+
+    final mainCue = [
+      for (final section in _sections(tester))
+        if (section.type == WaveformSectionType.mainCue) section,
+    ];
+    expect(mainCue, hasLength(1));
+    expect(mainCue.single.startMs, 25000);
+    expect(
+      mainCue.single.label,
+      isNull,
+      reason: 'the main cue carries an icon, not a hot-cue slot number',
+    );
+  });
+}
+
+/// Cue/loop sections the lane hands to its painter.
+List<WaveformSection> _sections(WidgetTester tester) {
+  for (final paint in tester.widgetList<CustomPaint>(
+    find.byType(CustomPaint),
+  )) {
+    final painter = paint.painter;
+    if (painter is WaveformSectionPainter) {
+      return painter.sections;
+    }
+  }
+  fail('the lane has no WaveformSectionPainter');
 }

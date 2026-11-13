@@ -939,6 +939,13 @@ final ProviderFamily<int?, int> deckPendingLoopInMsProvider =
       ),
     );
 
+/// Main cue flag position for a deck (`null` when no cue is set).
+final ProviderFamily<int?, int> deckCuePointMsProvider =
+    Provider.family<int?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.cuePointMsFor(deckId))),
+    );
+
 final ProviderFamily<List<SavedLoop>, int> deckSavedLoopsProvider =
     Provider.family<List<SavedLoop>, int>((ref, deckId) {
       final trackId = ref.watch(deckTrackIdProvider(deckId));

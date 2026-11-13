@@ -512,6 +512,7 @@ class _LaneStrip extends ConsumerWidget {
     final displayWidth = (stripSpan * pxPerMs).round();
     final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
+    final cuePointMs = ref.watch(deckCuePointMsProvider(deckId));
     final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
     final active = activeLoop != null && activeLoop.active ? activeLoop : null;
     final visibleSavedLoops = [
@@ -537,6 +538,12 @@ class _LaneStrip extends ConsumerWidget {
           endMs: active.outMs,
           color: accent,
           active: true,
+        ),
+      if (cuePointMs case final cuePoint?)
+        WaveformSection(
+          type: WaveformSectionType.mainCue,
+          startMs: cuePoint,
+          color: context.theme.colors.cueOn,
         ),
       for (final cue in hotCues)
         WaveformSection(
