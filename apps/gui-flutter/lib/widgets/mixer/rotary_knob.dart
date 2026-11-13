@@ -134,11 +134,12 @@ class _RotaryKnobState extends State<RotaryKnob> {
   double get _resetValue {
     final target =
         widget.defaultValue ?? widget.center ?? (widget.min + widget.max) / 2;
-    return snapToStep(
+    final snapped = snapToStep(
       target.clamp(widget.min, widget.max),
       widget.step,
       origin: widget.min,
     );
+    return snapped.clamp(widget.min, widget.max);
   }
 
   void _reset() {

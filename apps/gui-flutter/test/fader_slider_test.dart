@@ -700,14 +700,19 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byType(FaderSlider));
+    final box = tester.getRect(find.byType(FaderSlider));
+    final first = box.center;
+    // Move 11 px below centre: outside the grip, so both presses are on the
+    // track and the first seek does not put the grip under the second tap.
+    final second = first + const Offset(0, 11);
+    await tester.tapAt(first);
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byType(FaderSlider));
+    await tester.tapAt(second);
     await tester.pumpAndSettle();
 
-    expect(value, closeTo(50, 1));
+    expect(value, closeTo(40, 2));
     expect(value, isNot(100));
-    expect(calls, 1, reason: 'the first seek is the only value change');
+    expect(calls, 2, reason: 'each track press seeks once');
   });
 }
 

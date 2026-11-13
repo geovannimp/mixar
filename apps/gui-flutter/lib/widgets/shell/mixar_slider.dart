@@ -86,11 +86,25 @@ class _MixarSliderState extends State<MixarSlider> {
     if (target == null || !widget.enabled) {
       return;
     }
-    final next = target.clamp(widget.min, widget.max);
+    final next = _snapValue(target);
     if (_controller.value != next) {
       _controller.value = next;
+      widget.onChanged(next);
     }
-    widget.onChanged(next);
+  }
+
+  /// Clamp to the range and snap to [MixarSlider.divisions], mirroring
+  /// [ShadSlider]'s own value update.
+  double _snapValue(double value) {
+    final range = widget.max - widget.min;
+    var next = value.clamp(widget.min, widget.max);
+    final divisions = widget.divisions;
+    if (divisions != null && divisions > 0 && range > 0) {
+      final step = range / divisions;
+      next = ((next - widget.min) / step).round() * step + widget.min;
+      next = next.clamp(widget.min, widget.max);
+    }
+    return next;
   }
 
   /// True when [local] lands on the thumb. Seeking there on pointer-down
@@ -114,14 +128,9 @@ class _MixarSliderState extends State<MixarSlider> {
     if (!widget.enabled || width <= 0) {
       return;
     }
-    final range = widget.max - widget.min;
-    var next = widget.min + (local.dx / width) * range;
-    final divisions = widget.divisions;
-    if (divisions != null && divisions > 0) {
-      final step = range / divisions;
-      next = ((next - widget.min) / step).round() * step + widget.min;
-    }
-    next = next.clamp(widget.min, widget.max);
+    final next = _snapValue(
+      widget.min + (local.dx / width) * (widget.max - widget.min),
+    );
     if (_controller.value != next) {
       _controller.value = next;
       widget.onChanged(next);
@@ -166,6 +175,7 @@ class _MixarSliderState extends State<MixarSlider> {
         shad.sliderTheme.thumbRadius ??
         _fallbackThumbRadius;
     final hitHeight = math.max(trackHeight, thumbRadius * 2 + _focusRingRoom);
+    final canReset = widget.enabled && widget.defaultValue != null;
     // ShadSlider paints the thumb outside its short track box, so the whole
     // reserved height must be the hit target.
     return SizedBox(
@@ -178,16 +188,23 @@ class _MixarSliderState extends State<MixarSlider> {
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             excludeFromSemantics: true,
-            onDoubleTapDown: (_) {
-              _doubleTapOnThumb = _previousPressOnThumb && _lastPressOnThumb;
-            },
-            onDoubleTap: () {
-              if (_doubleTapOnThumb) {
-                _doubleTapOnThumb = false;
-                _resetToDefault();
-              }
-            },
-            onDoubleTapCancel: () => _doubleTapOnThumb = false,
+            onDoubleTapDown: canReset
+                ? (_) {
+                    _doubleTapOnThumb =
+                        _previousPressOnThumb && _lastPressOnThumb;
+                  }
+                : null,
+            onDoubleTap: canReset
+                ? () {
+                    if (_doubleTapOnThumb) {
+                      _doubleTapOnThumb = false;
+                      _resetToDefault();
+                    }
+                  }
+                : null,
+            onDoubleTapCancel: canReset
+                ? () => _doubleTapOnThumb = false
+                : null,
             child: Listener(
               behavior: HitTestBehavior.opaque,
               onPointerDown: (event) {

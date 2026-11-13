@@ -294,13 +294,16 @@ void main() {
 
     final slider = find.byType(MixarSlider);
     final rect = tester.getRect(slider);
-    final track = Offset(rect.left + rect.width * 0.3, rect.center.dy);
-    await tester.tapAt(track);
+    // Two distinct track points: the first tap moves the thumb to 30%, so a
+    // second tap at the same spot would land on the thumb.
+    final first = Offset(rect.left + rect.width * 0.3, rect.center.dy);
+    final second = Offset(rect.left + rect.width * 0.45, rect.center.dy);
+    await tester.tapAt(first);
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tapAt(track);
+    await tester.tapAt(second);
     await tester.pumpAndSettle();
 
-    expect(value, closeTo(0.3, 0.02));
+    expect(value, closeTo(0.45, 0.02));
     expect(value, isNot(closeTo(0.25, 1e-6)));
   });
 

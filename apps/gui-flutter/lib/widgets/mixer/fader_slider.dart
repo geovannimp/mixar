@@ -503,7 +503,9 @@ class _FaderSliderState extends State<FaderSlider> {
                               _resetToDefault();
                             }
                           },
-                    onDoubleTapCancel: () => _doubleTapOnThumb = false,
+                    onDoubleTapCancel: widget.disabled
+                        ? null
+                        : () => _doubleTapOnThumb = false,
                     child: Listener(
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: widget.disabled
