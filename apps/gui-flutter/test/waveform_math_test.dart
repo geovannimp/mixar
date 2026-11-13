@@ -382,6 +382,50 @@ void main() {
     expect(correctPlayheadDrift(displayMs: 1000, estimateMs: 1080), 1020);
   });
 
+  test('playheadDriftDuration keeps corrections slow and linear', () {
+    expect(
+      playheadDriftDuration(deltaMs: 20, speed: 1),
+      const Duration(milliseconds: 100),
+    );
+    expect(
+      playheadDriftDuration(deltaMs: 20, speed: 0.5),
+      const Duration(milliseconds: 160),
+    );
+    expect(
+      playheadDriftDuration(deltaMs: -20, speed: 0.1),
+      const Duration(milliseconds: 800),
+    );
+    expect(
+      playheadDriftDuration(deltaMs: 0, speed: 1),
+      const Duration(milliseconds: 100),
+    );
+  });
+
+  test('playheadDriftDuration falls back to unity for an unusable speed', () {
+    for (final speed in [0.0, -1.0, double.nan, double.infinity]) {
+      expect(
+        playheadDriftDuration(deltaMs: 20, speed: speed),
+        const Duration(milliseconds: 100),
+        reason: 'speed $speed cannot scale a correction',
+      );
+    }
+  });
+
+  test('drift correction never outruns a quarter of source time', () {
+    for (final speed in [1.0, 1.1857, 0.5, 0.1, 2.0]) {
+      for (final delta in [1.0, 20.0, 60.0, -240.0]) {
+        final wallMs =
+            playheadDriftDuration(deltaMs: delta, speed: speed).inMicroseconds /
+            1000;
+        expect(
+          delta.abs() / wallMs,
+          lessThanOrEqualTo(0.25 * speed + 1e-9),
+          reason: 'a $delta ms correction at speed $speed must stay linear',
+        );
+      }
+    }
+  });
+
   test('playhead snaps when paused or on a seek', () {
     expect(
       playheadShouldSnap(displayMs: 1000, engineMs: 1010, playing: false),

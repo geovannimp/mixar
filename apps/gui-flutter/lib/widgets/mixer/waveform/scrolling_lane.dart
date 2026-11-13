@@ -20,6 +20,7 @@ import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/waveform_frame_clock.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/waveform_scroll_viewport.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -43,9 +44,25 @@ class ScrollingLane extends ConsumerStatefulWidget {
   ConsumerState<ScrollingLane> createState() => _ScrollingLaneState();
 }
 
-class _ScrollingLaneState extends ConsumerState<ScrollingLane>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _playhead;
+class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
+  /// Frame clock shared with every other lane, so both evaluate at the same
+  /// timestamp instead of measuring elapsed from their own controller start.
+  final WaveformFrameClock _clock = waveformFrameClock;
+  var _attached = false;
+
+  /// Marks the paint side dirty for *authoritative* position changes, which can
+  /// happen while the clock is detached (paused, vinyl, seek). A counter rather
+  /// than a bare [ChangeNotifier] because `notifyListeners` is protected.
+  final _anchorTicks = ValueNotifier<int>(0);
+
+  /// Source position shown at [_anchorFrame], and the rate it advances at.
+  var _anchorMs = 0.0;
+  var _anchorFrame = Duration.zero;
+  var _speed = 1.0;
+  var _playing = false;
+
+  /// Drift correction, interpolated against the same frame clock.
+  final _drift = DriftGlide();
 
   /// Playhead ticks plus out-of-track moves, so the strip follows a position
   /// dragged before the start or past the end as well as normal playback.
@@ -66,16 +83,35 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   @override
   void initState() {
     super.initState();
-    _playhead = AnimationController(vsync: this);
-    _displayTicks = Listenable.merge([_playhead, _outsideMs]);
+    _displayTicks = Listenable.merge([_clock, _outsideMs, _anchorTicks]);
+    _clock.addListener(_onClockTick);
   }
 
   @override
   void dispose() {
-    _playhead.dispose();
+    _clock.removeListener(_onClockTick);
+    if (_attached) {
+      _clock.detach();
+      _attached = false;
+    }
+    _anchorTicks.dispose();
     _outsideMs.dispose();
     super.dispose();
   }
+
+  /// Keeps the shared clock running only while this lane needs frames.
+  void _syncClockAttachment() {
+    final need = _playing || _drift.pendingAt(_clock.now);
+    if (need && !_attached) {
+      _clock.attach();
+      _attached = true;
+    } else if (!need && _attached) {
+      _clock.detach();
+      _attached = false;
+    }
+  }
+
+  void _onClockTick() => _syncClockAttachment();
 
   double _displayMs(int durationMs) {
     final outside = _outsideMs.value;
@@ -85,7 +121,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     if (durationMs <= 0) {
       return 0;
     }
-    return _playhead.value * durationMs;
+    final now = _clock.now;
+    final base = _playing
+        ? _anchorMs + (now - _anchorFrame).inMicroseconds / 1000.0 * _speed
+        : _anchorMs;
+    final ms = base + _drift.valueAt(now);
+    return ms.clamp(0.0, durationMs.toDouble());
   }
 
   /// Shows [ms] on the lane, including positions outside the track.
@@ -93,17 +134,25 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   /// The controller only spans `0..duration`; the signed override keeps the
   /// strip moving when the playhead is dragged before the start or past the
   /// end, where the controller value would otherwise clamp and freeze.
+  ///
+  /// Authoritative: any pending drift correction is folded away first, so a
+  /// seek, pause or scrub never drags a leftover offset into the new position.
   void _showMs(double ms, {required int durationMs}) {
+    // An authoritative position ends any error streak.
+    _drift.reset();
+    _anchorMs = ms;
+    _anchorFrame = _clock.now;
     if (durationMs <= 0) {
       _outsideMs.value = null;
-      _playhead.value = 0;
+      // Nothing else moves the strip here: the clock may be detached, so the
+      // lane has to mark its own paint side dirty.
+      _anchorTicks.value++;
       return;
     }
-    final outside = ms < 0 || ms > durationMs;
-    _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
-    // Set after the controller so its clamped fraction cannot publish an
-    // in-range position over the override.
-    _outsideMs.value = outside ? ms : null;
+    // Set after the anchor so a clamped in-range position cannot publish over
+    // the signed override.
+    _outsideMs.value = (ms < 0 || ms > durationMs) ? ms : null;
+    _anchorTicks.value++;
   }
 
   void _setDisplayMs(
@@ -112,21 +161,53 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     required double speed,
     required bool playing,
   }) {
+    _showMs(ms, durationMs: durationMs);
+    _speed = speed;
     if (durationMs <= 0) {
-      _outsideMs.value = null;
-      _playhead
-        ..stop()
-        ..value = 0;
+      _playing = false;
+      _syncClockAttachment();
       return;
     }
     final outside = ms < 0 || ms > durationMs;
-    _playhead
-      ..stop()
-      ..duration = playheadWallDuration(durationMs: durationMs, speed: speed);
-    _showMs(ms, durationMs: durationMs);
-    if (playing && !_scrubbing && !outside) {
-      _playhead.forward();
+    _playing = playing && !_scrubbing && !outside;
+    _syncClockAttachment();
+  }
+
+  /// Glides the displayed playhead toward the engine estimate.
+  ///
+  /// Only the offset animates: the playback anchor keeps its value and rate,
+  /// running simulation, so the strip neither jumps now nor loses the
+  /// interpolation it is already showing.
+  void _correctDrift({
+    required double engineMs,
+    required int durationMs,
+    required double speed,
+  }) {
+    final display = _displayMs(durationMs);
+    final corrected = correctPlayheadDrift(
+      displayMs: display,
+      estimateMs: engineMs,
+    );
+    if (corrected == display) {
+      return;
     }
+    final delta = corrected - display;
+    if (delta.abs() < 0.01) {
+      return;
+    }
+    // Retargeting starts from the offset's current value, so an unfinished
+    // correction keeps its progress instead of restarting from zero. The
+    // default (linear) curve holds the pull at a constant rate, and
+    // [playheadDriftDuration] keeps that rate within a quarter of the deck's
+    // own source velocity, so a correction can never run the strip backwards
+    // however slowly the deck plays.
+    final now = _clock.now;
+    _drift.retarget(
+      at: now,
+      target: _drift.valueAt(now) + delta,
+      glide: playheadDriftDuration(deltaMs: delta, speed: speed),
+    );
+    _syncClockAttachment();
   }
 
   void _syncPlayback({
@@ -134,27 +215,36 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     required int durationMs,
     required double speed,
   }) {
+    final now = _clock.now;
     if (durationMs <= 0) {
       _outsideMs.value = null;
-      _playhead.stop();
+      _drift.reset();
+      _anchorMs = 0;
+      _anchorFrame = now;
+      _playing = false;
+      _speed = speed;
+      _anchorTicks.value++;
+      _syncClockAttachment();
       return;
     }
-    final ms = _displayMs(durationMs);
-    final wall = playheadWallDuration(durationMs: durationMs, speed: speed);
-    if (_playhead.duration != wall) {
-      _playhead
-        ..stop()
-        ..duration = wall;
-      _showMs(ms, durationMs: durationMs);
-    }
     final outside = _outsideMs.value != null;
-    if (playing && !_scrubbing && !outside) {
-      if (!_playhead.isAnimating) {
-        _playhead.forward();
-      }
-    } else if (_playhead.isAnimating) {
-      _playhead.stop();
+    final advancingNow = playing && !_scrubbing && !outside;
+    // Re-anchor on every stop, start or rate change so the displayed position
+    // is continuous across it; the anchor is what makes that true.
+    final speedChanged = (speed - _speed).abs() > 1e-9;
+    if (!advancingNow || speedChanged || !_playing) {
+      final display = _displayMs(durationMs);
+      _anchorMs = display - _drift.valueAt(now);
+      _anchorFrame = now;
+      _speed = speed;
     }
+    _playing = advancingNow;
+    if (!advancingNow) {
+      // A frozen lane must freeze the correction too, or the strip keeps
+      // moving while the audio is paused or under a held jog wheel.
+      _drift.freezeAt(now);
+    }
+    _syncClockAttachment();
   }
 
   bool _advancingNow() => playheadAdvancing(
@@ -210,18 +300,23 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         );
         return;
       }
-      final corrected = correctPlayheadDrift(
-        displayMs: display,
-        estimateMs: engineMs,
-      );
-      if (corrected != display) {
+      // Signed out-of-track positions and a live override are authoritative
+      // and cannot be represented by the clamped main clock.
+      final offTrack = engineMs < 0 || engineMs > durationMs;
+      if (offTrack || _outsideMs.value != null) {
         _setDisplayMs(
-          corrected,
+          engineMs,
           durationMs: durationMs,
           speed: speedNow,
           playing: advancingNow,
         );
+        return;
       }
+      _correctDrift(
+        engineMs: engineMs,
+        durationMs: durationMs,
+        speed: speedNow,
+      );
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
       if (_scrubbing || durationMs <= 0) {
@@ -285,8 +380,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     if (e.buttons != kPrimaryButton) {
                       return;
                     }
+                    // Fold a pending correction into the main clock before
+                    // freezing it: a held pointer must not keep drifting.
+                    _setDisplayMs(
+                      _displayMs(durationMs),
+                      durationMs: durationMs,
+                      speed: speed,
+                      playing: false,
+                    );
                     _scrubbing = true;
-                    _playhead.stop();
                     _scrubAnchorX = e.localPosition.dx;
                     _scrubAnchorMs = _displayMs(durationMs);
                   },
@@ -578,7 +680,6 @@ class _LaneStrip extends ConsumerWidget {
       originMs: stripOrigin,
       pxPerMs: pxPerMs,
       stripSize: Size(displayWidth.toDouble(), height),
-      dpr: dpr,
       child: LoopBandDeleteRegion(
         deckId: deckId,
         trackId: trackId,
