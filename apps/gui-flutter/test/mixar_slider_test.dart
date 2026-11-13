@@ -8,6 +8,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import 'support/double_tap.dart';
 import 'support/mixar_material_app.dart';
 
 /// Host whose [MixarSlider.onChanged] deliberately does not feed `value` back,
@@ -210,12 +211,43 @@ void main() {
     final rect = tester.getRect(slider);
     // The thumb sits at t * width: 0.8 puts it at 88 px.
     final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
-    await tester.tapAt(thumb);
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tapAt(thumb);
-    await tester.pumpAndSettle();
+    await doubleTapAt(tester, thumb);
 
     expect(value, closeTo(0.25, 1e-6));
+  });
+
+  testWidgets('null defaultValue disables the reset', (tester) async {
+    final theme = MixarThemeData.dark();
+    var value = 0.8;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return SizedBox(
+                  width: 110,
+                  child: MixarSlider(
+                    value: value,
+                    onChanged: (next) => setState(() => value = next),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    final thumb = Offset(rect.left + rect.width * 0.8, rect.center.dy);
+    await doubleTapAt(tester, thumb);
+
+    expect(value, closeTo(0.8, 1e-6));
   });
 
   testWidgets('double tap on the visible thumb edge resets', (tester) async {
@@ -254,10 +286,7 @@ void main() {
         reason: 'the reserved thumb height is the hit target',
       );
       final edge = Offset(rect.left + rect.width * 0.8, rect.center.dy + dy);
-      await tester.tapAt(edge);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tapAt(edge);
-      await tester.pumpAndSettle();
+      await doubleTapAt(tester, edge);
 
       expect(value, closeTo(0.25, 1e-6), reason: 'thumb edge dy=$dy');
     }
@@ -298,10 +327,7 @@ void main() {
     // second tap at the same spot would land on the thumb.
     final first = Offset(rect.left + rect.width * 0.3, rect.center.dy);
     final second = Offset(rect.left + rect.width * 0.45, rect.center.dy);
-    await tester.tapAt(first);
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tapAt(second);
-    await tester.pumpAndSettle();
+    await doubleTapAt(tester, first, second);
 
     expect(value, closeTo(0.45, 0.02));
     expect(value, isNot(closeTo(0.25, 1e-6)));

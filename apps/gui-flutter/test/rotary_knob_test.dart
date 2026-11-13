@@ -4,6 +4,7 @@ import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/double_tap.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -111,10 +112,7 @@ void main() {
     );
 
     final dial = find.byType(CustomPaint).last;
-    await tester.tap(dial);
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(dial);
-    await tester.pumpAndSettle();
+    await doubleTapAt(tester, tester.getCenter(dial));
 
     expect(value, closeTo(0.5, 1e-9));
   });
@@ -150,10 +148,7 @@ void main() {
     );
 
     final dial = find.byType(CustomPaint).last;
-    await tester.tap(dial);
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(dial);
-    await tester.pumpAndSettle();
+    await doubleTapAt(tester, tester.getCenter(dial));
 
     expect(value, 1, reason: '0.6-step snapping would otherwise yield 1.2');
   });
