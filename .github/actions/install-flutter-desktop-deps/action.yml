@@ -25,12 +25,18 @@ runs:
         set -euo pipefail
         # ubuntu-24.04 already ships clang, cmake, ninja, pkg-config, wget.
         # libfuse2+fuse: appimagetool is an AppImage and needs FUSE to mount.
+        # zsync: appimagetool runs zsyncmake to emit the `<name>.AppImage.zsync`
+        # sidecar the updater downloads deltas from.
         if [ "$REFRESH_INDEX" = 'true' ]; then
           sudo apt-get update
         fi
         sudo apt-get install -y \
           libgtk-3-dev liblzma-dev \
-          libfuse2 fuse
+          libfuse2 fuse zsync
+
+        # Fail here rather than after a full Flutter build: appimagetool 1.9.1
+        # runs zsyncmake unconditionally when writing the AppImage.
+        command -v zsyncmake
 
         # Skipped: locate/updatedb (appimage make_config.yaml has include: [], so
         # fastforge never queries the DB), desktop-file-utils, libstdc++-12-dev.
