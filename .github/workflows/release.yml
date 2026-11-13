@@ -252,6 +252,12 @@ jobs:
         # it analytics compiles to a no-op and the Settings switch does nothing.
         env:
           MIXAR_POSTHOG_TOKEN: ${{ secrets.POSTHOG_PROJECT_KEY }}
+          # openssl-src (SQLCipher's vendored OpenSSL) builds 262-char object
+          # paths under the default cargokit target dir, past MSVC's MAX_PATH;
+          # cl then fails with C1083 "Cannot open compiler generated file: ''".
+          # runner.temp is short (D:\a\_temp) and writable, leaving >100 chars
+          # of headroom. Only the Windows CMake reads this.
+          MIXAR_CARGOKIT_TEMP_DIR: ${{ runner.temp }}/cargokit
         run: |
           set -euo pipefail
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"

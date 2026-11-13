@@ -25,7 +25,22 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         set(OUTPUT_LIB "${CMAKE_CURRENT_BINARY_DIR}/${CARGOKIT_LIB_FULL_NAME}")
     endif()
-    set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    # MSVC's `cl` cannot create a compiler-generated file once its absolute
+    # path passes MAX_PATH (260): it fails with
+    #   C1083: Cannot open compiler generated file: '': Invalid argument
+    # without naming the path. openssl-src (vendored OpenSSL behind rusqlite's
+    # SQLCipher) nests deepest:
+    #   <temp>/<triple>/release/build/openssl-sys-*/out/openssl-build/build/
+    #   providers/implementations/ciphers/libdefault-lib-cipher_aes_cbc_hmac_sha1_etm_hw.obj
+    # is 262 chars from the default build/windows/x64/plugins/host_flutter
+    # path. MIXAR_CARGOKIT_TEMP_DIR points the cargo target dir at a short
+    # writable path (CI: $RUNNER_TEMP); non-Windows hosts are unaffected.
+    if (WIN32 AND DEFINED ENV{MIXAR_CARGOKIT_TEMP_DIR} AND NOT "$ENV{MIXAR_CARGOKIT_TEMP_DIR}" STREQUAL "")
+        file(TO_CMAKE_PATH "$ENV{MIXAR_CARGOKIT_TEMP_DIR}" CARGOKIT_TEMP_DIR)
+        message(STATUS "cargokit: CARGOKIT_TEMP_DIR=${CARGOKIT_TEMP_DIR} (MIXAR_CARGOKIT_TEMP_DIR)")
+    else()
+        set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    endif()
 
     if (FLUTTER_TARGET_PLATFORM)
         set(CARGOKIT_TARGET_PLATFORM "${FLUTTER_TARGET_PLATFORM}")
