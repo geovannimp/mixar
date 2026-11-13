@@ -382,6 +382,19 @@ void main() {
     expect(correctPlayheadDrift(displayMs: 1000, estimateMs: 1080), 1020);
   });
 
+  test('playheadDriftDuration bounds denormal and huge inputs', () {
+    // A denormal speed makes the quotient infinite; ceil() would throw.
+    expect(
+      playheadDriftDuration(deltaMs: 20, speed: 1e-320),
+      const Duration(milliseconds: 86400000),
+    );
+    // A huge correction would overflow the Duration conversion.
+    expect(
+      playheadDriftDuration(deltaMs: 1e20, speed: 1),
+      const Duration(milliseconds: 86400000),
+    );
+  });
+
   test('playheadDriftDuration keeps corrections slow and linear', () {
     expect(
       playheadDriftDuration(deltaMs: 20, speed: 1),

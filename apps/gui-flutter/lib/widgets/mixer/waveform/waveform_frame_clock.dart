@@ -82,11 +82,23 @@ class DriftGlide {
   bool pendingAt(Duration now) => _active && now < _toAt;
 
   /// Glides from the current interpolated value toward [target].
+  ///
+  /// A non-positive [glide] settles immediately: with `_toAt == _fromAt` the
+  /// "not started" branch in [valueAt] would win and report the old value while
+  /// [pendingAt] already claimed the glide was finished.
   void retarget({
     required Duration at,
     required double target,
     required Duration glide,
   }) {
+    if (glide <= Duration.zero) {
+      _from = target;
+      _to = target;
+      _fromAt = at;
+      _toAt = at;
+      _active = false;
+      return;
+    }
     _from = valueAt(at);
     _fromAt = at;
     _to = target;

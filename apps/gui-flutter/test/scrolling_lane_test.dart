@@ -1167,6 +1167,43 @@ void main() {
     }
   });
 
+  testWidgets('a starting deck is not pulled by a position event before it '
+      'rebuilds', (tester) async {
+    // Deck 1 keeps the shared clock ticking, so a correction scheduled for the
+    // stopped deck 0 would actually animate.
+    const ratios = {0: 1.0, 1: 1.0};
+    final container = await _pumpTwoLanes(tester, ratios: ratios);
+    await tester.pump();
+
+    _applyPosition(container, 10000, deck: 0);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    // Stop deck 0 and let the rebuild settle, so its state says "not playing".
+    _applyDeckUpdate(container, deck: 0, playing: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final stopped = _stripRect(tester, deckId: 0).left;
+
+    // The playing flag flips first; the position event arrives before any
+    // rebuild can update the lane's own playing state.
+    _applyDeckUpdate(container, deck: 0, playing: true);
+    _applyPosition(container, 9920, deck: 0);
+    var previous = stopped;
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final left = _stripRect(tester, deckId: 0).left;
+      // Playing again legitimately moves the strip forward; a correction
+      // scheduled against the frozen anchor would move it backwards instead.
+      expect(
+        left,
+        lessThanOrEqualTo(previous + 1e-6),
+        reason: 'the resumed deck moved backwards at frame $frame',
+      );
+      previous = left;
+    }
+  });
+
   testWidgets('pause and vinyl freeze a pending correction', (tester) async {
     final container = await _pumpLane(
       tester,

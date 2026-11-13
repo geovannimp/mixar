@@ -113,13 +113,19 @@ Duration playheadDriftDuration({
   required double deltaMs,
   required double speed,
 }) {
+  const ceiling = Duration(milliseconds: 86400000);
   final s = speed.isFinite && speed > 0 ? speed : 1.0;
   if (!deltaMs.isFinite) {
-    return const Duration(milliseconds: 86400000);
+    return ceiling;
   }
-  return Duration(
-    milliseconds: math.max(100, (deltaMs.abs() / (0.25 * s)).ceil()),
-  );
+  final raw = deltaMs.abs() / (0.25 * s);
+  // The quotient can be infinite (a denormal speed) or larger than an int can
+  // hold; `ceil()` throws in the first case and the Duration conversion
+  // overflows in the second.
+  if (!raw.isFinite || raw >= ceiling.inMilliseconds) {
+    return ceiling;
+  }
+  return Duration(milliseconds: math.max(100, raw.ceil()));
 }
 
 /// Keep interpolating; only pull 25% when drift exceeds [kWaveformDriftCorrectMs].

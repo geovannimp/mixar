@@ -183,6 +183,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     required int durationMs,
     required double speed,
   }) {
+    // A paused lane keeps its anchor frozen but still adds the drift offset to
+    // the displayed position, so scheduling a correction here would move a
+    // stopped strip. Position events can arrive in either order relative to the
+    // playing event, so gate on the state _displayMs actually uses.
+    if (!_playing) {
+      return;
+    }
     final display = _displayMs(durationMs);
     final corrected = correctPlayheadDrift(
       displayMs: display,
