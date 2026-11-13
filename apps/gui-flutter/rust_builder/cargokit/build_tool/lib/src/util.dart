@@ -184,10 +184,10 @@ const ortRuntimeSidecars = <String>[
   'libwebgpu_dawn.so',
   // macOS
   'libwebgpu_dawn.dylib',
-  // Windows
+  // Windows. ORT 1.31 dropped `dxil.dll`; older dists shipped it, so the
+  // list stays tolerant of its absence (see copyOrtRuntimeSidecars).
   'webgpu_dawn.dll',
   'dxcompiler.dll',
-  'dxil.dll',
 ];
 
 /// Copy the [ortRuntimeSidecars] (following symlinks) into a plugin output dir.

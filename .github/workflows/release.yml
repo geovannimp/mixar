@@ -267,6 +267,17 @@ jobs:
             --platform "${{ matrix.platform }}" \
             --targets "${{ matrix.target }}"
 
+      # `flutter build windows` collapses the MSBuild log to the bare MSB3073
+      # line; the CMake error behind it (a missing PLUGIN_BUNDLED_LIBRARIES
+      # entry, say) is dropped as a non-error message. Re-run the generated
+      # install script so the real cause lands in the job log.
+      - name: Explain Windows INSTALL failure
+        if: failure() && matrix.platform == 'windows'
+        working-directory: apps/gui-flutter/build/windows/x64
+        shell: bash
+        run: |
+          cmake -DBUILD_TYPE=Release -P cmake_install.cmake 2>&1 | sed -n '1,80p' || true
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
