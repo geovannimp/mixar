@@ -633,12 +633,12 @@ impl Engine {
     ///
     /// Attach/detach concern the whole mapping, so flipping the flag clears the
     /// entire software latch rather than just the referenced deck.
+    /// Unknown decks are ignored without resetting any valid deck's latch.
     pub fn set_fader_start_native(&mut self, deck: u16, native: bool) {
-        let idx = deck as usize;
-        if idx >= self.fader_start_native.len() {
-            self.fader_start_native.resize(idx + 1, false);
-        }
-        self.fader_start_native[idx] = native;
+        let Some(flag) = self.fader_start_native.get_mut(usize::from(deck)) else {
+            return;
+        };
+        *flag = native;
         self.reset_fader_start();
     }
 

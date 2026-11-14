@@ -45,6 +45,57 @@ fn started_null_engine() -> Engine {
 }
 
 #[test]
+fn native_fader_ownership_ignores_unknown_decks_without_resetting_latches() {
+    let mut engine = started_null_engine();
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    let deck_count = engine.fader_start_native.len();
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+
+    for deck in [2, u16::MAX] {
+        engine.set_fader_start_native(deck, true);
+        engine.set_fader_start_native(deck, false);
+    }
+
+    assert_eq!(engine.fader_start_native.len(), deck_count);
+    assert!(engine.fader_start_native.iter().all(|native| !native));
+    assert_eq!(
+        engine.fader_start_action(0, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn four_deck_engine_accepts_native_ownership_for_decks_three_and_four() {
+    let mut engine = Engine::new(EngineConfig {
+        backend: "null".into(),
+        num_decks: 4,
+        ..Default::default()
+    })
+    .unwrap();
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+
+    for deck in [2, 3] {
+        engine.set_fader_start_native(deck, true);
+        assert!(engine.fader_start_native[usize::from(deck)]);
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        assert_eq!(engine.fader_start_action(deck, 0.5), None);
+    }
+
+    engine.set_fader_start_native(3, false);
+    assert_eq!(engine.fader_start_action(3, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(3, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
 fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
     let config = EngineConfig {
         backend: "null".into(),
