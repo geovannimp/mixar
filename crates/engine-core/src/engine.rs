@@ -187,7 +187,7 @@ impl Engine {
             fx_level_selection,
             auto_cue: true,
             fader_start_cfg,
-            fader_start_state: FaderStartState::default(),
+            fader_start_state: FaderStartState::new(num_decks),
             fader_start_native: vec![false; num_decks],
         })
     }
@@ -625,8 +625,15 @@ impl Engine {
     }
 
     /// Replace the active channel-fader start/stop configuration.
+    ///
+    /// Effective changes re-arm all latches; the next value seeds without an
+    /// action. Reapplying the same normalized config preserves physical state.
     pub fn set_fader_start_config(&mut self, cfg: FaderStartConfig) {
-        self.fader_start_cfg = cfg.clamp();
+        let cfg = cfg.clamp();
+        if self.fader_start_cfg != cfg {
+            self.fader_start_cfg = cfg;
+            self.reset_fader_start();
+        }
     }
 
     /// Mark a deck's fader start as controller-native (or re-arm software).
@@ -647,8 +654,8 @@ impl Engine {
     /// Decks marked as `fader_start_native` are skipped so controller-native
     /// fader-start handling (Task 3) does not fight the software resolver.
     pub fn fader_start_action(&mut self, deck: u16, volume: f32) -> Option<FaderStartAction> {
-        let idx = deck as usize;
-        if self.fader_start_native.get(idx).copied().unwrap_or(false) {
+        let &native = self.fader_start_native.get(usize::from(deck))?;
+        if native {
             return None;
         }
         self.fader_start_state
@@ -656,6 +663,10 @@ impl Engine {
     }
 
     /// Reset every deck's fader-start latch.
+    ///
+    /// Use for mapping/configuration changes, not load/unload, play/pause or
+    /// seek: those do not move the physical fader. In particular, PauseAndCue
+    /// seeks internally and must leave the closed latch ready for fader-up.
     pub fn reset_fader_start(&mut self) {
         self.fader_start_state.reset();
     }

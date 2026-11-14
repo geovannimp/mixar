@@ -396,9 +396,9 @@
   "@settingsDeckFaderStartHint": {
     "description": "Subtitle explaining the fader-start feature."
   },
-  "settingsDeckFaderStartToggle": "Fader start",
+  "settingsDeckFaderStartToggle": "Enable fader start",
   "@settingsDeckFaderStartToggle": {
-    "description": "Accessibility label for the fader-start card header switch."
+    "description": "Action-specific accessibility label for the fader-start card header switch, distinct from the card title."
   },
   "settingsDeckFaderStartThreshold": "Fader threshold",
   "@settingsDeckFaderStartThreshold": {
@@ -408,9 +408,9 @@
   "@settingsDeckFaderStartThresholdHint": {
     "description": "Hint for the fader-start threshold stepper."
   },
-  "settingsDeckFaderStartThresholdPercent": "{percent} %",
+  "settingsDeckFaderStartThresholdPercent": "{percent}\u00a0%",
   "@settingsDeckFaderStartThresholdPercent": {
-    "description": "Percentage value shown by the fader-start threshold stepper.",
+    "description": "Integer percentage shown by the fader-start threshold stepper, with a non-breaking space (U+00A0) before the percent sign.",
     "placeholders": {
       "percent": {
         "type": "int"

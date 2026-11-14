@@ -963,7 +963,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Inicia ou pára a reprodução ao mover o fader do canal para longe ou de volta à base.';
 
   @override
-  String get settingsDeckFaderStartToggle => 'Arranque pelo fader';
+  String get settingsDeckFaderStartToggle => 'Ativar arranque pelo fader';
 
   @override
   String get settingsDeckFaderStartThreshold => 'Limiar do fader';
@@ -974,7 +974,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String settingsDeckFaderStartThresholdPercent(int percent) {
-    return '$percent %';
+    return '$percent %';
   }
 
   @override
@@ -2213,7 +2213,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
       'Inicia ou para a reprodução ao mover o fader do canal para longe ou de volta ao fundo.';
 
   @override
-  String get settingsDeckFaderStartToggle => 'Início pelo fader';
+  String get settingsDeckFaderStartToggle => 'Ativar início pelo fader';
 
   @override
   String get settingsDeckFaderStartThreshold => 'Limiar do fader';
@@ -2224,7 +2224,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String settingsDeckFaderStartThresholdPercent(int percent) {
-    return '$percent %';
+    return '$percent %';
   }
 
   @override

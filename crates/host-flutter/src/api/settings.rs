@@ -1520,15 +1520,13 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         default_fx_level_curve: Some(settings.default_fx_level_curve.clone()),
         crossfader_behavior: Some(settings.crossfader_behavior),
         curve_library: Some(settings.curve_library.clone()),
-        fader_start: Some(
-            FaderStartConfig {
-                enabled: settings.fader_start_enabled,
-                threshold_pct: settings.fader_start_threshold_pct,
-                on_non_zero: settings.fader_start_on_non_zero.into(),
-                on_zero: settings.fader_start_on_zero.into(),
-            }
-            .clamp(),
-        ),
+        // parse_settings already normalized this threshold and logged any coercion.
+        fader_start: Some(FaderStartConfig {
+            enabled: settings.fader_start_enabled,
+            threshold_pct: settings.fader_start_threshold_pct,
+            on_non_zero: settings.fader_start_on_non_zero.into(),
+            on_zero: settings.fader_start_on_zero.into(),
+        }),
     });
     config.validate().bridge()?;
     host.engine_config = config;
@@ -2375,6 +2373,23 @@ mod tests {
             FaderStartOnNonZeroSetting::TogglePlay
         );
         assert_eq!(restored.fader_start_on_zero, FaderStartOnZeroSetting::Pause);
+    }
+
+    #[test]
+    fn fader_start_threshold_is_normalized_when_applying_settings() {
+        for (requested, expected) in [(0, 1), (5, 5), (99, 20)] {
+            let mut host = SettingsHost::default();
+            let mut settings = settings_from_host(&host);
+            settings.fader_start_threshold_pct = requested;
+
+            apply_to_host(&mut host, settings).expect("apply");
+
+            assert_eq!(host.engine_config.fader_start().threshold_pct, expected);
+            assert_eq!(
+                settings_from_host(&host).fader_start_threshold_pct,
+                expected
+            );
+        }
     }
 
     #[test]

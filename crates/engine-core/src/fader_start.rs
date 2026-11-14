@@ -51,6 +51,8 @@ impl FaderStartConfig {
     }
 
     pub fn release_band(&self) -> f32 {
+        // Public configs may be unnormalized: widen before adding (u8::MAX)
+        // and cap at full travel even when callers have not used clamp().
         ((u16::from(self.threshold_pct) + 2).min(100) as f32) / 100.0
     }
 }
@@ -63,14 +65,31 @@ pub enum FaderStartAction {
     PauseAndCue,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FaderStartState {
     at_zero: Vec<Option<bool>>,
+    config: Option<FaderStartConfig>,
+}
+
+impl Default for FaderStartState {
+    fn default() -> Self {
+        Self::new(2)
+    }
 }
 
 impl FaderStartState {
+    /// Preallocate one physical-control latch per deck. Unknown IDs are ignored.
+    /// The default supports two decks; four-deck engines should use `new(4)`.
+    pub fn new(num_decks: usize) -> Self {
+        Self {
+            at_zero: vec![None; num_decks],
+            config: None,
+        }
+    }
+
     pub fn reset(&mut self) {
-        self.at_zero.clear();
+        self.at_zero.fill(None);
+        self.config = None;
     }
 
     pub fn resolve(
@@ -79,10 +98,16 @@ impl FaderStartState {
         deck: u16,
         volume: f32,
     ) -> Option<FaderStartAction> {
+        let idx = usize::from(deck);
+        if idx >= self.at_zero.len() {
+            return None;
+        }
         let cfg = cfg.clamp();
-        let idx = deck as usize;
-        if self.at_zero.len() <= idx {
-            self.at_zero.resize(idx + 1, None);
+        // A new interpretation of a physical position must seed, not cross,
+        // even for callers using the resolver without Engine's config setter.
+        if self.config != Some(cfg) {
+            self.reset();
+            self.config = Some(cfg);
         }
 
         let latch = self.at_zero[idx];
@@ -234,7 +259,7 @@ mod tests {
             .threshold_pct,
             20
         );
-        let mut state = FaderStartState::default();
+        let mut state = FaderStartState::new(4);
         state.resolve(&enabled(), 0, 0.0);
         state.resolve(&enabled(), 3, 0.0);
         assert_eq!(
@@ -253,5 +278,91 @@ mod tests {
         state.resolve(&enabled(), 0, 0.0);
         state.reset();
         assert_eq!(state.resolve(&enabled(), 0, 0.9), None);
+    }
+
+    #[test]
+    fn raw_release_band_is_bounded_without_u8_overflow() {
+        for (threshold_pct, expected) in [
+            (0, 0.02),
+            (1, 0.03),
+            (20, 0.22),
+            (98, 1.0),
+            (99, 1.0),
+            (100, 1.0),
+            (u8::MAX, 1.0),
+        ] {
+            let config = FaderStartConfig {
+                threshold_pct,
+                ..enabled()
+            };
+            assert_eq!(config.release_band(), expected);
+            assert!(config.clamp().release_band() <= 0.22);
+        }
+    }
+
+    #[test]
+    fn resolution_and_reset_never_grow_or_replace_the_latch_table() {
+        for num_decks in [0, 2, 4] {
+            let mut state = FaderStartState::new(num_decks);
+            let pointer = state.at_zero.as_ptr();
+            let capacity = state.at_zero.capacity();
+            for _ in 0..3 {
+                for deck in 0..num_decks as u16 {
+                    assert_eq!(state.resolve(&enabled(), deck, 0.0), None);
+                }
+                // Invalid IDs must not mutate valid latches, even with a new config.
+                for deck in [num_decks as u16, u16::MAX] {
+                    assert_eq!(state.resolve(&cfg(), deck, 0.0), None);
+                    assert_eq!(state.resolve(&enabled(), deck, 0.9), None);
+                }
+                for deck in 0..num_decks as u16 {
+                    assert_eq!(
+                        state.resolve(&enabled(), deck, 0.9),
+                        Some(FaderStartAction::Play)
+                    );
+                }
+                state.reset();
+                assert_eq!(state.at_zero.len(), num_decks);
+                assert_eq!(state.at_zero.capacity(), capacity);
+                assert_eq!(state.at_zero.as_ptr(), pointer);
+            }
+        }
+    }
+
+    #[test]
+    fn changed_threshold_reseeds_all_decks_in_both_directions() {
+        for (old_threshold, new_threshold, position, next, action) in [
+            (5, 20, 0.1, 0.3, FaderStartAction::Play),
+            (20, 5, 0.1, 0.0, FaderStartAction::PauseAndCue),
+        ] {
+            let mut state = FaderStartState::new(4);
+            let old = FaderStartConfig {
+                threshold_pct: old_threshold,
+                ..enabled()
+            };
+            let new = FaderStartConfig {
+                threshold_pct: new_threshold,
+                ..old
+            };
+            for deck in 0..4 {
+                assert_eq!(state.resolve(&old, deck, position), None);
+            }
+            for deck in 0..4 {
+                assert_eq!(state.resolve(&new, deck, position), None);
+                assert_eq!(state.resolve(&new, deck, next), Some(action));
+            }
+        }
+    }
+
+    #[test]
+    fn enabling_after_disabled_motion_seeds_without_phantom_play() {
+        let mut state = FaderStartState::default();
+        assert_eq!(state.resolve(&cfg(), 0, 0.0), None);
+        assert_eq!(state.resolve(&cfg(), 0, 0.01), None);
+        assert_eq!(state.resolve(&enabled(), 0, 0.9), None);
+        assert_eq!(
+            state.resolve(&enabled(), 0, 0.0),
+            Some(FaderStartAction::PauseAndCue)
+        );
     }
 }

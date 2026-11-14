@@ -955,7 +955,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start or stop playback by moving the channel fader away from or back to the bottom.';
 
   @override
-  String get settingsDeckFaderStartToggle => 'Fader start';
+  String get settingsDeckFaderStartToggle => 'Enable fader start';
 
   @override
   String get settingsDeckFaderStartThreshold => 'Fader threshold';
@@ -966,7 +966,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsDeckFaderStartThresholdPercent(int percent) {
-    return '$percent %';
+    return '$percent %';
   }
 
   @override

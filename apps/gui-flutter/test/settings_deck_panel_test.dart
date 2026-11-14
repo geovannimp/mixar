@@ -23,6 +23,7 @@ void main() {
     WidgetTester tester, {
     required AppSettings draft,
     required ValueChanged<AppSettings> onChanged,
+    Locale locale = const Locale('en'),
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -32,6 +33,7 @@ void main() {
           ),
         ],
         child: mixarTestMaterialApp(
+          locale: locale,
           theme: MixarThemeData.dark(),
           home: Scaffold(
             body: SingleChildScrollView(
@@ -229,6 +231,50 @@ void main() {
     await tester.pump();
   }
 
+  final faderStartToggleLabels = <Locale, String>{
+    const Locale('en'): 'Enable fader start',
+    const Locale('pt'): 'Ativar arranque pelo fader',
+    const Locale('pt', 'BR'): 'Ativar início pelo fader',
+  };
+
+  for (final entry in faderStartToggleLabels.entries) {
+    testWidgets(
+      'fader start semantics and non-breaking percentages for ${entry.key}',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          final l10n = lookupAppLocalizations(entry.key);
+
+          expect(l10n.settingsDeckFaderStartToggle, entry.value);
+          expect(
+            l10n.settingsDeckFaderStartToggle,
+            isNot(l10n.settingsDeckFaderStart),
+          );
+          for (final percent in [0, 5, 100]) {
+            expect(
+              l10n.settingsDeckFaderStartThresholdPercent(percent),
+              '$percent\u00a0%',
+            );
+          }
+
+          await pumpDeckPanel(
+            tester,
+            draft: faderStartDraft(enabled: false),
+            onChanged: (_) {},
+            locale: entry.key,
+          );
+          await tester.ensureVisible(textAnywhere(l10n.settingsDeckFaderStart));
+          await tester.pumpAndSettle();
+
+          expect(find.text(l10n.settingsDeckFaderStart), findsOneWidget);
+          expect(find.bySemanticsLabel(entry.value), findsOneWidget);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
+
   testWidgets(
     'fader start toggle reveals threshold stepper and both action pickers',
     (tester) async {
@@ -244,7 +290,10 @@ void main() {
       await tester.ensureVisible(titleFinder);
       await tester.pumpAndSettle();
 
-      expect(find.text('5 %'), findsNothing);
+      expect(
+        find.text(l10n.settingsDeckFaderStartThresholdPercent(5)),
+        findsNothing,
+      );
       expect(find.byType(SettingsNumericStepper), findsNothing);
       expect(
         find.byType(SettingsSelect<FaderStartOnNonZeroSetting>),
@@ -275,7 +324,10 @@ void main() {
       await tester.ensureVisible(titleFinder);
       await tester.pumpAndSettle();
 
-      expect(find.text('5 %'), findsOneWidget);
+      expect(
+        find.text(l10n.settingsDeckFaderStartThresholdPercent(5)),
+        findsOneWidget,
+      );
       expect(find.byType(SettingsNumericStepper), findsOneWidget);
       expect(
         find.byType(SettingsSelect<FaderStartOnNonZeroSetting>),

@@ -1785,10 +1785,10 @@ abstract class AppLocalizations {
   /// **'Start or stop playback by moving the channel fader away from or back to the bottom.'**
   String get settingsDeckFaderStartHint;
 
-  /// Accessibility label for the fader-start card header switch.
+  /// Action-specific accessibility label for the fader-start card header switch, distinct from the card title.
   ///
   /// In en, this message translates to:
-  /// **'Fader start'**
+  /// **'Enable fader start'**
   String get settingsDeckFaderStartToggle;
 
   /// Label for the fader-start threshold stepper.
@@ -1803,10 +1803,10 @@ abstract class AppLocalizations {
   /// **'How far the fader must rise before it counts as open.'**
   String get settingsDeckFaderStartThresholdHint;
 
-  /// Percentage value shown by the fader-start threshold stepper.
+  /// Integer percentage shown by the fader-start threshold stepper, with a non-breaking space (U+00A0) before the percent sign.
   ///
   /// In en, this message translates to:
-  /// **'{percent} %'**
+  /// **'{percent} %'**
   String settingsDeckFaderStartThresholdPercent(int percent);
 
   /// Label for the action taken when the fader rises above the threshold.

@@ -5,7 +5,7 @@ mod common;
 
 use bus_api::Event;
 use bus_api::{FaderStart, FaderStop, Play, Seek, SetCuePoint, SetFaderStartNative, SetVolume};
-use common::{recv_updated, short_tone_fixture};
+use common::recv_updated;
 use engine_core::fader_start::FaderStartConfig;
 use engine_core::{AudioConfig, EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource};
@@ -63,13 +63,16 @@ fn disabled_config() -> EngineConfig {
     }
 }
 
-fn load_short_tone(session: &EngineSession) {
+fn load_test_track(session: &EngineSession) {
+    let dir = tempfile::tempdir().expect("fixture dir");
+    let path = dir.path().join("fader-start.wav");
+    // Outlast the receive deadlines and the explicit 5/9-second cue/seek tests.
+    common::write_silence_then_tone_wav(&path, 0, 30_000, 48_000);
     session
         .with_engine(|engine| {
-            engine.load_track(
-                0,
-                AudioSource::File(FileAudioSource::from_path(short_tone_fixture())),
-            )?;
+            // This direct API loads synchronously, unlike a bus Load command.
+            engine.load_track(0, AudioSource::File(FileAudioSource::from_path(&path)))?;
+            assert_eq!(engine.deck_has_audio_loaded(0), Some(true));
             Ok(())
         })
         .expect("load");
@@ -83,7 +86,7 @@ fn started_session(config: EngineConfig) -> (EngineSession, common::TestReceiver
     let session = EngineSession::new(config).expect("session");
     let evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
     (session, evt)
 }
 
@@ -98,7 +101,7 @@ fn fader_leaving_zero_plays_and_returning_pauses() {
     let session = EngineSession::new(enabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     // Seed the latch at zero.
     publish(
@@ -142,7 +145,7 @@ fn disabled_config_never_touches_transport() {
     let session = EngineSession::new(disabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     publish(
         &session,
@@ -200,7 +203,7 @@ fn pause_and_cue_returns_to_the_cue_point() {
     let session = EngineSession::new(enabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     // Set a cue point at 5000 ms.
     publish(
@@ -264,7 +267,7 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     let session = EngineSession::new(enabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     // Play from 9000 ms without setting an explicit cue point.
     // The freshly loaded track already has a temporary cue at the start (0 ms).
@@ -312,8 +315,8 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     assert_eq!(down.position_ms, Some(0));
 }
 
-/// A deck that silently emits no `DeckUpdated` for `timeout` (native/disabled
-/// paths publish nothing instead of an error or a spurious update).
+/// Wait for a quiet window, allowing telemetry but failing immediately on a deck
+/// update or error. The blocking receive is bounded by an absolute deadline.
 fn assert_no_deck_updated(sub: &mut common::TestReceiver, timeout: Duration) {
     let deadline = Instant::now() + timeout;
     loop {
@@ -321,11 +324,11 @@ fn assert_no_deck_updated(sub: &mut common::TestReceiver, timeout: Duration) {
         if remaining.is_zero() {
             return;
         }
-        match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+        match sub.recv_timeout(remaining) {
             Ok(None) => {}
             Ok(Some(event)) => {
-                if matches!(event, Event::DeckUpdated(_)) {
-                    panic!("expected no DeckUpdated, got {event:?}");
+                if matches!(event, Event::DeckUpdated(_) | Event::Error(_)) {
+                    panic!("expected no DeckUpdated or Error, got {event:?}");
                 }
             }
             Err(error) => panic!("evt bus disconnected: {error}"),
@@ -338,7 +341,7 @@ fn native_events_run_the_configured_actions() {
     let session = EngineSession::new(enabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
     let started = recv_updated(&mut evt);
@@ -355,7 +358,7 @@ fn native_deck_ignores_the_software_threshold() {
     let session = EngineSession::new(enabled_config()).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    load_short_tone(&session);
+    load_test_track(&session);
 
     publish(
         &session,

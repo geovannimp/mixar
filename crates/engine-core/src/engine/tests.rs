@@ -96,6 +96,147 @@ fn four_deck_engine_accepts_native_ownership_for_decks_three_and_four() {
 }
 
 #[test]
+fn fader_actions_reject_ids_outside_the_configured_deck_count() {
+    for num_decks in [2, 4] {
+        let mut engine = Engine::new(EngineConfig {
+            backend: "null".into(),
+            num_decks,
+            ..Default::default()
+        })
+        .unwrap();
+        engine.set_fader_start_config(FaderStartConfig {
+            enabled: true,
+            ..Default::default()
+        });
+        for deck in 0..num_decks as u16 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        for deck in [num_decks as u16, u16::MAX] {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+            assert_eq!(engine.fader_start_action(deck, 0.9), None);
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        for deck in 0..num_decks as u16 {
+            assert_eq!(
+                engine.fader_start_action(deck, 0.9),
+                Some(FaderStartAction::Play)
+            );
+        }
+    }
+}
+
+#[test]
+fn effective_fader_config_changes_rearm_every_deck() {
+    let initial = FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    };
+    for changed in [
+        FaderStartConfig {
+            threshold_pct: 20,
+            ..initial
+        },
+        FaderStartConfig {
+            enabled: false,
+            ..initial
+        },
+        FaderStartConfig {
+            on_non_zero: crate::fader_start::OnNonZeroAction::TogglePlay,
+            ..initial
+        },
+        FaderStartConfig {
+            on_zero: crate::fader_start::OnZeroAction::Pause,
+            ..initial
+        },
+    ] {
+        let mut engine = Engine::new(EngineConfig {
+            backend: "null".into(),
+            num_decks: 4,
+            ..Default::default()
+        })
+        .unwrap();
+        engine.set_fader_start_config(initial);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        engine.set_fader_start_config(changed);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.9), None);
+        }
+        // Re-enabling also seeds instead of acting on the previous open latch.
+        engine.set_fader_start_config(initial);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+            assert_eq!(
+                engine.fader_start_action(deck, 0.9),
+                Some(FaderStartAction::Play)
+            );
+        }
+    }
+}
+
+#[test]
+fn equivalent_normalized_fader_config_preserves_latches() {
+    let mut engine = Engine::new(EngineConfig {
+        backend: "null".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let config = FaderStartConfig {
+        enabled: true,
+        threshold_pct: 20,
+        ..Default::default()
+    };
+    engine.set_fader_start_config(config);
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    engine.set_fader_start_config(FaderStartConfig {
+        threshold_pct: u8::MAX,
+        ..config
+    });
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn track_lifecycle_and_pause_and_cue_preserve_physical_fader_latches() {
+    let mut engine = started_null_engine();
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    engine
+        .load_prepared_track(0, prepared_test_source(None))
+        .unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+    // This is the transport sequence used by the PauseAndCue dispatcher.
+    engine.pause(0).unwrap();
+    engine.seek_deck(0, 0).unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+    engine.unload_deck(0).unwrap();
+    engine
+        .load_prepared_track(0, prepared_test_source(None))
+        .unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+    engine.stop().unwrap();
+}
+
+#[test]
 fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
     let config = EngineConfig {
         backend: "null".into(),
