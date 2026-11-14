@@ -14,6 +14,7 @@ mod curve_library;
 pub mod curve_presets;
 mod deck_pads;
 mod engine;
+pub mod fader_start;
 mod fx_level_curve;
 mod library_bridge;
 mod load;

@@ -25,6 +25,8 @@ sync = "Deck(_)::toggle_sync"
 tempo_range = "Deck(_)::cycle_tempo_range"
 quantize = "Deck(_)::set_quantize"
 headphone_cue = "Deck(_)::set_headphone_cue"
+fader_start = "Deck(_)::fader_start"
+fader_stop = "Deck(_)::fader_stop"
 volume = { action = "Deck(_)::set_volume", soft_takeover = true }
 gain = { action = "Deck(_)::set_gain", soft_takeover = true }
 tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
@@ -126,6 +128,8 @@ sync = "Deck(_)::toggle_sync"
 tempo_range = "Deck(_)::cycle_tempo_range"
 quantize = "Deck(_)::set_quantize"
 headphone_cue = "Deck(_)::set_headphone_cue"
+fader_start = "Deck(_)::fader_start"
+fader_stop = "Deck(_)::fader_stop"
 volume = { action = "Deck(_)::set_volume", soft_takeover = true }
 gain = { action = "Deck(_)::set_gain", soft_takeover = true }
 tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }

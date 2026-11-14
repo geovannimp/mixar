@@ -104,6 +104,17 @@ bus_events! {
         { deck: u16 };
     EndCueHold: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16 };
+    /// Native controller trigger: this deck's channel fader left its zero band.
+    FaderStart: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16 };
+    /// Native controller trigger: this deck's channel fader returned to its zero band.
+    FaderStop: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16 };
+    /// Set whether a controller mapping owns fader-start events for this deck.
+    /// `native = true` suppresses the software volume threshold; `false` restores it.
+    /// This ownership flag does not change whether fader start is enabled.
+    SetFaderStartNative: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16, native: bool };
     SetQuantize: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, enabled: bool };
     ToggleQuantize: Toggle, Entity::Deck(*deck), Part::Whole,

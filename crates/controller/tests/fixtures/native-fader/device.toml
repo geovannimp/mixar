@@ -1,0 +1,13 @@
+schema_version = 1
+id = "test.native-fader"
+vendor_name = "Test"
+product_name = "NativeFader"
+midi_name_contains = ["NativeFader"]
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/device.tosd"
+
+[deck_1]
+fader_start = { type = "note", channel = 1, note = 0x66 }
+fader_stop = { type = "note", channel = 1, note = 0x52 }

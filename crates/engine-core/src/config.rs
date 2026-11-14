@@ -3,6 +3,8 @@ use anyhow::{ensure, Result};
 use audio_core::BusConfig;
 use std::path::Path;
 
+use crate::fader_start::FaderStartConfig;
+
 /// Engine callback size must be a multiple of this (matches `dasp_graph::Buffer::LEN`).
 pub const BUFFER_SIZE_MULTIPLE: u32 = 64;
 
@@ -116,6 +118,9 @@ pub struct AudioConfig {
     /// Custom curve library available to `default_crossfader_curve`.
     #[serde(default)]
     pub curve_library: Option<bus_api::CurveLibrarySpec>,
+    /// Channel-fader start/stop configuration.
+    #[serde(default)]
+    pub fader_start: Option<FaderStartConfig>,
 }
 
 /// Sampler ↔ channel-strip routing (persisted in engine config).
@@ -317,6 +322,15 @@ impl EngineConfig {
             .as_ref()
             .and_then(|audio| audio.curve_library.clone())
             .unwrap_or_default()
+    }
+
+    /// Channel-fader start/stop configuration with clamped defaults.
+    pub fn fader_start(&self) -> FaderStartConfig {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.fader_start)
+            .unwrap_or_default()
+            .clamp()
     }
 
     /// Validate fields that the engine requires to be well-formed.
@@ -573,6 +587,7 @@ default_crossfader_curve = "fast_cut(0.1)"
                 default_fx_level_curve: None,
                 crossfader_behavior: None,
                 curve_library: None,
+                fader_start: None,
             }),
             ..EngineConfig::default()
         };

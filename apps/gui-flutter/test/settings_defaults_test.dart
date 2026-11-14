@@ -483,6 +483,63 @@ void main() {
     );
   });
 
+  test('fader start defaults off and is dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.faderStartEnabled, isFalse);
+    expect(baseline.faderStartThresholdPct, 5);
+    expect(baseline.faderStartOnNonZero, FaderStartOnNonZeroSetting.play);
+    expect(baseline.faderStartOnZero, FaderStartOnZeroSetting.pauseAndCue);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, faderStartEnabled: true),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, faderStartThresholdPct: 10),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          faderStartOnNonZero: FaderStartOnNonZeroSetting.togglePlay,
+        ),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          faderStartOnZero: FaderStartOnZeroSetting.nothing,
+        ),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('copyAppSettings carries all four fader start fields', () {
+    final baseline = defaultAppSettings();
+    final copy = copyAppSettings(
+      baseline,
+      faderStartEnabled: true,
+      faderStartThresholdPct: 12,
+      faderStartOnNonZero: FaderStartOnNonZeroSetting.togglePlay,
+      faderStartOnZero: FaderStartOnZeroSetting.nothing,
+    );
+    expect(copy.faderStartEnabled, isTrue);
+    expect(copy.faderStartThresholdPct, 12);
+    expect(copy.faderStartOnNonZero, FaderStartOnNonZeroSetting.togglePlay);
+    expect(copy.faderStartOnZero, FaderStartOnZeroSetting.nothing);
+  });
+
   test('waveform position defaults top and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.waveformPosition, WaveformPositionSetting.top);

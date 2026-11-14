@@ -1773,6 +1773,90 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 second} other{{count} seconds}}'**
   String settingsDeckEndWarningSeconds(int count);
 
+  /// Title of the fader-start card in Deck settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Fader start'**
+  String get settingsDeckFaderStart;
+
+  /// Subtitle explaining the fader-start feature.
+  ///
+  /// In en, this message translates to:
+  /// **'Start or stop playback by moving the channel fader away from or back to the bottom.'**
+  String get settingsDeckFaderStartHint;
+
+  /// Action-specific accessibility label for the fader-start card header switch, distinct from the card title.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable fader start'**
+  String get settingsDeckFaderStartToggle;
+
+  /// Label for the fader-start threshold stepper.
+  ///
+  /// In en, this message translates to:
+  /// **'Fader threshold'**
+  String get settingsDeckFaderStartThreshold;
+
+  /// Hint for the fader-start threshold stepper.
+  ///
+  /// In en, this message translates to:
+  /// **'How far the fader must rise before it counts as open.'**
+  String get settingsDeckFaderStartThresholdHint;
+
+  /// Integer percentage shown by the fader-start threshold stepper, with a non-breaking space (U+00A0) before the percent sign.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} %'**
+  String settingsDeckFaderStartThresholdPercent(int percent);
+
+  /// Label for the action taken when the fader rises above the threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'When fader opens'**
+  String get settingsDeckFaderStartOnNonZero;
+
+  /// Label for the action taken when the fader returns to the bottom.
+  ///
+  /// In en, this message translates to:
+  /// **'When fader closes'**
+  String get settingsDeckFaderStartOnZero;
+
+  /// Start playing when the fader opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get settingsDeckFaderStartOnNonZeroPlay;
+
+  /// Toggle play/pause when the fader opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle play'**
+  String get settingsDeckFaderStartOnNonZeroTogglePlay;
+
+  /// Do nothing when the fader opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get settingsDeckFaderStartOnNonZeroNothing;
+
+  /// Pause when the fader closes.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get settingsDeckFaderStartOnZeroPause;
+
+  /// Pause and return to the cue point when the fader closes.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause and back to cue'**
+  String get settingsDeckFaderStartOnZeroPauseAndCue;
+
+  /// Do nothing when the fader closes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get settingsDeckFaderStartOnZeroNothing;
+
   /// Screen-reader label for a numeric stepper's decrement button.
   ///
   /// In en, this message translates to:

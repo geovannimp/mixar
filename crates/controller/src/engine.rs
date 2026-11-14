@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::action::DeckFeedback;
 use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
+use crate::map_file::MapFile;
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
 use bus_api::Event;
@@ -79,6 +80,59 @@ struct Attached {
     output: Option<MidiOutputConnection>,
     send_gate: crate::report::FailureGate,
     lifecycle_gate: crate::report::FailureGate,
+    /// Zero-based decks for which this attached controller declares native fader-start
+    /// ownership. Detection matches the final `fader_start` or `fader_stop` leaf of `[inputs.deck_N]`
+    /// control paths, including slash-separated paths, and converts `N` to `N - 1`.
+    /// While any attachment owns a deck, native fader-start suppresses the software
+    /// volume-threshold path. Detaching releases ownership only if no other attached
+    /// controller still owns that deck.
+    native_fader_decks: Vec<u16>,
+}
+
+const DECK_SECTION_PREFIX: &str = "deck_";
+const FADER_START_LEAF: &str = "fader_start";
+const FADER_STOP_LEAF: &str = "fader_stop";
+
+/// Discover native owners once per deck, including slash-separated control paths.
+/// Either native edge suppresses software threshold handling for that deck, so
+/// stop-only mappings cannot double-fire the software falling-edge action.
+fn native_fader_decks(map: &MapFile) -> Vec<u16> {
+    map.inputs
+        .iter()
+        .filter(|(_, bindings)| {
+            bindings.keys().any(|control| {
+                matches!(
+                    control.rsplit('/').next(),
+                    Some(FADER_START_LEAF | FADER_STOP_LEAF)
+                )
+            })
+        })
+        .filter_map(|(section, _)| {
+            section
+                .strip_prefix(DECK_SECTION_PREFIX)?
+                .parse::<u16>()
+                .ok()?
+                .checked_sub(1)
+        })
+        .collect()
+}
+
+/// Decks that must release native fader-start ownership after an attachment
+/// owning `removed_decks` detaches. `remaining` are the native decks still owned
+/// by live attachments; a deck is released only when none of them owns it.
+fn native_decks_to_release<'a>(
+    removed_decks: &[u16],
+    remaining: impl IntoIterator<Item = &'a [u16]>,
+) -> Vec<u16> {
+    let mut still_owned: HashSet<u16> = HashSet::new();
+    for decks in remaining {
+        still_owned.extend(decks.iter().copied());
+    }
+    removed_decks
+        .iter()
+        .copied()
+        .filter(|deck| !still_owned.contains(deck))
+        .collect()
 }
 
 struct MidiSink<'a> {
@@ -779,6 +833,7 @@ impl ControllerEngine {
             &port_name,
         );
         let device_id = bundle.device.id.clone();
+        let native_fader_decks = native_fader_decks(&bundle.map);
         let mut session = MappingSession::from_bundle(bundle)?;
         let mut send_gate = crate::report::FailureGate::default();
         {
@@ -825,6 +880,7 @@ impl ControllerEngine {
                 output,
                 send_gate,
                 lifecycle_gate: crate::report::FailureGate::default(),
+                native_fader_decks: native_fader_decks.clone(),
             },
         );
         self.refresh_pending_offers_cache();
@@ -834,6 +890,13 @@ impl ControllerEngine {
                 mapping_id: mapping_id.to_string(),
                 port_name,
             }));
+        for deck in native_fader_decks {
+            self.events
+                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+                    deck,
+                    native: true,
+                }));
+        }
         Ok(())
     }
 
@@ -858,6 +921,7 @@ impl ControllerEngine {
         let Some(mut attached) = self.attached.remove(port_name) else {
             return Ok(());
         };
+        let removed_native_decks = attached.native_fader_decks.clone();
         if suppress {
             self.suppressed_ports.insert(port_name.to_string());
         }
@@ -886,6 +950,21 @@ impl ControllerEngine {
                 mapping_id: attached.mapping_id,
                 port_name: port_name.to_string(),
             }));
+        // Release native fader-start ownership only for decks whose last live
+        // owner just detached; a sibling attachment may still own the deck.
+        let released = native_decks_to_release(
+            &removed_native_decks,
+            self.attached
+                .values()
+                .map(|a| a.native_fader_decks.as_slice()),
+        );
+        for deck in released {
+            self.events
+                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+                    deck,
+                    native: false,
+                }));
+        }
         self.refresh_pending_offers_cache();
         Ok(())
     }
@@ -1423,5 +1502,163 @@ mod tests {
             &parsed(&[1, 2], true),
             &parsed(&[1, 2], true)
         ));
+    }
+
+    fn native_fader_test_map(inputs: &str) -> MapFile {
+        MapFile::parse(
+            &format!("schema_version = 1\n{inputs}"),
+            Path::new("map.toml"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn native_fader_decks_discovers_all_numbered_sections() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_2]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_4]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_65535]
+fader_start = "Deck(_)::fader_start"
+"#,
+        );
+
+        // This checks the u16 parser boundary, not supported playback capacity.
+        // Engines currently configure two or four decks and reject higher IDs.
+        assert_eq!(native_fader_decks(&map), vec![0, 1, 2, 3, 65534]);
+    }
+
+    #[test]
+    fn native_fader_decks_matches_only_the_final_control_path_leaf() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+"fader_start/press" = "Deck(_)::fader_start"
+not_fader_start = "Deck(_)::fader_start"
+not_fader_stop = "Deck(_)::fader_stop"
+"fader_stop/release" = "Deck(_)::fader_stop"
+[inputs.deck_2]
+fader_stop = "Deck(_)::fader_stop"
+"fader_start/" = "Deck(_)::fader_start"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+"mixer/fader_start" = "Deck(_)::fader_start"
+[inputs.deck_4]
+"mixer/channel/fader_start" = "Deck(_)::fader_start"
+"other/fader_start" = "Deck(_)::fader_start"
+"#,
+        );
+
+        // Multiple matching controls still give each deck only one owner entry.
+        assert_eq!(native_fader_decks(&map), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn native_fader_decks_include_stop_only_mappings_without_duplicate_owners() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+fader_stop = "Deck(_)::fader_stop"
+[inputs.deck_2]
+"mixer/fader_stop" = "Deck(_)::fader_stop"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+fader_stop = "Deck(_)::fader_stop"
+[inputs.deck_4]
+"fader_stop/release" = "Deck(_)::fader_stop"
+not_fader_stop = "Deck(_)::fader_stop"
+"#,
+        );
+        let owners = native_fader_decks(&map);
+        assert_eq!(owners, vec![0, 1, 2]);
+        let sibling = [1u16, 2];
+        assert_eq!(
+            native_decks_to_release(&owners, [sibling.as_slice()]),
+            vec![0]
+        );
+    }
+
+    #[test]
+    fn native_fader_decks_ignores_invalid_sections_without_overflow() {
+        for section in [
+            "master",
+            "sampler",
+            "custom",
+            "Deck_3",
+            "decks_3",
+            "deck_",
+            "deck_0",
+            "deck_-1",
+            "deck_one",
+            "deck_3_extra",
+            "deck_3/child",
+            "deck_3 ",
+            "deck_65536",
+            "deck_18446744073709551616",
+        ] {
+            let map = native_fader_test_map(&format!(
+                "[inputs.\"{section}\"]\nfader_start = \"Deck(_)::fader_start\"\n"
+            ));
+
+            assert!(native_fader_decks(&map).is_empty(), "{section}");
+        }
+    }
+
+    #[test]
+    fn discovered_native_decks_preserve_sibling_ownership_on_detach() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_4]
+fader_start = "Deck(_)::fader_start"
+"#,
+        );
+        let removed = native_fader_decks(&map);
+        let sibling = [3u16];
+
+        assert_eq!(
+            native_decks_to_release(&removed, [sibling.as_slice()]),
+            vec![2]
+        );
+        assert_eq!(
+            native_decks_to_release(&removed, std::iter::empty()),
+            vec![2, 3]
+        );
+    }
+
+    #[test]
+    fn native_ownership_survives_while_a_sibling_owns_the_deck() {
+        // Two ports attach mappings that both own deck 0. Detaching one must not
+        // release deck 0 while the surviving attachment still owns it.
+        let survivor = [0u16];
+        let none: [u16; 0] = [];
+        let released = native_decks_to_release(&[0], [survivor.as_slice(), none.as_slice()]);
+        assert!(
+            released.is_empty(),
+            "sibling still owns deck 0; must not release: {released:?}"
+        );
+    }
+
+    #[test]
+    fn last_native_owner_detaching_releases_only_its_unowned_decks() {
+        // Deck 0's last owner detaches while a sibling still owns deck 1.
+        let sibling = [1u16];
+        let released = native_decks_to_release(&[0, 1], [sibling.as_slice()]);
+        assert_eq!(released, vec![0]);
+    }
+
+    #[test]
+    fn unrelated_detach_releases_no_native_ownership() {
+        let owner_a = [0u16];
+        let owner_b = [1u16];
+        let released = native_decks_to_release(&[], [owner_a.as_slice(), owner_b.as_slice()]);
+        assert!(released.is_empty());
     }
 }

@@ -34,24 +34,266 @@ fn prepared_test_source(loudness_lufs: Option<f64>) -> PreparedTrackPlayback {
     }
 }
 
-fn started_null_engine() -> Engine {
-    let config = EngineConfig {
-        backend: "null".to_string(),
+fn null_engine(num_decks: usize) -> Engine {
+    Engine::new(EngineConfig {
+        backend: "null".into(),
+        num_decks,
         ..Default::default()
-    };
-    let mut engine = Engine::new(config).unwrap();
+    })
+    .unwrap()
+}
+
+fn started_null_engine() -> Engine {
+    let mut engine = null_engine(2);
     engine.start().unwrap();
     engine
 }
 
 #[test]
-fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
-    let config = EngineConfig {
-        backend: "null".into(),
-        num_decks: 4,
+fn native_fader_ownership_recorded_while_disabled_survives_enabling() {
+    let mut engine = null_engine(2);
+    assert!(!engine.fader_start_cfg.enabled);
+    engine.set_fader_start_native(0, true);
+    assert!(engine.fader_start_native[0]);
+
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    assert_eq!(engine.fader_start_action(0, 0.5), None);
+    assert_eq!(engine.fader_start_action(1, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(1, 0.5),
+        Some(FaderStartAction::Play)
+    );
+
+    engine.set_fader_start_native(0, false);
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(0, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn native_fader_ownership_changes_only_rearm_the_affected_deck() {
+    let mut engine = null_engine(2);
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    for deck in [0, 1] {
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+    }
+
+    engine.set_fader_start_native(0, true);
+    engine.set_fader_start_native(0, false);
+
+    assert_eq!(
+        engine.fader_start_action(1, 0.5),
+        Some(FaderStartAction::Play)
+    );
+    assert_eq!(engine.fader_start_action(0, 0.5), None);
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+}
+
+#[test]
+fn unchanged_native_fader_ownership_preserves_software_latches() {
+    let mut engine = null_engine(2);
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    for deck in [0, 1] {
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        engine.set_fader_start_native(deck, false);
+        assert_eq!(
+            engine.fader_start_action(deck, 0.5),
+            Some(FaderStartAction::Play)
+        );
+    }
+}
+
+#[test]
+fn native_fader_ownership_ignores_unknown_decks_without_resetting_latches() {
+    let mut engine = started_null_engine();
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    let deck_count = engine.fader_start_native.len();
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+
+    for deck in [2, u16::MAX] {
+        engine.set_fader_start_native(deck, true);
+        engine.set_fader_start_native(deck, false);
+    }
+
+    assert_eq!(engine.fader_start_native.len(), deck_count);
+    assert!(engine.fader_start_native.iter().all(|native| !native));
+    assert_eq!(
+        engine.fader_start_action(0, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn four_deck_engine_accepts_native_ownership_for_decks_three_and_four() {
+    let mut engine = null_engine(4);
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+
+    for deck in [2, 3] {
+        engine.set_fader_start_native(deck, true);
+        assert!(engine.fader_start_native[usize::from(deck)]);
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        assert_eq!(engine.fader_start_action(deck, 0.5), None);
+    }
+
+    engine.set_fader_start_native(3, false);
+    assert_eq!(engine.fader_start_action(3, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(3, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn fader_actions_reject_ids_outside_the_configured_deck_count() {
+    for num_decks in [2, 4] {
+        let mut engine = null_engine(num_decks);
+        engine.set_fader_start_config(FaderStartConfig {
+            enabled: true,
+            ..Default::default()
+        });
+        for deck in 0..num_decks as u16 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        for deck in [num_decks as u16, u16::MAX] {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+            assert_eq!(engine.fader_start_action(deck, 0.9), None);
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        for deck in 0..num_decks as u16 {
+            assert_eq!(
+                engine.fader_start_action(deck, 0.9),
+                Some(FaderStartAction::Play)
+            );
+        }
+    }
+}
+
+#[test]
+fn effective_fader_config_changes_rearm_every_deck() {
+    let initial = FaderStartConfig {
+        enabled: true,
         ..Default::default()
     };
-    let mut engine = Engine::new(config).unwrap();
+    for changed in [
+        FaderStartConfig {
+            threshold_pct: 20,
+            ..initial
+        },
+        FaderStartConfig {
+            enabled: false,
+            ..initial
+        },
+        FaderStartConfig {
+            on_non_zero: crate::fader_start::OnNonZeroAction::TogglePlay,
+            ..initial
+        },
+        FaderStartConfig {
+            on_zero: crate::fader_start::OnZeroAction::Pause,
+            ..initial
+        },
+    ] {
+        let mut engine = null_engine(4);
+        engine.set_fader_start_config(initial);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        }
+        engine.set_fader_start_config(changed);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.9), None);
+        }
+        // Re-enabling also seeds instead of acting on the previous open latch.
+        engine.set_fader_start_config(initial);
+        for deck in 0..4 {
+            assert_eq!(engine.fader_start_action(deck, 0.0), None);
+            assert_eq!(
+                engine.fader_start_action(deck, 0.9),
+                Some(FaderStartAction::Play)
+            );
+        }
+    }
+}
+
+#[test]
+fn equivalent_normalized_fader_config_preserves_latches() {
+    let mut engine = null_engine(2);
+    let config = FaderStartConfig {
+        enabled: true,
+        threshold_pct: 20,
+        ..Default::default()
+    };
+    engine.set_fader_start_config(config);
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    engine.set_fader_start_config(FaderStartConfig {
+        threshold_pct: u8::MAX,
+        ..config
+    });
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
+fn track_lifecycle_and_pause_and_cue_preserve_physical_fader_latches() {
+    let mut engine = started_null_engine();
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    engine
+        .load_prepared_track(0, prepared_test_source(None))
+        .unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+    // This is the transport sequence used by the PauseAndCue dispatcher.
+    engine.pause(0).unwrap();
+    engine.seek_deck(0, 0).unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.9),
+        Some(FaderStartAction::Play)
+    );
+    engine.unload_deck(0).unwrap();
+    engine
+        .load_prepared_track(0, prepared_test_source(None))
+        .unwrap();
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+    engine.stop().unwrap();
+}
+
+#[test]
+fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
+    let mut engine = null_engine(4);
     engine.start().unwrap();
 
     engine.set_deck_volume(3, 0.25).unwrap();
@@ -701,6 +943,7 @@ fn empty_audio() -> crate::config::AudioConfig {
         default_fx_level_curve: None,
         crossfader_behavior: None,
         curve_library: None,
+        fader_start: None,
     }
 }
 

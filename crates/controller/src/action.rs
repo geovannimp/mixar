@@ -10,6 +10,8 @@ use bus_api::EndCueHold;
 use bus_api::EqBand;
 use bus_api::Event;
 use bus_api::ExitLoop;
+use bus_api::FaderStart;
+use bus_api::FaderStop;
 use bus_api::Focus;
 use bus_api::FxKind;
 use bus_api::FxSlotState;
@@ -582,6 +584,8 @@ pub fn resolve_action(
                 deck_cmd(scope, |deck| Event::EndCueHold(EndCueHold { deck }))
             }
         }
+        "fader_start" => deck_press(active, scope, |deck| Event::FaderStart(FaderStart { deck })),
+        "fader_stop" => deck_press(active, scope, |deck| Event::FaderStop(FaderStop { deck })),
         "begin_cue_hold" => deck_press(active, scope, |deck| {
             Event::BeginCueHold(BeginCueHold { deck })
         }),

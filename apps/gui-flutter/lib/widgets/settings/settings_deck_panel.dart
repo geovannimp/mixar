@@ -23,6 +23,10 @@ class SettingsDeckPanel extends ConsumerWidget {
   final ValueChanged<AppSettings> onChanged;
 
   static const List<JogModeSetting> _jogModes = JogModeSetting.values;
+  static const List<FaderStartOnNonZeroSetting> _faderStartOnNonZeroOptions =
+      FaderStartOnNonZeroSetting.values;
+  static const List<FaderStartOnZeroSetting> _faderStartOnZeroOptions =
+      FaderStartOnZeroSetting.values;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,6 +128,67 @@ class SettingsDeckPanel extends ConsumerWidget {
                       copyAppSettings(draft, vinylBrakeStopSecs: v),
                     ),
                   ),
+                )
+              : null,
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsDeckFaderStart,
+          subtitle: l10n.settingsDeckFaderStartHint,
+          trailing: SettingsHeaderSwitch(
+            value: draft.faderStartEnabled,
+            semanticsLabel: l10n.settingsDeckFaderStartToggle,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, faderStartEnabled: v)),
+          ),
+          child: draft.faderStartEnabled
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 16,
+                  children: [
+                    SettingsField(
+                      label: l10n.settingsDeckFaderStartThreshold,
+                      hint: l10n.settingsDeckFaderStartThresholdHint,
+                      child: SettingsNumericStepper(
+                        value: draft.faderStartThresholdPct.toDouble(),
+                        min: 1,
+                        max: 20,
+                        step: 1,
+                        format: (v) => l10n
+                            .settingsDeckFaderStartThresholdPercent(v.round()),
+                        fieldLabel: l10n.settingsDeckFaderStartThreshold,
+                        onChanged: (v) => onChanged(
+                          copyAppSettings(
+                            draft,
+                            faderStartThresholdPct: v.round(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SettingsField(
+                      label: l10n.settingsDeckFaderStartOnNonZero,
+                      child: SettingsSelect(
+                        dialogTitle: l10n.settingsDeckFaderStartOnNonZero,
+                        value: draft.faderStartOnNonZero,
+                        options: _faderStartOnNonZeroOptions,
+                        labelBuilder: (m) => _faderStartOnNonZeroLabel(l10n, m),
+                        onChanged: (m) => onChanged(
+                          copyAppSettings(draft, faderStartOnNonZero: m),
+                        ),
+                      ),
+                    ),
+                    SettingsField(
+                      label: l10n.settingsDeckFaderStartOnZero,
+                      child: SettingsSelect(
+                        dialogTitle: l10n.settingsDeckFaderStartOnZero,
+                        value: draft.faderStartOnZero,
+                        options: _faderStartOnZeroOptions,
+                        labelBuilder: (m) => _faderStartOnZeroLabel(l10n, m),
+                        onChanged: (m) => onChanged(
+                          copyAppSettings(draft, faderStartOnZero: m),
+                        ),
+                      ),
+                    ),
+                  ],
                 )
               : null,
         ),
@@ -276,6 +341,27 @@ class SettingsDeckPanel extends ConsumerWidget {
         JogModeSetting.pitchBend => l10n.settingsDeckJogPitchBend,
         JogModeSetting.ignore => l10n.settingsDeckJogIgnore,
       };
+
+  static String _faderStartOnNonZeroLabel(
+    AppLocalizations l10n,
+    FaderStartOnNonZeroSetting value,
+  ) => switch (value) {
+    FaderStartOnNonZeroSetting.play => l10n.settingsDeckFaderStartOnNonZeroPlay,
+    FaderStartOnNonZeroSetting.togglePlay =>
+      l10n.settingsDeckFaderStartOnNonZeroTogglePlay,
+    FaderStartOnNonZeroSetting.nothing =>
+      l10n.settingsDeckFaderStartOnNonZeroNothing,
+  };
+
+  static String _faderStartOnZeroLabel(
+    AppLocalizations l10n,
+    FaderStartOnZeroSetting value,
+  ) => switch (value) {
+    FaderStartOnZeroSetting.pause => l10n.settingsDeckFaderStartOnZeroPause,
+    FaderStartOnZeroSetting.pauseAndCue =>
+      l10n.settingsDeckFaderStartOnZeroPauseAndCue,
+    FaderStartOnZeroSetting.nothing => l10n.settingsDeckFaderStartOnZeroNothing,
+  };
 }
 
 /// Warning window in seconds, snapped to the slider's 5 s grid. The card's

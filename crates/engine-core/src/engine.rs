@@ -1,6 +1,7 @@
 use crate::backend::create_backend;
 use crate::callback::ConsumerCallback;
 use crate::config::EngineConfig;
+use crate::fader_start::{FaderStartAction, FaderStartConfig, FaderStartState};
 use crate::producer::{
     create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceRateConverter,
     DeviceStreamSetup,
@@ -58,6 +59,12 @@ pub struct Engine {
     pub(crate) fx_level_selection: crate::fx_level_curve::FxLevelCurveSelection,
     /// CDJ Auto Cue: a deck load moves the playhead to the track cue.
     pub(crate) auto_cue: bool,
+    /// Channel-fader start/stop configuration.
+    pub(crate) fader_start_cfg: FaderStartConfig,
+    /// Latched fader state per deck.
+    pub(crate) fader_start_state: FaderStartState,
+    /// Decks whose fader-start is handled by a native controller mapping.
+    pub(crate) fader_start_native: Vec<bool>,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -148,6 +155,7 @@ impl Engine {
                 crate::fx_level_curve::FxLevelCurveSelection::linear()
             }
         };
+        let fader_start_cfg = config.fader_start();
 
         Ok(Self {
             config,
@@ -178,6 +186,9 @@ impl Engine {
                 .collect(),
             fx_level_selection,
             auto_cue: true,
+            fader_start_cfg,
+            fader_start_state: FaderStartState::new(num_decks),
+            fader_start_native: vec![false; num_decks],
         })
     }
 
@@ -611,6 +622,61 @@ impl Engine {
     /// Soft-takeover latch table (absolute MIDI controls).
     pub fn soft_takeover_mut(&mut self) -> &mut crate::soft_takeover::SoftTakeoverState {
         &mut self.soft_takeover
+    }
+
+    /// Replace the active channel-fader start/stop configuration.
+    ///
+    /// Effective changes re-arm all latches; the next value seeds without an
+    /// action. Reapplying the same normalized config preserves physical state.
+    pub fn set_fader_start_config(&mut self, cfg: FaderStartConfig) {
+        let cfg = cfg.clamp();
+        if self.fader_start_cfg != cfg {
+            self.fader_start_cfg = cfg;
+            self.reset_fader_start();
+        }
+    }
+
+    /// Mark a deck's fader start as controller-native (or re-arm software).
+    ///
+    /// Only the referenced deck's software latch is re-armed when ownership
+    /// changes. Other decks and repeated ownership notifications retain their
+    /// state; unknown decks are ignored.
+    pub fn set_fader_start_native(&mut self, deck: u16, native: bool) {
+        let Some(flag) = self.fader_start_native.get_mut(usize::from(deck)) else {
+            tracing::debug!(
+                deck,
+                configured_decks = self.fader_start_native.len(),
+                native,
+                "ignoring native fader ownership for unknown deck"
+            );
+            return;
+        };
+        if *flag != native {
+            *flag = native;
+            self.fader_start_state.reset_deck(deck);
+        }
+    }
+
+    /// Resolve a fader volume into a transport action, if any.
+    ///
+    /// Decks marked as `fader_start_native` are skipped so controller-native
+    /// fader-start handling (Task 3) does not fight the software resolver.
+    pub fn fader_start_action(&mut self, deck: u16, volume: f32) -> Option<FaderStartAction> {
+        let &native = self.fader_start_native.get(usize::from(deck))?;
+        if native {
+            return None;
+        }
+        self.fader_start_state
+            .resolve(&self.fader_start_cfg, deck, volume)
+    }
+
+    /// Reset every deck's fader-start latch.
+    ///
+    /// Use for global configuration changes, not load/unload, play/pause or
+    /// seek: those do not move the physical fader. In particular, PauseAndCue
+    /// seeks internally and must leave the closed latch ready for fader-up.
+    pub fn reset_fader_start(&mut self) {
+        self.fader_start_state.reset();
     }
 }
 

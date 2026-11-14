@@ -388,6 +388,67 @@
       }
     }
   },
+  "settingsDeckFaderStart": "Fader start",
+  "@settingsDeckFaderStart": {
+    "description": "Title of the fader-start card in Deck settings."
+  },
+  "settingsDeckFaderStartHint": "Start or stop playback by moving the channel fader away from or back to the bottom.",
+  "@settingsDeckFaderStartHint": {
+    "description": "Subtitle explaining the fader-start feature."
+  },
+  "settingsDeckFaderStartToggle": "Enable fader start",
+  "@settingsDeckFaderStartToggle": {
+    "description": "Action-specific accessibility label for the fader-start card header switch, distinct from the card title."
+  },
+  "settingsDeckFaderStartThreshold": "Fader threshold",
+  "@settingsDeckFaderStartThreshold": {
+    "description": "Label for the fader-start threshold stepper."
+  },
+  "settingsDeckFaderStartThresholdHint": "How far the fader must rise before it counts as open.",
+  "@settingsDeckFaderStartThresholdHint": {
+    "description": "Hint for the fader-start threshold stepper."
+  },
+  "settingsDeckFaderStartThresholdPercent": "{percent}\u00a0%",
+  "@settingsDeckFaderStartThresholdPercent": {
+    "description": "Integer percentage shown by the fader-start threshold stepper, with a non-breaking space (U+00A0) before the percent sign.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsDeckFaderStartOnNonZero": "When fader opens",
+  "@settingsDeckFaderStartOnNonZero": {
+    "description": "Label for the action taken when the fader rises above the threshold."
+  },
+  "settingsDeckFaderStartOnZero": "When fader closes",
+  "@settingsDeckFaderStartOnZero": {
+    "description": "Label for the action taken when the fader returns to the bottom."
+  },
+  "settingsDeckFaderStartOnNonZeroPlay": "Play",
+  "@settingsDeckFaderStartOnNonZeroPlay": {
+    "description": "Start playing when the fader opens."
+  },
+  "settingsDeckFaderStartOnNonZeroTogglePlay": "Toggle play",
+  "@settingsDeckFaderStartOnNonZeroTogglePlay": {
+    "description": "Toggle play/pause when the fader opens."
+  },
+  "settingsDeckFaderStartOnNonZeroNothing": "Nothing",
+  "@settingsDeckFaderStartOnNonZeroNothing": {
+    "description": "Do nothing when the fader opens."
+  },
+  "settingsDeckFaderStartOnZeroPause": "Pause",
+  "@settingsDeckFaderStartOnZeroPause": {
+    "description": "Pause when the fader closes."
+  },
+  "settingsDeckFaderStartOnZeroPauseAndCue": "Pause and back to cue",
+  "@settingsDeckFaderStartOnZeroPauseAndCue": {
+    "description": "Pause and return to the cue point when the fader closes."
+  },
+  "settingsDeckFaderStartOnZeroNothing": "Nothing",
+  "@settingsDeckFaderStartOnZeroNothing": {
+    "description": "Do nothing when the fader closes."
+  },
   "settingsStepperDecrease": "Decrease {field}",
   "@settingsStepperDecrease": {
     "description": "Screen-reader label for a numeric stepper's decrement button.",

@@ -473,6 +473,25 @@ pub struct _EndCueHold {
     pub deck: u16,
 }
 
+#[flutter_rust_bridge::frb(mirror(FaderStart))]
+pub struct _FaderStart {
+    pub deck: u16,
+}
+
+#[flutter_rust_bridge::frb(mirror(FaderStop))]
+pub struct _FaderStop {
+    pub deck: u16,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetFaderStartNative))]
+pub struct _SetFaderStartNative {
+    pub deck: u16,
+    /// True while a controller mapping owns this deck's native fader-start
+    /// events, suppressing the software volume-threshold trigger. False restores
+    /// software threshold handling; it does not enable or disable the feature.
+    pub native: bool,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetQuantize))]
 pub struct _SetQuantize {
     pub deck: u16,
@@ -1048,6 +1067,9 @@ pub enum _Event {
     SetCuePoint(SetCuePoint),
     BeginCueHold(BeginCueHold),
     EndCueHold(EndCueHold),
+    FaderStart(FaderStart),
+    FaderStop(FaderStop),
+    SetFaderStartNative(SetFaderStartNative),
     SetQuantize(SetQuantize),
     ToggleQuantize(ToggleQuantize),
     SetSlip(SetSlip),
@@ -1162,6 +1184,9 @@ pub enum _Topic {
     SetCuePoint,
     BeginCueHold,
     EndCueHold,
+    FaderStart,
+    FaderStop,
+    SetFaderStartNative,
     SetQuantize,
     ToggleQuantize,
     SetSlip,

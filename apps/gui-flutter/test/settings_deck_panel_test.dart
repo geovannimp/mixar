@@ -7,6 +7,11 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -18,6 +23,7 @@ void main() {
     WidgetTester tester, {
     required AppSettings draft,
     required ValueChanged<AppSettings> onChanged,
+    Locale locale = const Locale('en'),
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -27,6 +33,7 @@ void main() {
           ),
         ],
         child: mixarTestMaterialApp(
+          locale: locale,
           theme: MixarThemeData.dark(),
           home: Scaffold(
             body: SingleChildScrollView(
@@ -181,6 +188,217 @@ void main() {
     await tapStep(tester, '+');
     expect(emitted, isNull, reason: 'no emission past the ceiling');
   });
+  AppSettings faderStartDraft({required bool enabled, int threshold = 5}) =>
+      copyAppSettings(
+        defaultAppSettings(),
+        faderStartEnabled: enabled,
+        faderStartThresholdPct: threshold,
+      );
+
+  Future<void> pumpEnabledFaderStartPanel(
+    WidgetTester tester, {
+    required ValueChanged<AppSettings> onChanged,
+  }) => pumpDeckPanel(
+    tester,
+    draft: faderStartDraft(enabled: true),
+    onChanged: onChanged,
+  );
+
+  /// [find.text] skips offstage widgets by default; the fader-start card lives
+  /// below the fold in the 800x600 test viewport, so this helper searches the
+  /// full tree before scrolling it into view.
+  Finder textAnywhere(String text) =>
+      find.byWidgetPredicate((widget) => widget is Text && widget.data == text);
+
+  Finder faderThresholdStepButton(AppLocalizations l10n, String glyph) =>
+      find.descendant(
+        of: find.widgetWithText(
+          SettingsField,
+          l10n.settingsDeckFaderStartThreshold.toUpperCase(),
+        ),
+        matching: find.widgetWithText(AppButton, glyph),
+      );
+
+  Future<void> tapFaderThresholdStep(
+    WidgetTester tester,
+    AppLocalizations l10n,
+    String glyph,
+  ) async {
+    final finder = faderThresholdStepButton(l10n, glyph);
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pump();
+  }
+
+  final faderStartToggleLabels = <Locale, String>{
+    const Locale('en'): 'Enable fader start',
+    const Locale('pt'): 'Ativar arranque pelo fader',
+    const Locale('pt', 'BR'): 'Ativar início pelo fader',
+  };
+
+  for (final entry in faderStartToggleLabels.entries) {
+    testWidgets(
+      'fader start semantics and non-breaking percentages for ${entry.key}',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          final l10n = lookupAppLocalizations(entry.key);
+
+          expect(l10n.settingsDeckFaderStartToggle, entry.value);
+          expect(
+            l10n.settingsDeckFaderStartToggle,
+            isNot(l10n.settingsDeckFaderStart),
+          );
+          for (final percent in [0, 5, 100]) {
+            expect(
+              l10n.settingsDeckFaderStartThresholdPercent(percent),
+              '$percent\u00a0%',
+            );
+          }
+
+          await pumpDeckPanel(
+            tester,
+            draft: faderStartDraft(enabled: false),
+            onChanged: (_) {},
+            locale: entry.key,
+          );
+          await tester.ensureVisible(textAnywhere(l10n.settingsDeckFaderStart));
+          await tester.pumpAndSettle();
+
+          expect(find.text(l10n.settingsDeckFaderStart), findsOneWidget);
+          expect(find.bySemanticsLabel(entry.value), findsOneWidget);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
+
+  testWidgets(
+    'fader start toggle reveals threshold stepper and both action pickers',
+    (tester) async {
+      final l10n = lookupAppLocalizations(const Locale('en'));
+      AppSettings? emitted;
+
+      await pumpDeckPanel(
+        tester,
+        draft: faderStartDraft(enabled: false),
+        onChanged: (settings) => emitted = settings,
+      );
+      final titleFinder = textAnywhere(l10n.settingsDeckFaderStart);
+      await tester.ensureVisible(titleFinder);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.settingsDeckFaderStartThresholdPercent(5)),
+        findsNothing,
+      );
+      expect(find.byType(SettingsNumericStepper), findsNothing);
+      expect(
+        find.byType(SettingsSelect<FaderStartOnNonZeroSetting>),
+        findsNothing,
+      );
+      expect(
+        find.byType(SettingsSelect<FaderStartOnZeroSetting>),
+        findsNothing,
+      );
+
+      final cardFinder = find.ancestor(
+        of: titleFinder,
+        matching: find.byType(SettingsSectionCard),
+      );
+      final switchFinder = find.descendant(
+        of: cardFinder,
+        matching: find.byType(SettingsHeaderSwitch),
+      );
+      await tester.ensureVisible(switchFinder);
+      await tester.tap(switchFinder);
+      await tester.pump();
+
+      expect(emitted, isNotNull);
+      expect(emitted!.faderStartEnabled, isTrue);
+      expect(emitted!.faderStartThresholdPct, 5);
+
+      await pumpDeckPanel(tester, draft: emitted!, onChanged: (_) {});
+      await tester.ensureVisible(titleFinder);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.settingsDeckFaderStartThresholdPercent(5)),
+        findsOneWidget,
+      );
+      expect(find.byType(SettingsNumericStepper), findsOneWidget);
+      expect(
+        find.byType(SettingsSelect<FaderStartOnNonZeroSetting>),
+        findsOneWidget,
+      );
+      expect(
+        find.byType(SettingsSelect<FaderStartOnZeroSetting>),
+        findsOneWidget,
+      );
+      expect(switchFinder, findsOneWidget);
+    },
+  );
+
+  testWidgets('fader start threshold stepper reports the stepped value', (
+    tester,
+  ) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    AppSettings? emitted;
+
+    await pumpEnabledFaderStartPanel(
+      tester,
+      onChanged: (settings) => emitted = settings,
+    );
+
+    await tester.ensureVisible(textAnywhere(l10n.settingsDeckFaderStart));
+    await tester.pumpAndSettle();
+    await tapFaderThresholdStep(tester, l10n, '+');
+
+    expect(emitted, isNotNull);
+    expect(emitted!.faderStartEnabled, isTrue);
+    expect(emitted!.faderStartThresholdPct, 6);
+  });
+
+  testWidgets('fader start on-non-zero picker reports the selected action', (
+    tester,
+  ) async {
+    AppSettings? emitted;
+
+    await pumpEnabledFaderStartPanel(
+      tester,
+      onChanged: (settings) => emitted = settings,
+    );
+
+    final select = tester.widget<SettingsSelect<FaderStartOnNonZeroSetting>>(
+      find.byType(SettingsSelect<FaderStartOnNonZeroSetting>),
+    );
+    select.onChanged(FaderStartOnNonZeroSetting.togglePlay);
+    await tester.pump();
+
+    expect(emitted?.faderStartOnNonZero, FaderStartOnNonZeroSetting.togglePlay);
+  });
+
+  testWidgets('fader start on-zero picker reports the selected action', (
+    tester,
+  ) async {
+    AppSettings? emitted;
+
+    await pumpEnabledFaderStartPanel(
+      tester,
+      onChanged: (settings) => emitted = settings,
+    );
+
+    final select = tester.widget<SettingsSelect<FaderStartOnZeroSetting>>(
+      find.byType(SettingsSelect<FaderStartOnZeroSetting>),
+    );
+    select.onChanged(FaderStartOnZeroSetting.nothing);
+    await tester.pump();
+
+    expect(emitted?.faderStartOnZero, FaderStartOnZeroSetting.nothing);
+  });
+
   testWidgets('four-deck profile shows sampler defaults for decks C and D', (
     tester,
   ) async {

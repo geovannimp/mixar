@@ -948,6 +948,52 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settingsDeckFaderStart => 'Fader start';
+
+  @override
+  String get settingsDeckFaderStartHint =>
+      'Start or stop playback by moving the channel fader away from or back to the bottom.';
+
+  @override
+  String get settingsDeckFaderStartToggle => 'Enable fader start';
+
+  @override
+  String get settingsDeckFaderStartThreshold => 'Fader threshold';
+
+  @override
+  String get settingsDeckFaderStartThresholdHint =>
+      'How far the fader must rise before it counts as open.';
+
+  @override
+  String settingsDeckFaderStartThresholdPercent(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get settingsDeckFaderStartOnNonZero => 'When fader opens';
+
+  @override
+  String get settingsDeckFaderStartOnZero => 'When fader closes';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroPlay => 'Play';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroTogglePlay => 'Toggle play';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroNothing => 'Nothing';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPause => 'Pause';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPauseAndCue => 'Pause and back to cue';
+
+  @override
+  String get settingsDeckFaderStartOnZeroNothing => 'Nothing';
+
+  @override
   String settingsStepperDecrease(String field) {
     return 'Decrease $field';
   }

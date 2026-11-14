@@ -188,6 +188,10 @@ AppSettings defaultAppSettings() {
     trackEndWarningSecs: kDefaultTrackEndWarningSecs,
     autoCue: true,
     cueThresholdDb: kDefaultCueThresholdDb,
+    faderStartEnabled: false,
+    faderStartThresholdPct: 5,
+    faderStartOnNonZero: FaderStartOnNonZeroSetting.play,
+    faderStartOnZero: FaderStartOnZeroSetting.pauseAndCue,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     waveformGainEqShaping: true,
     keyDisplayMode: KeyDisplayModeSetting.musical,
@@ -329,6 +333,10 @@ AppSettings copyAppSettings(
   int? trackEndWarningSecs,
   bool? autoCue,
   double? cueThresholdDb,
+  bool? faderStartEnabled,
+  int? faderStartThresholdPct,
+  FaderStartOnNonZeroSetting? faderStartOnNonZero,
+  FaderStartOnZeroSetting? faderStartOnZero,
   WaveformDisplayModeSetting? waveformDisplayMode,
   bool? waveformGainEqShaping,
   KeyDisplayModeSetting? keyDisplayMode,
@@ -396,6 +404,11 @@ AppSettings copyAppSettings(
     trackEndWarningSecs: trackEndWarningSecs ?? base.trackEndWarningSecs,
     autoCue: autoCue ?? base.autoCue,
     cueThresholdDb: cueThresholdDb ?? base.cueThresholdDb,
+    faderStartEnabled: faderStartEnabled ?? base.faderStartEnabled,
+    faderStartThresholdPct:
+        faderStartThresholdPct ?? base.faderStartThresholdPct,
+    faderStartOnNonZero: faderStartOnNonZero ?? base.faderStartOnNonZero,
+    faderStartOnZero: faderStartOnZero ?? base.faderStartOnZero,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     waveformGainEqShaping: waveformGainEqShaping ?? base.waveformGainEqShaping,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
@@ -466,6 +479,10 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.trackEndWarningSecs != baseline.trackEndWarningSecs ||
       draft.autoCue != baseline.autoCue ||
       draft.cueThresholdDb != baseline.cueThresholdDb ||
+      draft.faderStartEnabled != baseline.faderStartEnabled ||
+      draft.faderStartThresholdPct != baseline.faderStartThresholdPct ||
+      draft.faderStartOnNonZero != baseline.faderStartOnNonZero ||
+      draft.faderStartOnZero != baseline.faderStartOnZero ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.waveformGainEqShaping != baseline.waveformGainEqShaping ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
