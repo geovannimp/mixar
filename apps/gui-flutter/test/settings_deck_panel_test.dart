@@ -193,6 +193,15 @@ void main() {
         faderStartThresholdPct: threshold,
       );
 
+  Future<void> pumpEnabledFaderStartPanel(
+    WidgetTester tester, {
+    required ValueChanged<AppSettings> onChanged,
+  }) => pumpDeckPanel(
+    tester,
+    draft: faderStartDraft(enabled: true),
+    onChanged: onChanged,
+  );
+
   /// [find.text] skips offstage widgets by default; the fader-start card lives
   /// below the fold in the 800x600 test viewport, so this helper searches the
   /// full tree before scrolling it into view.
@@ -286,9 +295,8 @@ void main() {
     final l10n = lookupAppLocalizations(const Locale('en'));
     AppSettings? emitted;
 
-    await pumpDeckPanel(
+    await pumpEnabledFaderStartPanel(
       tester,
-      draft: faderStartDraft(enabled: true),
       onChanged: (settings) => emitted = settings,
     );
 
@@ -306,9 +314,8 @@ void main() {
   ) async {
     AppSettings? emitted;
 
-    await pumpDeckPanel(
+    await pumpEnabledFaderStartPanel(
       tester,
-      draft: faderStartDraft(enabled: true),
       onChanged: (settings) => emitted = settings,
     );
 
@@ -326,9 +333,8 @@ void main() {
   ) async {
     AppSettings? emitted;
 
-    await pumpDeckPanel(
+    await pumpEnabledFaderStartPanel(
       tester,
-      draft: faderStartDraft(enabled: true),
       onChanged: (settings) => emitted = settings,
     );
 
