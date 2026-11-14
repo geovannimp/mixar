@@ -643,6 +643,12 @@ impl Engine {
     /// state; unknown decks are ignored.
     pub fn set_fader_start_native(&mut self, deck: u16, native: bool) {
         let Some(flag) = self.fader_start_native.get_mut(usize::from(deck)) else {
+            tracing::debug!(
+                deck,
+                configured_decks = self.fader_start_native.len(),
+                native,
+                "ignoring native fader ownership for unknown deck"
+            );
             return;
         };
         if *flag != native {

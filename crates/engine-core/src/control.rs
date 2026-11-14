@@ -595,6 +595,8 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
         Event::SetFaderStartNative(bus_api::SetFaderStartNative { deck, native }) => {
             deck_cmd(*deck, engine, |eng, _id| {
+                // Track ownership even while disabled, so enabling the feature
+                // later respects controllers that are already attached.
                 eng.set_fader_start_native(*deck, *native);
                 Ok(CmdOutcome::Silent)
             })

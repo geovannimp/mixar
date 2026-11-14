@@ -81,7 +81,7 @@ struct Attached {
     send_gate: crate::report::FailureGate,
     lifecycle_gate: crate::report::FailureGate,
     /// Zero-based decks for which this attached controller declares native fader-start
-    /// ownership. Detection matches the final `fader_start` leaf of `[inputs.deck_N]`
+    /// ownership. Detection matches the final `fader_start` or `fader_stop` leaf of `[inputs.deck_N]`
     /// control paths, including slash-separated paths, and converts `N` to `N - 1`.
     /// While any attachment owns a deck, native fader-start suppresses the software
     /// volume-threshold path. Detaching releases ownership only if no other attached
@@ -91,15 +91,21 @@ struct Attached {
 
 const DECK_SECTION_PREFIX: &str = "deck_";
 const FADER_START_LEAF: &str = "fader_start";
+const FADER_STOP_LEAF: &str = "fader_stop";
 
 /// Discover native owners once per deck, including slash-separated control paths.
+/// Either native edge suppresses software threshold handling for that deck, so
+/// stop-only mappings cannot double-fire the software falling-edge action.
 fn native_fader_decks(map: &MapFile) -> Vec<u16> {
     map.inputs
         .iter()
         .filter(|(_, bindings)| {
-            bindings
-                .keys()
-                .any(|control| control.rsplit('/').next() == Some(FADER_START_LEAF))
+            bindings.keys().any(|control| {
+                matches!(
+                    control.rsplit('/').next(),
+                    Some(FADER_START_LEAF | FADER_STOP_LEAF)
+                )
+            })
         })
         .filter_map(|(section, _)| {
             section
@@ -1523,6 +1529,8 @@ fader_start = "Deck(_)::fader_start"
 "#,
         );
 
+        // This checks the u16 parser boundary, not supported playback capacity.
+        // Engines currently configure two or four decks and reject higher IDs.
         assert_eq!(native_fader_decks(&map), vec![0, 1, 2, 3, 65534]);
     }
 
@@ -1533,6 +1541,8 @@ fader_start = "Deck(_)::fader_start"
 [inputs.deck_1]
 "fader_start/press" = "Deck(_)::fader_start"
 not_fader_start = "Deck(_)::fader_start"
+not_fader_stop = "Deck(_)::fader_stop"
+"fader_stop/release" = "Deck(_)::fader_stop"
 [inputs.deck_2]
 fader_stop = "Deck(_)::fader_stop"
 "fader_start/" = "Deck(_)::fader_start"
@@ -1546,7 +1556,32 @@ fader_start = "Deck(_)::fader_start"
         );
 
         // Multiple matching controls still give each deck only one owner entry.
-        assert_eq!(native_fader_decks(&map), vec![2, 3]);
+        assert_eq!(native_fader_decks(&map), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn native_fader_decks_include_stop_only_mappings_without_duplicate_owners() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+fader_stop = "Deck(_)::fader_stop"
+[inputs.deck_2]
+"mixer/fader_stop" = "Deck(_)::fader_stop"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+fader_stop = "Deck(_)::fader_stop"
+[inputs.deck_4]
+"fader_stop/release" = "Deck(_)::fader_stop"
+not_fader_stop = "Deck(_)::fader_stop"
+"#,
+        );
+        let owners = native_fader_decks(&map);
+        assert_eq!(owners, vec![0, 1, 2]);
+        let sibling = [1u16, 2];
+        assert_eq!(
+            native_decks_to_release(&owners, [sibling.as_slice()]),
+            vec![0]
+        );
     }
 
     #[test]

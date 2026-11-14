@@ -50,6 +50,33 @@ fn started_null_engine() -> Engine {
 }
 
 #[test]
+fn native_fader_ownership_recorded_while_disabled_survives_enabling() {
+    let mut engine = null_engine(2);
+    assert!(!engine.fader_start_cfg.enabled);
+    engine.set_fader_start_native(0, true);
+    assert!(engine.fader_start_native[0]);
+
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    assert_eq!(engine.fader_start_action(0, 0.5), None);
+    assert_eq!(engine.fader_start_action(1, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(1, 0.5),
+        Some(FaderStartAction::Play)
+    );
+
+    engine.set_fader_start_native(0, false);
+    assert_eq!(engine.fader_start_action(0, 0.0), None);
+    assert_eq!(
+        engine.fader_start_action(0, 0.5),
+        Some(FaderStartAction::Play)
+    );
+}
+
+#[test]
 fn native_fader_ownership_changes_only_rearm_the_affected_deck() {
     let mut engine = null_engine(2);
     engine.set_fader_start_config(FaderStartConfig {

@@ -26,14 +26,20 @@ fn ddj400_session() -> controller::MappingSession {
     controller::MappingSession::from_bundle(b).unwrap()
 }
 
+fn capture_setup() -> (controller::MappingSession, CaptureBus, NullMidi) {
+    (
+        ddj400_session(),
+        CaptureBus {
+            cmds: vec![],
+            evts: vec![],
+        },
+        NullMidi,
+    )
+}
+
 #[test]
 fn ddj400_fader_start_notes_publish_native_events() {
-    let mut s = ddj400_session();
-    let mut bus = CaptureBus {
-        cmds: vec![],
-        evts: vec![],
-    };
-    let mut midi = NullMidi;
+    let (mut s, mut bus, mut midi) = capture_setup();
 
     // deck 1 (MIDI channel 1): fader left zero -> FaderStart, fader returned -> FaderStop
     s.handle_midi(&[0x90, 0x66, 0x7F], &mut bus, &mut midi);
@@ -69,12 +75,7 @@ fn ddj400_fader_start_notes_publish_native_events() {
 #[test]
 fn ddj400_native_fader_notes_and_cc14_volume_stay_distinct_and_ordered() {
     for (deck, channel) in [(0, 0), (1, 1)] {
-        let mut s = ddj400_session();
-        let mut bus = CaptureBus {
-            cmds: vec![],
-            evts: vec![],
-        };
-        let mut midi = NullMidi;
+        let (mut s, mut bus, mut midi) = capture_setup();
 
         // The shipped 1.4.1 bundle declares native notes separately from the
         // channel fader's CC14 pair (MSB 0x13, LSB 0x33).
