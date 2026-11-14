@@ -465,6 +465,29 @@ jobs:
         run: |
           cmake -DBUILD_TYPE=Release -P cmake_install.cmake 2>&1 | sed -n '1,80p' || true
 
+      - name: Verify universal macOS app
+        if: matrix.platform == 'macos'
+        working-directory: apps/gui-flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP=build/macos/Build/Products/Release/Mixar.app
+          BINARY="$APP/Contents/MacOS/Mixar"
+          FRAMEWORKS="$APP/Contents/Frameworks"
+          lipo -verify_arch arm64 x86_64 "$BINARY"
+          # CocoaPods can link Rust into host_flutter.framework rather than
+          # directly into Runner. Sidecars are embedded beside that loader.
+          HOST=$(find "$FRAMEWORKS" -type f -name host_flutter -print -quit)
+          HOST=${HOST:-"$BINARY"}
+          DAWN=$(find "$FRAMEWORKS" -type f -name libwebgpu_dawn.dylib -print -quit)
+          ONNX=$(find "$FRAMEWORKS" -type f -name libonnxruntime.dylib -print -quit)
+          lipo -verify_arch arm64 x86_64 "$HOST"
+          lipo -verify_arch arm64 "$DAWN"
+          lipo -verify_arch x86_64 "$ONNX"
+          # Check the actual Rust loader's commands, not just file presence.
+          otool -arch x86_64 -L "$HOST" | grep -F '@rpath/libonnxruntime.dylib'
+          otool -arch arm64 -L "$HOST" | grep -F 'libwebgpu_dawn.dylib'
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:

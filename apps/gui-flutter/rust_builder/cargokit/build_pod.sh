@@ -49,7 +49,11 @@ do
   fi
 done
 
-sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
+if [ "$PLATFORM_NAME" = "macosx" ]; then
+  bash "$BASEDIR/build_macos_slices.sh" "$@"
+else
+  sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
+fi
 
 # Split the Rust objects out of the merged static lib. cargokit merges the
 # crate's objects with every native static library cargo linked, and the ONNX
@@ -181,7 +185,7 @@ fi
 # the paths, and sign them: on Apple Silicon every Mach-O in the bundle needs a
 # signature to be mapped, and nothing else signs dylibs copied by a build phase.
 if [ -n "${TARGET_BUILD_DIR:-}" ] && [ -n "${FRAMEWORKS_FOLDER_PATH:-}" ]; then
-  for sidecar in libwebgpu_dawn.dylib libclang_rt.osx.dylib; do
+  for sidecar in libwebgpu_dawn.dylib libonnxruntime.dylib libclang_rt.osx.dylib; do
     if [ -f "$CARGOKIT_OUTPUT_DIR/$sidecar" ]; then
       mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
       cp -f "$CARGOKIT_OUTPUT_DIR/$sidecar" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
