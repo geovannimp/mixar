@@ -34,14 +34,61 @@ fn prepared_test_source(loudness_lufs: Option<f64>) -> PreparedTrackPlayback {
     }
 }
 
-fn started_null_engine() -> Engine {
-    let config = EngineConfig {
-        backend: "null".to_string(),
+fn null_engine(num_decks: usize) -> Engine {
+    Engine::new(EngineConfig {
+        backend: "null".into(),
+        num_decks,
         ..Default::default()
-    };
-    let mut engine = Engine::new(config).unwrap();
+    })
+    .unwrap()
+}
+
+fn started_null_engine() -> Engine {
+    let mut engine = null_engine(2);
     engine.start().unwrap();
     engine
+}
+
+#[test]
+fn native_fader_ownership_changes_only_rearm_the_affected_deck() {
+    let mut engine = null_engine(2);
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    for deck in [0, 1] {
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+    }
+
+    engine.set_fader_start_native(0, true);
+    engine.set_fader_start_native(0, false);
+
+    assert_eq!(
+        engine.fader_start_action(1, 0.5),
+        Some(FaderStartAction::Play)
+    );
+    assert_eq!(engine.fader_start_action(0, 0.5), None);
+    assert_eq!(
+        engine.fader_start_action(0, 0.0),
+        Some(FaderStartAction::PauseAndCue)
+    );
+}
+
+#[test]
+fn unchanged_native_fader_ownership_preserves_software_latches() {
+    let mut engine = null_engine(2);
+    engine.set_fader_start_config(FaderStartConfig {
+        enabled: true,
+        ..Default::default()
+    });
+    for deck in [0, 1] {
+        assert_eq!(engine.fader_start_action(deck, 0.0), None);
+        engine.set_fader_start_native(deck, false);
+        assert_eq!(
+            engine.fader_start_action(deck, 0.5),
+            Some(FaderStartAction::Play)
+        );
+    }
 }
 
 #[test]
@@ -69,12 +116,7 @@ fn native_fader_ownership_ignores_unknown_decks_without_resetting_latches() {
 
 #[test]
 fn four_deck_engine_accepts_native_ownership_for_decks_three_and_four() {
-    let mut engine = Engine::new(EngineConfig {
-        backend: "null".into(),
-        num_decks: 4,
-        ..Default::default()
-    })
-    .unwrap();
+    let mut engine = null_engine(4);
     engine.set_fader_start_config(FaderStartConfig {
         enabled: true,
         ..Default::default()
@@ -98,12 +140,7 @@ fn four_deck_engine_accepts_native_ownership_for_decks_three_and_four() {
 #[test]
 fn fader_actions_reject_ids_outside_the_configured_deck_count() {
     for num_decks in [2, 4] {
-        let mut engine = Engine::new(EngineConfig {
-            backend: "null".into(),
-            num_decks,
-            ..Default::default()
-        })
-        .unwrap();
+        let mut engine = null_engine(num_decks);
         engine.set_fader_start_config(FaderStartConfig {
             enabled: true,
             ..Default::default()
@@ -149,12 +186,7 @@ fn effective_fader_config_changes_rearm_every_deck() {
             ..initial
         },
     ] {
-        let mut engine = Engine::new(EngineConfig {
-            backend: "null".into(),
-            num_decks: 4,
-            ..Default::default()
-        })
-        .unwrap();
+        let mut engine = null_engine(4);
         engine.set_fader_start_config(initial);
         for deck in 0..4 {
             assert_eq!(engine.fader_start_action(deck, 0.0), None);
@@ -177,11 +209,7 @@ fn effective_fader_config_changes_rearm_every_deck() {
 
 #[test]
 fn equivalent_normalized_fader_config_preserves_latches() {
-    let mut engine = Engine::new(EngineConfig {
-        backend: "null".into(),
-        ..Default::default()
-    })
-    .unwrap();
+    let mut engine = null_engine(2);
     let config = FaderStartConfig {
         enabled: true,
         threshold_pct: 20,
@@ -238,12 +266,7 @@ fn track_lifecycle_and_pause_and_cue_preserve_physical_fader_latches() {
 
 #[test]
 fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
-    let config = EngineConfig {
-        backend: "null".into(),
-        num_decks: 4,
-        ..Default::default()
-    };
-    let mut engine = Engine::new(config).unwrap();
+    let mut engine = null_engine(4);
     engine.start().unwrap();
 
     engine.set_deck_volume(3, 0.25).unwrap();

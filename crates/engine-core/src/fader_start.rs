@@ -92,6 +92,13 @@ impl FaderStartState {
         self.config = None;
     }
 
+    /// Re-arm one deck without disturbing other latches or normalized config.
+    pub fn reset_deck(&mut self, deck: u16) {
+        if let Some(latch) = self.at_zero.get_mut(usize::from(deck)) {
+            *latch = None;
+        }
+    }
+
     pub fn resolve(
         &mut self,
         cfg: &FaderStartConfig,
@@ -364,5 +371,41 @@ mod tests {
             state.resolve(&enabled(), 0, 0.0),
             Some(FaderStartAction::PauseAndCue)
         );
+    }
+
+    #[test]
+    fn default_config_never_resolves_a_transport_action() {
+        let config = FaderStartConfig::default();
+        assert!(!config.enabled);
+        let mut state = FaderStartState::default();
+        for deck in [0, 1] {
+            for volume in [0.0, 1.0, 0.0, 0.5, 0.0] {
+                assert_eq!(state.resolve(&config, deck, volume), None);
+            }
+        }
+    }
+
+    #[test]
+    fn resetting_one_deck_preserves_other_latches_and_capacity() {
+        let mut state = FaderStartState::new(4);
+        let capacity = state.at_zero.capacity();
+        for deck in 0..4 {
+            assert_eq!(state.resolve(&enabled(), deck, 0.0), None);
+        }
+        state.reset_deck(2);
+        state.reset_deck(u16::MAX);
+
+        for deck in [0, 1, 3] {
+            assert_eq!(
+                state.resolve(&enabled(), deck, 0.5),
+                Some(FaderStartAction::Play)
+            );
+        }
+        assert_eq!(state.resolve(&enabled(), 2, 0.5), None);
+        assert_eq!(
+            state.resolve(&enabled(), 2, 0.0),
+            Some(FaderStartAction::PauseAndCue)
+        );
+        assert_eq!(state.at_zero.capacity(), capacity);
     }
 }

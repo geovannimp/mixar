@@ -141,8 +141,13 @@ fn fader_leaving_zero_plays_and_returning_pauses() {
 }
 
 #[test]
-fn disabled_config_never_touches_transport() {
-    let session = EngineSession::new(disabled_config()).expect("session");
+fn default_config_never_touches_transport() {
+    let config = EngineConfig {
+        backend: "null".into(),
+        ..Default::default()
+    };
+    assert!(!config.fader_start().enabled);
+    let session = EngineSession::new(config).expect("session");
     let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
@@ -168,6 +173,8 @@ fn disabled_config_never_touches_transport() {
     let up = recv_updated(&mut evt);
     assert!(!up.playing);
     assert!((up.volume - 0.5).abs() < f32::EPSILON);
+
+    assert_native_events_silent(&session, &mut evt);
 }
 
 #[test]

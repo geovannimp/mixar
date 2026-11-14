@@ -80,8 +80,12 @@ struct Attached {
     output: Option<MidiOutputConnection>,
     send_gate: crate::report::FailureGate,
     lifecycle_gate: crate::report::FailureGate,
-    /// Decks this attachment owns for native fader start (deck sections
-    /// whose `[inputs.*]` bind the `fader_start` leaf).
+    /// Zero-based decks for which this attached controller declares native fader-start
+    /// ownership. Detection matches the final `fader_start` leaf of `[inputs.deck_N]`
+    /// control paths, including slash-separated paths, and converts `N` to `N - 1`.
+    /// While any attachment owns a deck, native fader-start suppresses the software
+    /// volume-threshold path. Detaching releases ownership only if no other attached
+    /// controller still owns that deck.
     native_fader_decks: Vec<u16>,
 }
 

@@ -453,6 +453,8 @@ fn deck_cmd(
 }
 
 /// Handle either native fader edge with identical enabled/no-op semantics.
+/// Actions come from the global config; `deck_cmd` supplies the deck index for
+/// the resulting `DeckUpdated` notification.
 fn native_fader_cmd(
     deck: u16,
     engine: &EngineHandle,

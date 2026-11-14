@@ -638,15 +638,17 @@ impl Engine {
 
     /// Mark a deck's fader start as controller-native (or re-arm software).
     ///
-    /// Attach/detach concern the whole mapping, so flipping the flag clears the
-    /// entire software latch rather than just the referenced deck.
-    /// Unknown decks are ignored without resetting any valid deck's latch.
+    /// Only the referenced deck's software latch is re-armed when ownership
+    /// changes. Other decks and repeated ownership notifications retain their
+    /// state; unknown decks are ignored.
     pub fn set_fader_start_native(&mut self, deck: u16, native: bool) {
         let Some(flag) = self.fader_start_native.get_mut(usize::from(deck)) else {
             return;
         };
-        *flag = native;
-        self.reset_fader_start();
+        if *flag != native {
+            *flag = native;
+            self.fader_start_state.reset_deck(deck);
+        }
     }
 
     /// Resolve a fader volume into a transport action, if any.
@@ -664,7 +666,7 @@ impl Engine {
 
     /// Reset every deck's fader-start latch.
     ///
-    /// Use for mapping/configuration changes, not load/unload, play/pause or
+    /// Use for global configuration changes, not load/unload, play/pause or
     /// seek: those do not move the physical fader. In particular, PauseAndCue
     /// seeks internally and must leave the closed latch ready for fader-up.
     pub fn reset_fader_start(&mut self) {
