@@ -137,6 +137,8 @@ class AppSettings {
   /// Silence threshold (dBFS) for analysis cue detection.
   final double cueThresholdDb;
   final bool faderStartEnabled;
+
+  /// Software fader zero-band threshold in percent; normalized to 1..=20 on save.
   final int faderStartThresholdPct;
   final FaderStartOnNonZeroSetting faderStartOnNonZero;
   final FaderStartOnZeroSetting faderStartOnZero;
@@ -565,10 +567,16 @@ class CrossfaderPresetOption {
           available == other.available;
 }
 
-/// Channel-fader rising-edge action (maps to [`OnNonZeroAction`]).
+/// Persisted/FRB-facing channel-fader rising-edge setting.
+///
+/// The `Setting` suffix distinguishes this serialized DTO from the engine's
+/// runtime [`OnNonZeroAction`]; the `From` implementations bridge the two.
 enum FaderStartOnNonZeroSetting { nothing, play, togglePlay }
 
-/// Channel-fader falling-edge action (maps to [`OnZeroAction`]).
+/// Persisted/FRB-facing channel-fader falling-edge setting.
+///
+/// The `Setting` suffix distinguishes this serialized DTO from the engine's
+/// runtime [`OnZeroAction`]; the `From` implementations bridge the two.
 enum FaderStartOnZeroSetting { nothing, pause, pauseAndCue }
 
 /// Jog platter policy (maps to [`JogMode`]).

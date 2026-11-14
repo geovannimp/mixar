@@ -1,7 +1,7 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
 use crate::engine::Engine;
-use crate::fader_start::{FaderStartAction, OnNonZeroAction, OnZeroAction};
+use crate::fader_start::{FaderStartAction, FaderStartConfig, OnNonZeroAction, OnZeroAction};
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::anyhow;
@@ -452,6 +452,24 @@ fn deck_cmd(
     with_engine_mut(engine, |eng| f(eng, usize::from(deck)))
 }
 
+/// Handle either native fader edge with identical enabled/no-op semantics.
+fn native_fader_cmd(
+    deck: u16,
+    engine: &EngineHandle,
+    select_action: impl FnOnce(&FaderStartConfig) -> Option<FaderStartAction>,
+) -> Result<CmdOutcome> {
+    deck_cmd(deck, engine, |eng, id| {
+        if !eng.fader_start_cfg.enabled {
+            return Ok(CmdOutcome::Silent);
+        }
+        let Some(action) = select_action(&eng.fader_start_cfg) else {
+            return Ok(CmdOutcome::Silent);
+        };
+        apply_fader_start_action(eng, deck, action)?;
+        Ok(CmdOutcome::DeckUpdated(id))
+    })
+}
+
 /// Apply a fader-start transport action. No-ops are deliberate: an unloaded
 /// deck, a disabled feature, or a `Nothing` action must never surface an error.
 fn apply_fader_start_action(eng: &mut Engine, deck: u16, action: FaderStartAction) -> Result<()> {
@@ -559,30 +577,20 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             }
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::FaderStart(bus_api::FaderStart { deck }) => deck_cmd(*deck, engine, |eng, id| {
-            if !eng.fader_start_cfg.enabled {
-                return Ok(CmdOutcome::Silent);
-            }
-            let action = match eng.fader_start_cfg.on_non_zero {
-                OnNonZeroAction::Nothing => return Ok(CmdOutcome::Silent),
-                OnNonZeroAction::Play => FaderStartAction::Play,
-                OnNonZeroAction::TogglePlay => FaderStartAction::TogglePlay,
-            };
-            apply_fader_start_action(eng, *deck, action)?;
-            Ok(CmdOutcome::DeckUpdated(id))
-        }),
-        Event::FaderStop(bus_api::FaderStop { deck }) => deck_cmd(*deck, engine, |eng, id| {
-            if !eng.fader_start_cfg.enabled {
-                return Ok(CmdOutcome::Silent);
-            }
-            let action = match eng.fader_start_cfg.on_zero {
-                OnZeroAction::Nothing => return Ok(CmdOutcome::Silent),
-                OnZeroAction::Pause => FaderStartAction::Pause,
-                OnZeroAction::PauseAndCue => FaderStartAction::PauseAndCue,
-            };
-            apply_fader_start_action(eng, *deck, action)?;
-            Ok(CmdOutcome::DeckUpdated(id))
-        }),
+        Event::FaderStart(bus_api::FaderStart { deck }) => {
+            native_fader_cmd(*deck, engine, |cfg| match cfg.on_non_zero {
+                OnNonZeroAction::Nothing => None,
+                OnNonZeroAction::Play => Some(FaderStartAction::Play),
+                OnNonZeroAction::TogglePlay => Some(FaderStartAction::TogglePlay),
+            })
+        }
+        Event::FaderStop(bus_api::FaderStop { deck }) => {
+            native_fader_cmd(*deck, engine, |cfg| match cfg.on_zero {
+                OnZeroAction::Nothing => None,
+                OnZeroAction::Pause => Some(FaderStartAction::Pause),
+                OnZeroAction::PauseAndCue => Some(FaderStartAction::PauseAndCue),
+            })
+        }
         Event::SetFaderStartNative(bus_api::SetFaderStartNative { deck, native }) => {
             deck_cmd(*deck, engine, |eng, _id| {
                 eng.set_fader_start_native(*deck, *native);

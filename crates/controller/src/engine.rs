@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::action::DeckFeedback;
 use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
+use crate::map_file::MapFile;
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
 use bus_api::Event;
@@ -79,9 +80,31 @@ struct Attached {
     output: Option<MidiOutputConnection>,
     send_gate: crate::report::FailureGate,
     lifecycle_gate: crate::report::FailureGate,
-    /// Decks this attachment owns for native fader start (deck 0/1 sections
+    /// Decks this attachment owns for native fader start (deck sections
     /// whose `[inputs.*]` bind the `fader_start` leaf).
     native_fader_decks: Vec<u16>,
+}
+
+const DECK_SECTION_PREFIX: &str = "deck_";
+const FADER_START_LEAF: &str = "fader_start";
+
+/// Discover native owners once per deck, including slash-separated control paths.
+fn native_fader_decks(map: &MapFile) -> Vec<u16> {
+    map.inputs
+        .iter()
+        .filter(|(_, bindings)| {
+            bindings
+                .keys()
+                .any(|control| control.rsplit('/').next() == Some(FADER_START_LEAF))
+        })
+        .filter_map(|(section, _)| {
+            section
+                .strip_prefix(DECK_SECTION_PREFIX)?
+                .parse::<u16>()
+                .ok()?
+                .checked_sub(1)
+        })
+        .collect()
 }
 
 /// Decks that must release native fader-start ownership after an attachment
@@ -800,18 +823,7 @@ impl ControllerEngine {
             &port_name,
         );
         let device_id = bundle.device.id.clone();
-        // Decks whose mapping binds the `fader_start` leaf own fader start natively.
-        let native_fader_decks: Vec<u16> = bundle
-            .map
-            .inputs
-            .iter()
-            .filter(|(_, bindings)| bindings.contains_key("fader_start"))
-            .filter_map(|(section, _)| match section.as_str() {
-                "deck_1" => Some(0u16),
-                "deck_2" => Some(1u16),
-                _ => None,
-            })
-            .collect();
+        let native_fader_decks = native_fader_decks(&bundle.map);
         let mut session = MappingSession::from_bundle(bundle)?;
         let mut send_gate = crate::report::FailureGate::default();
         {
@@ -1480,6 +1492,106 @@ mod tests {
             &parsed(&[1, 2], true),
             &parsed(&[1, 2], true)
         ));
+    }
+
+    fn native_fader_test_map(inputs: &str) -> MapFile {
+        MapFile::parse(
+            &format!("schema_version = 1\n{inputs}"),
+            Path::new("map.toml"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn native_fader_decks_discovers_all_numbered_sections() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_2]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_4]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_65535]
+fader_start = "Deck(_)::fader_start"
+"#,
+        );
+
+        assert_eq!(native_fader_decks(&map), vec![0, 1, 2, 3, 65534]);
+    }
+
+    #[test]
+    fn native_fader_decks_matches_only_the_final_control_path_leaf() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_1]
+"fader_start/press" = "Deck(_)::fader_start"
+not_fader_start = "Deck(_)::fader_start"
+[inputs.deck_2]
+fader_stop = "Deck(_)::fader_stop"
+"fader_start/" = "Deck(_)::fader_start"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+"mixer/fader_start" = "Deck(_)::fader_start"
+[inputs.deck_4]
+"mixer/channel/fader_start" = "Deck(_)::fader_start"
+"other/fader_start" = "Deck(_)::fader_start"
+"#,
+        );
+
+        // Multiple matching controls still give each deck only one owner entry.
+        assert_eq!(native_fader_decks(&map), vec![2, 3]);
+    }
+
+    #[test]
+    fn native_fader_decks_ignores_invalid_sections_without_overflow() {
+        for section in [
+            "master",
+            "sampler",
+            "custom",
+            "Deck_3",
+            "decks_3",
+            "deck_",
+            "deck_0",
+            "deck_-1",
+            "deck_one",
+            "deck_3_extra",
+            "deck_3/child",
+            "deck_3 ",
+            "deck_65536",
+            "deck_18446744073709551616",
+        ] {
+            let map = native_fader_test_map(&format!(
+                "[inputs.\"{section}\"]\nfader_start = \"Deck(_)::fader_start\"\n"
+            ));
+
+            assert!(native_fader_decks(&map).is_empty(), "{section}");
+        }
+    }
+
+    #[test]
+    fn discovered_native_decks_preserve_sibling_ownership_on_detach() {
+        let map = native_fader_test_map(
+            r#"
+[inputs.deck_3]
+fader_start = "Deck(_)::fader_start"
+[inputs.deck_4]
+fader_start = "Deck(_)::fader_start"
+"#,
+        );
+        let removed = native_fader_decks(&map);
+        let sibling = [3u16];
+
+        assert_eq!(
+            native_decks_to_release(&removed, [sibling.as_slice()]),
+            vec![2]
+        );
+        assert_eq!(
+            native_decks_to_release(&removed, std::iter::empty()),
+            vec![2, 3]
+        );
     }
 
     #[test]

@@ -486,6 +486,9 @@ pub struct _FaderStop {
 #[flutter_rust_bridge::frb(mirror(SetFaderStartNative))]
 pub struct _SetFaderStartNative {
     pub deck: u16,
+    /// True while a controller mapping owns this deck's native fader-start
+    /// events, suppressing the software volume-threshold trigger. False restores
+    /// software threshold handling; it does not enable or disable the feature.
     pub native: bool,
 }
 

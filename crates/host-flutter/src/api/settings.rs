@@ -393,7 +393,10 @@ pub enum SamplerPlayModeSetting {
     Loop,
 }
 
-/// Channel-fader rising-edge action (maps to [`OnNonZeroAction`]).
+/// Persisted/FRB-facing channel-fader rising-edge setting.
+///
+/// The `Setting` suffix distinguishes this serialized DTO from the engine's
+/// runtime [`OnNonZeroAction`]; the `From` implementations bridge the two.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FaderStartOnNonZeroSetting {
@@ -422,7 +425,10 @@ impl From<OnNonZeroAction> for FaderStartOnNonZeroSetting {
     }
 }
 
-/// Channel-fader falling-edge action (maps to [`OnZeroAction`]).
+/// Persisted/FRB-facing channel-fader falling-edge setting.
+///
+/// The `Setting` suffix distinguishes this serialized DTO from the engine's
+/// runtime [`OnZeroAction`]; the `From` implementations bridge the two.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FaderStartOnZeroSetting {
@@ -822,6 +828,7 @@ pub struct AppSettings {
     pub cue_threshold_db: f32,
     #[serde(default = "default_fader_start_enabled")]
     pub fader_start_enabled: bool,
+    /// Software fader zero-band threshold in percent; normalized to 1..=20 on save.
     #[serde(default = "default_fader_start_threshold_pct")]
     pub fader_start_threshold_pct: u8,
     #[serde(default = "default_fader_start_on_non_zero")]
@@ -1212,7 +1219,15 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     } else {
         0.5
     };
-    settings.fader_start_threshold_pct = settings.fader_start_threshold_pct.clamp(1, 20);
+    let threshold_pct = settings.fader_start_threshold_pct;
+    settings.fader_start_threshold_pct = threshold_pct.clamp(1, 20);
+    if settings.fader_start_threshold_pct != threshold_pct {
+        tracing::warn!(
+            requested = threshold_pct,
+            clamped = settings.fader_start_threshold_pct,
+            "fader_start_threshold_pct must be between 1 and 20; clamped setting"
+        );
+    }
 
     if !settings.cue_threshold_db.is_finite() {
         errors.push("cue_threshold_db must be finite".into());

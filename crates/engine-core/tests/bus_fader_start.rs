@@ -393,3 +393,22 @@ fn native_events_respect_a_disabled_config() {
     publish(&session, Event::FaderStop(FaderStop { deck: 0 }));
     assert_no_deck_updated(&mut evt, Duration::from_millis(250));
 }
+
+#[test]
+fn native_events_respect_nothing_actions() {
+    let mut config = enabled_config();
+    config.audio.as_mut().unwrap().fader_start = Some(FaderStartConfig {
+        enabled: true,
+        on_non_zero: engine_core::fader_start::OnNonZeroAction::Nothing,
+        on_zero: engine_core::fader_start::OnZeroAction::Nothing,
+        ..Default::default()
+    });
+    let session = EngineSession::new(config).expect("session");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+    session.with_engine(|engine| engine.start()).expect("start");
+    load_short_tone(&session);
+
+    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    publish(&session, Event::FaderStop(FaderStop { deck: 0 }));
+    assert_no_deck_updated(&mut evt, Duration::from_millis(250));
+}

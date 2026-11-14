@@ -2641,6 +2641,10 @@ class SetEqBand {
 
 class SetFaderStartNative {
   final int deck;
+
+  /// True while a controller mapping owns this deck's native fader-start
+  /// events, suppressing the software volume-threshold trigger. False restores
+  /// software threshold handling; it does not enable or disable the feature.
   final bool native;
 
   const SetFaderStartNative({required this.deck, required this.native});
