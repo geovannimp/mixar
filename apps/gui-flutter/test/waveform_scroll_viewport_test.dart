@@ -9,7 +9,6 @@ const _viewportSize = Size(400, 80);
 const _stripSize = Size(1000, 80);
 const _originMs = 1000;
 const _pxPerMs = 0.1;
-const _dpr = 2.0;
 
 const _stripKey = Key('strip');
 const _viewportRootKey = Key('viewport-root');
@@ -78,7 +77,6 @@ Widget _harness({
   int originMs = _originMs,
   double pxPerMs = _pxPerMs,
   Size stripSize = _stripSize,
-  double dpr = _dpr,
   Size viewportSize = _viewportSize,
   Widget? strip,
 }) {
@@ -94,7 +92,6 @@ Widget _harness({
           originMs: originMs,
           pxPerMs: pxPerMs,
           stripSize: stripSize,
-          dpr: dpr,
           child: strip ?? const SizedBox(key: _stripKey),
         ),
       ),
@@ -130,7 +127,7 @@ Future<void> _tick(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('translation follows the source position and snaps to the dpr', (
+  testWidgets('translation follows the source position at sub-pixel steps', (
     tester,
   ) async {
     final position = ValueNotifier<double>(_originMs.toDouble());
@@ -152,8 +149,9 @@ void main() {
     await _tick(tester, position, 2000);
     expect(_stripRect(tester).left, 100);
 
+    // Not rounded to device pixels: a slow scroll keeps its fraction.
     await _tick(tester, position, 1004);
-    expect(_stripRect(tester).left, 199.5);
+    expect(_stripRect(tester).left, closeTo(199.6, 1e-9));
 
     // A signed position keeps sliding: the strip is not clamped to the track.
     await _tick(tester, position, -100);
@@ -161,6 +159,42 @@ void main() {
 
     await _tick(tester, position, 12000);
     expect(_stripRect(tester).left, -900);
+  });
+
+  testWidgets('a slow scroll moves the strip the same amount every frame', (
+    tester,
+  ) async {
+    // 0.02 px/ms: a 16 ms frame is 0.32 px. Rounding the translate to whole
+    // pixels turned that into 0,0,1,0,1..., which reads as judder and puts two
+    // lanes on different phases.
+    final position = ValueNotifier<double>(0);
+    addTearDown(position.dispose);
+
+    await tester.pumpWidget(
+      _harness(
+        playhead: position,
+        displayMs: () => position.value,
+        pxPerMs: 0.02,
+      ),
+    );
+
+    var previous = _stripRect(tester).left;
+    final steps = <double>[];
+    for (var frame = 1; frame <= 12; frame++) {
+      position.value = frame * 16.0;
+      await tester.pump();
+      final left = _stripRect(tester).left;
+      steps.add(previous - left);
+      previous = left;
+    }
+
+    for (final step in steps) {
+      expect(
+        step,
+        closeTo(0.32, 1e-9),
+        reason: 'every frame must advance the strip by the same amount',
+      );
+    }
   });
 
   testWidgets('a tick repaints without rebuilding or relaying out', (
@@ -272,7 +306,6 @@ void main() {
         displayMs: () => position.value,
         originMs: 0,
         pxPerMs: 0.2,
-        dpr: 1,
         stripSize: const Size(1200, 60),
       ),
     );
@@ -371,7 +404,6 @@ void main() {
                             originMs: _originMs,
                             pxPerMs: _pxPerMs,
                             stripSize: _stripSize,
-                            dpr: 1,
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [

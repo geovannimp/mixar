@@ -19,7 +19,6 @@ class WaveformScrollViewport extends StatelessWidget {
     required this.originMs,
     required this.pxPerMs,
     required this.stripSize,
-    required this.dpr,
     required this.child,
     super.key,
   });
@@ -39,9 +38,6 @@ class WaveformScrollViewport extends StatelessWidget {
   /// Size the strip lays out at; it may be wider than the viewport.
   final Size stripSize;
 
-  /// Device pixel ratio the translate is snapped to.
-  final double dpr;
-
   /// The strip, painted under the playhead.
   final Widget child;
 
@@ -58,7 +54,6 @@ class WaveformScrollViewport extends StatelessWidget {
         originMs: originMs,
         pxPerMs: pxPerMs,
         stripSize: stripSize,
-        dpr: dpr,
       ),
       children: [child],
     );
@@ -72,7 +67,6 @@ class _WaveformScrollDelegate extends FlowDelegate {
     required this.originMs,
     required this.pxPerMs,
     required this.stripSize,
-    required this.dpr,
   }) : super(repaint: playhead);
 
   final Listenable playhead;
@@ -80,7 +74,6 @@ class _WaveformScrollDelegate extends FlowDelegate {
   final int originMs;
   final double pxPerMs;
   final Size stripSize;
-  final double dpr;
 
   @override
   BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) =>
@@ -88,14 +81,14 @@ class _WaveformScrollDelegate extends FlowDelegate {
 
   @override
   void paintChildren(FlowPaintingContext context) {
-    final x = snapPx(
-      stripTranslateX(
-        positionMs: displayMs(),
-        originMs: originMs,
-        viewportWidth: context.size.width,
-        pxPerMs: pxPerMs,
-      ),
-      dpr,
+    // Deliberately not snapped to device pixels. A whole-pixel step quantises
+    // slow scrolls (1.34 px/frame becomes 1,1,2,1,1,2), which reads as judder,
+    // and independent rounding per lane puts their grids out of phase.
+    final x = stripTranslateX(
+      positionMs: displayMs(),
+      originMs: originMs,
+      viewportWidth: context.size.width,
+      pxPerMs: pxPerMs,
     );
     context.paintChild(0, transform: Matrix4.translationValues(x, 0, 0));
   }
@@ -110,6 +103,5 @@ class _WaveformScrollDelegate extends FlowDelegate {
       displayMs != oldDelegate.displayMs ||
       originMs != oldDelegate.originMs ||
       pxPerMs != oldDelegate.pxPerMs ||
-      stripSize != oldDelegate.stripSize ||
-      dpr != oldDelegate.dpr;
+      stripSize != oldDelegate.stripSize;
 }
