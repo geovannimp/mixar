@@ -77,4 +77,7 @@ for architecture in "${architectures[@]}"; do
 done
 
 lipo -create "${archives[@]}" -output "$output/lib${library_name}.a"
-lipo -verify_arch "${architectures[@]}" "$output/lib${library_name}.a"
+# Real lipo mis-parses `-verify_arch a b file`; verify one at a time.
+for architecture in "${architectures[@]}"; do
+  lipo -verify_arch "$architecture" "$output/lib${library_name}.a"
+done

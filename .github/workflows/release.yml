@@ -474,7 +474,13 @@ jobs:
           APP=build/macos/Build/Products/Release/Mixar.app
           BINARY="$APP/Contents/MacOS/Mixar"
           FRAMEWORKS="$APP/Contents/Frameworks"
-          lipo -verify_arch arm64 x86_64 "$BINARY"
+          # Real lipo mis-parses `-verify_arch a b file`; verify one at a time.
+          verify_arch() {
+            lipo -verify_arch "$1" "$2"
+          }
+          for architecture in arm64 x86_64; do
+            verify_arch "$architecture" "$BINARY"
+          done
           # CocoaPods can link Rust into host_flutter.framework rather than
           # directly into Runner. Sidecars are embedded beside that loader.
           bundled_library() {
@@ -486,9 +492,11 @@ jobs:
           ONNX=$(bundled_library libonnxruntime.dylib)
           : "${DAWN:?libwebgpu_dawn.dylib not found under $FRAMEWORKS}"
           : "${ONNX:?libonnxruntime.dylib not found under $FRAMEWORKS}"
-          lipo -verify_arch arm64 x86_64 "$HOST"
-          lipo -verify_arch arm64 "$DAWN"
-          lipo -verify_arch x86_64 "$ONNX"
+          for architecture in arm64 x86_64; do
+            verify_arch "$architecture" "$HOST"
+          done
+          verify_arch arm64 "$DAWN"
+          verify_arch x86_64 "$ONNX"
           # Check the actual Rust loader's commands, not just file presence.
           otool -arch x86_64 -L "$HOST" | grep -F '@rpath/libonnxruntime.dylib'
           otool -arch arm64 -L "$HOST" | grep -F 'libwebgpu_dawn.dylib'
