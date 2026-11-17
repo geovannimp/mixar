@@ -151,19 +151,25 @@ class MacOSBuildTests(unittest.TestCase):
     def tools(self):
         return [json.loads(line) for line in (self.root / "tools.log").read_text().splitlines()]
 
-    def test_merged_archive_is_verified_for_every_architecture(self):
-        self.assertEqual(self.build("arm64 x86_64").returncode, 0)
-        merged = str(self.output / "libhost_flutter.a")
-        verified = [
+    def verified_architectures(self, matches):
+        """Architectures this run verified on artifacts whose path matches."""
+        return [
             args[1]
             for name, args in self.tools()
             if name == "lipo"
             and args[0] == "-verify_arch"
-            and args[2] == merged
+            and matches(args[2])
         ]
+
+    def test_merged_archive_is_verified_for_every_architecture(self):
+        self.assertEqual(self.build("arm64 x86_64").returncode, 0)
+        merged = str(self.output / "libhost_flutter.a")
         # Without this the suite stays green when the final verification is
         # deleted, because nothing else observes the merged archive.
-        self.assertEqual(sorted(verified), ["arm64", "x86_64"])
+        self.assertEqual(
+            sorted(self.verified_architectures(lambda path: path == merged)),
+            ["arm64", "x86_64"],
+        )
 
     def test_universal_build_isolates_runtime_environments(self):
         for architectures in ["arm64 x86_64", "x86_64 arm64"]:
@@ -307,13 +313,32 @@ class MacOSBuildTests(unittest.TestCase):
         section = section.split("\n      - name:", 1)[0]
         return textwrap.dedent(section.split("        run: |\n", 1)[1])
 
-    def test_release_validation_names_missing_runtimes_and_allows_runner_fallback(self):
-        script = self.release_script()
+    def release_app(self, *, embedded_loader=False):
+        """Build the Release bundle layout the verification step inspects."""
         app = self.root / "build/macos/Build/Products/Release/Mixar.app/Contents"
         (app / "MacOS").mkdir(parents=True)
         (app / "MacOS/Mixar").write_text("arm64 x86_64")
         frameworks = app / "Frameworks"
         frameworks.mkdir()
+        (frameworks / "libwebgpu_dawn.dylib").write_text("arm64")
+        (frameworks / "libonnxruntime.dylib").write_text("x86_64")
+        if embedded_loader:
+            loader = frameworks / "host_flutter.framework/Versions/A/host_flutter"
+            loader.parent.mkdir(parents=True)
+            loader.write_text("arm64 x86_64")
+        return app
+
+    def run_release_script(self):
+        return subprocess.run(
+            ["bash", "-c", self.release_script()],
+            cwd=self.root,
+            env=self.env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_release_validation_names_missing_runtimes_and_allows_runner_fallback(self):
+        frameworks = self.release_app() / "Frameworks"
         runtimes = {
             "libwebgpu_dawn.dylib": "arm64",
             "libonnxruntime.dylib": "x86_64",
@@ -327,57 +352,36 @@ class MacOSBuildTests(unittest.TestCase):
                         library.unlink(missing_ok=True)
                     else:
                         library.write_text(architecture)
-                result = subprocess.run(
-                    ["bash", "-c", script],
-                    cwd=self.root,
-                    env=self.env,
-                    capture_output=True,
-                    text=True,
-                )
+                result = self.run_release_script()
                 if missing is None:
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    verified = {
-                        args[1]
-                        for name, args in self.tools()
-                        if name == "lipo"
-                        and args[0] == "-verify_arch"
-                        and args[2].endswith("MacOS/Mixar")
-                    }
+                    verified = set(
+                        self.verified_architectures(
+                            lambda path: path.endswith("MacOS/Mixar")
+                        )
+                    )
                     self.assertEqual(verified, {"arm64", "x86_64"})
                 else:
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn(f"{missing} not found under", result.stderr)
 
     def test_release_validation_verifies_the_embedded_rust_loader(self):
-        script = self.release_script()
-        app = self.root / "build/macos/Build/Products/Release/Mixar.app/Contents"
-        (app / "MacOS").mkdir(parents=True)
-        (app / "MacOS/Mixar").write_text("arm64 x86_64")
-        frameworks = app / "Frameworks"
-        loader = frameworks / "host_flutter.framework/Versions/A/host_flutter"
-        loader.parent.mkdir(parents=True)
-        loader.write_text("arm64 x86_64")
-        (frameworks / "libwebgpu_dawn.dylib").write_text("arm64")
-        (frameworks / "libonnxruntime.dylib").write_text("x86_64")
+        self.release_app(embedded_loader=True)
 
-        result = subprocess.run(
-            ["bash", "-c", script],
-            cwd=self.root,
-            env=self.env,
-            capture_output=True,
-            text=True,
-        )
+        result = self.run_release_script()
         self.assertEqual(result.returncode, 0, result.stderr)
-        verified = [
-            args[1]
-            for name, args in self.tools()
-            if name == "lipo"
-            and args[0] == "-verify_arch"
-            and args[2].endswith("host_flutter.framework/Versions/A/host_flutter")
-        ]
         # HOST only takes this branch when the framework exists, so deleting
         # its loop must fail here even though Runner falls back elsewhere.
-        self.assertEqual(sorted(verified), ["arm64", "x86_64"])
+        self.assertEqual(
+            sorted(
+                self.verified_architectures(
+                    lambda path: path.endswith(
+                        "host_flutter.framework/Versions/A/host_flutter"
+                    )
+                )
+            ),
+            ["arm64", "x86_64"],
+        )
 
 
 if __name__ == "__main__":
