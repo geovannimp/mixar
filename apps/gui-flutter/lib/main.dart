@@ -27,7 +27,7 @@ Future<void> main() async {
   try {
     await WaveformShader.load();
   } on Object catch (error) {
-    runApp(StartupFailureApp(message: '$error'));
+    runApp(ProviderScope(child: StartupFailureApp(message: '$error')));
     return;
   }
 
@@ -41,7 +41,7 @@ Future<void> main() async {
       final supportDir = await getApplicationSupportDirectory();
       await setAppSupportDir(path: supportDir.path);
     } on Object catch (error) {
-      runApp(StartupFailureApp(message: '$error'));
+      runApp(ProviderScope(child: StartupFailureApp(message: '$error')));
       return;
     }
     // The deck UI is a two-deck horizontal layout: stay landscape and give it
