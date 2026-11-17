@@ -14,17 +14,39 @@ runs:
         github-cache: 'true'
         cache-key-prefix: ${{ inputs.cache-key-prefix }}
         cache-executables: ${{ runner.os != 'Windows' }}
+    # The upstream action only warns (and returns success) when its download
+    # fails, so assert the pinned install ourselves. Single `want` pin: the
+    # upstream exports KACHE_VERSION with a leading "v" (it normalizes the
+    # `version:` input), hence the ${KACHE_VERSION#v} comparison.
     - name: Verify kache installation
       shell: bash
       run: |
         set -euo pipefail
+        want=2.1.1
+        esc=${want//./\\.}
         : "${RUSTC_WRAPPER:?kache action did not export RUSTC_WRAPPER}"
-        if [ "${KACHE_VERSION:-}" != "2.1.1" ]; then
-          echo "::error::kache action did not pin version 2.1.1"
+        if [ ! -x "$RUSTC_WRAPPER" ]; then
+          echo "::error::RUSTC_WRAPPER is not an executable: $RUSTC_WRAPPER"
           exit 1
         fi
-        if ! command -v kache-engine >/dev/null; then
+        kv=${KACHE_VERSION:-}
+        if [ "${kv#v}" != "$want" ]; then
+          echo "::error::kache action did not pin version $want (KACHE_VERSION=${kv:-<unset>})"
+          exit 1
+        fi
+        if ! "$RUSTC_WRAPPER" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
+          echo "::error::$RUSTC_WRAPPER is not kache $want"
+          exit 1
+        fi
+        engine="$(dirname "$RUSTC_WRAPPER")/kache-engine"
+        if [ ! -x "$engine" ]; then
+          engine="$(command -v kache-engine || true)"
+        fi
+        if [ -z "$engine" ]; then
           echo "::error::Matching kache-engine companion is missing"
           exit 1
         fi
-        kache --version | grep -Eq '^kache 2\.1\.1([[:space:]]|$)'
+        if ! "$engine" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
+          echo "::error::kache-engine is not version $want: $engine"
+          exit 1
+        fi
