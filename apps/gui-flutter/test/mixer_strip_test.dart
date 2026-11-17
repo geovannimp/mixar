@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,7 @@ import 'support/mixar_material_app.dart';
 
 class _RoutingTransport extends FakeEngineTransport {
   final assignments = <(int, CrossfaderAssign)>[];
+  Future<void>? assignmentResult;
 
   @override
   Future<void> setCrossfaderAssign({
@@ -25,6 +28,7 @@ class _RoutingTransport extends FakeEngineTransport {
     required CrossfaderAssign assignment,
   }) async {
     assignments.add((deckId, assignment));
+    await assignmentResult;
   }
 }
 
@@ -150,6 +154,30 @@ void main() {
       closeTo(35, 1e-6),
       reason: 'routing must not move the fader',
     );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('assignment errors remain visible after the menu is dismissed', (
+    tester,
+  ) async {
+    final (container: _, :engine) = await _pumpStrip(tester);
+    final completion = Completer<void>();
+    engine.assignmentResult = completion.future;
+
+    await tester.tap(_endpoint('A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Deck B'));
+    await tester.pump();
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(find.text('Deck B'), findsNothing);
+
+    completion.completeError(StateError('assignment rejected'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bad state: assignment rejected'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

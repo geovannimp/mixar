@@ -1263,9 +1263,9 @@ impl Deck {
         }
         let own = STEM_EQ_BAND.get(index).copied().unwrap_or(0);
         let mut gain = stem_eq_band_gain(self.stem_eq[own], true);
-        for band in 0..3 {
+        for (band, &value) in self.stem_eq.iter().enumerate() {
             if band != own {
-                gain = gain.min(stem_eq_band_gain(self.stem_eq[band], false));
+                gain = gain.min(stem_eq_band_gain(value, false));
             }
         }
         gain
@@ -1366,8 +1366,12 @@ impl Deck {
                 }
                 let mut left = 0.0;
                 let mut right = 0.0;
-                for i in 0..LIVE_STEM_COUNT {
-                    let g = self.stem_gain_current[i];
+                for (i, &g) in self
+                    .stem_gain_current
+                    .iter()
+                    .take(LIVE_STEM_COUNT)
+                    .enumerate()
+                {
                     if g == 0.0 {
                         continue;
                     }

@@ -6,6 +6,10 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
+#[cfg(test)]
+#[path = "../build_support.rs"]
+mod build_support;
+
 mod client;
 pub mod config;
 mod queue;
@@ -566,10 +570,10 @@ mod tests {
 
     #[test]
     fn app_version_matches_flutter_pubspec() {
-        let version = include_str!("../../../apps/gui-flutter/pubspec.yaml")
-            .lines()
-            .find_map(|line| line.strip_prefix("version: "))
-            .unwrap();
+        let version = crate::build_support::app_version(include_str!(
+            "../../../apps/gui-flutter/pubspec.yaml"
+        ))
+        .expect("Flutter pubspec must declare a valid app version");
         assert_eq!(APP_VERSION, version);
     }
 

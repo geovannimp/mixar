@@ -1,4 +1,4 @@
-pub const APP_VERSION: &str = "0.2.3";
+pub const APP_VERSION: &str = env!("MIXAR_APP_VERSION");
 pub const APP_LAUNCHED_EVENT: &str = "app launched";
 
 const DEFAULT_TOKEN: &str = "";
