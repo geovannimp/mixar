@@ -24,6 +24,12 @@ runs:
         set -euo pipefail
         want=2.1.1
         esc=${want//./\\.}
+        require_kache_version() {
+          if ! "$1" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
+            echo "::error::$2 is not kache $want: $1"
+            exit 1
+          fi
+        }
         : "${RUSTC_WRAPPER:?kache action did not export RUSTC_WRAPPER}"
         if [ ! -x "$RUSTC_WRAPPER" ]; then
           echo "::error::RUSTC_WRAPPER is not an executable: $RUSTC_WRAPPER"
@@ -34,10 +40,7 @@ runs:
           echo "::error::kache action did not pin version $want (KACHE_VERSION=${kv:-<unset>})"
           exit 1
         fi
-        if ! "$RUSTC_WRAPPER" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
-          echo "::error::$RUSTC_WRAPPER is not kache $want"
-          exit 1
-        fi
+        require_kache_version "$RUSTC_WRAPPER" RUSTC_WRAPPER
         engine="$(dirname "$RUSTC_WRAPPER")/kache-engine"
         if [ ! -x "$engine" ]; then
           engine="$(command -v kache-engine || true)"
@@ -46,7 +49,4 @@ runs:
           echo "::error::Matching kache-engine companion is missing"
           exit 1
         fi
-        if ! "$engine" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
-          echo "::error::kache-engine is not version $want: $engine"
-          exit 1
-        fi
+        require_kache_version "$engine" kache-engine
