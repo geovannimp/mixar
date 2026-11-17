@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Test macOS packaging scripts
+        run: python3 scripts/test-macos-build.py
+
       - name: Setup moon affected
         uses: ./.github/actions/setup-moon-base
 

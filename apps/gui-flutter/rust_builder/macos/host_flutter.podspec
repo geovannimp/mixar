@@ -39,21 +39,25 @@ A new Flutter FFI plugin project.
       "${BUILT_PRODUCTS_DIR}/libhost_flutter.a",
       "${BUILT_PRODUCTS_DIR}/libhost_flutter_rust.a",
       "${BUILT_PRODUCTS_DIR}/libwebgpu_dawn.dylib",
+      "${BUILT_PRODUCTS_DIR}/libonnxruntime.dylib",
     ],
   }
   # force_load of the static Rust lib does not pull cargo's framework link args;
   # midir/cpal need these for the Flutter macOS link.
   s.frameworks = 'AudioToolbox', 'CoreAudio', 'CoreMIDI'
-  s.pod_target_xcconfig = {
+  # OTHER_LDFLAGS is consumed by the final Runner link as well as the pod.
+  # Export its architecture-specific variable to both targets.
+  ort_ldflags = {
+    'MIXAR_ORT_LDFLAGS[arch=arm64]' => '-lwebgpu_dawn -lclang_rt.osx',
+    'MIXAR_ORT_LDFLAGS[arch=x86_64]' => '-lonnxruntime',
+  }
+  s.user_target_xcconfig = ort_ldflags
+  s.pod_target_xcconfig = ort_ldflags.merge({
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # Apple Silicon only: ort-sys (2.0.0-rc.12) has no x86_64-apple-darwin
-    # prebuilt, so cargokit would fail building the x86_64 slice of the Rust lib.
-    # build_pod.sh builds one Rust target per entry of $ARCHS, so set ARCHS
-    # directly rather than relying on EXCLUDED_ARCHS to filter $ARCHS. Keep in
-    # sync with macos/Runner/Configs/AppInfo.xcconfig.
-    'ARCHS' => 'arm64',
+    # Match the Runner's universal release architectures.
+    'ARCHS' => '$(ARCHS_STANDARD)',
     # ONNX Runtime's macOS prebuilt is built for macOS 13.4, so linking it into
     # a lower deployment target warns on every ORT object. This is a build
     # setting rather than `s.platform` because the generated Podfile pins
@@ -79,7 +83,10 @@ A new Flutter FFI plugin project.
     # ORT's compiler-rt builtins. build_pod.sh stages the clang_rt runtime into
     # ${BUILT_PRODUCTS_DIR} (it lives inside the toolchain or SDK and its path
     # moves with the Xcode version, so it is discovered there, not hardcoded).
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter_rust.a -L${BUILT_PRODUCTS_DIR} -lhost_flutter -lwebgpu_dawn -lclang_rt.osx -lc++ -framework Foundation',
-    'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
-  }
+    # Apple Silicon uses the static WebGPU runtime; Intel uses Microsoft's
+    # last supported shared runtime. Never link either sidecar into the other
+    # architecture's executable.
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter_rust.a -L${BUILT_PRODUCTS_DIR} -lhost_flutter $(MIXAR_ORT_LDFLAGS) -lc++ -framework Foundation',
+    'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path/Frameworks @loader_path @executable_path/../Frameworks',
+  })
 end

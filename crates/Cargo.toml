@@ -70,6 +70,10 @@ petgraph = "0.5"
 # `vendored-openssl` keeps the build self-contained: system OpenSSL is absent
 # on macOS runners and Windows images.
 rusqlite = { version = "0.38", features = ["bundled-sqlcipher-vendored-openssl"] }
+# ONNX Runtime backend for stem separation. The release is pinned once so the
+# desktop, Android, and Intel-macOS targets cannot drift onto different
+# versions; each target opts into only the features it needs.
+ort = { version = "=2.0.0-rc.14", default-features = false }
 
 [profile.release]
 # 3, not "z": "z" disables loop vectorization. See docs/tech-spec.md §13.
