@@ -25,7 +25,7 @@ libc = "0.2"
 realfft = "3.5"
 # Base spec: target-specific declarations below select the runtime ABI and
 # linking strategy without leaking desktop defaults into Android or Intel macOS.
-ort = { version = "=2.0.0-rc.14", default-features = false }
+ort = { workspace = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 resampler = { path = "../resampler" }
 ruopus = "0.1"
@@ -37,7 +37,7 @@ tracing.workspace = true
 # Other desktops explicitly opt into the current ABI, prebuilt download, and
 # runtime sidecar copying. Execution providers (e.g. WebGPU) remain opt-in.
 [target.'cfg(not(any(target_os = "android", all(target_os = "macos", target_arch = "x86_64"))))'.dependencies]
-ort = { version = "=2.0.0-rc.14", default-features = false, features = [
+ort = { workspace = true, features = [
     "std",
     "tracing",
     "api-31",
@@ -50,7 +50,7 @@ ort = { version = "=2.0.0-rc.14", default-features = false, features = [
 # stages that official shared runtime for the Intel slice; request its ABI, not
 # ort's default API 31. WebGPU is probed normally and falls back to CPU.
 [target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
-ort = { version = "=2.0.0-rc.14", default-features = false, features = [
+ort = { workspace = true, features = [
     "std",
     "tracing",
     "api-23",
@@ -64,7 +64,7 @@ ort = { version = "=2.0.0-rc.14", default-features = false, features = [
 # custom ONNX Runtime build ships them).
 
 [target.'cfg(target_os = "android")'.dependencies]
-ort = { version = "=2.0.0-rc.14", default-features = false, features = [
+ort = { workspace = true, features = [
     "api-31",
     "load-dynamic",
     "nnapi",

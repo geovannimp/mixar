@@ -10,6 +10,18 @@ intel_runtime=libonnxruntime.dylib
 arm_runtime=libwebgpu_dawn.dylib
 sidecar_libraries=("$intel_runtime" "$arm_runtime")
 
+# `set -u` alone would report these as unbound variables; name them instead.
+for variable in CARGOKIT_OUTPUT_DIR CARGOKIT_TARGET_TEMP_DIR; do
+  if [ -z "${!variable:-}" ]; then
+    echo "error: $variable must be set" >&2
+    exit 1
+  fi
+done
+if [ ! -d "${CARGOKIT_MANIFEST_DIR:-}" ]; then
+  echo "error: CARGOKIT_MANIFEST_DIR is not a directory: ${CARGOKIT_MANIFEST_DIR:-<unset>}" >&2
+  exit 1
+fi
+
 basedir=$(cd "$(dirname "$0")"; pwd -P)
 output="$CARGOKIT_OUTPUT_DIR"
 slices="$CARGOKIT_TARGET_TEMP_DIR/macos-slices"

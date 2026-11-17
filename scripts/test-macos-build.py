@@ -112,6 +112,8 @@ class MacOSBuildTests(unittest.TestCase):
         real_shasum = shutil.which("shasum")
         self.assertIsNotNone(real_shasum, "Packaging tests require shasum")
         self.output = self.root / "output with spaces"
+        self.manifest = self.root / "manifest"
+        self.manifest.mkdir()
         self.env = {
             **os.environ,
             "PATH": str(tools) + os.pathsep + os.environ["PATH"],
@@ -122,8 +124,14 @@ class MacOSBuildTests(unittest.TestCase):
             "REAL_SHASUM": real_shasum,
             "CARGOKIT_OUTPUT_DIR": str(self.output),
             "CARGOKIT_TARGET_TEMP_DIR": str(self.root / "temporary with spaces"),
+            "CARGOKIT_MANIFEST_DIR": str(self.manifest),
         }
-        for name in ["ORT_LIB_LOCATION", "ORT_LIB_PATH", "ORT_PREFER_DYNAMIC_LINK"]:
+        for name in [
+            "ORT_LIB_LOCATION",
+            "ORT_LIB_PATH",
+            "ORT_PREFER_DYNAMIC_LINK",
+            "PLATFORM_NAME",
+        ]:
             self.env.pop(name, None)
 
     def build(self, architectures, **overrides):
@@ -186,6 +194,38 @@ class MacOSBuildTests(unittest.TestCase):
                     )
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("usage:", result.stderr)
+        self.assertFalse((self.root / "build.log").exists())
+
+    def test_missing_build_environment_names_the_unset_variable(self):
+        cases = [
+            ("CARGOKIT_OUTPUT_DIR", None),
+            ("CARGOKIT_TARGET_TEMP_DIR", None),
+            ("CARGOKIT_MANIFEST_DIR", "missing"),
+            ("CARGOKIT_MANIFEST_DIR", "not-a-directory"),
+        ]
+        for variable, state in cases:
+            with self.subTest(variable=variable, state=state):
+                environment = dict(self.env)
+                if state is None:
+                    environment.pop(variable)
+                elif state == "missing":
+                    environment[variable] = str(self.root / "absent")
+                else:
+                    environment[variable] = str(self.root / "tools" / "shasum")
+                environment["CARGOKIT_DARWIN_ARCHS"] = "arm64"
+                result = subprocess.run(
+                    [
+                        "bash",
+                        str(self.scripts / "build_macos_slices.sh"),
+                        "unused",
+                        "host_flutter",
+                    ],
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(variable, result.stderr)
         self.assertFalse((self.root / "build.log").exists())
 
     def test_missing_or_unknown_platform_fails_before_dispatch(self):
