@@ -1,0 +1,30 @@
+name: Setup kache
+description: Install kache and persist Rust compiler artifacts
+inputs:
+  cache-key-prefix:
+    description: Namespace for this Rust build workload
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Setup kache
+      uses: kunobi-ninja/kache-action@ad7317540dcdd71c904f7a60a87b620a0c0e67ed # v1
+      with:
+        version: '2.1.1'
+        github-cache: 'true'
+        cache-key-prefix: ${{ inputs.cache-key-prefix }}
+        cache-executables: ${{ runner.os != 'Windows' }}
+    - name: Verify kache installation
+      shell: bash
+      run: |
+        set -euo pipefail
+        : "${RUSTC_WRAPPER:?kache action did not export RUSTC_WRAPPER}"
+        if [ "${KACHE_VERSION:-}" != "2.1.1" ]; then
+          echo "::error::kache action did not pin version 2.1.1"
+          exit 1
+        fi
+        if ! command -v kache-engine >/dev/null; then
+          echo "::error::Matching kache-engine companion is missing"
+          exit 1
+        fi
+        kache --version | grep -Eq '^kache 2\.1\.1([[:space:]]|$)'

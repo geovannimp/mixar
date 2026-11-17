@@ -36,6 +36,12 @@ jobs:
       - name: Install native deps
         uses: ./.github/actions/install-native-deps
 
+      # See build.yml — must run before Cache Rust.
+      - name: Setup kache
+        uses: ./.github/actions/setup-kache
+        with:
+          cache-key-prefix: mixar-kache-lint
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:

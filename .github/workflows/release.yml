@@ -17,6 +17,9 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   LEFTHOOK: '0'
+  # See test.yml: incremental artifacts bloat the rust-cache entry. CI uses
+  # compiler-artifact caching (kache) instead of incremental state.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   build:
@@ -178,6 +181,13 @@ jobs:
           platform: ${{ matrix.platform }}
           # install-native-deps above already ran `apt-get update`.
           refresh_index: ${{ matrix.platform != 'linux' }}
+
+      # See build.yml. Covers the Flutter desktop build too: Cargokit inherits
+      # the parent environment, so RUSTC_WRAPPER reaches its nested Cargo.
+      - name: Setup kache
+        uses: ./.github/actions/setup-kache
+        with:
+          cache-key-prefix: mixar-kache-release
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2

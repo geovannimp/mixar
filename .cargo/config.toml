@@ -5,6 +5,14 @@
 #   RUSTFLAGS="-C target-cpu=x86-64" cargo build --release
 # aarch64 stays at baseline: x86-64-v3 is x86-only, aarch64 already has NEON.
 
+# Rust compiler cache for every Cargo build under this repo (including
+# moon-driven and Cargokit-nested ones). Installed by `mise install`; requires a
+# mise-activated shell or `mise exec -- ...`. CI overrides this with the
+# RUSTC_WRAPPER exported by ./.github/actions/setup-kache. To build without it:
+#   RUSTC_WRAPPER='' cargo build
+[build]
+rustc-wrapper = "kache"
+
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "target-cpu=x86-64-v3"]
 
