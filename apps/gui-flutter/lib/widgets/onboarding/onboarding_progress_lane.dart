@@ -23,6 +23,13 @@ class _OnboardingProgressLaneState extends State<OnboardingProgressLane> {
   static const _pitch = 30.0;
   static const _marker = 10.0;
 
+  Positioned _spine({required Widget child}) => Positioned(
+    left: _marker / 2 - 1,
+    top: _marker / 2,
+    bottom: _marker / 2,
+    child: child,
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -50,17 +57,11 @@ class _OnboardingProgressLaneState extends State<OnboardingProgressLane> {
         child: Stack(
           children: [
             // Rail: the whole track, behind the stops.
-            Positioned(
-              left: _marker / 2 - 1,
-              top: _marker / 2,
-              bottom: _marker / 2,
+            _spine(
               child: SizedBox(width: 2, child: ColoredBox(color: railColor)),
             ),
             // Walked distance: its own animation, so advancing slides.
-            Positioned(
-              left: _marker / 2 - 1,
-              top: _marker / 2,
-              bottom: _marker / 2,
+            _spine(
               child: AnimatedFractionallySizedBox(
                 duration: const Duration(milliseconds: 420),
                 curve: Curves.easeOutCubic,

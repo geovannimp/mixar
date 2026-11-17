@@ -7,14 +7,18 @@ Future<void> runMixerCommand(
 ) async {
   try {
     await fn();
-  } catch (e) {
+  } catch (error, stackTrace) {
+    debugPrintStack(
+      label: 'Mixer command failed: $error',
+      stackTrace: stackTrace,
+    );
     if (!context.mounted) {
       return;
     }
     showMixarToast(
       context: context,
       variant: MixarToastVariant.destructive,
-      title: Text('$e'),
+      title: Text('$error'),
     );
   }
 }

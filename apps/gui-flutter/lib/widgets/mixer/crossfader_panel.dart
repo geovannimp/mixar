@@ -138,6 +138,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
     final enabled = ref.watch(engineRunningProvider);
     final theme = context.theme;
     final label = side == CrossfaderAssign.a ? 'A' : 'B';
+    final commandContext = context;
     final color = deckInk(
       side == CrossfaderAssign.a ? DeckAccent.a : DeckAccent.b,
       theme.colors.brightness,
@@ -180,9 +181,9 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
           ),
         ),
       ),
-      menuBuilder: (menuContext, controller) => Consumer(
+      menuBuilder: (_, _) => Consumer(
         builder: (context, menuRef, _) {
-          final enabled = menuRef.watch(engineRunningProvider);
+          final menuEnabled = menuRef.watch(engineRunningProvider);
           final numDecks =
               menuRef.watch(appSettingsProvider).value?.numDecks ?? 2;
           return Column(
@@ -197,23 +198,23 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                             .watch(deckMixerChannelProvider(deckId))
                             .crossfaderAssign ==
                         side;
-                    final deckLabel = String.fromCharCode(65 + deckId);
+                    final deckLabel = deckDisplayLabel(deckId);
                     final accent = deckAccentFor(deckId);
                     final deckInkColor = accent == null
                         ? context.theme.colors.foreground
                         : deckInk(accent, context.theme.colors.brightness);
                     return Semantics(
-                      label: 'Deck $deckLabel',
+                      label: deckLabel,
                       checked: selected,
                       selected: selected,
                       child: MixarMenuItem(
-                        enabled: enabled,
+                        enabled: menuEnabled,
                         title: ExcludeSemantics(
                           child: Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Deck $deckLabel',
+                                  deckLabel,
                                   style: TextStyle(color: deckInkColor),
                                 ),
                               ),
@@ -229,7 +230,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                         onPress: () {
                           unawaited(
                             runMixerCommand(
-                              menuContext,
+                              commandContext,
                               () => setDeckCrossfaderAssign(
                                 deckRef,
                                 deckId,
