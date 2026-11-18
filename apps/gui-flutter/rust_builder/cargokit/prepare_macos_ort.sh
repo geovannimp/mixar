@@ -17,9 +17,29 @@ if [ ! -f "$destination/.version-$version" ] || [ ! -f "$library" ]; then
   temporary=$(mktemp -d)
   trap 'rm -rf "$temporary"' EXIT
   archive="onnxruntime-osx-x86_64-$version"
-  curl --fail --location --retry 3 \
-    "https://github.com/microsoft/onnxruntime/releases/download/v$version/$archive.tgz" \
-    --output "$temporary/runtime.tgz"
+  # Microsoft's release asset for this last Intel macOS build is no longer
+  # downloadable (the release 404s), so fall back to a bit-for-bit mirror. The
+  # pinned SHA-256 below is what makes a mirror acceptable: content that does
+  # not match Microsoft's published digest never gets installed.
+  urls=(
+    "https://github.com/microsoft/onnxruntime/releases/download/v$version/$archive.tgz"
+    "https://dl.photoprism.app/onnx/runtime/v$version/$archive.tgz"
+  )
+  downloaded=""
+  for url in "${urls[@]}"; do
+    if curl --fail --silent --show-error --location --retry 3 "$url" \
+      --output "$temporary/runtime.tgz"; then
+      downloaded="$url"
+      break
+    fi
+    echo "warning: ONNX Runtime $version is not available at $url" >&2
+  done
+  if [ -z "$downloaded" ]; then
+    echo "error: could not download ONNX Runtime $version from any source:" >&2
+    printf '  %s\n' "${urls[@]}" >&2
+    exit 1
+  fi
+  echo "ONNX Runtime $version downloaded from $downloaded" >&2
   echo "$checksum  $temporary/runtime.tgz" | shasum -a 256 --check
   tar -xzf "$temporary/runtime.tgz" -C "$temporary"
   mkdir -p "$destination"
