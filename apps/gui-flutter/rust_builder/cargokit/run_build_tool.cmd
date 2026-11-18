@@ -88,11 +88,22 @@ if not exist "%PRECOMPILED%" (
     "%DART%" compile kernel bin/build_tool_runner.dart
 )
 
-"%DART%" "%PRECOMPILED%" %*
+REM Keep the tool's own output: `flutter build windows` surfaces a failed custom
+REM build as a bare MSB8066 "exited with code -1" and drops the command's output,
+REM which is where the cargo/OpenSSL/link error behind it lives. CI prints this
+REM file from the "Explain Windows plugin build failure" step.
+SET BUILD_LOG=%CARGOKIT_TOOL_TEMP_DIR%\build.log
+"%DART%" "%PRECOMPILED%" %* > "%BUILD_LOG%" 2>&1
+SET TOOL_EXIT=%ERRORLEVEL%
+TYPE "%BUILD_LOG%"
 
 REM 253 means invalid snapshot version.
-If %ERRORLEVEL% equ 253 (
-    "%DART%" pub get --no-precompile
-    "%DART%" compile kernel bin/build_tool_runner.dart
-    "%DART%" "%PRECOMPILED%" %*
-)
+IF NOT %TOOL_EXIT% equ 253 GOTO :tool_done
+"%DART%" pub get --no-precompile
+"%DART%" compile kernel bin/build_tool_runner.dart
+"%DART%" "%PRECOMPILED%" %* > "%BUILD_LOG%" 2>&1
+SET TOOL_EXIT=%ERRORLEVEL%
+TYPE "%BUILD_LOG%"
+
+:tool_done
+EXIT /B %TOOL_EXIT%
