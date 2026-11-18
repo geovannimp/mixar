@@ -331,8 +331,11 @@ class MacOSBuildTests(unittest.TestCase):
     @classmethod
     def workflow_step(cls, name):
         """Body of one `- name:` step in release.yml, without its siblings."""
-        section = cls.workflow().split(f"      - name: {name}\n", 1)[1]
-        return section.split("\n      - name:", 1)[0]
+        header = f"      - name: {name}\n"
+        workflow = cls.workflow()
+        if header not in workflow:
+            raise AssertionError(f"release.yml has no step named {name!r}")
+        return workflow.split(header, 1)[1].split("\n      - name:", 1)[0]
 
     def test_windows_plugin_failure_log_is_written_and_surfaced(self):
         """A failed custom build must leave a log the workflow can print.
@@ -350,6 +353,15 @@ class MacOSBuildTests(unittest.TestCase):
         )
         section = self.workflow_step("Explain Windows plugin build failure")
         self.assertIn("$CARGOKIT_BUILD_LOG", section)
+        # The producer half of that path: CARGOKIT_TEMP_DIR only lands under
+        # runner.temp because the packaging step sets MIXAR_CARGOKIT_TEMP_DIR.
+        # Drop or move it and cargokit falls back to ${CMAKE_CURRENT_BINARY_DIR},
+        # leaving the log somewhere the explain step never looks.
+        cargokit_temp = BUILD_LOG_RELATIVE_PATH.split("/")[0]
+        self.assertIn(
+            "MIXAR_CARGOKIT_TEMP_DIR: ${{ runner.temp }}/" + cargokit_temp,
+            self.workflow_step("Package with Fastforge"),
+        )
 
     @classmethod
     def release_script(cls):
