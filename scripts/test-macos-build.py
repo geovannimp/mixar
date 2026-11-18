@@ -28,7 +28,20 @@ args = sys.argv[1:]
 with open(os.environ['TOOL_LOG'], 'a') as log:
     log.write(json.dumps([name, args]) + '\n')
 if name == 'curl':
-    shutil.copyfile(os.environ['ORT_ARCHIVE'], args[args.index('--output') + 1])
+    url = next((a for a in args if a.startswith('http')), '')
+    output = args[args.index('--output') + 1]
+    primary = 'github.com' in url
+    # Microsoft's Intel macOS asset 404s; make the stub reproduce that by
+    # default so the fallback path is what every build exercises.
+    reachable = os.environ.get('ORT_PRIMARY_OK') == '1' if primary else True
+    if os.environ.get('ORT_ALL_DOWNLOADS_FAIL') == '1':
+        reachable = False
+    with open(os.environ['TOOL_LOG'], 'a') as log:
+        log.write(json.dumps(['download-ok' if reachable else 'download-404', args]) + '\n')
+    if not reachable:
+        print('curl: (56) The requested URL returned error: 404', file=sys.stderr)
+        sys.exit(56)
+    shutil.copyfile(os.environ['ORT_ARCHIVE'], output)
 elif name == 'shasum':
     assert args == ['-a', '256', '--check'], args
     line = sys.stdin.read().rstrip('\n')
@@ -197,7 +210,8 @@ class MacOSBuildTests(unittest.TestCase):
         builds = (self.root / "build.log").read_text().splitlines()
         self.assertTrue(all(line == "arm64||" for line in builds if line.startswith("arm64")))
         self.assertTrue(all(line.endswith("/onnxruntime-x86_64|1") for line in builds if line.startswith("x86_64")))
-        self.assertEqual(sum(name == "curl" for name, _ in self.tools()), 1)
+        # The runtime is downloaded once and reused from the target temp dir.
+        self.assertEqual(sum(name == "download-ok" for name, _ in self.tools()), 1)
 
     def test_cross_architecture_sidecars_are_ignored_in_both_build_orders(self):
         for architectures in ["arm64 x86_64", "x86_64 arm64"]:
@@ -297,6 +311,51 @@ class MacOSBuildTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.root / "build.log").exists())
         self.assertNotIn("install_name_tool", [name for name, _ in self.tools()])
+        self.assertFalse((self.output / "libonnxruntime.dylib").exists())
+
+    def download_attempts(self):
+        """(outcome, url) for each curl attempt, in order."""
+        return [
+            (name, next(a for a in args if a.startswith("http")))
+            for name, args in self.tools()
+            if name.startswith("download-")
+        ]
+
+    def assert_first_download_is_canonical(self):
+        """The Microsoft release is always tried before any mirror."""
+        url = self.download_attempts()[0][1]
+        self.assertIn("github.com/microsoft/onnxruntime", url)
+
+    def test_runtime_download_falls_back_when_the_release_asset_is_gone(self):
+        # The stub 404s every github.com asset by default, which is what
+        # Microsoft's last Intel macOS release does today.
+        result = self.build("x86_64")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            [outcome for outcome, _ in self.download_attempts()],
+            ["download-404", "download-ok"],
+        )
+        self.assert_first_download_is_canonical()
+        # The mirror copy still has to match the pinned Microsoft digest.
+        self.assertEqual((self.output / "libonnxruntime.dylib").read_text(), "x86_64")
+
+    def test_runtime_download_prefers_the_canonical_release(self):
+        result = self.build("x86_64", ORT_PRIMARY_OK="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            [outcome for outcome, _ in self.download_attempts()],
+            ["download-ok"],
+        )
+        self.assert_first_download_is_canonical()
+        self.assertNotIn("photoprism", result.stderr)
+
+    def test_runtime_download_failure_names_every_source(self):
+        result = self.build("x86_64", ORT_ALL_DOWNLOADS_FAIL="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not download ONNX Runtime", result.stderr)
+        self.assertIn("github.com/microsoft/onnxruntime", result.stderr)
+        self.assertIn("photoprism", result.stderr)
+        self.assertFalse((self.root / "build.log").exists())
         self.assertFalse((self.output / "libonnxruntime.dylib").exists())
 
     def test_checksum_algorithm_and_arguments_are_verified(self):
