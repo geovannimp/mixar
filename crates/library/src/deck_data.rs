@@ -2,7 +2,7 @@
 
 use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::ColumnTrait;
-use sea_orm::{EntityTrait, QueryFilter, Set};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
 
 use library_core::{CueSource, Library, LibraryError, LoopImport, Result, TrackCue, TrackId};
@@ -163,6 +163,29 @@ pub fn save_hot_cue(
     color: Option<String>,
     label: Option<String>,
 ) -> Result<()> {
+    save_hot_cue_tx(
+        db.conn()?.as_connection(),
+        track_id,
+        slot_index,
+        position_ms,
+        loop_length_beats,
+        color,
+        label,
+    )
+}
+
+/// Upsert one hot cue on `conn`, for use inside a transaction.
+///
+/// [`save_hot_cue`] is the lock-acquiring wrapper around this.
+pub(crate) fn save_hot_cue_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    slot_index: u8,
+    position_ms: i32,
+    loop_length_beats: Option<i32>,
+    color: Option<String>,
+    label: Option<String>,
+) -> Result<()> {
     if slot_index > 15 {
         return Err(LibraryError::Backend {
             backend: "deck_data",
@@ -193,7 +216,7 @@ pub fn save_hot_cue(
         ])
         .to_owned(),
     )
-    .exec(db.conn()?.as_connection())
+    .exec(conn)
     .map_err(db::db_err)?;
     Ok(())
 }
@@ -259,7 +282,19 @@ pub fn save_loop(
 /// stale label from an earlier import of a different library would survive
 /// otherwise.
 pub fn import_loop(db: &Db, track_id: &TrackId, saved: &LoopImport) -> Result<()> {
-    upsert_loop(db, track_id, saved, false, false)
+    import_loop_tx(db.conn()?.as_connection(), track_id, saved)
+}
+
+/// Import one loop verbatim on `conn`, for use inside a transaction.
+///
+/// Same semantics and validation as [`import_loop`], without acquiring the DB
+/// lock or participating in automatic-loop eviction.
+pub(crate) fn import_loop_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    saved: &LoopImport,
+) -> Result<()> {
+    upsert_loop_tx(conn, track_id, saved, false, false)
 }
 
 /// Least-recently-updated automatic loop, breaking exact timestamp ties by slot.
@@ -347,6 +382,22 @@ fn upsert_loop(
     preserve: bool,
     auto_saved: bool,
 ) -> Result<()> {
+    upsert_loop_tx(
+        db.conn()?.as_connection(),
+        track_id,
+        saved,
+        preserve,
+        auto_saved,
+    )
+}
+
+fn upsert_loop_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    saved: &LoopImport,
+    preserve: bool,
+    auto_saved: bool,
+) -> Result<()> {
     let (slot_index, in_ms, out_ms) = (saved.slot, saved.in_ms, saved.out_ms);
     if slot_index > 15 {
         return Err(LibraryError::Backend {
@@ -367,7 +418,7 @@ fn upsert_loop(
         let existing = TrackLoopEntity::find()
             .filter(track_loop::Column::TrackId.eq(track_id.as_str()))
             .filter(track_loop::Column::SlotIndex.eq(i32::from(slot_index)))
-            .one(db.conn()?.as_connection())
+            .one(conn)
             .map_err(db::db_err)?;
         (
             saved
@@ -405,7 +456,7 @@ fn upsert_loop(
             ])
             .to_owned(),
     )
-    .exec(db.conn()?.as_connection())
+    .exec(conn)
     .map_err(db::db_err)?;
     Ok(())
 }

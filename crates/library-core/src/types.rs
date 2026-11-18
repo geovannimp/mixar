@@ -190,6 +190,32 @@ impl ColorLabel {
             Self::Purple => 8,
         }
     }
+
+    /// Exact `0xRRGGBB` swatch this label is displayed with.
+    ///
+    /// These are the same eight values the Flutter UI paints
+    /// (`color_labels.dart::colorLabelColor`), so a stored raw RGB that matches
+    /// a label is indistinguishable from that label.
+    pub fn rgb(self) -> u32 {
+        match self {
+            Self::Pink => 0xFF_0080,
+            Self::Red => 0xFF_0000,
+            Self::Orange => 0xFF_8000,
+            Self::Yellow => 0xFF_FF00,
+            Self::Green => 0x00_FF00,
+            Self::Aqua => 0x00_FFFF,
+            Self::Blue => 0x00_00FF,
+            Self::Purple => 0x80_00FF,
+        }
+    }
+
+    /// The label whose swatch is exactly `rgb`, if any.
+    ///
+    /// Exact equality only: arbitrary colours (a Serato white, a custom hue)
+    /// keep their raw RGB and project to no label rather than the nearest one.
+    pub fn from_rgb(rgb: u32) -> Option<Self> {
+        Self::ALL.into_iter().find(|label| label.rgb() == rgb)
+    }
 }
 
 impl std::str::FromStr for ColorLabel {
@@ -257,6 +283,14 @@ pub struct TrackMetadata {
     pub disc_number: Option<u16>,
     /// Colour label, when one of the eight device colors is assigned.
     pub color_label: Option<ColorLabel>,
+    /// Exact 24-bit `0xRRGGBB` track colour, independent of [`Self::color_label`].
+    ///
+    /// Imported files can carry arbitrary vendor colours that no device palette
+    /// contains. Storing them verbatim keeps the colour intact; `color_label` is
+    /// the optional exact-match projection consumers still read. `Some(0)`
+    /// (black) and `Some(0xFFFFFF)` (white) are real values, not absence.
+    #[serde(default)]
+    pub color_rgb: Option<u32>,
     /// Measured / effective loudness (LUFS) for normalization when known (e.g. analysis).
     pub loudness_lufs: Option<f64>,
 }
@@ -281,6 +315,14 @@ impl TrackMetadata {
                 .key
                 .as_deref()
                 .is_some_and(|key| !key.trim().is_empty())
+    }
+
+    /// Whether [`Self::color_rgb`] is a 24-bit `0xRRGGBB` value.
+    ///
+    /// Writers reject out-of-range values instead of truncating them, so a
+    /// malformed byte cannot silently turn into a different colour.
+    pub fn has_valid_color_rgb(&self) -> bool {
+        self.color_rgb.is_none_or(|rgb| rgb <= 0x00FF_FFFF)
     }
 }
 
@@ -713,6 +755,54 @@ mod tests {
         }
         assert_eq!("  PINK ".parse(), Ok(ColorLabel::Pink));
         assert_eq!("mauve".parse::<ColorLabel>(), Err(()));
+    }
+
+    #[test]
+    fn color_label_rgb_swatches_match_the_ui_exactly() {
+        let expected = [
+            (ColorLabel::Pink, 0xFF_0080),
+            (ColorLabel::Red, 0xFF_0000),
+            (ColorLabel::Orange, 0xFF_8000),
+            (ColorLabel::Yellow, 0xFF_FF00),
+            (ColorLabel::Green, 0x00_FF00),
+            (ColorLabel::Aqua, 0x00_FFFF),
+            (ColorLabel::Blue, 0x00_00FF),
+            (ColorLabel::Purple, 0x80_00FF),
+        ];
+        assert_eq!(ColorLabel::ALL.len(), expected.len());
+        for (label, rgb) in expected {
+            assert_eq!(label.rgb(), rgb);
+            assert_eq!(ColorLabel::from_rgb(rgb), Some(label));
+        }
+        // Arbitrary colours never snap to the nearest swatch.
+        assert_eq!(ColorLabel::from_rgb(0x99_FF99), None);
+        assert_eq!(ColorLabel::from_rgb(0x00_0000), None);
+        assert_eq!(ColorLabel::from_rgb(0xFF_FFFF), None);
+    }
+
+    #[test]
+    fn raw_colour_accepts_only_24_bit_values() {
+        assert!(TrackMetadata::default().has_valid_color_rgb());
+        assert!(TrackMetadata {
+            color_rgb: Some(0),
+            ..TrackMetadata::default()
+        }
+        .has_valid_color_rgb());
+        assert!(TrackMetadata {
+            color_rgb: Some(0x00FF_FFFF),
+            ..TrackMetadata::default()
+        }
+        .has_valid_color_rgb());
+        assert!(!TrackMetadata {
+            color_rgb: Some(0x0100_0000),
+            ..TrackMetadata::default()
+        }
+        .has_valid_color_rgb());
+        assert!(!TrackMetadata {
+            color_rgb: Some(u32::MAX),
+            ..TrackMetadata::default()
+        }
+        .has_valid_color_rgb());
     }
 
     #[test]

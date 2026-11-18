@@ -24,6 +24,7 @@ mod collections;
 mod db;
 mod deck_data;
 mod decode_cache;
+mod embedded_metadata;
 mod entity;
 mod export;
 mod history;
@@ -268,10 +269,55 @@ impl LibraryManager {
         persist_waveform: bool,
     ) -> Result<(AudioSource, Option<tags::TagWritePlan>)> {
         let path = normalize_path(path)?;
+        // Discovery first. It persists the *ordinary* tags, so an analyzed key
+        // can never pose as a standard tag and defeat the Mixed In Key fallback,
+        // and it adopts embedded cues/loops/grid/colour only for a new row.
+        let imported = self.persist_discovered_file(
+            &path,
+            &computed.tag_metadata,
+            &computed.embedded_metadata,
+        )?;
+
+        let mut metadata = computed.metadata.clone();
+        // Precedence covered by `mik_key_precedes_analysis_on_first_discovery`
+        // (created rows, force and non-force) and
+        // `imported_mik_key_survives_non_forced_analysis` (existing rows).
+        if imported.created {
+            // On first discovery the imported key/grid BPM precede the analyzer.
+            // `force` keeps today's analysis-replacement semantics.
+            let imported_metadata = imported.source.metadata();
+            let tag_side = analyzer::TagMetadata {
+                bpm: imported_metadata.bpm,
+                key: imported_metadata.key.clone(),
+            };
+            let defaults = analyzer::AnalysisConfig::default();
+            let merged = analyzer::merge_track_metadata(
+                &tag_side,
+                &computed.analysis,
+                computed.force,
+                defaults.min_bpm_confidence,
+                defaults.min_key_confidence,
+            );
+            metadata.bpm = merged.bpm;
+            metadata.key = merged.key;
+        } else if !computed.force
+            && computed
+                .tag_metadata
+                .key
+                .as_deref()
+                .is_none_or(|key| key.trim().is_empty())
+        {
+            // The row's key may be an imported vendor key, which a missing tag
+            // must not erase and which a non-forced analysis must not replace.
+            // `force` keeps its replacement permission.
+            if let Some(key) = crate::embedded_metadata::nonblank_key(imported.source.metadata()) {
+                metadata.key = Some(key);
+            }
+        }
+
         // A file tag that carries no value for a user-owned field must not
         // clear what the editor stored: a foreign writer may not have written
         // the tags Mixar mirrors (or written them on a scale it does not read).
-        let mut metadata = computed.metadata.clone();
         if let Some((existing, edited)) = self
             .store()
             .file_track_metadata_and_edited(&path.to_string_lossy())?
@@ -290,13 +336,16 @@ impl LibraryManager {
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }
+        // A forced analysis grid may have replaced the BPM, so the authoritative
+        // stored row (not the pre-grid value) feeds the source and the tag plan.
+        let authoritative = self.get_track(source.id())?.unwrap_or(source);
         let plan = tags::TagWritePlan::new(
             self.config.tag_write_back,
             path,
-            tags::app_managed_tags(&metadata),
+            tags::app_managed_tags(authoritative.metadata()),
             self.tag_write_gate(),
         );
-        Ok((source, plan))
+        Ok((authoritative, plan))
     }
 
     #[cfg(not(feature = "analysis"))]

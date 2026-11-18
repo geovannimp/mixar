@@ -1,0 +1,125 @@
+{
+  "description": "Offline fixtures for the Serato/Mixed In Key ID3 reader (issue #742). All files are data only; no executable code is vendored.",
+  "upstream": {
+    "project": "Mixxx",
+    "repository": "https://github.com/mixxxdj/mixxx",
+    "revision": "dc4bf99322bb9a4c59483d24c2c40d1df2d1b726",
+    "license": "GPL-2.0-or-later (compatible with this repository's GPL-3.0)",
+    "license_file": "LICENSE.mixxx",
+    "retrieved_from": "https://raw.githubusercontent.com/mixxxdj/mixxx/dc4bf99322bb9a4c59483d24c2c40d1df2d1b726/",
+    "retrieved": "2026-11-18"
+  },
+  "files": [
+    {
+      "path": "markers2/hotcue-colors.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/hotcue-colors.octet-stream",
+      "bytes": 470,
+      "sha256": "9cf75e18c472134663e58b6d6eaa01eece14ecac3efd5e5fe420e2393c686cae",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/hotcues-with-names.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/hotcues-with-names.octet-stream",
+      "bytes": 470,
+      "sha256": "ad25a3057231d6f40e1d6720906826ba6db2e73a6aec9cdc514b49e0343b04dc",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/saved-loops.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/saved-loops.octet-stream",
+      "bytes": 470,
+      "sha256": "e12040d2ad4cab0a5e472818de04cfff847c656245ac572e02d5bc821b86fc3c",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/tracklist-color.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/tracklist-color.octet-stream",
+      "bytes": 470,
+      "sha256": "c12c42e2158da8cfc5d48adbad3bb7363b94512158bac6f71d7c82276e37fe81",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/bpmlock-enabled.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/bpmlock-enabled.octet-stream",
+      "bytes": 93142,
+      "sha256": "85122c2155035b44f8fa21dbf9033916e074981c62bae2368001cb95419a1371",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/flips.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/flips.octet-stream",
+      "bytes": 2006,
+      "sha256": "0e2d2f8bb6744031e4e37760b8c849cbbcc95e96db6425c23d9397125c42b326",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01)"
+    },
+    {
+      "path": "markers2/very-long-names.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers2/very-long-names.octet-stream",
+      "bytes": 93142,
+      "sha256": "1338d4aa7fbe88951a06b584b4503b9a0b4e061213212477825dc30c7f3bb709",
+      "kind": "logical Serato Markers2 tag data (starts with 01 01); base64 length is 1 mod 4"
+    },
+    {
+      "path": "markers_/hotcue-positions-00m00s0-03m38s4-01m00s0-00m00s1-00m01s0.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers_/hotcue-positions-00m00s0-03m38s4-01m00s0-00m00s1-00m01s0.octet-stream",
+      "bytes": 318,
+      "sha256": "515a5ebf0c726a9f8f6f9e60437bd420c0e9268f422a30f9df3d814e979c234b",
+      "kind": "logical Serato Markers_ tag data (starts with 02 05)"
+    },
+    {
+      "path": "markers_/saved-loops.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/markers_/saved-loops.octet-stream",
+      "bytes": 318,
+      "sha256": "9f602ce2c966337acccc0e914a9295bc286bfb165371ed64957b3a4dada3c989",
+      "kind": "logical Serato Markers_ tag data (starts with 02 05)"
+    },
+    {
+      "path": "beatgrid/analyzed.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/beatgrid/analyzed.octet-stream",
+      "bytes": 15,
+      "sha256": "4266986e99b03f4a0257d509aaa1ca7fa2fc1efabaedcb1e61a9594438926952",
+      "kind": "logical Serato BeatGrid tag data (starts with 01 00)"
+    },
+    {
+      "path": "beatgrid/manual-beatgrid-changing-tempo.octet-stream",
+      "upstream_path": "src/test/serato/data/mp3/beatgrid/manual-beatgrid-changing-tempo.octet-stream",
+      "bytes": 71,
+      "sha256": "f95e32ec6a498224604127d4e4b68de5a185bc9b5c10b6adc281569204dee309",
+      "kind": "logical Serato BeatGrid tag data (starts with 01 00), eight markers, changing tempo"
+    },
+    {
+      "path": "carriers/empty.mp3",
+      "upstream_path": "src/test/id3-test-data/empty.mp3",
+      "bytes": 2506,
+      "sha256": "33b8ec644369b32cca04cb4e36ae93f6a5b7ece9fdef9be5fee34cc1b4ad430a",
+      "kind": "silent MPEG-frame-only MP3 carrier (starts with MPEG frames, no ID3 tag)"
+    }
+  ],
+  "sample_derived": {
+    "path": "tea-leaves.id3",
+    "bytes": 1464,
+    "sha256": "c568221984ddb6b37c9fbe6711b97f89fc61778d0d26a8fbe9748b098da0d376",
+    "source": "User-supplied acceptance sample 'Our Last Night - Tea Leaves.mp3' (SHA-256 6c18db610b2226d6ebcc92431a756fc4f488ef98ba2380dd735f7e2881a7b104).",
+    "derivation": "Minimal ID3v2.4 tag containing only the five vendor GEOB frames of the source tag in original order (Serato Markers_, Serato Markers2, Serato BeatGrid, CuePoints, Key); each GEOB payload copied unchanged. Outer tag size replaced with the recomputed syncsafe size (1454); original padding and all other frames (TIT2, TPE1, TALB, TCON, TDRC, TKEY, TBPM, TXXX, RVA2, COMM, TRCK, TDAT, TSRC, TPE2, APIC, Energy GEOB) removed. No audio, artwork or ordinary tags are redistributed.",
+    "contains": "Application metadata only; no audio samples, no artwork, no title/artist tags.",
+    "oracle": {
+      "cues": [
+        {"slot": 0, "position_ms": 510, "color_rgb": "CC0000", "label": "Energy 8"},
+        {"slot": 1, "position_ms": 12661, "color_rgb": "CC8800", "label": "Energy 7"},
+        {"slot": 2, "position_ms": 30888, "color_rgb": "0000CC", "label": "Energy 7"},
+        {"slot": 3, "position_ms": 55190, "color_rgb": "CCCC00", "label": "Energy 7"},
+        {"slot": 4, "position_ms": 85568, "color_rgb": "00CC00", "label": "Energy 7"},
+        {"slot": 5, "position_ms": 146323, "color_rgb": "CC00CC", "label": "Energy 7"},
+        {"slot": 6, "position_ms": 158475, "color_rgb": "00CCCC", "label": "Energy 7"},
+        {"slot": 7, "position_ms": 182777, "color_rgb": "8800CC", "label": "Energy 4"}
+      ],
+      "legacy_cue_slots": [0, 1, 2, 3, 4],
+      "track_color_rgb": "FFFFFF",
+      "bpm_locked": false,
+      "beatgrid": {"markers": 1, "terminal_position_seconds": 3.19199538230896, "bpm": 79.0},
+      "mik_key": "5A",
+      "mik_cue_points_ms": [510, 12661, 30888, 55190, 85568, 146323, 158475, 182777],
+      "ordinary_tags": {"TKEY": "Cm", "TBPM": "79"}
+    }
+  }
+}

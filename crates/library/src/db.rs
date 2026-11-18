@@ -90,6 +90,60 @@ impl Db {
             message: "library database lock poisoned".into(),
         })
     }
+
+    /// Run `f` inside one `BEGIN IMMEDIATE` transaction on the single connection.
+    ///
+    /// The connection is acquired once, so `f` must use only the connection it
+    /// is given: calling back into [`Db`] would deadlock on the lock and
+    /// starting a nested transaction would fail. A closure or commit error
+    /// rolls the whole transaction back and the original error is returned, so
+    /// a partially written import can never be observed.
+    pub(crate) fn transaction<T>(
+        &self,
+        f: impl FnOnce(&DatabaseConnection) -> Result<T>,
+    ) -> Result<T> {
+        let guard = self.conn()?;
+        let conn = guard.as_connection();
+        begin(conn)?;
+        match f(conn) {
+            Ok(value) => match commit(conn) {
+                Ok(()) => Ok(value),
+                Err(err) => {
+                    rollback(conn);
+                    Err(err)
+                }
+            },
+            Err(err) => {
+                rollback(conn);
+                Err(err)
+            }
+        }
+    }
+}
+
+pub(crate) fn begin(conn: &DatabaseConnection) -> Result<()> {
+    conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "BEGIN IMMEDIATE".to_string(),
+    ))
+    .map(|_| ())
+    .map_err(db_err)
+}
+
+pub(crate) fn commit(conn: &DatabaseConnection) -> Result<()> {
+    conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "COMMIT".to_string(),
+    ))
+    .map(|_| ())
+    .map_err(db_err)
+}
+
+pub(crate) fn rollback(conn: &DatabaseConnection) {
+    let _ = conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "ROLLBACK".to_string(),
+    ));
 }
 
 impl SyncConnection {

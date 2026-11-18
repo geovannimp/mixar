@@ -35,6 +35,9 @@ pub struct Model {
     pub disc_number: Option<i32>,
     /// Canonical [`library_core::ColorLabel`] name (`"pink"` … `"purple"`).
     pub color_label: Option<String>,
+    /// Exact 24-bit `0xRRGGBB` track colour. Additive: it never replaces the
+    /// label the editor and exports still read. `NULL` means no raw colour.
+    pub color_rgb: Option<i32>,
     /// Set once the editor writes the user-owned metadata columns, making the
     /// row authoritative over stale file tags on later re-analysis.
     pub metadata_edited: Option<bool>,

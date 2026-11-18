@@ -894,6 +894,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "base64 0.22.1",
  "flacenc",
  "image",
  "lofty",
@@ -901,6 +902,7 @@ dependencies = [
  "ruopus",
  "serde",
  "serde_json",
+ "sha2",
  "symphonia",
  "symphonia-adapter-libopus",
  "tempfile",
@@ -2601,6 +2603,7 @@ dependencies = [
  "analyzer-core",
  "analyzer-stems",
  "audio-core 0.1.0",
+ "base64 0.22.1",
  "bus-api",
  "chrono",
  "codec",

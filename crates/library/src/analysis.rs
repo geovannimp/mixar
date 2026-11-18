@@ -208,7 +208,15 @@ pub(crate) fn analyzer_error(err: AnalyzerError) -> LibraryError {
 
 #[cfg(feature = "analysis")]
 pub(crate) struct ComputedFileAnalysis {
+    /// The analyzer-merged result (ordinary tags + analysis).
     pub(crate) metadata: library_core::TrackMetadata,
+    /// The original ordinary tags, before analysis merged into them.
+    ///
+    /// Discovery persists these, so an analyzed key can never masquerade as a
+    /// standard tag and defeat the Mixed In Key fallback.
+    pub(crate) tag_metadata: library_core::TrackMetadata,
+    /// Vendor performance metadata read from the same file.
+    pub(crate) embedded_metadata: codec::SeratoPayload,
     pub(crate) analysis: analyzer::TrackAnalysis,
     pub(crate) force: bool,
 }
@@ -230,7 +238,9 @@ pub(crate) fn compute_file_analysis(
     if let Some(cue_threshold_db) = options.cue_threshold_db {
         config.cue_threshold_db = clamp_cue_threshold_db(cue_threshold_db);
     }
-    let tag_metadata = tags::read_tags(&path)?;
+    let (tag_metadata, embedded_metadata) = tags::read_file_metadata(&path)?;
+    // Keep the untouched tag mapping: the merge below consumes `tag_metadata`.
+    let original_tag_metadata = tag_metadata.clone();
     config.max_duration_ms = options
         .analysis_duration
         .resolve_max_duration_ms(tag_metadata.duration_ms);
@@ -276,6 +286,8 @@ pub(crate) fn compute_file_analysis(
 
     Ok(ComputedFileAnalysis {
         metadata,
+        tag_metadata: original_tag_metadata,
+        embedded_metadata,
         analysis,
         force: options.force,
     })

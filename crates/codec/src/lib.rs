@@ -4,6 +4,7 @@
 
 mod paths;
 mod rating;
+pub mod serato;
 mod stem_atom;
 mod stem_mp4;
 mod tag_write;
@@ -13,6 +14,7 @@ pub use paths::{
     is_loadable_audio_path, is_stem_path, is_supported_audio_extension, is_supported_audio_path,
     SUPPORTED_AUDIO_EXTENSIONS,
 };
+pub use serato::{read_file_serato, SeratoPayload};
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
 pub use stem_mp4::{
     decode_stem_file, encode_stem_mp4, stem_container_info, StemMuxFormat, StemPcmBundle,
@@ -30,6 +32,7 @@ pub use tags::{
 use anyhow::Result;
 use audio_core::Sample;
 use std::fs::File;
+use std::io::Seek;
 use std::path::Path;
 use std::sync::OnceLock;
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -39,6 +42,27 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia_adapter_libopus::OpusDecoder;
+
+/// Everything one discovery pass reads from a file.
+pub struct FileMetadataRead {
+    /// Ordinary tags. A failure here is fatal to the caller.
+    pub tags: FileTags,
+    /// Vendor payload. Surfaced as a result of its own because it is
+    /// best-effort: the caller logs and falls back to an empty payload.
+    pub serato: Result<SeratoPayload>,
+}
+
+/// Read ordinary tags and the vendor payload from **one** file open.
+///
+/// A library sync calls this per file; opening and scanning each file once
+/// instead of once per reader halves the per-file I/O.
+pub fn read_file_tags_and_serato(path: &Path) -> Result<FileMetadataRead> {
+    let mut file = File::open(path)?;
+    let serato = serato::read_from_file(&mut file);
+    file.seek(std::io::SeekFrom::Start(0))?;
+    let tags = tags::read_tags_from_file(path, &mut file)?;
+    Ok(FileMetadataRead { tags, serato })
+}
 
 fn codec_registry() -> &'static CodecRegistry {
     static REGISTRY: OnceLock<CodecRegistry> = OnceLock::new();
