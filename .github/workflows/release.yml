@@ -20,6 +20,9 @@ env:
   # See test.yml: incremental artifacts bloat the rust-cache entry. CI uses
   # compiler-artifact caching (kache) instead of incremental state.
   CARGO_INCREMENTAL: '0'
+  # run_build_tool.cmd writes the Windows build tool's output under
+  # CARGOKIT_TOOL_TEMP_DIR, which CI points at $RUNNER_TEMP/cargokit/tool.
+  CARGOKIT_BUILD_LOG: cargokit/tool/build.log
 
 jobs:
   build:
@@ -474,7 +477,7 @@ jobs:
         shell: bash
         run: |
           root=$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || printf '%s' "$RUNNER_TEMP")
-          log="$root/cargokit/tool/build.log"
+          log="$root/$CARGOKIT_BUILD_LOG"
           if [ ! -f "$log" ]; then
             echo "::warning::no cargokit build log at $log"
             exit 0

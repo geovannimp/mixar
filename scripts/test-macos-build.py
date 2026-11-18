@@ -19,6 +19,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "apps/gui-flutter/rust_builder/cargokit"
 ORT_RELEASE_SHA256 = "d10359e16347b57d9959f7e80a225a5b4a66ed7d7e007274a15cae86836485a6"
 
+# The Windows launcher writes the build tool's output to
+# CARGOKIT_TOOL_TEMP_DIR/<name>. CI points CARGOKIT_TOOL_TEMP_DIR at
+# $RUNNER_TEMP/cargokit/tool, so this is that file relative to RUNNER_TEMP.
+BUILD_LOG_NAME = "build.log"
+BUILD_LOG_RELATIVE_PATH = f"cargokit/tool/{BUILD_LOG_NAME}"
+
 # Fake native tools model architectures as file contents. The real macOS release
 # job additionally checks the built Mach-O slices and executable load commands.
 TOOLS = r'''#!/usr/bin/env python3
@@ -318,6 +324,16 @@ class MacOSBuildTests(unittest.TestCase):
             with self.subTest(architectures=architectures):
                 self.assertNotEqual(self.build(architectures).returncode, 0)
 
+    @staticmethod
+    def workflow():
+        return (ROOT / ".github/workflows/release.yml").read_text()
+
+    @classmethod
+    def workflow_step(cls, name):
+        """Body of one `- name:` step in release.yml, without its siblings."""
+        section = cls.workflow().split(f"      - name: {name}\n", 1)[1]
+        return section.split("\n      - name:", 1)[0]
+
     def test_windows_plugin_failure_log_is_written_and_surfaced(self):
         """A failed custom build must leave a log the workflow can print.
 
@@ -326,20 +342,18 @@ class MacOSBuildTests(unittest.TestCase):
         has to read that same file.
         """
         launcher = (SCRIPTS / "run_build_tool.cmd").read_text()
-        self.assertIn("%CARGOKIT_TOOL_TEMP_DIR%", launcher)
-        self.assertIn("build.log", launcher)
-        workflow = (ROOT / ".github/workflows/release.yml").read_text()
-        section = workflow.split(
-            "      - name: Explain Windows plugin build failure\n", 1
-        )[1]
-        section = section.split("\n      - name:", 1)[0]
-        self.assertIn("cargokit/tool/build.log", section)
+        self.assertIn(f"%CARGOKIT_TOOL_TEMP_DIR%\\{BUILD_LOG_NAME}", launcher)
+        # YAML cannot import the constant, so the workflow names the file once
+        # in its top-level env and this pins that declaration to the constant.
+        self.assertIn(
+            f"CARGOKIT_BUILD_LOG: {BUILD_LOG_RELATIVE_PATH}", self.workflow()
+        )
+        section = self.workflow_step("Explain Windows plugin build failure")
+        self.assertIn("$CARGOKIT_BUILD_LOG", section)
 
-    @staticmethod
-    def release_script():
-        workflow = (ROOT / ".github/workflows/release.yml").read_text()
-        section = workflow.split("      - name: Verify universal macOS app\n", 1)[1]
-        section = section.split("\n      - name:", 1)[0]
+    @classmethod
+    def release_script(cls):
+        section = cls.workflow_step("Verify universal macOS app")
         return textwrap.dedent(section.split("        run: |\n", 1)[1])
 
     def release_app(self, *, embedded_loader=False):
