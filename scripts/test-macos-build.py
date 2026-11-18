@@ -318,6 +318,23 @@ class MacOSBuildTests(unittest.TestCase):
             with self.subTest(architectures=architectures):
                 self.assertNotEqual(self.build(architectures).returncode, 0)
 
+    def test_windows_plugin_failure_log_is_written_and_surfaced(self):
+        """A failed custom build must leave a log the workflow can print.
+
+        `flutter build windows` reports MSB8066 with no output from the failing
+        command, so the launcher mirrors it to build.log and the explain step
+        has to read that same file.
+        """
+        launcher = (SCRIPTS / "run_build_tool.cmd").read_text()
+        self.assertIn("%CARGOKIT_TOOL_TEMP_DIR%", launcher)
+        self.assertIn("build.log", launcher)
+        workflow = (ROOT / ".github/workflows/release.yml").read_text()
+        section = workflow.split(
+            "      - name: Explain Windows plugin build failure\n", 1
+        )[1]
+        section = section.split("\n      - name:", 1)[0]
+        self.assertIn("cargokit/tool/build.log", section)
+
     @staticmethod
     def release_script():
         workflow = (ROOT / ".github/workflows/release.yml").read_text()

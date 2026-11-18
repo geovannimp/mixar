@@ -464,6 +464,25 @@ jobs:
           print("verified {} and {}".format(image, sidecar))
           PY
 
+      # A failed cargokit custom build reaches the job log as a bare MSB8066
+      # "exited with code -1": `flutter build windows` keeps the MSBuild error
+      # line and drops the command's own output, which is where the cargo,
+      # OpenSSL or link failure lives. run_build_tool.cmd mirrors that output to
+      # build.log under CARGOKIT_TOOL_TEMP_DIR, so print it here.
+      - name: Explain Windows plugin build failure
+        if: failure() && matrix.platform == 'windows'
+        shell: bash
+        run: |
+          root=$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || printf '%s' "$RUNNER_TEMP")
+          log="$root/cargokit/tool/build.log"
+          if [ ! -f "$log" ]; then
+            echo "::warning::no cargokit build log at $log"
+            exit 0
+          fi
+          echo "::group::cargokit build log (tail)"
+          tail -n 200 "$log"
+          echo "::endgroup::"
+
       # `flutter build windows` collapses the MSBuild log to the bare MSB3073
       # line; the CMake error behind it (a missing PLUGIN_BUNDLED_LIBRARIES
       # entry, say) is dropped as a non-error message. Re-run the generated
