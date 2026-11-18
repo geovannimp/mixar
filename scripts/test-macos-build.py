@@ -321,6 +321,11 @@ class MacOSBuildTests(unittest.TestCase):
             if name.startswith("download-")
         ]
 
+    def assert_first_download_is_canonical(self):
+        """The Microsoft release is always tried before any mirror."""
+        url = self.download_attempts()[0][1]
+        self.assertIn("github.com/microsoft/onnxruntime", url)
+
     def test_runtime_download_falls_back_when_the_release_asset_is_gone(self):
         # The stub 404s every github.com asset by default, which is what
         # Microsoft's last Intel macOS release does today.
@@ -330,10 +335,7 @@ class MacOSBuildTests(unittest.TestCase):
             [outcome for outcome, _ in self.download_attempts()],
             ["download-404", "download-ok"],
         )
-        self.assertIn(
-            "github.com/microsoft/onnxruntime",
-            self.download_attempts()[0][1],
-        )
+        self.assert_first_download_is_canonical()
         # The mirror copy still has to match the pinned Microsoft digest.
         self.assertEqual((self.output / "libonnxruntime.dylib").read_text(), "x86_64")
 
@@ -344,10 +346,7 @@ class MacOSBuildTests(unittest.TestCase):
             [outcome for outcome, _ in self.download_attempts()],
             ["download-ok"],
         )
-        self.assertIn(
-            "github.com/microsoft/onnxruntime",
-            self.download_attempts()[0][1],
-        )
+        self.assert_first_download_is_canonical()
         self.assertNotIn("photoprism", result.stderr)
 
     def test_runtime_download_failure_names_every_source(self):
