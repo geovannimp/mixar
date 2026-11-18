@@ -62,7 +62,8 @@ for architecture in "${architectures[@]}"; do
     fi
   )
   archive="$slice/lib${library_name}.a"
-  lipo -verify_arch "$architecture" "$archive"
+  # lipo(1): "all of the input files must appear before the -verify_arch flag".
+  lipo "$archive" -verify_arch "$architecture"
   archives+=("$archive")
   # Cargo's cached artifacts can contain the other architecture's runtime.
   # Ignore those optional leftovers, but never skip a missing or wrong-arch
@@ -71,13 +72,14 @@ for architecture in "${architectures[@]}"; do
     if [ "$sidecar" != "$required_sidecar" ]; then
       continue
     fi
-    lipo -verify_arch "$architecture" "$slice/$sidecar"
+    lipo "$slice/$sidecar" -verify_arch "$architecture"
     cp "$slice/$sidecar" "$output/"
   done
 done
 
 lipo -create "${archives[@]}" -output "$output/lib${library_name}.a"
-# Real lipo mis-parses `-verify_arch a b file`; verify one at a time.
+# The input file comes first, and lipo rejects `-verify_arch a b file`, so
+# verify one architecture at a time.
 for architecture in "${architectures[@]}"; do
-  lipo -verify_arch "$architecture" "$output/lib${library_name}.a"
+  lipo "$output/lib${library_name}.a" -verify_arch "$architecture"
 done
