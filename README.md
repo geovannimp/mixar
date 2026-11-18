@@ -36,6 +36,8 @@ npm run app:linux
 
 Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so they do not need an audio device.
 
+Rust builds go through [kache](https://github.com/kunobi-ninja/kache) (`rustc-wrapper` in `.cargo/config.toml`, installed by `mise install`) so compiler artifacts are reused across target directories. `kache` must be on `PATH`, which means a mise-**activated** shell (`mise activate`) or `mise exec -- <cmd>`; mise's shims alone are not enough because `rustc` runs from the Cargo registry directory, outside this repo. Build without it with `RUSTC_WRAPPER='' cargo build`.
+
 ## Development
 
 `npm install` at the repo root installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev). Pre-commit runs format and lint on staged Rust (`.rs`) and Dart (`.dart`) files.

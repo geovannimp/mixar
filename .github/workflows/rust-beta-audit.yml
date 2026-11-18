@@ -8,6 +8,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # See test.yml: incremental artifacts bloat the rust-cache entry. CI uses
+  # compiler-artifact caching (kache) instead of incremental state.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   beta:
@@ -30,6 +33,13 @@ jobs:
 
       - name: Install native deps
         uses: ./.github/actions/install-native-deps
+
+      # See build.yml. This job installs its own beta toolchain (no mise), so
+      # kache comes from the action rather than mise.toml.
+      - name: Setup kache
+        uses: ./.github/actions/setup-kache
+        with:
+          cache-key-prefix: mixar-kache-beta
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2

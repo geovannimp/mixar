@@ -1,0 +1,52 @@
+name: Setup kache
+description: Install kache and persist Rust compiler artifacts
+inputs:
+  cache-key-prefix:
+    description: Namespace for this Rust build workload
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Setup kache
+      uses: kunobi-ninja/kache-action@ad7317540dcdd71c904f7a60a87b620a0c0e67ed # v1
+      with:
+        version: '2.1.1'
+        github-cache: 'true'
+        cache-key-prefix: ${{ inputs.cache-key-prefix }}
+        cache-executables: ${{ runner.os != 'Windows' }}
+    # The upstream action only warns (and returns success) when its download
+    # fails, so assert the pinned install ourselves. Single `want` pin: the
+    # upstream exports KACHE_VERSION with a leading "v" (it normalizes the
+    # `version:` input), hence the ${KACHE_VERSION#v} comparison.
+    - name: Verify kache installation
+      shell: bash
+      run: |
+        set -euo pipefail
+        want=2.1.1
+        esc=${want//./\\.}
+        require_kache_version() {
+          if ! "$1" --version | grep -Eq "^kache ${esc}([[:space:]]|$)"; then
+            echo "::error::$2 is not kache $want: $1"
+            exit 1
+          fi
+        }
+        : "${RUSTC_WRAPPER:?kache action did not export RUSTC_WRAPPER}"
+        if [ ! -x "$RUSTC_WRAPPER" ]; then
+          echo "::error::RUSTC_WRAPPER is not an executable: $RUSTC_WRAPPER"
+          exit 1
+        fi
+        kv=${KACHE_VERSION:-}
+        if [ "${kv#v}" != "$want" ]; then
+          echo "::error::kache action did not pin version $want (KACHE_VERSION=${kv:-<unset>})"
+          exit 1
+        fi
+        require_kache_version "$RUSTC_WRAPPER" RUSTC_WRAPPER
+        engine="$(dirname "$RUSTC_WRAPPER")/kache-engine"
+        if [ ! -x "$engine" ]; then
+          engine="$(command -v kache-engine || true)"
+        fi
+        if [ -z "$engine" ]; then
+          echo "::error::Matching kache-engine companion is missing"
+          exit 1
+        fi
+        require_kache_version "$engine" kache-engine
