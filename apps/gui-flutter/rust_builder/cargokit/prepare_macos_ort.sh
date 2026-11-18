@@ -27,9 +27,9 @@ if [ ! -f "$destination/.version-$version" ] || [ ! -f "$library" ]; then
   # relocatable, unversioned install name before Rust records its dependency.
   cp -L "$temporary/$archive/lib/$runtime" "$temporary/$runtime"
   install_name_tool -id "@rpath/$runtime" "$temporary/$runtime"
-  lipo -verify_arch x86_64 "$temporary/$runtime"
+  lipo "$temporary/$runtime" -verify_arch x86_64
   mv "$temporary/$runtime" "$library"
   touch "$destination/.version-$version"
 fi
 
-lipo -verify_arch x86_64 "$library"
+lipo "$library" -verify_arch x86_64

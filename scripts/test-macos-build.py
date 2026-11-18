@@ -51,14 +51,25 @@ elif name == 'lipo':
         output = args.index('-output')
         contents = ' '.join(pathlib.Path(p).read_text() for p in args[1:output])
         pathlib.Path(args[output + 1]).write_text(contents)
-    elif args[0] == '-verify_arch':
-        # Production verifies one architecture per call; anything else is a
-        # shape the real tool does not accept.
-        if len(args) != 3:
-            print(f'unexpected lipo invocation: {args}', file=sys.stderr)
+    elif '-verify_arch' in args:
+        # lipo(1): "all of the input files must appear before the -verify_arch
+        # flag". The real tool rejects the reversed form with this message, and
+        # the stub has to do the same or it hides that regression.
+        flag = args.index('-verify_arch')
+        files, arch_flags = args[:flag], args[flag + 1:]
+        known = {'arm64', 'arm64e', 'x86_64', 'x86_64h'}
+        if not files or not arch_flags or any(f.startswith('-') for f in files):
+            unknown = next((a for a in files + arch_flags if a not in known), '')
+            print(
+                f'lipo: unknown architecture specification flag: {unknown} '
+                'in specifying -verify_arch operation',
+                file=sys.stderr,
+            )
             sys.exit(1)
-        architectures = pathlib.Path(args[2]).read_text().split()
-        sys.exit(0 if args[1] in architectures else 1)
+        present = set()
+        for path in files:
+            present.update(pathlib.Path(path).read_text().split())
+        sys.exit(0 if all(a in present for a in arch_flags) else 1)
     else:
         print(f'unexpected lipo invocation: {args}', file=sys.stderr)
         sys.exit(1)
@@ -153,13 +164,14 @@ class MacOSBuildTests(unittest.TestCase):
 
     def verified_architectures(self, matches):
         """Architectures this run verified on artifacts whose path matches."""
-        return [
-            args[1]
-            for name, args in self.tools()
-            if name == "lipo"
-            and args[0] == "-verify_arch"
-            and matches(args[2])
-        ]
+        verified = []
+        for name, args in self.tools():
+            if name != "lipo" or "-verify_arch" not in args:
+                continue
+            flag = args.index("-verify_arch")
+            if any(matches(path) for path in args[:flag]):
+                verified.extend(args[flag + 1:])
+        return verified
 
     def test_merged_archive_is_verified_for_every_architecture(self):
         self.assertEqual(self.build("arm64 x86_64").returncode, 0)

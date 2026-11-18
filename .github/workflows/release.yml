@@ -484,9 +484,10 @@ jobs:
           APP=build/macos/Build/Products/Release/Mixar.app
           BINARY="$APP/Contents/MacOS/Mixar"
           FRAMEWORKS="$APP/Contents/Frameworks"
-          # Real lipo mis-parses `-verify_arch a b file`; verify one at a time.
+          # lipo(1) requires the input file before the flag, and rejects
+          # `-verify_arch a b file`, so verify one architecture at a time.
           verify_arch() {
-            lipo -verify_arch "$1" "$2"
+            lipo "$2" -verify_arch "$1"
           }
           for architecture in arm64 x86_64; do
             verify_arch "$architecture" "$BINARY"
