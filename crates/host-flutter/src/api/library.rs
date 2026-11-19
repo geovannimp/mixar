@@ -19,8 +19,9 @@ use library::{
     WritableLibrary,
 };
 use library_core::{
-    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
-    ExportOptions, Exportable as _, Library, Migratable, MigrateOptions,
+    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionEntryId,
+    CollectionId, CollectionType, ExportOptions, Exportable as _, Library, Migratable,
+    MigrateOptions,
 };
 
 use crate::api::bus::BusTransport;
@@ -139,6 +140,8 @@ pub struct LibraryCollectionSummary {
     pub kind: String,
     pub path: Option<String>,
     pub track_count: u32,
+    /// Playlist keeps a manual order (`false` for folders and unordered crates).
+    pub sortable: Option<bool>,
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `bus_api::TrackSummary`).
@@ -634,6 +637,27 @@ impl LibraryTransport {
         )
         .bridge()?;
         Ok(())
+    }
+
+    /// Replace the order of a sortable playlist's entries.
+    ///
+    /// `entry_ids` must list the playlist's whole membership exactly once, in
+    /// the wanted order. A non-sortable playlist or a stale/incomplete id set
+    /// errors in the core, so the stored order can never drift from the rows
+    /// the user sees.
+    pub fn update_collection_entries(
+        &self,
+        collection_id: String,
+        entry_ids: Vec<String>,
+    ) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let ids: Vec<CollectionEntryId> =
+            entry_ids.into_iter().map(CollectionEntryId::new).collect();
+        lib.update_collection_entries(&CollectionId::new(collection_id), &ids)
+            .bridge()
     }
 
     /// Delete a collection (folder or playlist). Member tracks that no other
@@ -1446,6 +1470,7 @@ fn collection_summary(
             .fs_path()
             .map(|path| path.to_string_lossy().into_owned()),
         track_count,
+        sortable: Some(collection.sortable()),
     })
 }
 
@@ -1649,6 +1674,90 @@ mod tests {
         };
         assert!(transport
             .add_collection_entry(folder_id, track_id, None)
+            .is_err());
+    }
+
+    /// Entry ids in row order; playlist rows always carry one.
+    fn entry_ids(entries: &[LibraryTrackSummary]) -> Vec<String> {
+        entries
+            .iter()
+            .map(|entry| entry.entry_id.clone().expect("playlist entry id"))
+            .collect()
+    }
+
+    #[test]
+    fn update_collection_entries_reorders_a_sortable_playlist() {
+        let transport = LibraryTransport::open_in_memory_on_own_bus().unwrap();
+        let playlist = transport
+            .add_playlist_collection("Ordered".into(), true)
+            .unwrap();
+        assert_eq!(playlist.sortable, Some(true));
+
+        let track_ids: Vec<String> = (0..3)
+            .map(|i| {
+                let mut lib = transport.library.lock().unwrap();
+                lib.import_track(
+                    Path::new(&format!("/music/{i}.flac")),
+                    &library_core::TrackMetadata::default(),
+                )
+                .unwrap()
+                .source
+                .id()
+                .as_str()
+                .to_string()
+            })
+            .collect();
+        for track_id in &track_ids {
+            transport
+                .add_collection_entry(playlist.id.clone(), track_id.clone(), None)
+                .unwrap();
+        }
+
+        let before = transport
+            .list_collection_entries(playlist.id.clone())
+            .unwrap();
+        let before_ids = entry_ids(&before);
+        let subtitles: Vec<&str> = before.iter().map(|entry| entry.path.as_str()).collect();
+        let reordered = vec![
+            before_ids[2].clone(),
+            before_ids[0].clone(),
+            before_ids[1].clone(),
+        ];
+        transport
+            .update_collection_entries(playlist.id.clone(), reordered.clone())
+            .unwrap();
+
+        let after = transport
+            .list_collection_entries(playlist.id.clone())
+            .unwrap();
+        assert_eq!(entry_ids(&after), reordered);
+        assert_eq!(
+            after
+                .iter()
+                .map(|entry| entry.path.as_str())
+                .collect::<Vec<_>>(),
+            vec![subtitles[2], subtitles[0], subtitles[1]]
+        );
+
+        // A member list that is not the whole playlist is rejected rather than
+        // silently dropping the rows it leaves out.
+        assert!(transport
+            .update_collection_entries(playlist.id.clone(), vec![before_ids[0].clone()])
+            .is_err());
+
+        // Folders and unordered crates have no manual order.
+        let crate_ = transport
+            .add_playlist_collection("Crate".into(), false)
+            .unwrap();
+        assert_eq!(crate_.sortable, Some(false));
+        transport
+            .add_collection_entry(crate_.id.clone(), track_ids[0].clone(), None)
+            .unwrap();
+        let crate_entries = transport
+            .list_collection_entries(crate_.id.clone())
+            .unwrap();
+        assert!(transport
+            .update_collection_entries(crate_.id, entry_ids(&crate_entries))
             .is_err());
     }
 

@@ -173,6 +173,27 @@ class FakeLibraryTransport implements LibraryTransport {
     required bool generateStems,
   }) async => throw UnimplementedError('analyzeCollection');
 
+  final List<({String collectionId, List<String> entryIds})>
+  updateCollectionEntriesCalls = [];
+
+  /// When set, [updateCollectionEntries] throws it instead of recording.
+  Exception? updateCollectionEntriesError;
+
+  @override
+  Future<void> updateCollectionEntries({
+    required String collectionId,
+    required List<String> entryIds,
+  }) async {
+    final error = updateCollectionEntriesError;
+    if (error != null) {
+      throw error;
+    }
+    updateCollectionEntriesCalls.add((
+      collectionId: collectionId,
+      entryIds: entryIds,
+    ));
+  }
+
   final List<({String collectionId, String trackId, int? position})>
   addCollectionEntryCalls = [];
 

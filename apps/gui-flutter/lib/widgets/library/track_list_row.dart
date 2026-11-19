@@ -24,10 +24,17 @@ class TrackListRow extends ConsumerWidget {
     required this.onSelect,
     this.overlay,
     this.dimmedOf,
+    this.reorderHandle,
     super.key,
   });
 
   final int index;
+
+  /// Grip that arms list reordering, when the list is a sortable playlist.
+  ///
+  /// It sits beside the deck drag source, not inside it: dragging the body
+  /// loads a deck, dragging the grip moves the row.
+  final Widget? reorderHandle;
   final TrackDragPayload? Function(WidgetRef ref) payloadOf;
   final Widget Function(
     BuildContext context,
@@ -55,22 +62,10 @@ class TrackListRow extends ConsumerWidget {
         (zone) => focused && zone == LibraryFocusZone.trackList,
       ),
     );
-    final content = DecoratedBox(
-      decoration: BoxDecoration(
-        color: !focused
-            ? theme.colors.card
-            : cursorWins
-            ? libraryListSelectedRowColor(theme)
-            : libraryListCursorRowColor(theme),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: contentBuilder(
-          context,
-          ref,
-          _RowActionsSlot(menuBuilder: menuBuilder),
-        ),
-      ),
+    final content = contentBuilder(
+      context,
+      ref,
+      _RowActionsSlot(menuBuilder: menuBuilder),
     );
     final stacked = overlay == null
         ? content
@@ -83,7 +78,7 @@ class TrackListRow extends ConsumerWidget {
     final dragActive = ref.watch(libraryTrackDragActiveProvider.notifier);
     final drawerOpen = ref.watch(libraryDrawerOpenProvider.notifier);
     final draggable = payload != null && ref.watch(engineRunningProvider);
-    final row = draggable
+    final body = draggable
         ? libraryTrackDragSource(
             payload: payload,
             // Tuck the drawer away for the drag — it must never cover the deck
@@ -96,6 +91,25 @@ class TrackListRow extends ConsumerWidget {
             child: stacked,
           )
         : stacked;
+    final row = DecoratedBox(
+      decoration: BoxDecoration(
+        color: !focused
+            ? theme.colors.card
+            : cursorWins
+            ? libraryListSelectedRowColor(theme)
+            : libraryListCursorRowColor(theme),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ?reorderHandle,
+            Expanded(child: body),
+          ],
+        ),
+      ),
+    );
     final dimmed = dimmedOf?.call(ref) ?? false;
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so a tap handler never fires on a drag. Any button

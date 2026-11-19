@@ -223,6 +223,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData dco_decode_box_autoadd_beat_grid_data(dynamic raw);
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   ControllerAudioHints dco_decode_box_autoadd_controller_audio_hints(
     dynamic raw,
   );
@@ -711,6 +714,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw);
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
   ControllerAudioHints? dco_decode_opt_box_autoadd_controller_audio_hints(
     dynamic raw,
   );
@@ -1065,6 +1071,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BeatGridData sse_decode_box_autoadd_beat_grid_data(
     SseDeserializer deserializer,
   );
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
   ControllerAudioHints sse_decode_box_autoadd_controller_audio_hints(
@@ -1675,6 +1684,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   ControllerAudioHints? sse_decode_opt_box_autoadd_controller_audio_hints(
     SseDeserializer deserializer,
   );
@@ -2092,6 +2104,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     BeatGridData self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_controller_audio_hints(
@@ -2854,6 +2869,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     BeatGridData? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_controller_audio_hints(

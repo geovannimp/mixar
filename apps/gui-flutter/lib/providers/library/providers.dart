@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/collection_order.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
@@ -75,6 +76,77 @@ final activeCollectionIdProvider = Provider<String?>((ref) {
   return collections.first.id;
 });
 
+/// The collection summary [activeCollectionIdProvider] resolves to, while the
+/// collections source is showing. `null` on the drive/history tabs.
+final activeCollectionProvider = Provider<LibraryCollectionSummary?>((ref) {
+  if (ref.watch(librarySourceTabProvider) != LibrarySourceTab.collections) {
+    return null;
+  }
+  final id = ref.watch(activeCollectionIdProvider);
+  final collections = ref.watch(collectionsProvider).asData?.value;
+  if (id == null || collections == null) {
+    return null;
+  }
+  for (final collection in collections) {
+    if (collection.id == id) {
+      return collection;
+    }
+  }
+  return null;
+});
+
+/// Whether the active collection keeps a manual, user-arranged order.
+final activeCollectionSortableProvider = Provider<bool>((ref) {
+  final collection = ref.watch(activeCollectionProvider);
+  final sortable = collection?.sortable ?? false;
+  return collection?.kind == 'playlist' && sortable;
+});
+
+/// Whether the track table shows a sortable playlist's stored order.
+///
+/// A sortable playlist opens in manual order: the stored positions *are* the
+/// playlist, so a metadata sort would hide the order being arranged. Picking
+/// any column in the sort menu — including selecting one that is already
+/// active — turns this off; choosing **Manual order** turns it back on.
+class PlaylistManualOrder extends Notifier<bool> {
+  @override
+  bool build() {
+    // Every collection starts from its own default, so switching between two
+    // sortable playlists also returns to manual order rather than carrying
+    // the previous playlist's column sort over.
+    ref.watch(activeCollectionIdProvider);
+    return ref.watch(activeCollectionSortableProvider);
+  }
+
+  void setManual({required bool manual}) => state = manual;
+}
+
+final playlistManualOrderProvider = NotifierProvider<PlaylistManualOrder, bool>(
+  PlaylistManualOrder.new,
+);
+
+/// Whether rows can be dragged into a new order right now.
+final collectionReorderProvider = Provider<bool>((ref) {
+  return ref.watch(activeCollectionSortableProvider) &&
+      ref.watch(playlistManualOrderProvider);
+});
+
+/// Entry ids for every row in [tracks], in order, or `null` when one has none.
+///
+/// Folder rows take membership from their path, so a list containing one is
+/// not a reorderable playlist membership.
+List<String>? _collectionEntryIds(List<LibraryTrackSummary> tracks) {
+  final ids = <String>[];
+  for (final track in tracks) {
+    final entryId = track.entryId;
+    if (entryId == null || entryId.isEmpty) {
+      return null;
+    }
+    ids.add(entryId);
+  }
+  return ids;
+}
+
 /// Collection track rows: SQLite load plus in-memory patch on trackUpdated.
 ///
 /// Metadata events patch the loaded list when the row is already present.
@@ -91,6 +163,13 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
 
   /// Membership set for O(1) patch vs structural decisions.
   Set<String> _trackIds = {};
+
+  /// Collection whose rows are in [state].
+  ///
+  /// A rebuild after a collection switch keeps the previous rows visible while
+  /// the new load is in flight, so [moveVisible] checks this id rather than
+  /// trusting the active collection alone.
+  String? _loadedCollectionId;
 
   void _setTrackIds(List<LibraryTrackSummary> tracks) {
     _trackIds = {for (final t in tracks) t.id};
@@ -109,13 +188,83 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     _clearPendingBurst();
     final id = ref.watch(activeCollectionIdProvider);
     if (id == null) {
+      _loadedCollectionId = null;
       _setTrackIds(const []);
       return const [];
     }
     final transport = await ref.watch(libraryTransportProvider.future);
     final tracks = await transport.listCollectionEntries(collectionId: id);
+    _loadedCollectionId = id;
     _setTrackIds(tracks);
     return tracks;
+  }
+
+  /// Tail of the stored-order writes, so two quick drags hit the library in
+  /// the order the user made them and the last write wins.
+  Future<void> _orderWrites = Future<void>.value();
+
+  /// Move the row at [oldIndex] to [newIndex] in [visible] and persist the
+  /// playlist's new stored order.
+  ///
+  /// [visible] is the list on screen, which may be filtered; the move is
+  /// mapped onto the full membership so hidden rows keep their places. Only a
+  /// sortable playlist has entry ids for every row, so callers guard on
+  /// [collectionReorderProvider]. The list updates before the write lands so
+  /// the dropped row does not bounce back; a failed write reloads the stored
+  /// order.
+  Future<void> moveVisible({
+    required List<LibraryTrackSummary> visible,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    final collectionId = ref.read(activeCollectionIdProvider);
+    final current = state.asData?.value;
+    if (collectionId == null ||
+        current == null ||
+        _loadedCollectionId != collectionId) {
+      // The list still belongs to the collection switched away from.
+      return;
+    }
+    final membership = _collectionEntryIds(current);
+    final visibleIds = _collectionEntryIds(visible);
+    if (membership == null || visibleIds == null) {
+      return;
+    }
+    final order = reorderEntryIds(
+      membership: membership,
+      visible: visibleIds,
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+    );
+    if (listEquals(order, membership)) {
+      return;
+    }
+
+    final byEntry = {
+      for (final track in current)
+        if (track.entryId != null) track.entryId!: track,
+    };
+    state = AsyncData([for (final id in order) byEntry[id]!]);
+
+    try {
+      final transport = await ref.read(libraryTransportProvider.future);
+      final write = _orderWrites.then(
+        (_) => transport.updateCollectionEntries(
+          collectionId: collectionId,
+          entryIds: order,
+        ),
+      );
+      _orderWrites = write.then<void>((_) {}, onError: (_) {});
+      await write;
+    } on Object catch (_) {
+      // Drop the optimistic order: the store is the truth, and the next load
+      // must not show a move the library rejected. A collection switch during
+      // the write already disposed this notifier.
+      if (ref.mounted) {
+        ref.invalidateSelf();
+      }
+      rethrow;
+    }
   }
 
   /// Apply a `LibraryEvtKind.trackUpdated` / `LibraryEvtKind.trackAnalyzed`
@@ -1221,7 +1370,11 @@ class LibrarySort extends Notifier<(LibrarySortField, bool)> {
   (LibrarySortField, bool) build() => (LibrarySortField.title, true);
 
   /// Table-header style: a new field sorts ascending; the active field toggles.
+  ///
+  /// Any explicit field selection leaves manual order: the two orderings
+  /// cannot both be what the list is showing.
   void select(LibrarySortField field) {
+    ref.read(playlistManualOrderProvider.notifier).setManual(manual: false);
     if (state.$1 == field) {
       state = (field, !state.$2);
     } else {
@@ -1377,6 +1530,12 @@ final libraryTableTracksProvider =
           [],
         ),
       };
+      // A sortable playlist in manual mode already comes back from the
+      // library in its stored order; sorting it would hide that order from
+      // the drag handles that edit it.
+      if (ref.watch(collectionReorderProvider)) {
+        return source;
+      }
       final (field, ascending) = ref.watch(librarySortProvider);
       return source.whenData(
         (tracks) => sortLibraryTracks(tracks, field, ascending: ascending),

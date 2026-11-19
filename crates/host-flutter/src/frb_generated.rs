@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1628467552;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 127251576;
 
 // Section: executor
 
@@ -7443,6 +7443,62 @@ fn wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
         },
     )
 }
+fn wire__crate__api__library__LibraryTransport_update_collection_entries_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "LibraryTransport_update_collection_entries",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
+            >>::sse_decode(&mut deserializer);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            let api_entry_ids = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::library::LibraryTransport::update_collection_entries(
+                            &*api_that_guard,
+                            api_collection_id,
+                            api_entry_ids,
+                        )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -10819,12 +10875,14 @@ impl SseDecode for crate::api::library::LibraryCollectionSummary {
         let mut var_kind = <String>::sse_decode(deserializer);
         let mut var_path = <Option<String>>::sse_decode(deserializer);
         let mut var_trackCount = <u32>::sse_decode(deserializer);
+        let mut var_sortable = <Option<bool>>::sse_decode(deserializer);
         return crate::api::library::LibraryCollectionSummary {
             id: var_id,
             name: var_name,
             kind: var_kind,
             path: var_path,
             track_count: var_trackCount,
+            sortable: var_sortable,
         };
     }
 }
@@ -11611,6 +11669,17 @@ impl SseDecode for Option<crate::api::library::BeatGridData> {
             return Some(<crate::api::library::BeatGridData>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<bool>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -13122,171 +13191,177 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        138 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
+        138 => wire__crate__api__library__LibraryTransport_update_collection_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        139 => wire__crate__api__settings__SettingsTransport_benchmark_realtime_stems_impl(
+        139 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        140 => wire__crate__api__settings__SettingsTransport_clear_controller_audio_override_impl(
+        140 => wire__crate__api__settings__SettingsTransport_benchmark_realtime_stems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        141 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
+        141 => wire__crate__api__settings__SettingsTransport_clear_controller_audio_override_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        142 => wire__crate__api__settings__SettingsTransport_open_impl(
+        142 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        143 => wire__crate__api__settings__SettingsTransport_realtime_stems_capability_impl(
+        143 => wire__crate__api__settings__SettingsTransport_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        144 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
+        144 => wire__crate__api__settings__SettingsTransport_realtime_stems_capability_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        145 => wire__crate__api__settings__SettingsTransport_set_controller_audio_override_impl(
+        145 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        147 => wire__crate__api__settings__accent_palette_setting_default_impl(
+        146 => wire__crate__api__settings__SettingsTransport_set_controller_audio_override_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        148 => wire__crate__api__settings__accent_palette_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        150 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        152 => {
+        151 => wire__crate__api__settings__bus_channel_mode_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        153 => {
             wire__crate__api__controller__detect_controllers_impl(port, ptr, rust_vec_len, data_len)
         }
-        153 => wire__crate__api__curve_editor__export_virtualdj_curve_impl(
+        154 => wire__crate__api__curve_editor__export_virtualdj_curve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__curve_editor__import_virtualdj_curve_impl(
+        155 => wire__crate__api__curve_editor__import_virtualdj_curve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        155 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        156 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        156 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        157 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        157 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        158 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        158 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
+        159 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        159 => wire__crate__api__settings__library_row_density_setting_default_impl(
+        160 => wire__crate__api__settings__library_row_density_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        160 => wire__crate__api__library__library_track_summary_default_impl(
+        161 => wire__crate__api__library__library_track_summary_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        161 => {
+        162 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        162 => {
+        163 => {
             wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len)
         }
-        163 => wire__crate__api__settings__mixer_meters_setting_default_impl(
+        164 => wire__crate__api__settings__mixer_meters_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => wire__crate__api__library__mixxx_default_database_path_impl(
+        165 => wire__crate__api__library__mixxx_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        165 => {
+        166 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        166 => wire__crate__api__library__rekordbox_default_database_path_impl(
+        167 => wire__crate__api__library__rekordbox_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        167 => wire__crate__api__library__rekordbox_import_preview_impl(
+        168 => wire__crate__api__library__rekordbox_import_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        168 => wire__crate__api__settings__select_style_setting_default_impl(
+        169 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        169 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
-        170 => wire__crate__api__settings__theme_setting_default_impl(
+        170 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
+        171 => wire__crate__api__settings__theme_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        171 => wire__crate__api__settings__ui_language_setting_default_impl(
+        172 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        172 => wire__crate__api__settings__waveform_position_setting_default_impl(
+        173 => wire__crate__api__settings__waveform_position_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -13304,8 +13379,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        148 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
-        151 => {
+        149 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        152 => {
             wire__crate__api__settings__crossfader_preset_options_impl(ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -15103,6 +15178,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryCollectionSum
             self.kind.into_into_dart().into_dart(),
             self.path.into_into_dart().into_dart(),
             self.track_count.into_into_dart().into_dart(),
+            self.sortable.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -17375,6 +17451,7 @@ impl SseEncode for crate::api::library::LibraryCollectionSummary {
         <String>::sse_encode(self.kind, serializer);
         <Option<String>>::sse_encode(self.path, serializer);
         <u32>::sse_encode(self.track_count, serializer);
+        <Option<bool>>::sse_encode(self.sortable, serializer);
     }
 }
 
@@ -17979,6 +18056,16 @@ impl SseEncode for Option<crate::api::library::BeatGridData> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::library::BeatGridData>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <bool>::sse_encode(value, serializer);
         }
     }
 }

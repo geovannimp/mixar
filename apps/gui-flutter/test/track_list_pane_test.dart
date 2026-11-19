@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show ReorderableList;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
@@ -18,6 +21,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/library/track_reorder_handle.dart';
 import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
@@ -64,6 +68,22 @@ LibraryTrackSummary demoTrack({
   );
 }
 
+/// Entry ids in row order, for matching what the list shows to a write.
+List<String?> entryIdsOf(List<LibraryTrackSummary> tracks) => [
+  for (final row in tracks) row.entryId,
+];
+
+/// One row of a sortable playlist: unique entry id, track id reused by none.
+LibraryTrackSummary playlistEntry(String id, String title) {
+  return LibraryTrackSummary(
+    id: id,
+    entryId: 'entry-$id',
+    displayName: title,
+    title: title,
+    path: '/tmp/set/$id.flac',
+  );
+}
+
 void expectStarGlyph(Finder rating, {String? reason}) {
   expect(
     find.descendant(of: rating, matching: find.byIcon(LucideIcons.star)),
@@ -81,6 +101,13 @@ void main() {
     kind: 'folder',
     path: '/tmp/samples',
     trackCount: 1,
+  );
+  const sortablePlaylist = LibraryCollectionSummary(
+    id: 'p1',
+    name: 'Set',
+    kind: 'playlist',
+    sortable: true,
+    trackCount: 2,
   );
   const track = LibraryTrackSummary(
     id: 't1',
@@ -113,6 +140,7 @@ void main() {
   Future<ProviderContainer> pumpList(
     WidgetTester tester, {
     List<LibraryTrackSummary> tracks = const [track],
+    LibraryCollectionSummary activeCollection = collection,
     double width = 900,
     double height = 600,
 
@@ -138,7 +166,7 @@ void main() {
         // overrides and the session-only density override.
         key: ValueKey(pumpCount++),
         overrides: [
-          collectionsProvider.overrideWith((ref) async => [collection]),
+          collectionsProvider.overrideWith((ref) async => [activeCollection]),
           overrideCollectionTracksValue(tracks),
           appSettingsProvider.overrideWith(
             (ref) async => rowFields == null
@@ -168,6 +196,42 @@ void main() {
     return ProviderScope.containerOf(
       tester.element(find.byType(TrackListPane)),
     );
+  }
+
+  /// Pump the real [CollectionTracks] notifier over [transport], so a reorder
+  /// exercises the optimistic update and the write.
+  Future<ProviderContainer> pumpReorderablePlaylist(
+    WidgetTester tester,
+    FakeLibraryTransport transport,
+  ) async {
+    final theme = MixarThemeData.light();
+    tester.view.physicalSize = const Size(900, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          collectionsProvider.overrideWith(
+            (ref) async => transport.collections,
+          ),
+          libraryTransportProvider.overrideWith((ref) async => transport),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: const Scaffold(body: TrackListPane()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TrackListPane)),
+    );
+    await container.read(collectionTracksProvider.future);
+    return container;
   }
 
   testWidgets('row drag attaches after engine starts without changing '
@@ -2197,6 +2261,177 @@ void main() {
       revealed,
       isNotEmpty,
       reason: 'growing the viewport did not prefetch the rows it revealed',
+    );
+  });
+
+  testWidgets('a sortable playlist opens in manual order with drag grips', (
+    tester,
+  ) async {
+    final container = await pumpList(
+      tester,
+      activeCollection: sortablePlaylist,
+      // Playlist order is B then A; a title sort would put Demo Track first.
+      tracks: const [trackB, track],
+    );
+
+    expect(find.byType(ReorderableList), findsOneWidget);
+    expect(find.byType(TrackReorderHandle), findsNWidgets(2));
+    expect(
+      tester.getTopLeft(find.text('Other Track')).dy,
+      lessThan(tester.getTopLeft(find.text('Demo Track')).dy),
+      reason: 'manual order should win over the title sort',
+    );
+
+    // Picking a column leaves manual order, so the grips go away.
+    container.read(librarySortProvider.notifier).select(LibrarySortField.title);
+    await tester.pumpAndSettle();
+    expect(find.byType(ReorderableList), findsNothing);
+    expect(find.byType(TrackReorderHandle), findsNothing);
+  });
+
+  FakeLibraryTransport playlistTransport() => FakeLibraryTransport(
+    collections: const [
+      LibraryCollectionSummary(
+        id: 'p1',
+        name: 'Set',
+        kind: 'playlist',
+        sortable: true,
+        trackCount: 3,
+      ),
+    ],
+    entries: [
+      playlistEntry('a', 'Alpha'),
+      playlistEntry('b', 'Bravo'),
+      playlistEntry('c', 'Charlie'),
+    ],
+  );
+
+  testWidgets('a reorder grip fits a narrow library pane', (tester) async {
+    await pumpList(
+      tester,
+      activeCollection: sortablePlaylist,
+      tracks: const [trackB, track],
+      width: 320,
+    );
+
+    expect(find.byType(TrackReorderHandle), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dropping a grip persists the whole playlist order', (
+    tester,
+  ) async {
+    final transport = playlistTransport();
+    final container = await pumpReorderablePlaylist(tester, transport);
+
+    final list = tester.widget<ReorderableList>(find.byType(ReorderableList));
+    list.onReorderItem!(0, 2);
+    await tester.pumpAndSettle();
+
+    final state = container.read(collectionTracksProvider).value!;
+    final persisted = transport.updateCollectionEntriesCalls.single;
+    expect(persisted.collectionId, 'p1');
+    expect(persisted.entryIds, ['entry-b', 'entry-c', 'entry-a']);
+    expect(
+      entryIdsOf(state),
+      persisted.entryIds,
+      reason: 'the visible order must match what was persisted',
+    );
+  });
+
+  test(
+    'reorder is ignored while the rows still belong to another collection',
+    () async {
+      const first = LibraryCollectionSummary(
+        id: 'p1',
+        name: 'First',
+        kind: 'playlist',
+        sortable: true,
+        trackCount: 2,
+      );
+      const second = LibraryCollectionSummary(
+        id: 'p2',
+        name: 'Second',
+        kind: 'playlist',
+        sortable: true,
+        trackCount: 1,
+      );
+      final firstEntries = [
+        playlistEntry('a', 'Alpha'),
+        playlistEntry('b', 'Bravo'),
+      ];
+      final secondLoad = Completer<List<LibraryTrackSummary>>();
+      final transport =
+          FakeLibraryTransport(
+              collections: const [first, second],
+              entries: firstEntries,
+            )
+            ..listCollectionEntriesHandler = (collectionId) =>
+                collectionId == 'p2'
+                ? secondLoad.future
+                : Future.value(firstEntries);
+      final container = ProviderContainer(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [first, second]),
+          libraryTransportProvider.overrideWith((ref) async => transport),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(collectionsProvider.future);
+      await container.read(collectionTracksProvider.future);
+
+      container.read(selectedCollectionIdProvider.notifier).set('p2');
+      await pumpEventQueue();
+      // The previous collection's rows are still painted while p2 loads.
+      expect(
+        container.read(collectionTracksProvider).value?.first.entryId,
+        'entry-a',
+      );
+
+      await container
+          .read(collectionTracksProvider.notifier)
+          .moveVisible(visible: firstEntries, oldIndex: 0, newIndex: 1);
+
+      expect(
+        transport.updateCollectionEntriesCalls,
+        isEmpty,
+        reason: 'a stale list must not write the collection now selected',
+      );
+
+      secondLoad.complete([playlistEntry('c', 'Charlie')]);
+      await container.read(collectionTracksProvider.future);
+      expect(
+        container.read(collectionTracksProvider).value?.single.entryId,
+        'entry-c',
+      );
+    },
+  );
+
+  testWidgets('dragging the grip moves the row and writes the new order', (
+    tester,
+  ) async {
+    final transport = playlistTransport();
+    final container = await pumpReorderablePlaylist(tester, transport);
+
+    final rowHeight = tester.getSize(find.byType(TrackListRow).first).height;
+    await tester.timedDrag(
+      find.byType(TrackReorderHandle).first,
+      Offset(0, rowHeight * 1.2),
+      const Duration(milliseconds: 300),
+    );
+    await tester.pumpAndSettle();
+
+    final state = container.read(collectionTracksProvider).value!;
+    final persisted = transport.updateCollectionEntriesCalls.single;
+    expect(
+      entryIdsOf(state),
+      persisted.entryIds,
+      reason: 'the grip drag must persist what the list shows',
+    );
+    expect(
+      persisted.entryIds,
+      isNot(['entry-a', 'entry-b', 'entry-c']),
+      reason: 'the dragged row should have moved',
     );
   });
 }
