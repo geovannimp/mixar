@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/main.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 
@@ -324,6 +325,47 @@ void main() {
         await tester.pumpAndSettle();
         expect(calls, containsAllInOrder(['isMaximized', 'maximize']));
         expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  test('macOS hides AppKit’s buttons where the header draws its own', () async {
+    for (final platform in [TargetPlatform.linux, TargetPlatform.windows]) {
+      await withHost(
+        platform,
+        desktop: true,
+        preview: false,
+        body: () async {
+          expect(
+            desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+            isTrue,
+            reason: '${platform.name} keeps the native buttons',
+          );
+        },
+      );
+    }
+    await withHost(
+      TargetPlatform.macOS,
+      desktop: true,
+      preview: null,
+      body: () async {
+        expect(
+          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+          isFalse,
+          reason: 'the header draws them, so AppKit must not',
+        );
+      },
+    );
+    await withHost(
+      TargetPlatform.macOS,
+      desktop: false,
+      preview: null,
+      body: () async {
+        expect(
+          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+          isTrue,
+          reason: 'a non-desktop Mac draws no chrome — keep the native ones',
+        );
       },
     );
   });

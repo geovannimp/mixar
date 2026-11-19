@@ -211,6 +211,19 @@ void main() {
     await pumpSetupPage(tester, container);
   }
 
+  /// Pumps the setup page and returns the wordmark's x — the baseline every
+  /// host case measures its own leading inset against.
+  ///
+  /// Called once off-desktop for the baseline and again inside each host, so
+  /// the fixture and the measurement cannot drift apart.
+  Future<double> pumpSetupBaseline(WidgetTester tester) async {
+    await pumpSetup(
+      tester,
+      settings: FakeSettingsTransport(defaultAppSettings()),
+    );
+    return logoLeft(tester);
+  }
+
   /// Boot the real app tree on top of a stored settings file.
   ///
   /// Settings are preloaded exactly as `main()` does, so frame one already
@@ -625,20 +638,13 @@ void main() {
     final calls = recordWindowCalls();
 
     // Baseline: not a desktop window, so nothing sits before the wordmark.
-    await pumpSetup(
-      tester,
-      settings: FakeSettingsTransport(defaultAppSettings()),
-    );
-    final baseline = logoLeft(tester);
+    final baseline = await pumpSetupBaseline(tester);
 
     await withHost(
       TargetPlatform.macOS,
       desktop: true,
       body: () async {
-        await pumpSetup(
-          tester,
-          settings: FakeSettingsTransport(defaultAppSettings()),
-        );
+        await pumpSetupBaseline(tester);
 
         expect(
           logoLeft(tester),
@@ -733,21 +739,14 @@ void main() {
   ) async {
     final calls = recordWindowCalls();
 
-    await pumpSetup(
-      tester,
-      settings: FakeSettingsTransport(defaultAppSettings()),
-    );
-    final baseline = logoLeft(tester);
+    final baseline = await pumpSetupBaseline(tester);
 
     await withHost(
       TargetPlatform.linux,
       desktop: true,
       macOSPreview: true,
       body: () async {
-        await pumpSetup(
-          tester,
-          settings: FakeSettingsTransport(defaultAppSettings()),
-        );
+        await pumpSetupBaseline(tester);
 
         expect(logoLeft(tester), baseline + kMacOSWindowControlsInset);
         expect(find.byType(WindowTitleBarControls), findsNothing);

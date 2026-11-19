@@ -161,6 +161,17 @@ void main() {
     await tester.pump();
   }
 
+  /// Pumps the header off-desktop and returns the menu button's x — the
+  /// baseline each host case measures its leading inset against.
+  Future<double> pumpHeaderBaseline(
+    WidgetTester tester, {
+    MixarThemeData? theme,
+    Size surfaceSize = const Size(900, 600),
+  }) async {
+    await pumpHeader(tester, theme: theme, surfaceSize: surfaceSize);
+    return menuLeft(tester);
+  }
+
   /// A drawer row, addressed by the shared widget's own label rather than by
   /// rendered text.
   Finder rowFinder(String label) =>
@@ -293,8 +304,11 @@ void main() {
       const surface = Size(1024, 768);
 
       // Baseline: not a desktop window, so nothing sits before the menu.
-      await pumpHeader(tester, theme: theme, surfaceSize: surface);
-      final baseline = menuLeft(tester);
+      final baseline = await pumpHeaderBaseline(
+        tester,
+        theme: theme,
+        surfaceSize: surface,
+      );
 
       await withHost(
         TargetPlatform.macOS,
@@ -361,8 +375,7 @@ void main() {
       ) async {
         final calls = recordWindowCalls();
 
-        await pumpHeader(tester, theme: theme);
-        final baseline = menuLeft(tester);
+        final baseline = await pumpHeaderBaseline(tester, theme: theme);
 
         await withHost(
           platform,
@@ -405,8 +418,7 @@ void main() {
     ) async {
       final calls = recordWindowCalls();
 
-      await pumpHeader(tester, theme: theme);
-      final baseline = menuLeft(tester);
+      final baseline = await pumpHeaderBaseline(tester, theme: theme);
 
       await withHost(
         TargetPlatform.linux,

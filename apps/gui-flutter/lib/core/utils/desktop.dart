@@ -39,15 +39,20 @@ bool get isMacOSChromePreview =>
         (const bool.fromEnvironment('MIXAR_PREVIEW_MACOS_CHROME') ||
             platform.ioMacOSChromePreview));
 
+/// A macOS desktop window: it hides AppKit's own window buttons and draws
+/// close / minimise / zoom in the header instead.
+///
+/// The single predicate behind both halves of that deal — hiding the native
+/// buttons without drawing the app's would leave the window with no controls.
+bool get isMacOSHost =>
+    isDesktopWindow && !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+
 /// Whether the headers follow the macOS layout: a traffic-light cluster in
 /// the leading corner and no app-drawn buttons on the trailing edge.
 ///
-/// True on a Mac (where the cluster is real) and in the Linux preview (where
-/// it is drawn as reference graphics).
-bool get usesMacOSTitleBarLayout =>
-    isDesktopWindow &&
-    !kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.macOS || isMacOSChromePreview);
+/// True on a Mac (where the cluster *is* the window's controls) and in the
+/// Linux preview (which draws and wires the same cluster).
+bool get usesMacOSTitleBarLayout => isMacOSHost || isMacOSChromePreview;
 
 /// Leading zone the macOS traffic-light cluster owns, in logical pixels. The
 /// cluster is centred in it and the header content starts after it, on every
