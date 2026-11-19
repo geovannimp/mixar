@@ -10,10 +10,11 @@ import 'dart:io';
 
 /// Resolves kache's compiler-shim directory, or null when it is not usable.
 ///
-/// [environment] is normally `Platform.environment`. The directory is
-/// configured once in `mise.toml` (`KACHE_SHIMS_DIR`) and created by
-/// `mise run kache-setup`, so the task and this lookup cannot drift apart.
-/// Windows has no `kache init --shims`, so it always returns null there.
+/// [environment] is normally `Platform.environment`. `KACHE_SHIMS_DIR` is the
+/// configured source (set in `mise.toml`, created by `mise run kache-setup`).
+/// Xcode/Gradle/CMake can launch the build tool without mise's environment, so
+/// fall back to kache's default directory under `HOME` instead of silently
+/// disabling C/C++ caching. Windows has no `kache init --shims`.
 String? resolveKacheShimsDir({
   required Map<String, String> environment,
   required bool isWindows,
@@ -21,8 +22,14 @@ String? resolveKacheShimsDir({
   if (isWindows) {
     return null;
   }
-  final dir = environment['KACHE_SHIMS_DIR'];
-  if (dir == null || dir.isEmpty || !Directory(dir).existsSync()) {
+  final configured = environment['KACHE_SHIMS_DIR'];
+  final home = environment['HOME'];
+  final dir = (configured != null && configured.isNotEmpty)
+      ? configured
+      : (home == null || home.isEmpty)
+          ? null
+          : '$home/.local/lib/kache/shims';
+  if (dir == null || !Directory(dir).existsSync()) {
     return null;
   }
   return dir;

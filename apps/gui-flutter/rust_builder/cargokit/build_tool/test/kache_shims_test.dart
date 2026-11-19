@@ -24,11 +24,41 @@ void main() {
       expect(resolved, temp.path);
     });
 
-    test('returns null when unset', () {
+    test('returns null when unset and HOME is unavailable', () {
       expect(
         resolveKacheShimsDir(environment: {}, isWindows: false),
         isNull,
       );
+    });
+
+    test('falls back to the default dir under HOME', () {
+      final home = Directory('${temp.path}/home')..createSync(recursive: true);
+      final shims = Directory('${home.path}/.local/lib/kache/shims')
+        ..createSync(recursive: true);
+
+      final resolved = resolveKacheShimsDir(
+        environment: {'HOME': home.path},
+        isWindows: false,
+      );
+
+      expect(resolved, shims.path);
+    });
+
+    test('prefers KACHE_SHIMS_DIR over HOME', () {
+      final configured = Directory('${temp.path}/configured')..createSync();
+      final home = Directory('${temp.path}/home')..createSync();
+      Directory('${home.path}/.local/lib/kache/shims')
+          .createSync(recursive: true);
+
+      final resolved = resolveKacheShimsDir(
+        environment: {
+          'KACHE_SHIMS_DIR': configured.path,
+          'HOME': home.path,
+        },
+        isWindows: false,
+      );
+
+      expect(resolved, configured.path);
     });
 
     test('returns null when empty', () {
