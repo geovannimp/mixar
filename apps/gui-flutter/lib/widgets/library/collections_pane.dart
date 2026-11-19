@@ -13,7 +13,6 @@ import 'package:gui_flutter/widgets/library/library_pane_label.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -47,18 +46,9 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     }
   }
 
-  void _browseInDrive(String path) {
-    ref.read(driveCurrentPathProvider.notifier).set(path);
-    ref.read(librarySourceTabProvider.notifier).set(LibrarySourceTab.drive);
-    // The menu names a folder, so the intent is the same in either layout:
-    // show the folder's contents. On a narrow surface that is the content page.
-    ref.read(libraryNarrowPageProvider.notifier).set(LibraryNarrowPage.content);
-  }
-
   /// Drop target for playlist rows only: a folder takes its membership from
   /// the path it was created for, so the core rejects an entry add there.
   static const _playlistKind = 'playlist';
-  static const _folderKind = 'folder';
 
   Widget _row(
     LibraryCollectionSummary c, {
@@ -66,7 +56,6 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     required bool sidebarFocused,
     required bool dropActive,
   }) {
-    final colors = context.theme.colors;
     return LibraryNavRow(
       title: c.name,
       subtitle: '${c.trackCount} tracks',
@@ -95,20 +84,6 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
               .set(LibraryFocusZone.sidebar);
         }
       },
-      trailing: c.kind == _folderKind && c.path != null
-          ? MTappable.child(
-              semanticsLabel: 'Browse ${c.name} in Drive',
-              onPress: () => _browseInDrive(c.path!),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  LucideIcons.folderOpen,
-                  size: 14,
-                  color: colors.mutedForeground,
-                ),
-              ),
-            )
-          : null,
     );
   }
 

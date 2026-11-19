@@ -10,3 +10,17 @@ String normalizeFolderPath(String path) {
   }
   return normalized;
 }
+
+/// The name a folder is known by in the sidebar: its last path segment.
+///
+/// A volume root keeps the volume's own name from the caller; this only reads
+/// the path, so it is the fallback for any folder below a volume.
+String folderDisplayName(String path) {
+  final normalized = normalizeFolderPath(path);
+  final separator = normalized.lastIndexOf('/');
+  if (separator < 0) {
+    return normalized;
+  }
+  final name = normalized.substring(separator + 1);
+  return name.isEmpty ? normalized : name;
+}

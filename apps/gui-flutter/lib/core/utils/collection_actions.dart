@@ -105,6 +105,28 @@ Future<LibraryCollectionSummary?> createCollection(
   }
 }
 
+/// Ask for the collection details and create it for [folderPath], then select
+/// it. Used by the folder actions menu wherever a folder is the current
+/// choice (the drive browse topbar).
+Future<void> createCollectionFromFolder(
+  BuildContext context,
+  WidgetRef ref,
+  String folderPath,
+) async {
+  final result = await showCreateCollectionDialog(
+    context,
+    input: CreateCollectionInput(initialFolderPath: folderPath),
+  );
+  if (result == null || !context.mounted) {
+    return;
+  }
+  final collection = await createCollection(ref, result);
+  if (!context.mounted || collection == null) {
+    return;
+  }
+  selectCreatedCollection(ref, collection);
+}
+
 void selectCreatedCollection(
   WidgetRef ref,
   LibraryCollectionSummary collection,
