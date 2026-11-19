@@ -405,8 +405,8 @@ impl LibraryManager {
         let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
         // One config for both passes: the reference and the windows it scales
         // must be measured with the same filters. The cached scalar is therefore
-        // each entry's reference for this default config only.
-        let config = audio_core::WaveformAnalysisConfig::default();
+        // each entry's reference for this config only.
+        let config = waveform_config();
         // Both global locks are out of scope here, so the one-time whole-track
         // pass cannot block other library work; concurrent requests for this
         // entry just wait on its own cell.
