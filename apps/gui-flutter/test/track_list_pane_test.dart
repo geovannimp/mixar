@@ -66,6 +66,11 @@ LibraryTrackSummary demoTrack({
   );
 }
 
+/// Entry ids in row order, for matching what the list shows to a write.
+List<String?> entryIdsOf(List<LibraryTrackSummary> tracks) => [
+  for (final row in tracks) row.entryId,
+];
+
 /// One row of a sortable playlist: unique entry id, track id reused by none.
 LibraryTrackSummary playlistEntry(String id, String title) {
   return LibraryTrackSummary(
@@ -2326,7 +2331,7 @@ void main() {
     expect(persisted.collectionId, 'p1');
     expect(persisted.entryIds, ['entry-b', 'entry-c', 'entry-a']);
     expect(
-      [for (final track in state) track.entryId],
+      entryIdsOf(state),
       persisted.entryIds,
       reason: 'the visible order must match what was persisted',
     );
@@ -2349,7 +2354,7 @@ void main() {
     final state = container.read(collectionTracksProvider).value!;
     final persisted = transport.updateCollectionEntriesCalls.single;
     expect(
-      [for (final track in state) track.entryId],
+      entryIdsOf(state),
       persisted.entryIds,
       reason: 'the grip drag must persist what the list shows',
     );

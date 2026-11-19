@@ -131,6 +131,22 @@ final collectionReorderProvider = Provider<bool>((ref) {
       ref.watch(playlistManualOrderProvider);
 });
 
+/// Entry ids for every row in [tracks], in order, or `null` when one has none.
+///
+/// Folder rows take membership from their path, so a list containing one is
+/// not a reorderable playlist membership.
+List<String>? _collectionEntryIds(List<LibraryTrackSummary> tracks) {
+  final ids = <String>[];
+  for (final track in tracks) {
+    final entryId = track.entryId;
+    if (entryId == null || entryId.isEmpty) {
+      return null;
+    }
+    ids.add(entryId);
+  }
+  return ids;
+}
+
 /// Collection track rows: SQLite load plus in-memory patch on trackUpdated.
 ///
 /// Metadata events patch the loaded list when the row is already present.
@@ -197,22 +213,10 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     if (collectionId == null || current == null) {
       return;
     }
-    final membership = <String>[];
-    for (final track in current) {
-      final entryId = track.entryId;
-      if (entryId == null || entryId.isEmpty) {
-        // Folder rows have no entry id; they take membership from the path.
-        return;
-      }
-      membership.add(entryId);
-    }
-    final visibleIds = <String>[];
-    for (final track in visible) {
-      final entryId = track.entryId;
-      if (entryId == null || entryId.isEmpty) {
-        return;
-      }
-      visibleIds.add(entryId);
+    final membership = _collectionEntryIds(current);
+    final visibleIds = _collectionEntryIds(visible);
+    if (membership == null || visibleIds == null) {
+      return;
     }
     final order = reorderEntryIds(
       membership: membership,

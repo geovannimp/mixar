@@ -1677,6 +1677,14 @@ mod tests {
             .is_err());
     }
 
+    /// Entry ids in row order; playlist rows always carry one.
+    fn entry_ids(entries: &[LibraryTrackSummary]) -> Vec<String> {
+        entries
+            .iter()
+            .map(|entry| entry.entry_id.clone().expect("playlist entry id"))
+            .collect()
+    }
+
     #[test]
     fn update_collection_entries_reorders_a_sortable_playlist() {
         let transport = LibraryTransport::open_in_memory_on_own_bus().unwrap();
@@ -1708,15 +1716,12 @@ mod tests {
         let before = transport
             .list_collection_entries(playlist.id.clone())
             .unwrap();
-        let entry_ids: Vec<String> = before
-            .iter()
-            .map(|entry| entry.entry_id.clone().expect("playlist entry id"))
-            .collect();
+        let before_ids = entry_ids(&before);
         let subtitles: Vec<&str> = before.iter().map(|entry| entry.path.as_str()).collect();
         let reordered = vec![
-            entry_ids[2].clone(),
-            entry_ids[0].clone(),
-            entry_ids[1].clone(),
+            before_ids[2].clone(),
+            before_ids[0].clone(),
+            before_ids[1].clone(),
         ];
         transport
             .update_collection_entries(playlist.id.clone(), reordered.clone())
@@ -1725,13 +1730,7 @@ mod tests {
         let after = transport
             .list_collection_entries(playlist.id.clone())
             .unwrap();
-        assert_eq!(
-            after
-                .iter()
-                .map(|entry| entry.entry_id.clone().unwrap())
-                .collect::<Vec<_>>(),
-            reordered
-        );
+        assert_eq!(entry_ids(&after), reordered);
         assert_eq!(
             after
                 .iter()
@@ -1743,7 +1742,7 @@ mod tests {
         // A member list that is not the whole playlist is rejected rather than
         // silently dropping the rows it leaves out.
         assert!(transport
-            .update_collection_entries(playlist.id.clone(), vec![entry_ids[0].clone()])
+            .update_collection_entries(playlist.id.clone(), vec![before_ids[0].clone()])
             .is_err());
 
         // Folders and unordered crates have no manual order.
@@ -1758,7 +1757,7 @@ mod tests {
             .list_collection_entries(crate_.id.clone())
             .unwrap();
         assert!(transport
-            .update_collection_entries(crate_.id, vec![crate_entries[0].entry_id.clone().unwrap()])
+            .update_collection_entries(crate_.id, entry_ids(&crate_entries))
             .is_err());
     }
 
