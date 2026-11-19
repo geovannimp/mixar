@@ -1,6 +1,8 @@
 //! Hot cue and loop persistence for deck performance data.
 
-use sea_orm::sea_query::{Expr, OnConflict};
+#[cfg(feature = "analysis")]
+use sea_orm::sea_query::Expr;
+use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
@@ -57,8 +59,15 @@ pub fn list_hot_cues(db: &Db, track_id: &TrackId) -> Result<Vec<HotCueRecord>> {
 }
 
 pub fn get_track_cue(db: &Db, track_id: &TrackId) -> Result<Option<TrackCue>> {
+    get_track_cue_tx(db.conn()?.as_connection(), track_id)
+}
+
+pub(crate) fn get_track_cue_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+) -> Result<Option<TrackCue>> {
     Ok(TrackCueEntity::find_by_id(track_id.as_str())
-        .one(db.conn()?.as_connection())
+        .one(conn)
         .map_err(db::db_err)?
         .map(|row| TrackCue {
             position_ms: row.cue_ms,
@@ -69,6 +78,22 @@ pub fn get_track_cue(db: &Db, track_id: &TrackId) -> Result<Option<TrackCue>> {
 /// Insert the cue only when the track has none (import).
 pub fn fill_track_cue(
     db: &Db,
+    track_id: &TrackId,
+    cue_ms: i32,
+    source: CueSource,
+    updated_at: String,
+) -> Result<Option<TrackCue>> {
+    fill_track_cue_tx(
+        db.conn()?.as_connection(),
+        track_id,
+        cue_ms,
+        source,
+        updated_at,
+    )
+}
+
+pub(crate) fn fill_track_cue_tx(
+    conn: &DatabaseConnection,
     track_id: &TrackId,
     cue_ms: i32,
     source: CueSource,
@@ -87,12 +112,12 @@ pub fn fill_track_cue(
             .do_nothing()
             .to_owned(),
     )
-    .exec(db.conn()?.as_connection())
+    .exec(conn)
     {
         Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => {}
         Err(err) => return Err(db::db_err(err)),
     }
-    get_track_cue(db, track_id)
+    get_track_cue_tx(conn, track_id)
 }
 
 /// Overwrite the cue (manual set).
@@ -135,8 +160,9 @@ pub fn store_track_cue(
 /// The ownership check is part of each statement rather than a read-then-write
 /// pair: the UPDATE can only match this writer's row, and the INSERT only fills
 /// an empty track, so a concurrent manual set can never be overwritten.
-pub fn refresh_track_cue(
-    db: &Db,
+#[cfg(feature = "analysis")]
+pub(crate) fn refresh_track_cue_tx(
+    conn: &DatabaseConnection,
     track_id: &TrackId,
     cue_ms: i32,
     source: CueSource,
@@ -150,9 +176,9 @@ pub fn refresh_track_cue(
         )
         .filter(track_cue::Column::TrackId.eq(track_id.as_str()))
         .filter(track_cue::Column::Source.eq(source.as_str()))
-        .exec(db.conn()?.as_connection())
+        .exec(conn)
         .map_err(db::db_err)?;
-    fill_track_cue(db, track_id, cue_ms, source, updated_at)
+    fill_track_cue_tx(conn, track_id, cue_ms, source, updated_at)
 }
 
 pub fn save_hot_cue(
@@ -674,7 +700,7 @@ fn colour_pair(
 ///
 /// Mirrors the store's rule: two missing values and two NaNs are unchanged, so
 /// a rebase only happens for a field the user did not touch.
-fn same_bpm(incoming: Option<f64>, before: Option<f64>) -> bool {
+pub(crate) fn same_bpm(incoming: Option<f64>, before: Option<f64>) -> bool {
     match (incoming, before) {
         (None, None) => true,
         (Some(new_bpm), Some(old_bpm)) => {
@@ -803,7 +829,7 @@ impl LibraryManager {
 mod tests {
     use super::*;
     use crate::db;
-    use crate::store::Store;
+    use crate::store::{Store, TrackMetadataOrigin};
     use library_core::TrackMetadata;
     use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
     use std::path::Path;
@@ -812,7 +838,13 @@ mod tests {
         let store = Store::new(db);
         let id = TrackId::new(path);
         store
-            .upsert_file_track(&id, Path::new(path), &TrackMetadata::default(), "1")
+            .upsert_file_track(
+                &id,
+                Path::new(path),
+                &TrackMetadata::default(),
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
         id
     }
@@ -827,6 +859,7 @@ mod tests {
                 &id,
                 Path::new("/music/a.wav"),
                 &TrackMetadata::default(),
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -858,6 +891,7 @@ mod tests {
                 &id,
                 Path::new("/music/import.wav"),
                 &TrackMetadata::default(),
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -906,6 +940,7 @@ mod tests {
                 &id,
                 Path::new("/music/b.wav"),
                 &TrackMetadata::default(),
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();

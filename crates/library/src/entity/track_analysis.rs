@@ -6,7 +6,9 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "track_analysis")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    #[sea_orm(indexed)]
     pub track_id: String,
     pub backend: String,
     pub backend_version: String,
@@ -18,7 +20,7 @@ pub struct Model {
     pub key_confidence: Option<f64>,
     pub key_clarity: Option<f64>,
     pub grid_stability: Option<f64>,
-    pub sample_rate: i32,
+    pub sample_rate: i64,
     pub duration_analyzed_ms: i32,
     pub loudness_lufs: Option<f64>,
     pub beat_grid_json: Option<String>,

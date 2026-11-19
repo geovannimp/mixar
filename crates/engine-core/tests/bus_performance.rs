@@ -25,14 +25,21 @@ use common::write_two_second_wav;
 use common::SHORT_TONE_LEN_MS;
 use engine_core::EngineConfig;
 use engine_core::EngineSession;
+use library::ExportSession;
 use library::LibraryConfig;
+use library::LibrarySession;
 use library::NewCollection;
+use library::TrackMetadataEdit;
 use library::WritableLibrary;
 use library_core::AudioSource;
+use library_core::ExportSource;
 use library_core::FileAudioSource;
 use library_core::Library;
+use library_core::TrackExportData;
 use library_core::TrackId;
 use library_core::TrackMetadata;
+use rusqlite::Connection;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -205,6 +212,185 @@ fn grid_at(first_beat_ms: i64, bpm: f64) -> BeatGrid {
 
 fn phase_grid(first_beat_secs: f32) -> BeatGrid {
     grid_at((f64::from(first_beat_secs) * 1000.0).round() as i64, 120.0)
+}
+
+fn import_two_second_wav(session: &LibrarySession, media_dir: &Path) -> TrackId {
+    std::fs::create_dir_all(media_dir).unwrap();
+    write_two_second_wav(&media_dir.join("song.wav"));
+    let library = session.library();
+    let mut lib = library.lock().unwrap();
+    let folder = lib
+        .add_collection(&NewCollection::folder(media_dir))
+        .unwrap();
+    lib.sync_collection(Some(&folder.id)).unwrap();
+    let tracks = lib.list_collection_tracks(&folder.id).unwrap();
+    assert_eq!(tracks.len(), 1);
+    tracks[0].id().clone()
+}
+
+fn assert_exported_hot_loop(data: &TrackExportData, beats: u32, end_ms: u32) {
+    let cue = data
+        .cues
+        .iter()
+        .find(|cue| cue.hot_cue_slot == Some(0))
+        .expect("exported hot cue");
+    assert_eq!(cue.position_ms, 100);
+    assert_eq!(cue.loop_length_beats, Some(beats));
+    assert_eq!(cue.loop_end_ms, Some(end_ms));
+}
+
+#[test]
+fn canonical_track_facts_drive_deck_and_export_without_analysis_audit_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("library.sqlite");
+    let library_session = LibrarySession::open(&db_path, LibraryConfig::default()).unwrap();
+    let track_id = import_two_second_wav(&library_session, &dir.path().join("music"));
+    let library = library_session.library();
+    {
+        let lib = library.lock().unwrap();
+        lib.save_track_beat_grid(&track_id, 78.0, 0.1, false)
+            .unwrap();
+        lib.save_track_cue(&track_id, 100).unwrap();
+        lib.save_track_hot_cue(&track_id, 0, 100, Some(1), None, None)
+            .unwrap();
+    }
+
+    let db = Connection::open(&db_path).unwrap();
+    let track_param = [track_id.as_str()];
+    // Turn the saved grid into analysis-owned geometry and seed completed
+    // canonical facts with no detected key, independently of the audit result
+    // and a file-tag value refreshed since the last analysis.
+    assert_eq!(
+        db.execute(
+            "UPDATE track_beat_grid SET source = 'analysis' WHERE track_id = ?1",
+            track_param,
+        )
+        .unwrap(),
+        1
+    );
+    assert_eq!(
+        db.execute(
+            "UPDATE tracks SET bpm = 78.0, bpm_source = 'analysis', key = NULL,
+             loudness_lufs = -14.0, replaygain_track_gain_db = 5.0,
+             analysis_completed_at = '1' WHERE id = ?1",
+            track_param,
+        )
+        .unwrap(),
+        1
+    );
+    db.execute(
+        "INSERT INTO track_analysis
+         (track_id, backend, backend_version, analyzed_at, bpm, sample_rate,
+          duration_analyzed_ms, loudness_lufs)
+         VALUES (?1, 'fixture', '1', '1', 117.0, 48000, 2000, -23.0)",
+        track_param,
+    )
+    .unwrap();
+
+    let session = EngineSession::new_with_library_bus(
+        EngineConfig {
+            backend: "null".to_string(),
+            ..Default::default()
+        },
+        library.clone(),
+        library_session.bus(),
+    )
+    .expect("engine session");
+    session.with_engine(|engine| engine.start()).expect("start");
+
+    let assert_deck_and_export = || {
+        let snapshot = session
+            .with_engine(|engine| {
+                engine.load_track_from_library(0, &track_id)?;
+                engine.set_deck_quantize(0, true)?;
+                Ok(engine.deck_snapshot(0).expect("deck snapshot"))
+            })
+            .expect("load");
+        assert_eq!(snapshot.bpm, Some(78.0));
+        assert_eq!(snapshot.loudness_lufs, Some(-14.0));
+        assert_eq!(snapshot.pending_loop_in_ms, None);
+
+        let mut evt = session.subscribe_evt_all("canonical-track-facts").unwrap();
+        session.publish_cmd(loop_in_cmd(900)).unwrap();
+        let update = recv_updated_where(&mut evt, |update| {
+            update.deck == 0 && update.pending_loop_in_ms.is_some()
+        });
+        assert_eq!(update.pending_loop_in_ms, Some(869));
+
+        let source = library
+            .lock()
+            .unwrap()
+            .get_track(&track_id)
+            .unwrap()
+            .expect("library track");
+        let metadata = source.metadata();
+        assert_eq!(metadata.bpm, Some(78.0));
+        assert_eq!(metadata.loudness_lufs, Some(-14.0));
+        assert!(metadata.key.is_none());
+
+        let data = ExportSession::new(&library)
+            .export_data(&track_id)
+            .unwrap()
+            .expect("export data");
+        assert_eq!(data.bpm, Some(78.0));
+        let grid = data.beat_grid.as_ref().expect("exported grid");
+        assert_eq!(grid.beats.len(), 3);
+        for (beat, expected) in grid.beats.iter().zip([0.1, 0.869_230_75, 1.638_461_6]) {
+            assert!((*beat - expected).abs() < 1e-6, "{beat} != {expected}");
+        }
+        assert_exported_hot_loop(&data, 1, 869);
+    };
+
+    assert_deck_and_export();
+    session.with_engine(|engine| engine.unload_deck(0)).unwrap();
+    assert_eq!(
+        db.execute(
+            "DELETE FROM track_analysis WHERE track_id = ?1",
+            track_param
+        )
+        .unwrap(),
+        1
+    );
+    assert_deck_and_export();
+
+    // Reload must not have silently re-analyzed the keyless track.
+    let raw_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM track_analysis WHERE track_id = ?1",
+            track_param,
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(raw_count, 0);
+}
+
+#[test]
+fn export_uses_track_bpm_for_hot_loops_without_a_grid() {
+    let dir = tempfile::tempdir().unwrap();
+    let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
+    let track_id = import_two_second_wav(&session, dir.path());
+    let library = session.library();
+    {
+        let lib = library.lock().unwrap();
+        lib.update_track_metadata(
+            &track_id,
+            TrackMetadataEdit {
+                bpm: Some(120.0),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        lib.save_track_hot_cue(&track_id, 0, 100, Some(2), None, None)
+            .unwrap();
+    }
+
+    let data = ExportSession::new(&library)
+        .export_data(&track_id)
+        .unwrap()
+        .expect("export data");
+    assert_eq!(data.bpm, Some(120.0));
+    assert!(data.beat_grid.is_none());
+    assert_exported_hot_loop(&data, 2, 1100);
 }
 
 #[test]

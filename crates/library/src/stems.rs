@@ -17,7 +17,7 @@ use crate::LibraryManager;
 #[cfg(feature = "analysis")]
 use crate::PreparedTrackPlayback;
 #[cfg(feature = "analysis")]
-use analyzer::{merge_track_metadata, AnalysisConfig, TagMetadata};
+use analyzer::AnalysisConfig;
 #[cfg(feature = "analysis")]
 use codec::{decode_stem_file, StemPcmBundle};
 #[cfg(feature = "analysis")]
@@ -721,26 +721,14 @@ pub(crate) fn prepare_native_stem_for_playback(
         config.max_duration_ms = options
             .analysis_duration
             .resolve_max_duration_ms(tag_metadata.duration_ms);
-        let mut analysis = analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, &config)?;
+        let analysis = analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, &config)?;
         let replaygain_track_gain_db = crate::tags::read_replaygain_track_gain_db(&path)?;
-        analysis.loudness_lufs =
+        let canonical_loudness_lufs =
             preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
-        let tag_side = TagMetadata {
-            bpm: tag_metadata.bpm,
-            key: tag_metadata.key.clone(),
-        };
-        let merged = merge_track_metadata(
-            &tag_side,
-            &analysis,
-            options.force,
-            config.min_bpm_confidence,
-            config.min_key_confidence,
-        );
-        let mut metadata = tag_metadata.clone();
-        metadata.bpm = merged.bpm;
-        metadata.key = merged.key;
         let computed = ComputedFileAnalysis {
-            metadata,
+            min_bpm_confidence: config.min_bpm_confidence,
+            min_key_confidence: config.min_key_confidence,
+            canonical_loudness_lufs,
             // A native `.stem.mp4` is outside the ID3 containers this reader
             // understands, so only the ordinary tags are available here. The
             // empty payload carries no container, which adoption reports as

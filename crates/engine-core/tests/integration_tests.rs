@@ -168,10 +168,16 @@ fn test_engine_load_track_from_library_attaches_native_stems() -> Result<()> {
 }
 
 #[test]
-fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
-    // "auto" must resolve to a concrete backend: CPAL when it initialises,
-    // otherwise the null fallback. Assert the resolution itself — deterministic —
-    // rather than that a real device opens.
+fn test_engine_with_auto_backend_requires_real_audio() -> Result<()> {
+    if !cfg!(feature = "backend-cpal") {
+        let error = engine_core::AudioBackend::new("auto")
+            .err()
+            .expect("auto must not silently select the null backend");
+        assert!(error
+            .to_string()
+            .contains("no real audio backend available"));
+        return Ok(());
+    }
     //
     // Deliberately does not `start()`/`stop()`: whether a real device accepts
     // this exact buffer size is a property of the runner's audio stack (the
@@ -179,11 +185,7 @@ fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
     // a sound card: "Device callback size is 1024 frames but 512 frames were
     // configured"). Device-open behaviour is covered by `backend-cpal`'s tests.
     let backend = engine_core::AudioBackend::new("auto")?;
-    assert!(
-        matches!(backend.name(), "cpal" | "null"),
-        "auto must resolve to cpal or fall back to null, got `{}`",
-        backend.name()
-    );
+    assert_eq!(backend.name(), "cpal");
 
     // The engine must also accept the same config and enumerate devices without
     // error. A headless runner where CPAL initialises but lists no usable output

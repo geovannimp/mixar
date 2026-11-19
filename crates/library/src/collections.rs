@@ -1,14 +1,14 @@
 //! Collection sync/import and filesystem bookkeeping.
 #[cfg(feature = "analysis")]
 use crate::compute_file_analysis;
+use crate::store::TrackMetadataOrigin;
 use crate::{collect_audio_files, is_audio_file, normalize_path, tags, unix_secs_string};
 use crate::{FileImportOutcome, LibraryManager};
 use library_core::{
     path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    FileAudioSource, HotCueImport, ImportedTrack, Library, LibraryError, LoopImport, NewCollection,
-    Result, ScanReport, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
-    UpdateCollection, WritableLibrary,
+    HotCueImport, ImportedTrack, Library, LibraryError, LoopImport, NewCollection, Result,
+    ScanReport, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -190,13 +190,14 @@ impl LibraryManager {
         CollectionId::new(format!("playlist:{nanos}"))
     }
 
+    #[cfg(test)]
     pub(crate) fn upsert_file_source(
         &self,
         path: &Path,
         metadata: &TrackMetadata,
     ) -> Result<AudioSource> {
         let path = normalize_path(path)?;
-        self.upsert_file_source_normalized(&path, metadata)
+        self.upsert_file_source_normalized(&path, metadata, TrackMetadataOrigin::Tag)
     }
 
     /// Write a file track for a path that is already normalized.
@@ -204,21 +205,15 @@ impl LibraryManager {
         &self,
         path: &Path,
         metadata: &TrackMetadata,
+        origin: TrackMetadataOrigin,
     ) -> Result<AudioSource> {
         let id = Self::track_id_for(path);
         let now = unix_secs_string();
-        self.store().upsert_file_track(&id, path, metadata, &now)?;
-        // A canonical grid owns the BPM mirror; a tag refresh must not move it.
-        if let Some(grid) = crate::beat_grid::get_track_beat_grid(&self.db, &id)? {
-            if let Some(bpm) = grid.bpm() {
-                crate::beat_grid::set_track_bpm(&self.db, &id, bpm)?;
-            }
-        }
-        Ok(AudioSource::File(FileAudioSource::new(
-            id,
-            path.to_path_buf(),
-            metadata.clone(),
-        )))
+        self.store()
+            .upsert_file_track(&id, path, metadata, origin, &now)?;
+        self.store()
+            .get_track(&id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))
     }
 
     #[allow(dead_code)]
@@ -231,14 +226,17 @@ impl LibraryManager {
         let id = Self::stream_id_for(uri, provider);
         let now = unix_secs_string();
         let provider_str = provider.map(|p| p.as_str());
-        self.store()
-            .upsert_stream_track(&id, uri, metadata, provider_str, &now)?;
-        Ok(AudioSource::Stream(StreamAudioSource::new(
-            id,
+        self.store().upsert_stream_track(
+            &id,
             uri,
-            metadata.clone(),
-            provider,
-        )))
+            metadata,
+            TrackMetadataOrigin::Import,
+            provider_str,
+            &now,
+        )?;
+        self.store()
+            .get_track(&id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))
     }
 
     #[allow(dead_code)]
@@ -286,7 +284,7 @@ impl LibraryManager {
     ///
     /// With `force == false` (the dialog default) this applies the
     /// [`TrackMetadata::needs_analysis`] rule — tracks that already carry BPM/key
-    /// from tags or an earlier run, and tracks with a `track_analysis` row, are
+    /// from tags or an earlier run, and tracks whose analysis is complete, are
     /// skipped so re-running a batch is cheap and never overwrites curated tags.
     /// With `force == true` every file track is returned. Stream tracks and
     /// playlist entries whose track row is missing are always skipped.
@@ -303,7 +301,7 @@ impl LibraryManager {
                 None => continue,
             };
             if !force {
-                let analyzed = self.store().count_track_analysis(source.id())? > 0;
+                let analyzed = self.store().has_completed_analysis(source.id())?;
                 if !source.metadata().needs_analysis(analyzed) {
                     continue;
                 }
@@ -668,7 +666,8 @@ impl WritableLibrary for LibraryManager {
         let path = normalize_path(path)?;
         let id = Self::track_id_for(&path);
         let created = !self.store().track_exists(&id)?;
-        let source = self.upsert_file_source_normalized(&path, metadata)?;
+        let source =
+            self.upsert_file_source_normalized(&path, metadata, TrackMetadataOrigin::Import)?;
         // Adapter metadata may already be mapped, but the file's own vendor
         // state still belongs to the library: adopt a readable supported file
         // here, and leave an absent or unreadable one pending for the next

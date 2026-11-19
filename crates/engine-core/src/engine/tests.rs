@@ -517,7 +517,10 @@ fn unload_deck_clears_loudness_but_preserves_manual_controls() {
 
 #[test]
 fn test_engine_creation() {
-    let config = EngineConfig::default();
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
     let engine = Engine::new(config);
     assert!(engine.is_ok());
 }
@@ -554,7 +557,10 @@ fn test_engine_deck_operations() {
 
 #[test]
 fn test_engine_device_operations() {
-    let config = EngineConfig::default();
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
     let engine = Engine::new(config).unwrap();
 
     let devices = engine.list_devices();
@@ -566,7 +572,10 @@ fn test_engine_device_operations() {
 
 #[test]
 fn test_engine_bus_operations() {
-    let mut config = EngineConfig::default();
+    let mut config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
     config.buses.push(BusConfig::new(
         BusId::new("master".to_string()),
         "Master Bus".to_string(),

@@ -30,7 +30,7 @@ use std::sync::Mutex;
 use library_core::{LibraryError, Result, TrackId};
 use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
-use crate::beat_grid;
+use crate::beat_grid::{self, SOURCE_IMPORT, SOURCE_MANUAL};
 use crate::embedded_metadata;
 use crate::entity::{tracks, TrackEntity};
 use crate::{deck_data, model, unix_secs_string, LibraryManager};
@@ -399,11 +399,13 @@ pub(crate) fn apply_payload_in_tx(
         deck_data::fill_loop_tx(conn, id, saved)?;
     }
 
-    // Fill-only: an existing grid — imported, analyzed or manual — is kept with
-    // every segment verbatim, and its BPM mirror owns `tracks.bpm`.
+    // Fill-only: the grid and a standalone manual BPM (including a clear)
+    // both take precedence over the embedded grid.
     if let Some(grid) = plan.grid.as_ref() {
-        if beat_grid::get_track_beat_grid_tx(conn, id)?.is_none() {
-            beat_grid::write_track_beat_grid_tx(conn, id, grid)?;
+        if row.bpm_source.as_deref() != Some(SOURCE_MANUAL)
+            && !beat_grid::has_track_beat_grid_tx(conn, id)?
+        {
+            beat_grid::write_track_beat_grid_tx(conn, id, grid, SOURCE_IMPORT)?;
         }
     }
 

@@ -1,6 +1,8 @@
 use super::*;
 #[cfg(feature = "analysis")]
-use crate::analysis::{compute_file_analysis, preferred_loudness_lufs};
+use crate::analysis::{
+    compute_file_analysis, persist_analysis_result, preferred_loudness_lufs, ComputedFileAnalysis,
+};
 use bus_api::Command;
 use std::io::Write;
 
@@ -1225,50 +1227,24 @@ fn collection_analyze_targets_skips_tagged_and_analyzed() {
 
     let (lib, folder) = library_with_synced_folder(dir.path());
 
-    // Stamp BPM on one track (as file tags would) and an analysis row on another.
+    // Stamp BPM on one track (as file tags would) and mark another as analyzed.
     for track in lib.list_collection_tracks(&folder.id).unwrap() {
         let path = track.file().unwrap().path().to_path_buf();
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if name == "tagged.wav" {
             let mut metadata = track.metadata().clone();
             metadata.bpm = Some(128.0);
-            lib.store()
-                .upsert_file_track(track.id(), &path, &metadata, "now")
-                .unwrap();
+            lib.upsert_file_source(&path, &metadata).unwrap();
         }
     }
-    let done_id = lib
-        .list_collection_tracks(&folder.id)
-        .unwrap()
-        .into_iter()
-        .find(|t| {
-            t.file()
-                .is_some_and(|f| f.path().file_name().and_then(|n| n.to_str()) == Some("done.wav"))
-        })
-        .unwrap()
-        .id()
-        .clone();
-    #[cfg(feature = "analysis")]
-    crate::analysis::upsert_track_analysis(
-        &lib.db,
-        &done_id,
-        &analyzer::TrackAnalysis {
-            bpm: None,
-            key: None,
-            beat_grid: None,
-            loudness_lufs: Some(-14.0),
-            metadata: analyzer::AnalysisRunMetadata {
-                backend: "test".into(),
-                backend_version: "1".into(),
-                analyzed_at: "now".into(),
-                sample_rate: 8000,
-                duration_analyzed_ms: 2,
-            },
-            cue_ms: None,
-        },
-        false,
-    )
-    .unwrap();
+    let done_path = dir.path().join("done.wav");
+    let done_id = lib.import_file_path(&done_path).unwrap().id().clone();
+    let mut completed = detector_fixture(&done_path, 117.0, "F#m", false);
+    completed.analysis.bpm = None;
+    completed.analysis.key = None;
+    completed.analysis.beat_grid = None;
+    persist_analysis_result(&lib.db, &done_id, &completed).unwrap();
+    assert!(lib.store().has_completed_analysis(&done_id).unwrap());
 
     let mut targets = lib
         .collection_analyze_targets(&folder.id, false)
@@ -1305,8 +1281,8 @@ fn analyze_track_persists_track_analysis() {
     lib.analyze_track(track.id(), AnalyzeTrackOptions::default())
         .unwrap();
 
-    let count = lib.store().count_track_analysis(track.id()).unwrap();
-    assert_eq!(count, 1);
+    assert!(lib.store().has_completed_analysis(track.id()).unwrap());
+    assert_eq!(audit_rows(&lib, track.id()).len(), 1);
     assert!(lib.track_loudness_lufs(track.id()).unwrap().is_some());
 }
 
@@ -1629,6 +1605,10 @@ fn analysis_writes_a_canonical_grid_at_the_tagged_bpm() {
     assert!((grid.bpm().unwrap() - 80.0).abs() < 0.01);
     let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
     assert!((metadata.bpm.unwrap() - 80.0).abs() < 0.01);
+    assert_eq!(
+        stored_track_row(&lib, &id).bpm_source.as_deref(),
+        Some("tag")
+    );
 }
 
 #[test]
@@ -1643,83 +1623,71 @@ fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
     .unwrap();
     let id = lib.import_file_path(&wav).unwrap().id().clone();
     let original_grid = lib.save_track_beat_grid(&id, 87.0, 0.25, false).unwrap();
+    assert_eq!(
+        stored_track_row(&lib, &id).bpm_source.as_deref(),
+        Some(crate::SOURCE_MANUAL)
+    );
     lib.analyze_track(&id, AnalyzeTrackOptions::default())
         .unwrap();
 
     let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
     assert_eq!(metadata.bpm, Some(87.0));
     assert_eq!(metadata.key.as_deref(), Some("Cm"));
-    let preserved_grid = lib.get_track_beat_grid(&id).unwrap().unwrap();
-    assert_eq!(preserved_grid.bpm(), original_grid.bpm());
-    assert_eq!(
-        preserved_grid.first_beat_ms(),
-        original_grid.first_beat_ms()
+    assert_eq!(lib.get_track_beat_grid(&id).unwrap(), Some(original_grid));
+    assert_track_ownership(
+        &lib,
+        &id,
+        Some(87.0),
+        crate::SOURCE_MANUAL,
+        Some("Cm"),
+        Some("tag"),
     );
     let tags = crate::tags::read_tags(&wav).unwrap();
     assert_eq!(tags.bpm, Some(87.0));
     assert_eq!(tags.key.as_deref(), Some("Cm"));
-}
 
-#[test]
-#[cfg(feature = "analysis")]
-fn analysis_without_force_retunes_a_metrical_family_lock_to_the_tagged_bpm() {
-    // 120 BPM clicks tagged 80 BPM — a 3:2 detector lock. Without `force` the
-    // tag wins, so the analysis grid must be rebuilt at 80, not left at 120.
-    let dir = tempfile::tempdir().unwrap();
-    let wav = tagged_short_beats_fixture(dir.path(), 80.0, None);
-
-    let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::default()).unwrap();
-    assert_eq!(computed.metadata.bpm, Some(80.0));
-    assert_eq!(computed.analysis.bpm.as_ref().map(|b| b.bpm), Some(80.0));
-    let grid = computed.analysis.beat_grid.as_ref().unwrap();
-    let period = f64::from(grid.beats[1] - grid.beats[0]);
-    assert!((period - 60.0 / 80.0).abs() < 1e-3, "grid period {period}");
-}
-
-#[test]
-#[cfg(feature = "analysis")]
-fn beat_grid_read_heals_a_metrical_family_mismatch_to_the_track_bpm() {
-    use analyzer_core::{AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis};
-
-    let dir = tempfile::tempdir().unwrap();
-    let wav = dir.path().join("heal.wav");
-    write_analysis_wav(&wav);
-
-    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let id = lib.import_file_path(&wav).unwrap().id().clone();
-    lib.update_track_metadata(
+    let forced = detector_fixture(&wav, 117.0, "F#m", true);
+    lib.persist_file_analysis(&wav, &forced, false).unwrap();
+    let replacement = stored_grid(&lib, &id);
+    assert_eq!(replacement.source, crate::SOURCE_ANALYSIS);
+    assert_eq!(replacement.bpm(), Some(117.0));
+    assert_track_ownership(
+        &lib,
         &id,
-        crate::store::TrackMetadataEdit {
-            title: None,
-            artist: None,
-            album: None,
-            genre: None,
-            bpm: Some(78.0),
-            key: None,
-            isrc: None,
-            rating: None,
-            comment: None,
-            year: None,
-            track_number: None,
-            disc_number: None,
-            color_label: None,
-        },
-    )
-    .unwrap();
+        Some(117.0),
+        crate::SOURCE_ANALYSIS,
+        Some("F#m"),
+        Some(crate::SOURCE_ANALYSIS),
+    );
+}
 
-    // What a legacy row looks like: the detector reported the 3:2 harmonic.
-    let period = 60.0 / 117.0;
-    let beats: Vec<f32> = (0..100)
-        .map(|i| (0.02 + i as f64 * period) as f32)
+#[cfg(feature = "analysis")]
+pub(crate) fn detector_fixture(
+    path: &Path,
+    bpm: f64,
+    key: &str,
+    force: bool,
+) -> ComputedFileAnalysis {
+    use analyzer::{
+        AnalysisConfig, AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis,
+    };
+
+    let (tag_metadata, embedded_metadata) = crate::tags::read_file_metadata(path).unwrap();
+    let period = 60.0 / bpm;
+    let beats: Vec<f32> = (0..32)
+        .map(|i| (0.02 + f64::from(i) * period) as f32)
         .collect();
     let downbeats: Vec<f32> = beats.iter().copied().step_by(4).collect();
     let analysis = analyzer::TrackAnalysis {
         bpm: Some(BpmAnalysis {
-            bpm: 117.0,
+            bpm,
             confidence: 0.99,
         }),
-        cue_ms: None,
-        key: None,
+        key: Some(KeyAnalysis {
+            musical: key.into(),
+            confidence: 0.99,
+            clarity: 0.9,
+        }),
         beat_grid: Some(BeatGridAnalysis {
             beats,
             bars: downbeats.clone(),
@@ -1727,22 +1695,270 @@ fn beat_grid_read_heals_a_metrical_family_mismatch_to_the_track_bpm() {
             grid_stability: 0.99,
             beats_per_bar: 4,
         }),
-        loudness_lufs: None,
+        loudness_lufs: Some(-12.0),
         metadata: AnalysisRunMetadata {
-            backend: "qmdsp".into(),
+            backend: "test".into(),
             backend_version: "1".into(),
-            analyzed_at: "now".into(),
+            analyzed_at: "2026-01-01T00:00:00Z".into(),
             sample_rate: 8_000,
             duration_analyzed_ms: 1_000,
         },
+        cue_ms: Some(20),
     };
-    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
-    crate::analysis::persist_analysis_grid(&lib.db, &id, &metadata, &analysis, false).unwrap();
+    let config = AnalysisConfig::default();
+    let canonical_loudness_lufs = preferred_loudness_lufs(
+        analysis.loudness_lufs,
+        tag_metadata.replaygain_track_gain_db,
+    );
+    ComputedFileAnalysis {
+        tag_metadata,
+        embedded_metadata,
+        analysis,
+        force,
+        min_bpm_confidence: config.min_bpm_confidence,
+        min_key_confidence: config.min_key_confidence,
+        canonical_loudness_lufs,
+    }
+}
 
-    let grid = lib.get_track_beat_grid(&id).unwrap().unwrap();
-    assert_eq!(grid.bpm(), Some(78.0));
-    assert_eq!(grid.source, crate::beat_grid::SOURCE_ANALYSIS);
-    assert_eq!(grid.first_segment().unwrap().bpm, 78.0);
+fn stored_track_row(lib: &LibraryManager, id: &TrackId) -> crate::entity::tracks::Model {
+    use sea_orm::EntityTrait;
+    crate::entity::TrackEntity::find_by_id(id.as_str())
+        .one(lib.db.conn().unwrap().as_connection())
+        .unwrap()
+        .unwrap()
+}
+
+#[cfg(feature = "analysis")]
+fn assert_track_ownership(
+    lib: &LibraryManager,
+    id: &TrackId,
+    bpm: Option<f64>,
+    bpm_source: &str,
+    key: Option<&str>,
+    key_source: Option<&str>,
+) {
+    let row = stored_track_row(lib, id);
+    assert_eq!(
+        (
+            row.bpm,
+            row.bpm_source.as_deref(),
+            row.key.as_deref(),
+            row.key_source.as_deref()
+        ),
+        (bpm, Some(bpm_source), key, key_source),
+    );
+}
+
+#[cfg(feature = "analysis")]
+fn audit_rows(lib: &LibraryManager, id: &TrackId) -> Vec<crate::entity::track_analysis::Model> {
+    use crate::entity::{track_analysis::Column, TrackAnalysisEntity};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+    TrackAnalysisEntity::find()
+        .filter(Column::TrackId.eq(id.as_str()))
+        .order_by_asc(Column::Id)
+        .all(lib.db.conn().unwrap().as_connection())
+        .unwrap()
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_persists_tag_aligned_metrical_families_without_changing_the_audit() {
+    for bpm in [117.0, 156.0, 39.0, 104.0, 234.0] {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = tagged_short_beats_fixture(dir.path(), 78.0, Some("Am"));
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let first = detector_fixture(&wav, bpm, "F#m", false);
+        let (source, _) = lib.persist_file_analysis(&wav, &first, false).unwrap();
+        let id = source.id();
+        assert_track_ownership(&lib, id, Some(78.0), "tag", Some("Am"), Some("tag"));
+        let grid = stored_grid(&lib, id);
+        assert_eq!(grid.source, crate::SOURCE_ANALYSIS);
+        assert_eq!(grid.segments.len(), 1, "detector BPM {bpm}");
+        assert_eq!(grid.segments[0].bpm, 78.0);
+
+        let rows = audit_rows(&lib, id);
+        assert_eq!(rows.len(), 1);
+        let raw = &rows[0];
+        assert_eq!(raw.bpm, Some(bpm));
+        assert_eq!(raw.key.as_deref(), Some("F#m"));
+        assert_eq!(raw.loudness_lufs, Some(-12.0));
+        let raw_grid: analyzer::BeatGridAnalysis =
+            serde_json::from_str(raw.beat_grid_json.as_deref().unwrap()).unwrap();
+        assert_eq!(Some(&raw_grid), first.analysis.beat_grid.as_ref());
+        let period = f64::from(raw_grid.beats[1] - raw_grid.beats[0]);
+        assert!((period - 60.0 / bpm).abs() < 1e-6, "raw period {period}");
+
+        let second = detector_fixture(&wav, 90.0, "Dm", false);
+        lib.persist_file_analysis(&wav, &second, false).unwrap();
+        let rows = audit_rows(&lib, id);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            &rows[0], raw,
+            "a new run must not mutate an earlier audit row"
+        );
+        assert_ne!(rows[0].id, rows[1].id);
+        assert_eq!(rows[0].analyzed_at, rows[1].analyzed_at);
+        assert_eq!(rows[1].bpm, Some(90.0));
+        assert_eq!(rows[1].key.as_deref(), Some("Dm"));
+        assert_eq!(rows[1].loudness_lufs, Some(-12.0));
+        assert_track_ownership(&lib, id, Some(78.0), "tag", Some("Am"), Some("tag"));
+        assert_eq!(stored_grid(&lib, id), grid);
+        assert_eq!(lib.track_loudness_lufs(id).unwrap(), Some(-12.0));
+    }
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn replaygain_affects_canonical_loudness_not_the_detector_audit() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("replaygain.wav");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[id3_frame(b"TXXX", b"\0REPLAYGAIN_TRACK_GAIN\0+3.20 dB")]),
+    );
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let computed = detector_fixture(&wav, 117.0, "F#m", false);
+    assert_eq!(computed.tag_metadata.replaygain_track_gain_db, Some(3.2));
+    let (source, _) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_eq!(
+        stored_track_row(&lib, source.id()).loudness_lufs,
+        Some(-21.2)
+    );
+    assert_eq!(lib.track_loudness_lufs(source.id()).unwrap(), Some(-21.2));
+    assert_eq!(audit_rows(&lib, source.id())[0].loudness_lufs, Some(-12.0));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn manual_metadata_edits_retime_or_clear_a_single_segment_grid() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 78.0, Some("Am"));
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let computed = detector_fixture(&wav, 117.0, "F#m", false);
+    let (source, _) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    let id = source.id();
+    let before = stored_grid(&lib, id);
+    assert_eq!(before.segments.len(), 1);
+
+    let mut edit = TrackMetadataEdit {
+        title: Some("New title".into()),
+        bpm: Some(78.0),
+        key: Some("Am".into()),
+        ..TrackMetadataEdit::default()
+    };
+    lib.update_track_metadata(id, edit.clone()).unwrap();
+    assert_eq!(
+        stored_track_row(&lib, id).title.as_deref(),
+        Some("New title")
+    );
+    assert_track_ownership(&lib, id, Some(78.0), "tag", Some("Am"), Some("tag"));
+    assert_eq!(stored_grid(&lib, id), before);
+
+    edit.bpm = Some(80.0);
+    edit.key = Some("Em".into());
+    lib.update_track_metadata(id, edit.clone()).unwrap();
+    let edited = stored_grid(&lib, id);
+    assert_eq!(edited.segments.len(), 1);
+    assert_eq!(edited.segments[0].bpm, 80.0);
+    assert_eq!(edited.first_beat_ms(), before.first_beat_ms());
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        Some(80.0),
+        crate::SOURCE_MANUAL,
+        Some("Em"),
+        Some(crate::SOURCE_MANUAL),
+    );
+    assert_eq!(stored_grid(&lib, id), edited);
+
+    edit.bpm = None;
+    edit.key = None;
+    lib.update_track_metadata(id, edit).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        None,
+        crate::SOURCE_MANUAL,
+        None,
+        Some(crate::SOURCE_MANUAL),
+    );
+    assert!(lib.get_track_beat_grid(id).unwrap().is_none());
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        None,
+        crate::SOURCE_MANUAL,
+        None,
+        Some(crate::SOURCE_MANUAL),
+    );
+    assert!(lib.get_track_beat_grid(id).unwrap().is_none());
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn adapter_import_facts_survive_discovery_and_yield_to_forced_analysis() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = tagged_short_beats_fixture(dir.path(), 95.0, Some("Em"));
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let imported = WritableLibrary::import_track(
+        &mut lib,
+        &wav,
+        &TrackMetadata {
+            bpm: Some(92.0),
+            key: Some("Dm".into()),
+            ..TrackMetadata::default()
+        },
+    )
+    .unwrap();
+    let id = imported.source.id();
+    assert_track_ownership(
+        &lib,
+        id,
+        Some(92.0),
+        crate::SOURCE_IMPORT,
+        Some("Dm"),
+        Some(crate::SOURCE_IMPORT),
+    );
+    assert!(lib.get_track_beat_grid(id).unwrap().is_none());
+
+    lib.refresh_file_source(&wav).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        Some(92.0),
+        crate::SOURCE_IMPORT,
+        Some("Dm"),
+        Some(crate::SOURCE_IMPORT),
+    );
+    let mut computed = detector_fixture(&wav, 117.0, "F#m", false);
+    assert_eq!(computed.tag_metadata.bpm, Some(95.0));
+    assert_eq!(computed.tag_metadata.key.as_deref(), Some("Em"));
+    // Isolate ownership of the track fields from ownership of a grid.
+    computed.analysis.beat_grid = None;
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        Some(92.0),
+        crate::SOURCE_IMPORT,
+        Some("Dm"),
+        Some(crate::SOURCE_IMPORT),
+    );
+    assert!(lib.get_track_beat_grid(id).unwrap().is_none());
+
+    computed.force = true;
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_track_ownership(
+        &lib,
+        id,
+        Some(117.0),
+        crate::SOURCE_ANALYSIS,
+        Some("F#m"),
+        Some(crate::SOURCE_ANALYSIS),
+    );
 }
 
 #[test]
@@ -1891,14 +2107,18 @@ fn persist_file_analysis_defers_tag_write_back_to_its_caller() {
     .unwrap();
     lib.import_file_path(&wav).unwrap();
     let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::force()).unwrap();
-    let bpm = computed
-        .metadata
+    assert_eq!(
+        computed.tag_metadata.bpm, None,
+        "fixture has no ordinary BPM"
+    );
+    let (source, plan) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    let bpm = source
+        .metadata()
         .bpm
-        .expect("analysis should produce a BPM");
+        .expect("analysis should persist a BPM");
 
     // Planning happens under the lock; the file must not be touched yet, because
     // callers hold the manager mutex while they call this.
-    let (_, plan) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
     assert!(crate::tags::read_tags(&wav).unwrap().bpm.is_none());
 
     // Executing the plan (callers do this after dropping the lock) writes it.
@@ -1988,7 +2208,7 @@ fn clearing_user_metadata_survives_reanalysis() {
 
     let computed = compute_file_analysis(wav, AnalyzeTrackOptions::force()).unwrap();
     assert_eq!(
-        computed.metadata.comment.as_deref(),
+        computed.tag_metadata.comment.as_deref(),
         Some("Keep me"),
         "file still carries the stale tag"
     );
@@ -2034,7 +2254,7 @@ fn reanalysis_preserves_user_metadata_missing_from_file_tags() {
 
     let computed = compute_file_analysis(wav, AnalyzeTrackOptions::force()).unwrap();
     assert_eq!(
-        computed.metadata.rating, None,
+        computed.tag_metadata.rating, None,
         "fixture carries no rating tag"
     );
     let (source, _) = lib.persist_file_analysis(wav, &computed, false).unwrap();
@@ -2507,6 +2727,17 @@ fn changing_tempo_grid_imports_as_canonical_segments() {
     let source = lib.import_file_path(&wav).unwrap();
     let grid = stored_grid(&lib, source.id());
 
+    let before_edit = stored_track_row(&lib, source.id());
+    let edit = TrackMetadataEdit {
+        title: Some("Must not be saved".into()),
+        bpm: Some(80.0),
+        key: Some("Am".into()),
+        ..TrackMetadataEdit::default()
+    };
+    assert!(lib.update_track_metadata(source.id(), edit).is_err());
+    assert_eq!(stored_track_row(&lib, source.id()), before_edit);
+    assert_eq!(stored_grid(&lib, source.id()), grid);
+
     // Expected values are computed here from the fixture's raw wire bytes, not
     // from the reader's own decoded output.
     let markers = wire_grid_markers(&payload);
@@ -2897,29 +3128,66 @@ fn legacy_databases_gain_the_nullable_colour_column() {
 fn imported_grid_survives_rescan_playback_and_forced_analysis() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("grid.wav");
-    write_tagged_wav(
-        &wav,
-        &id3_tag(&[geob_frame(
-            "Serato BeatGrid",
-            &serato_fixture("beatgrid/manual-beatgrid-changing-tempo.octet-stream"),
-        )]),
+    let vendor_grid = geob_frame(
+        "Serato BeatGrid",
+        &serato_fixture("beatgrid/manual-beatgrid-changing-tempo.octet-stream"),
     );
+    let mik_key = geob_frame("Key", &mik_key_body("5A"));
+    write_tagged_wav(&wav, &id3_tag(&[vendor_grid.clone(), mik_key.clone()]));
 
     let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let source = lib.import_file_path(&wav).unwrap();
     let id = source.id().clone();
     let before = stored_grid(&lib, &id).segments;
+    let imported_bpm = before[0].bpm;
+    assert_track_ownership(
+        &lib,
+        &id,
+        Some(imported_bpm),
+        crate::SOURCE_IMPORT,
+        Some("Cm"),
+        Some(crate::SOURCE_IMPORT),
+    );
+
+    // Ordinary tags arriving later must not replace the adopted key or grid mirror.
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[
+            vendor_grid,
+            mik_key,
+            id3_frame(b"TBPM", b"\x0095"),
+            id3_frame(b"TKEY", b"\0Em"),
+        ]),
+    );
+    let computed = detector_fixture(&wav, 117.0, "F#m", false);
+    assert_eq!(computed.tag_metadata.bpm, Some(95.0));
+    assert_eq!(computed.tag_metadata.key.as_deref(), Some("Em"));
 
     lib.refresh_file_source(&wav).unwrap();
     assert_eq!(stored_grid(&lib, &id).segments, before, "rescan");
+    assert_track_ownership(
+        &lib,
+        &id,
+        Some(imported_bpm),
+        crate::SOURCE_IMPORT,
+        Some("Cm"),
+        Some(crate::SOURCE_IMPORT),
+    );
 
     let library = std::sync::Mutex::new(lib);
     LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
     let lib = library.into_inner().unwrap();
     assert_eq!(stored_grid(&lib, &id).segments, before, "deck load");
 
-    lib.analyze_file_source(&wav, AnalyzeTrackOptions::default())
-        .unwrap();
+    lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert_track_ownership(
+        &lib,
+        &id,
+        Some(imported_bpm),
+        crate::SOURCE_IMPORT,
+        Some("Cm"),
+        Some(crate::SOURCE_IMPORT),
+    );
     let after = stored_grid(&lib, &id);
     assert_eq!(after.source, crate::SOURCE_IMPORT, "non-forced keeps it");
     assert_eq!(after.segments, before, "never replaced by an even grid");
@@ -2929,75 +3197,51 @@ fn imported_grid_survives_rescan_playback_and_forced_analysis() {
         vec![71, 16_470, 36_892, 239_980, 244_096, 301_660, 350_927, 424_703]
     );
 
-    let imported_bpm = before[0].bpm;
-
     // An adopted grid is authoritative even for an explicit force: replacing it
     // would undo adoption and flatten the file's own BPM mirror (#743).
-    lib.analyze_file_source(&wav, AnalyzeTrackOptions::force())
+    let forced_result = ComputedFileAnalysis {
+        force: true,
+        ..computed
+    };
+    lib.persist_file_analysis(&wav, &forced_result, false)
         .unwrap();
     let forced = stored_grid(&lib, &id);
     assert_eq!(forced.source, crate::SOURCE_IMPORT, "forced keeps it");
     assert_eq!(forced.segments, before, "forced analysis cannot flatten it");
-    assert_eq!(
-        lib.get_track(&id).unwrap().unwrap().metadata().bpm,
+    assert_track_ownership(
+        &lib,
+        &id,
         Some(imported_bpm),
-        "the imported grid still owns the BPM mirror"
+        crate::SOURCE_IMPORT,
+        Some("F#m"),
+        Some(crate::SOURCE_ANALYSIS),
     );
 }
 
 #[test]
 #[cfg(feature = "analysis")]
 fn mik_key_precedes_analysis_on_first_discovery() {
-    use analyzer::{AnalysisRunMetadata, BpmAnalysis, KeyAnalysis, TrackAnalysis};
-
-    let analysis = || TrackAnalysis {
-        bpm: Some(BpmAnalysis {
-            bpm: 140.0,
-            confidence: 0.99,
-        }),
-        key: Some(KeyAnalysis {
-            musical: "F#m".into(),
-            confidence: 0.99,
-            clarity: 0.9,
-        }),
-        beat_grid: None,
-        loudness_lufs: None,
-        metadata: AnalysisRunMetadata {
-            backend: "test".into(),
-            backend_version: "0".into(),
-            analyzed_at: "2026-01-01T00:00:00Z".into(),
-            sample_rate: 48_000,
-            duration_analyzed_ms: 1_000,
-        },
-        cue_ms: None,
-    };
-
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("mik.wav");
     write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]));
 
-    let (tag_metadata, embedded) = crate::tags::read_file_metadata(&wav).unwrap();
-    assert_eq!(tag_metadata.key, None, "no standard key tag");
-    // What `compute_file_analysis` would produce: the analyzer's own key.
-    let mut merged = tag_metadata.clone();
-    merged.key = Some("F#m".into());
-    merged.bpm = Some(140.0);
-    let computed = |force: bool| crate::analysis::ComputedFileAnalysis {
-        metadata: merged.clone(),
-        tag_metadata: tag_metadata.clone(),
-        embedded_metadata: embedded.clone(),
-        analysis: analysis(),
-        force,
-    };
+    let computed = detector_fixture(&wav, 140.0, "F#m", false);
+    assert_eq!(computed.tag_metadata.key, None, "no standard key tag");
 
     let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let (source, _) = lib
-        .persist_file_analysis(&wav, &computed(false), false)
-        .unwrap();
+    let (source, _) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
     assert_eq!(
         source.metadata().key.as_deref(),
         Some("Cm"),
         "Mixed In Key precedes the analyzer on first discovery"
+    );
+    assert_track_ownership(
+        &lib,
+        source.id(),
+        Some(140.0),
+        crate::SOURCE_ANALYSIS,
+        Some("Cm"),
+        Some(crate::SOURCE_IMPORT),
     );
 
     // Explicit force retains the current analysis-replacement semantics.
@@ -3007,17 +3251,7 @@ fn mik_key_precedes_analysis_on_first_discovery() {
         &forced_wav,
         &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]),
     );
-    let (forced_tags, forced_embedded) = crate::tags::read_file_metadata(&forced_wav).unwrap();
-    let mut forced_merged = forced_tags.clone();
-    forced_merged.key = Some("F#m".into());
-    forced_merged.bpm = Some(140.0);
-    let forced = crate::analysis::ComputedFileAnalysis {
-        metadata: forced_merged,
-        tag_metadata: forced_tags,
-        embedded_metadata: forced_embedded,
-        analysis: analysis(),
-        force: true,
-    };
+    let forced = detector_fixture(&forced_wav, 140.0, "F#m", true);
     let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let (source, _) = lib
         .persist_file_analysis(&forced_wav, &forced, false)

@@ -4,99 +4,25 @@ use analyzer::{
     analyze_file, analyze_pcm, merge_track_metadata, AnalysisConfig, AnalyzerError, TagMetadata,
     TrackAnalysis,
 };
-use analyzer_core::{
-    is_metrical_tempo_relation, loudness_lufs_from_replaygain_track_gain_db, retune_grid,
-};
+use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 use codec::{decode_stem_file, is_stem_path};
-use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
 use std::path::Path;
 
-use library_core::{AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId, TrackMetadata};
+use library_core::{AnalyzeTrackOptions, CueSource, LibraryError, Result, TrackId};
 
-use crate::beat_grid::{self, CanonicalBeatGrid};
+use crate::beat_grid;
 use crate::db::{self, Db};
-use crate::entity::{track_analysis, TrackAnalysisEntity};
+use crate::entity::{track_analysis, tracks, TrackAnalysisEntity, TrackEntity};
 use crate::{is_audio_file, normalize_path, path_label, tags};
 
-/// Build the canonical grid for an analysis result.
-///
-/// The analysis markers are serialized into the legacy shape and run through the
-/// same converter as the migration, so constant/variable rules stay identical.
-pub(crate) fn analysis_to_grid(
-    metadata: &TrackMetadata,
-    analysis: &TrackAnalysis,
-) -> Result<Option<CanonicalBeatGrid>> {
-    let Some(grid) = analysis.beat_grid.as_ref() else {
-        return Ok(None);
-    };
-    let json = serde_json::to_string(grid).map_err(|err| LibraryError::Backend {
-        backend: "library",
-        message: err.to_string(),
-    })?;
-    let covered_to_ms = analysis
-        .metadata
-        .duration_analyzed_ms
-        .checked_into_positive()
-        .filter(|analyzed| {
-            metadata
-                .duration_ms
-                .is_none_or(|track| *analyzed < i64::from(track))
-        });
-    let fallback = metadata
-        .bpm
-        .or_else(|| analysis.bpm.as_ref().map(|bpm| bpm.bpm));
-    match beat_grid::from_legacy_json(&json, fallback, &analysis.metadata.backend, covered_to_ms) {
-        Ok(grid) => Ok(grid),
-        Err(err) => Err(LibraryError::Backend {
-            backend: "library",
-            message: err.to_string(),
-        }),
-    }
-}
-
-/// Persist an analysis grid unless an owned canonical grid already exists.
-///
-/// An imported grid (`SOURCE_IMPORT`) is never replaced, even by a forced
-/// analysis: adoption would otherwise be undone — and its BPM flattened — the
-/// first time the user re-analyzed the track. Manual and earlier-analysis grids
-/// keep their previous rule, where `force` may replace them.
-pub(crate) fn persist_analysis_grid(
+/// Append the detector audit and persist the merged track facts as one unit.
+pub(crate) fn persist_analysis_result(
     db: &Db,
     track_id: &TrackId,
-    metadata: &TrackMetadata,
-    analysis: &TrackAnalysis,
-    force: bool,
+    computed: &ComputedFileAnalysis,
 ) -> Result<()> {
-    if let Some(existing) = beat_grid::get_track_beat_grid(db, track_id)? {
-        if existing.source == beat_grid::SOURCE_IMPORT || !force {
-            return Ok(());
-        }
-    }
-    let Some(grid) = analysis_to_grid(metadata, analysis)? else {
-        return Ok(());
-    };
-    beat_grid::write_track_beat_grid(db, track_id, &grid)
-}
-
-trait CheckedIntoPositive {
-    fn checked_into_positive(self) -> Option<i64>;
-}
-
-impl CheckedIntoPositive for i32 {
-    fn checked_into_positive(self) -> Option<i64> {
-        (self > 0).then(|| i64::from(self))
-    }
-}
-
-pub(crate) fn upsert_track_analysis(
-    db: &Db,
-    track_id: &TrackId,
-    analysis: &TrackAnalysis,
-    force: bool,
-) -> Result<()> {
-    // A canonical grid (manual or prior analysis) owns BPM/grid unless forced.
-    let has_existing_grid = !force && beat_grid::has_track_beat_grid(db, track_id)?;
+    let analysis = &computed.analysis;
     let beat_grid_json = analysis
         .beat_grid
         .as_ref()
@@ -118,75 +44,131 @@ pub(crate) fn upsert_track_analysis(
             .beat_grid
             .as_ref()
             .map(|g| f64::from(g.grid_stability))),
-        sample_rate: Set(analysis.metadata.sample_rate as i32),
+        sample_rate: Set(i64::from(analysis.metadata.sample_rate)),
         duration_analyzed_ms: Set(analysis.metadata.duration_analyzed_ms),
         loudness_lufs: Set(analysis.loudness_lufs),
-        beat_grid_json: Set(beat_grid_json),
+        beat_grid_json: Set(beat_grid_json.clone()),
+        ..Default::default()
     };
-    let mut update_columns = vec![
-        track_analysis::Column::Backend,
-        track_analysis::Column::BackendVersion,
-        track_analysis::Column::AnalyzedAt,
-        track_analysis::Column::Key,
-        track_analysis::Column::KeyConfidence,
-        track_analysis::Column::KeyClarity,
-        track_analysis::Column::SampleRate,
-        track_analysis::Column::DurationAnalyzedMs,
-        track_analysis::Column::LoudnessLufs,
-    ];
-    if !has_existing_grid {
-        update_columns.extend([
-            track_analysis::Column::Bpm,
-            track_analysis::Column::BpmConfidence,
-            track_analysis::Column::GridStability,
-            track_analysis::Column::BeatGridJson,
-        ]);
-    }
 
-    TrackAnalysisEntity::insert(active)
-        .on_conflict(
-            OnConflict::column(track_analysis::Column::TrackId)
-                .update_columns(update_columns)
-                .to_owned(),
-        )
-        .exec(db.conn()?.as_connection())
-        .map_err(db::db_err)?;
+    db.transaction(|conn| {
+        let row = TrackEntity::find_by_id(track_id.as_str())
+            .one(conn)
+            .map_err(db::db_err)?
+            .ok_or_else(|| LibraryError::NotFound(track_id.as_str().to_string()))?;
+        let existing_grid = beat_grid::get_track_beat_grid_tx(conn, track_id)?;
+        TrackAnalysisEntity::insert(active)
+            .exec(conn)
+            .map_err(db::db_err)?;
 
-    // The analyzed cue owns only analysis-sourced rows: a manual set or an
-    // imported memory cue is returned untouched, while a re-analysis (e.g. after
-    // a threshold change) refreshes the previous analysis cue.
-    match analysis.cue_ms {
-        Some(cue_ms) => {
-            crate::deck_data::refresh_track_cue(
-                db,
+        let candidates = merge_track_metadata(
+            &TagMetadata::default(),
+            analysis,
+            computed.force,
+            computed.min_bpm_confidence,
+            computed.min_key_confidence,
+        );
+        let detector_bpm = candidates.bpm.filter(|bpm| bpm.is_finite() && *bpm > 0.0);
+        let detector_key = candidates
+            .key
+            .as_deref()
+            .map(str::trim)
+            .filter(|key| !key.is_empty());
+        let keep_existing_bpm = !computed.force && (row.bpm.is_some() || row.bpm_source.is_some());
+        let prefer_track_bpm = keep_existing_bpm || detector_bpm.is_none();
+        let mut facts = tracks::ActiveModel {
+            id: Set(row.id),
+            analysis_completed_at: Set(Some(analysis.metadata.analyzed_at.clone())),
+            ..Default::default()
+        };
+        if let Some(key) = detector_key
+            .filter(|_| computed.force || (row.key.is_none() && row.key_source.is_none()))
+        {
+            facts.key = Set(Some(key.to_string()));
+            facts.key_source = Set(Some(beat_grid::SOURCE_ANALYSIS.to_string()));
+        }
+        if let Some(loudness) = computed
+            .canonical_loudness_lufs
+            .filter(|lufs| lufs.is_finite())
+        {
+            facts.loudness_lufs = Set(Some(loudness));
+        }
+        if row.sample_rate.is_none_or(|rate| rate <= 0) {
+            if let Ok(rate) = i32::try_from(analysis.metadata.sample_rate) {
+                if rate > 0 {
+                    facts.sample_rate = Set(Some(rate));
+                }
+            }
+        }
+
+        let can_replace_grid = existing_grid
+            .as_ref()
+            .is_none_or(|grid| computed.force && grid.source != beat_grid::SOURCE_IMPORT);
+        let mut wrote_grid = false;
+        let preferred_bpm = if prefer_track_bpm { row.bpm } else { None };
+        let winning_bpm = preferred_bpm.or(detector_bpm);
+        if can_replace_grid
+            && winning_bpm.is_none_or(|bpm| (20.0..=400.0).contains(&bpm))
+            && !(keep_existing_bpm && row.bpm.is_none())
+        {
+            // A rejected BPM estimate must not sneak into the track through geometry.
+            // If there was no estimate at all, the measured markers can stand alone.
+            if let Some(json) = beat_grid_json.as_deref().filter(|_| {
+                preferred_bpm.is_some() || detector_bpm.is_some() || analysis.bpm.is_none()
+            }) {
+                let analyzed_ms = analysis.metadata.duration_analyzed_ms;
+                let covered_to_ms = (analyzed_ms > 0
+                    && row
+                        .duration_ms
+                        .is_none_or(|duration| analyzed_ms < duration))
+                .then_some(i64::from(analyzed_ms));
+                let raw_bpm = analysis.bpm.as_ref().map(|bpm| bpm.bpm);
+                match beat_grid::from_analysis_json(json, raw_bpm, preferred_bpm, covered_to_ms) {
+                    Ok(Some(grid)) => {
+                        let source = if preferred_bpm.is_some() {
+                            row.bpm_source.as_deref().unwrap_or("legacy")
+                        } else {
+                            beat_grid::SOURCE_ANALYSIS
+                        };
+                        beat_grid::write_track_beat_grid_tx(conn, track_id, &grid, source)?;
+                        wrote_grid = true;
+                    }
+                    Ok(None) => tracing::warn!(track_id = track_id.as_str(), "skipping unusable analysis grid"),
+                    Err(err) => {
+                        tracing::warn!(track_id = track_id.as_str(), error = %err, "skipping malformed analysis grid")
+                    }
+                }
+            }
+        }
+        if !wrote_grid && existing_grid.is_none() && !keep_existing_bpm {
+            if let Some(bpm) = detector_bpm {
+                facts.bpm = Set(Some(bpm));
+                facts.bpm_source = Set(Some(beat_grid::SOURCE_ANALYSIS.to_string()));
+            }
+        }
+        TrackEntity::update(facts).exec(conn).map_err(db::db_err)?;
+
+        let updated_at = analysis.metadata.analyzed_at.clone();
+        match analysis.cue_ms {
+            Some(cue_ms) => crate::deck_data::refresh_track_cue_tx(
+                conn,
                 track_id,
                 cue_ms,
                 CueSource::Analysis,
-                analysis.metadata.analyzed_at.clone(),
-            )?;
-        }
-        // `None` means "nothing detectable in the analyzed window", not "clear
-        // the cue": an existing row is kept (re-analysis must not drop a good
-        // cue), but a fresh track still gets an analysis row at 0 ms so the
-        // load gate cannot re-analyze it on every load.
-        None => {
-            crate::deck_data::fill_track_cue(
-                db,
+                updated_at,
+            )?,
+            None => crate::deck_data::fill_track_cue_tx(
+                conn,
                 track_id,
                 0,
                 CueSource::Analysis,
-                analysis.metadata.analyzed_at.clone(),
-            )?;
-        }
-    }
-    Ok(())
+                updated_at,
+            )?,
+        };
+        Ok(())
+    })
 }
 
-/// Clamp a caller-supplied cue threshold into the range Settings exposes.
-///
-/// `AnalysisConfig` accepts a wider span because it is the analyzer's own knob;
-/// at this boundary every stored cue stays inside what the bus setter and the
-/// host settings accept, so a saved value always means what the UI showed.
 fn clamp_cue_threshold_db(threshold_db: f32) -> f32 {
     if threshold_db.is_finite() {
         threshold_db.clamp(
@@ -215,8 +197,6 @@ pub(crate) fn analyzer_error(err: AnalyzerError) -> LibraryError {
 
 #[cfg(feature = "analysis")]
 pub(crate) struct ComputedFileAnalysis {
-    /// The analyzer-merged result (ordinary tags + analysis).
-    pub(crate) metadata: library_core::TrackMetadata,
     /// The original ordinary tags, before analysis merged into them.
     ///
     /// Discovery persists these, so an analyzed key can never masquerade as a
@@ -224,8 +204,11 @@ pub(crate) struct ComputedFileAnalysis {
     pub(crate) tag_metadata: library_core::TrackMetadata,
     /// Vendor performance metadata read from the same file.
     pub(crate) embedded_metadata: crate::serato_adoption::VendorRead,
-    pub(crate) analysis: analyzer::TrackAnalysis,
+    pub(crate) analysis: TrackAnalysis,
     pub(crate) force: bool,
+    pub(crate) min_bpm_confidence: f32,
+    pub(crate) min_key_confidence: f32,
+    pub(crate) canonical_loudness_lufs: Option<f64>,
 }
 
 #[cfg(feature = "analysis")]
@@ -246,57 +229,25 @@ pub(crate) fn compute_file_analysis(
         config.cue_threshold_db = clamp_cue_threshold_db(cue_threshold_db);
     }
     let (tag_metadata, embedded_metadata) = tags::read_file_metadata(&path)?;
-    // Keep the untouched tag mapping: the merge below consumes `tag_metadata`.
-    let original_tag_metadata = tag_metadata.clone();
     config.max_duration_ms = options
         .analysis_duration
         .resolve_max_duration_ms(tag_metadata.duration_ms);
-    let mut analysis = if is_stem_path(&path) {
+    let analysis = if is_stem_path(&path) {
         analyze_stem_mixdown(&path, &config)?
     } else {
         analyze_file(&path, &config).map_err(analyzer_error)?
     };
     let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
-    analysis.loudness_lufs =
+    let canonical_loudness_lufs =
         preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
-
-    let tag_side = TagMetadata {
-        bpm: tag_metadata.bpm,
-        key: tag_metadata.key.clone(),
-    };
-    let merged = merge_track_metadata(
-        &tag_side,
-        &analysis,
-        options.force,
-        config.min_bpm_confidence,
-        config.min_key_confidence,
-    );
-
-    let mut metadata = tag_metadata;
-    metadata.bpm = merged.bpm;
-    metadata.key = merged.key;
-
-    // Without `force` the tag BPM wins. Keep the analysis grid on that tempo:
-    // the deck reads the grid BPM, so a detector that locked onto a metrical
-    // family (3:2, half/double) would otherwise surface a second BPM for the
-    // same track. Only metrical families are retuned — a genuinely different
-    // tag tempo stays the detector's call.
-    if !options.force {
-        if let (Some(bpm), Some(analysis_bpm)) =
-            (metadata.bpm, analysis.bpm.as_ref().map(|b| b.bpm))
-        {
-            if (analysis_bpm - bpm).abs() > 0.5 && is_metrical_tempo_relation(analysis_bpm, bpm) {
-                retune_grid(&mut analysis, bpm);
-            }
-        }
-    }
-
     Ok(ComputedFileAnalysis {
-        metadata,
-        tag_metadata: original_tag_metadata,
+        tag_metadata,
         embedded_metadata,
         analysis,
         force: options.force,
+        min_bpm_confidence: config.min_bpm_confidence,
+        min_key_confidence: config.min_key_confidence,
+        canonical_loudness_lufs,
     })
 }
 
@@ -351,6 +302,8 @@ pub(crate) fn preferred_loudness_lufs(
     replaygain_db: Option<f64>,
 ) -> Option<f64> {
     replaygain_db
+        .filter(|db| db.is_finite())
         .map(loudness_lufs_from_replaygain_track_gain_db)
-        .or(measured_lufs)
+        .filter(|lufs| lufs.is_finite())
+        .or_else(|| measured_lufs.filter(|lufs| lufs.is_finite()))
 }

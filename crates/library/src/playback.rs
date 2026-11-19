@@ -41,7 +41,7 @@ impl LibraryManager {
         if bpm_ok && key_ok {
             return Ok(false);
         }
-        Ok(self.store().count_track_analysis(id)? == 0)
+        Ok(!self.store().has_completed_analysis(id)?)
     }
 
     /// Run Fast analysis when playback fields are missing (BPM, key, loudness).
@@ -159,7 +159,7 @@ impl LibraryManager {
 
     /// Read the stored integrated loudness for a track, if it has been analyzed.
     pub fn track_loudness_lufs(&self, id: &TrackId) -> Result<Option<f64>> {
-        self.store().track_analysis_loudness(id)
+        self.store().track_loudness_lufs(id)
     }
 
     /// Import/refresh a file, ensure library-managed playback metadata, and return a cached decode.

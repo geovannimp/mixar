@@ -72,8 +72,8 @@ impl ExportSource for LibraryManager {
 pub(crate) struct TrackExportFacts {
     /// Path of the track's audio file.
     pub path: PathBuf,
-    /// BPM from the file's own metadata, before any grid fallback.
-    pub file_bpm: Option<f64>,
+    /// Canonical track BPM, independent of whether a grid exists.
+    pub bpm: Option<f64>,
     /// Date the track entered the library as `YYYY-MM-DD`.
     pub added_at: Option<String>,
     /// Stored beat grid, when the track has been analyzed.
@@ -104,8 +104,7 @@ impl LibraryManager {
             return Ok(None);
         }
 
-        // One grid read, used both for the exported grid and as the BPM of last
-        // resort when neither tags nor a previous step supplied one.
+        let bpm = file.metadata.bpm;
         let beat_grid = self.get_track_beat_grid(id)?;
         let waveform_overview = self.get_track_waveform_overview(id)?.map(|row| row.peaks);
         let cached_audio = {
@@ -115,9 +114,9 @@ impl LibraryManager {
 
         Ok(Some(TrackExportFacts {
             path: file.path().to_path_buf(),
-            file_bpm: file.metadata.bpm,
+            bpm,
             added_at: self.track_added_at(id)?,
-            cues: self.cues_for_export(id, beat_grid.as_ref().and_then(CanonicalBeatGrid::bpm))?,
+            cues: self.cues_for_export(id, bpm)?,
             beat_grid,
             waveform_overview,
             cached_audio,
@@ -141,17 +140,17 @@ impl LibraryManager {
     /// Hot cues, then saved loops, in the shape device formats store them.
     ///
     /// Beat-quantized hot loops get an explicit loop end when a BPM is known,
-    /// so targets that cannot express beat lengths still loop correctly. `bpm` is
-    /// the caller's already-read grid tempo, so this does not re-read the grid.
+    /// so targets that cannot express beat lengths still loop correctly. `bpm`
+    /// is the canonical track tempo, even when there is no grid.
     fn cues_for_export(&self, id: &TrackId, bpm: Option<f64>) -> Result<Vec<ExportCue>> {
         let mut cues = Vec::new();
         for cue in self.list_track_hot_cues(id)? {
             let position_ms = cue.position_ms.max(0) as u32;
             let loop_length_beats = cue.loop_length_beats.filter(|beats| *beats > 0);
             let loop_end_ms = match (loop_length_beats, bpm) {
-                (Some(beats), Some(bpm)) => {
-                    let beat_ms = 60_000.0 / bpm;
-                    Some(position_ms + (beat_ms * f64::from(beats)).round() as u32)
+                (Some(beats), Some(bpm)) if bpm.is_finite() && bpm > 0.0 => {
+                    let duration_ms = (60_000.0 / bpm * f64::from(beats)).round() as u32;
+                    Some(position_ms.saturating_add(duration_ms))
                 }
                 _ => None,
             };
@@ -362,9 +361,8 @@ fn encode_export_artwork(picture: Option<&[u8]>) -> Option<ExportArtwork> {
 
 /// Build one track's export data from gathered facts, PCM and cover.
 ///
-/// Shared by the manager path and [`ExportSession`] so both produce the same
-/// fields with the same precedence: file BPM, then the stored grid, then the
-/// grid BPM as the last resort.
+/// Shared by the manager path and [`ExportSession`]. Tempo comes from the
+/// track row; the grid supplies beat geometry only.
 fn assemble_export_data(
     facts: &TrackExportFacts,
     audio: &LoadedAudio,
@@ -373,7 +371,7 @@ fn assemble_export_data(
 ) -> TrackExportData {
     let config = WaveformAnalysisConfig::default();
     let mut data = TrackExportData {
-        bpm: facts.file_bpm,
+        bpm: facts.bpm,
         cues: facts.cues.clone(),
         artwork,
         bit_depth,
@@ -382,9 +380,6 @@ fn assemble_export_data(
     };
 
     if let Some(grid) = &facts.beat_grid {
-        if data.bpm.is_none() {
-            data.bpm = grid.bpm();
-        }
         let channels = usize::from(audio.channels.max(1));
         let until_ms = if audio.sample_rate > 0 {
             (audio.samples.len() as f64 / (f64::from(audio.sample_rate) * channels as f64) * 1000.0)

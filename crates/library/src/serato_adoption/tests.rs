@@ -41,7 +41,13 @@ fn seed_with(lib: &LibraryManager, path: &Path, metadata: TrackMetadata) -> Trac
     let path = normalized(path);
     let id = LibraryManager::track_id_for(&path);
     lib.store()
-        .upsert_file_track(&id, &path, &metadata, "1")
+        .upsert_file_track(
+            &id,
+            &path,
+            &metadata,
+            crate::store::TrackMetadataOrigin::Tag,
+            "1",
+        )
         .unwrap();
     id
 }
@@ -210,7 +216,7 @@ fn legacy_database_gains_nullable_adoption_columns_without_eager_work() {
             .unwrap();
         deck_data::save_loop(&lib.db, &id, 3, 100, 900, Some("loop".into()), None).unwrap();
         let grid = beat_grid::from_constant(128.0, 500, 4, 4, 500, None, crate::SOURCE_MANUAL);
-        beat_grid::write_track_beat_grid(&lib.db, &id, &grid).unwrap();
+        beat_grid::write_track_beat_grid(&lib.db, &id, &grid, crate::SOURCE_MANUAL).unwrap();
         set_colour(&lib, &id, Some("aqua"), Some(0x00_FFFF));
         id
     };
@@ -353,7 +359,7 @@ fn deck_load_adopts_even_when_analysis_is_not_needed() {
     let lib = library();
     let id = seed_unmarked(&lib, &wav);
     #[cfg(feature = "analysis")]
-    seed_analysis_cache(&lib, &id);
+    seed_completed_analysis(&lib, &id, &wav);
     let (lib, ()) = with_off_mutex(lib, |library| {
         LibraryManager::prepare_track_for_playback(library, &id).unwrap();
     });
@@ -451,42 +457,15 @@ fn type_has_marker(lib: &LibraryManager, id: &TrackId) -> bool {
 }
 
 #[cfg(feature = "analysis")]
-fn seed_analysis_cache(lib: &LibraryManager, id: &TrackId) {
-    use analyzer::{AnalysisRunMetadata, TrackAnalysis};
-
-    // BPM/key plus a track cue and a loudness row make the playback shortcut
-    // skip analysis entirely, so the observable adoption has to come from the
-    // deck-load path itself.
-    lib.update_track_metadata(
-        id,
-        TrackMetadataEdit {
-            bpm: Some(120.0),
-            key: Some("Am".into()),
-            ..TrackMetadataEdit::default()
-        },
-    )
-    .unwrap();
-    deck_data::store_track_cue(&lib.db, id, 0, crate::CueSource::Manual, "1".into()).unwrap();
-    crate::analysis::upsert_track_analysis(
-        &lib.db,
-        id,
-        &TrackAnalysis {
-            bpm: None,
-            key: None,
-            beat_grid: None,
-            loudness_lufs: Some(-12.0),
-            cue_ms: None,
-            metadata: AnalysisRunMetadata {
-                backend: "test".into(),
-                backend_version: "0".into(),
-                analyzed_at: "2026-01-01T00:00:00Z".into(),
-                sample_rate: 48_000,
-                duration_analyzed_ms: 3_000,
-            },
-        },
-        true,
-    )
-    .unwrap();
+fn seed_completed_analysis(lib: &LibraryManager, id: &TrackId, path: &Path) {
+    // Completed analysis with a cue and loudness is enough even if detection
+    // found no BPM or key. Adoption must then come from deck load itself.
+    let mut computed = crate::tests::detector_fixture(path, 117.0, "F#m", false);
+    computed.analysis.bpm = None;
+    computed.analysis.key = None;
+    computed.analysis.beat_grid = None;
+    crate::analysis::persist_analysis_result(&lib.db, id, &computed).unwrap();
+    assert!(lib.store().has_completed_analysis(id).unwrap());
     assert!(!lib.needs_playback_analysis(id).unwrap());
 }
 
@@ -528,7 +507,7 @@ fn adoption_fills_vacancies_and_keeps_everything_occupied() {
     }
     deck_data::save_loop(&lib.db, &id, 0, 10, 90, Some("db loop".into()), None).unwrap();
     let manual = beat_grid::from_constant(140.0, 1_000, 4, 4, 1_000, None, crate::SOURCE_MANUAL);
-    beat_grid::write_track_beat_grid(&lib.db, &id, &manual).unwrap();
+    beat_grid::write_track_beat_grid(&lib.db, &id, &manual, crate::SOURCE_MANUAL).unwrap();
     set_colour(&lib, &id, Some("aqua"), Some(0x00_FFFF));
 
     lib.ensure_serato_adopted(&id).unwrap();
@@ -944,28 +923,33 @@ fn first_colour_change_keeps_the_adopted_grid_bpm() {
     assert_eq!(stored.metadata().color_rgb, Some(ColorLabel::Blue.rgb()));
     assert_eq!(adopted_grid.source, crate::SOURCE_IMPORT);
 
-    // An explicitly changed BPM follows the DB-only editor behaviour.
-    lib.update_track_metadata(
-        &id,
-        TrackMetadataEdit {
-            color_label: Some(ColorLabel::Blue),
-            bpm: Some(128.0),
-            key: Some("Am".into()),
-            ..TrackMetadataEdit::default()
-        },
-    )
-    .unwrap();
+    // The metadata editor cannot replace a segmented grid; the key is not
+    // partially saved when the tempo is rejected.
+    let error = lib
+        .update_track_metadata(
+            &id,
+            TrackMetadataEdit {
+                color_label: Some(ColorLabel::Blue),
+                bpm: Some(128.0),
+                key: Some("Am".into()),
+                ..TrackMetadataEdit::default()
+            },
+        )
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("edit the segmented beat grid in the deck"));
     let stored = lib.get_track(&id).unwrap().unwrap();
-    assert_eq!(stored.metadata().bpm, Some(128.0));
-    assert_eq!(stored.metadata().key.as_deref(), Some("Am"));
+    assert_eq!(stored.metadata().bpm, Some(adopted_bpm));
+    assert_eq!(stored.metadata().key, None);
 
     // Clearing the colour keeps the current BPM it was sent with.
     lib.update_track_metadata(
         &id,
         TrackMetadataEdit {
             color_label: None,
-            bpm: Some(128.0),
-            key: Some("Am".into()),
+            bpm: Some(adopted_bpm),
+            key: None,
             ..TrackMetadataEdit::default()
         },
     )
@@ -973,7 +957,8 @@ fn first_colour_change_keeps_the_adopted_grid_bpm() {
     let stored = lib.get_track(&id).unwrap().unwrap();
     assert_eq!(stored.metadata().color_label, None);
     assert_eq!(stored.metadata().color_rgb, None);
-    assert_eq!(stored.metadata().bpm, Some(128.0));
+    assert_eq!(stored.metadata().bpm, Some(adopted_bpm));
+    assert_eq!(stored_grid(&lib, &id), adopted_grid);
 }
 
 #[cfg(feature = "analysis")]

@@ -15,13 +15,38 @@ use sea_orm::{
     TransactionTrait,
 };
 
+use crate::beat_grid::{self, SOURCE_IMPORT, SOURCE_MANUAL};
 use crate::db::{self, Db};
+use crate::deck_data::same_bpm;
 use crate::entity::{
-    collection_entries, collections, tracks, CollectionEntity, CollectionEntryEntity,
-    TrackAnalysisEntity, TrackEntity,
+    collection_entries, collections, tracks, CollectionEntity, CollectionEntryEntity, TrackEntity,
 };
 use crate::model;
 use uuid::Uuid;
+
+pub(crate) const SOURCE_TAG: &str = "tag";
+const SOURCE_LEGACY: &str = "legacy";
+
+/// Distinguishes a file-tag refresh from an explicit adapter import.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TrackMetadataOrigin {
+    Tag,
+    Import,
+}
+
+impl TrackMetadataOrigin {
+    fn source(self) -> &'static str {
+        match self {
+            Self::Tag => SOURCE_TAG,
+            Self::Import => SOURCE_IMPORT,
+        }
+    }
+
+    fn protects(self, source: Option<&str>) -> bool {
+        source == Some(SOURCE_MANUAL)
+            || (self == Self::Tag && matches!(source, Some(SOURCE_IMPORT | SOURCE_LEGACY)))
+    }
+}
 
 /// SQLite caps host parameters per statement; bind large id sets in chunks.
 const TRACK_ID_CHUNK: usize = 500;
@@ -30,14 +55,22 @@ fn track_id_strings(ids: &[TrackId]) -> Vec<String> {
     ids.iter().map(|id| id.as_str().to_string()).collect()
 }
 
-/// Assign the user-editable metadata columns on an insert/upsert model.
-fn apply_metadata_columns(active: &mut tracks::ActiveModel, metadata: &TrackMetadata) {
+/// Assign refreshed metadata and its provenance on an insert/upsert model.
+fn apply_metadata_columns(
+    active: &mut tracks::ActiveModel,
+    metadata: &TrackMetadata,
+    origin: TrackMetadataOrigin,
+) {
     active.title = Set(metadata.title.clone());
     active.artist = Set(metadata.artist.clone());
     active.album = Set(metadata.album.clone());
     active.genre = Set(metadata.genre.clone());
-    active.bpm = Set(metadata.bpm);
-    active.key = Set(metadata.key.clone());
+    let valid_bpm = metadata.bpm.filter(|bpm| valid_bpm(*bpm));
+    active.bpm = Set(valid_bpm);
+    active.bpm_source = Set(valid_bpm.map(|_| origin.source().to_string()));
+    let key = present_key(metadata);
+    active.key = Set(key.map(str::to_string));
+    active.key_source = Set(key.map(|_| origin.source().to_string()));
     active.duration_ms = Set(metadata.duration_ms);
     active.sample_rate = Set(metadata.sample_rate.map(|v| v as i32));
     active.channels = Set(metadata.channels.map(|v| v as i32));
@@ -54,6 +87,20 @@ fn apply_metadata_columns(active: &mut tracks::ActiveModel, metadata: &TrackMeta
         metadata.color_label,
         metadata.color_rgb,
     );
+}
+
+fn valid_bpm(bpm: f64) -> bool {
+    bpm.is_finite() && bpm > 0.0
+}
+
+fn present_key(metadata: &TrackMetadata) -> Option<&str> {
+    metadata.key.as_deref().filter(|key| !key.trim().is_empty())
+}
+
+fn normalized_editor_key(key: Option<&str>) -> Option<String> {
+    key.map(str::trim)
+        .filter(|key| !key.is_empty())
+        .map(crate::tags::normalize_key_notation)
 }
 
 /// Assign the fields the track editor owns. Shared by insert/upsert and the
@@ -97,7 +144,9 @@ fn metadata_update_columns() -> Vec<tracks::Column> {
         tracks::Column::Album,
         tracks::Column::Genre,
         tracks::Column::Bpm,
+        tracks::Column::BpmSource,
         tracks::Column::Key,
+        tracks::Column::KeySource,
         tracks::Column::DurationMs,
         tracks::Column::SampleRate,
         tracks::Column::Channels,
@@ -139,6 +188,7 @@ pub(crate) fn upsert_file_track_tx(
     id: &TrackId,
     path: &Path,
     metadata: &TrackMetadata,
+    origin: TrackMetadataOrigin,
     now: &str,
 ) -> Result<()> {
     validate_color_rgb(metadata)?;
@@ -153,8 +203,18 @@ pub(crate) fn upsert_file_track_tx(
         updated_at: Set(now.to_string()),
         ..Default::default()
     };
-    apply_metadata_columns(&mut active, metadata);
-    preserve_stored_colour(conn, id, &mut active)?;
+    apply_metadata_columns(&mut active, metadata, origin);
+    upsert_metadata_tx(conn, id, metadata, origin, active)
+}
+
+fn upsert_metadata_tx(
+    conn: &DatabaseConnection,
+    id: &TrackId,
+    metadata: &TrackMetadata,
+    origin: TrackMetadataOrigin,
+    mut active: tracks::ActiveModel,
+) -> Result<()> {
+    preserve_stored_metadata(conn, id, metadata, origin, &mut active)?;
 
     TrackEntity::insert(active)
         .on_conflict(
@@ -167,7 +227,12 @@ pub(crate) fn upsert_file_track_tx(
     Ok(())
 }
 
-/// Assign the colour already stored on the row, when it must survive a refresh.
+/// Preserve track-owned facts and colour against a refresh.
+///
+/// A grid owns its BPM, and a manual edit (including a clear) owns its field.
+/// Tags also defer to imported and legacy facts and do not relabel an identical
+/// value; an explicit import may replace any unprotected fact.
+/// An absent or invalid input does not erase a fact already on the row.
 ///
 /// The colour is one logical value (label plus exact `0xRRGGBB`), so both
 /// columns are written together or not at all — a retained label can never be
@@ -180,9 +245,11 @@ pub(crate) fn upsert_file_track_tx(
 ///
 /// Evaluated here, against the row in the same connection, so a caller holding
 /// an older snapshot cannot undo a colour written since it read.
-fn preserve_stored_colour(
+fn preserve_stored_metadata(
     conn: &DatabaseConnection,
     id: &TrackId,
+    metadata: &TrackMetadata,
+    origin: TrackMetadataOrigin,
     active: &mut tracks::ActiveModel,
 ) -> Result<()> {
     let Some(row) = TrackEntity::find_by_id(id.as_str())
@@ -191,9 +258,26 @@ fn preserve_stored_colour(
     else {
         return Ok(());
     };
+    if origin.protects(row.bpm_source.as_deref())
+        || !metadata.bpm.is_some_and(valid_bpm)
+        || (origin == TrackMetadataOrigin::Tag && same_bpm(metadata.bpm, row.bpm))
+        || beat_grid::has_track_beat_grid_tx(conn, id)?
+    {
+        active.bpm = Set(row.bpm);
+        active.bpm_source = Set(row.bpm_source);
+    }
+    let key = present_key(metadata);
+    if origin.protects(row.key_source.as_deref())
+        || key.is_none()
+        || (origin == TrackMetadataOrigin::Tag && key == row.key.as_deref())
+    {
+        active.key = Set(row.key);
+        active.key_source = Set(row.key_source);
+    }
+
     let owned = row.serato_imported_at.is_some() || row.metadata_edited.unwrap_or(false);
     let stores_colour = row.color_label.is_some() || row.color_rgb.is_some();
-    if owned || stores_colour {
+    if matches!(&active.source_type, Set(source) if source == "file") && (owned || stores_colour) {
         active.color_label = Set(row.color_label);
         active.color_rgb = Set(row.color_rgb);
     }
@@ -214,9 +298,11 @@ impl<'a> Store<'a> {
         id: &TrackId,
         path: &Path,
         metadata: &TrackMetadata,
+        origin: TrackMetadataOrigin,
         now: &str,
     ) -> Result<()> {
-        upsert_file_track_tx(self.db.conn()?.as_connection(), id, path, metadata, now)
+        self.db
+            .transaction(|conn| upsert_file_track_tx(conn, id, path, metadata, origin, now))
     }
 
     #[allow(dead_code)]
@@ -225,6 +311,7 @@ impl<'a> Store<'a> {
         id: &TrackId,
         uri: &str,
         metadata: &TrackMetadata,
+        origin: TrackMetadataOrigin,
         provider: Option<&str>,
         now: &str,
     ) -> Result<()> {
@@ -239,17 +326,10 @@ impl<'a> Store<'a> {
             updated_at: Set(now.to_string()),
             ..Default::default()
         };
-        apply_metadata_columns(&mut active, metadata);
+        apply_metadata_columns(&mut active, metadata, origin);
 
-        TrackEntity::insert(active)
-            .on_conflict(
-                OnConflict::column(tracks::Column::Id)
-                    .update_columns(metadata_update_columns())
-                    .to_owned(),
-            )
-            .exec(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(())
+        self.db
+            .transaction(|conn| upsert_metadata_tx(conn, id, metadata, origin, active))
     }
 
     pub fn track_exists(&self, id: &TrackId) -> Result<bool> {
@@ -304,30 +384,61 @@ impl<'a> Store<'a> {
         edit: &TrackMetadataEdit,
         now: &str,
     ) -> Result<()> {
+        self.db
+            .transaction(|conn| Self::update_track_metadata_tx(conn, id, edit, now))
+    }
+
+    fn update_track_metadata_tx(
+        conn: &DatabaseConnection,
+        id: &TrackId,
+        edit: &TrackMetadataEdit,
+        now: &str,
+    ) -> Result<()> {
         let Some(row) = TrackEntity::find_by_id(id.as_str())
-            .one(self.db.conn()?.as_connection())
+            .one(conn)
             .map_err(db::db_err)?
         else {
             return Ok(());
         };
-        // This write path may not introduce an invalid BPM; re-persisting the
-        // value already stored (the untouched field of a full-replacement
-        // write) passes, so an unrelated edit never has to clear a column to
-        // satisfy the rule. Compare numerically rather than by bits: `==`
-        // treats `-0.0` and `0.0` as equal (both `<= 0`, so both take this
-        // branch) while NaN needs its own arm to round-trip at all.
-        if let Some(v) = edit.bpm {
-            let invalid = !v.is_finite() || v <= 0.0;
-            let unchanged = row
-                .bpm
-                .is_some_and(|old| old == v || (old.is_nan() && v.is_nan()));
-            if invalid && !unchanged {
-                return Err(library_core::LibraryError::Backend {
-                    backend: "library",
-                    message: format!("invalid BPM: {v}"),
-                });
-            }
+        let bpm_changed = !same_bpm(edit.bpm, row.bpm);
+        let key = normalized_editor_key(edit.key.as_deref());
+        let key_changed = key != normalized_editor_key(row.key.as_deref());
+        let grid = if bpm_changed {
+            beat_grid::get_track_beat_grid_tx(conn, id)?
+        } else {
+            None
+        };
+        if grid.as_ref().is_some_and(|grid| grid.segments.len() > 1) {
+            return Err(library_core::LibraryError::Backend {
+                backend: "library",
+                message: "edit the segmented beat grid in the deck before changing its BPM".into(),
+            });
         }
+        // An unchanged invalid value can round-trip in a full-replacement
+        // edit, but the editor may not introduce a new one.
+        if let Some(v) = edit.bpm.filter(|v| bpm_changed && !valid_bpm(*v)) {
+            return Err(library_core::LibraryError::Backend {
+                backend: "library",
+                message: format!("invalid BPM: {v}"),
+            });
+        }
+        let bpm_written_by_grid = match (grid, edit.bpm) {
+            (Some(mut grid), Some(bpm)) => {
+                // Keep the phase, meter, and coverage; only tempo and its
+                // ownership change. The canonical writer validates the result.
+                if let Some(segment) = grid.segments.first_mut() {
+                    segment.bpm = bpm;
+                }
+                grid.source = SOURCE_MANUAL.to_string();
+                beat_grid::write_track_beat_grid_tx(conn, id, &grid, SOURCE_MANUAL)?;
+                true
+            }
+            (Some(_), None) => {
+                beat_grid::delete_track_beat_grid_tx(conn, id)?;
+                false
+            }
+            (None, _) => false,
+        };
         // The colour is one value: the raw RGB follows the label. An unchanged
         // label (including `None` → `None`) keeps the exact stored raw colour,
         // so an unrelated editor save never quantizes an imported colour; a
@@ -350,8 +461,14 @@ impl<'a> Store<'a> {
         active.artist = Set(edit.artist.clone());
         active.album = Set(edit.album.clone());
         active.genre = Set(edit.genre.clone());
-        active.bpm = Set(edit.bpm);
-        active.key = Set(edit.key.clone());
+        if bpm_changed && !bpm_written_by_grid {
+            active.bpm = Set(edit.bpm);
+            active.bpm_source = Set(Some(SOURCE_MANUAL.to_string()));
+        }
+        if key_changed {
+            active.key = Set(key);
+            active.key_source = Set(Some(SOURCE_MANUAL.to_string()));
+        }
         active.isrc = Set(edit.isrc.clone());
         apply_user_columns(
             &mut active,
@@ -365,9 +482,7 @@ impl<'a> Store<'a> {
         );
         active.metadata_edited = Set(Some(true));
         active.updated_at = Set(now.to_string());
-        active
-            .update(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
+        active.update(conn).map_err(db::db_err)?;
         Ok(())
     }
 
@@ -384,6 +499,7 @@ impl<'a> Store<'a> {
     }
 
     /// Stored metadata plus the editor marker for a file path, in one query.
+    #[cfg(test)]
     pub fn file_track_metadata_and_edited(
         &self,
         source_ref: &str,
@@ -808,19 +924,19 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub fn count_track_analysis(&self, track_id: &TrackId) -> Result<u64> {
-        TrackAnalysisEntity::find_by_id(track_id.as_str())
+    pub fn has_completed_analysis(&self, track_id: &TrackId) -> Result<bool> {
+        TrackEntity::find_by_id(track_id.as_str())
+            .filter(tracks::Column::AnalysisCompletedAt.is_not_null())
             .count(self.db.conn()?.as_connection())
+            .map(|count| count != 0)
             .map_err(db::db_err)
     }
 
-    #[allow(dead_code)]
-    pub fn track_analysis_loudness(&self, track_id: &TrackId) -> Result<Option<f64>> {
-        Ok(TrackAnalysisEntity::find_by_id(track_id.as_str())
+    pub fn track_loudness_lufs(&self, track_id: &TrackId) -> Result<Option<f64>> {
+        Ok(TrackEntity::find_by_id(track_id.as_str())
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?
-            .and_then(|analysis| analysis.loudness_lufs))
+            .and_then(|track| track.loudness_lufs))
     }
 }
 
@@ -882,7 +998,13 @@ mod tests {
             ..TrackMetadata::default()
         };
         store
-            .upsert_file_track(&id, Path::new("/music/a.wav"), &meta, "1")
+            .upsert_file_track(
+                &id,
+                Path::new("/music/a.wav"),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
         let fetched = store.get_track(&id).unwrap().unwrap();
         assert_eq!(fetched.metadata().title.as_deref(), Some("a"));
@@ -899,18 +1021,36 @@ mod tests {
         let win_root = r"\\?\C:\Music";
         for name in [r"\\?\C:\Music\a.wav", r"\\?\C:\Music\sub\b.wav"] {
             store
-                .upsert_file_track(&TrackId::new(name), Path::new(name), &meta, "1")
+                .upsert_file_track(
+                    &TrackId::new(name),
+                    Path::new(name),
+                    &meta,
+                    TrackMetadataOrigin::Tag,
+                    "1",
+                )
                 .unwrap();
         }
         // A sibling directory that merely shares the prefix is not a member.
         let sibling = r"\\?\C:\Musical\c.wav";
         store
-            .upsert_file_track(&TrackId::new(sibling), Path::new(sibling), &meta, "1")
+            .upsert_file_track(
+                &TrackId::new(sibling),
+                Path::new(sibling),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
         // Unix paths keep working.
         for name in ["/music/a.wav", "/music/sub/b.wav"] {
             store
-                .upsert_file_track(&TrackId::new(name), Path::new(name), &meta, "1")
+                .upsert_file_track(
+                    &TrackId::new(name),
+                    Path::new(name),
+                    &meta,
+                    TrackMetadataOrigin::Tag,
+                    "1",
+                )
                 .unwrap();
         }
 
@@ -955,7 +1095,13 @@ mod tests {
             ..TrackMetadata::default()
         };
         store
-            .upsert_file_track(&id, Path::new("/music/edit.wav"), &meta, "1")
+            .upsert_file_track(
+                &id,
+                Path::new("/music/edit.wav"),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
 
         store
@@ -1003,7 +1149,13 @@ mod tests {
             ..TrackMetadata::default()
         };
         store
-            .upsert_file_track(&id, Path::new("/music/detailed.wav"), &meta, "1")
+            .upsert_file_track(
+                &id,
+                Path::new("/music/detailed.wav"),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
         let (_, edited) = store
             .file_track_metadata_and_edited("/music/detailed.wav")
@@ -1087,14 +1239,26 @@ mod tests {
         let db = db::open_in_memory().unwrap();
         let store = Store::new(&db);
         let id = TrackId::new("/music/corrupt.wav");
-        // A malformed file tag can have put a non-positive BPM in the column.
-        let meta = TrackMetadata {
-            bpm: Some(-4.0),
-            ..TrackMetadata::default()
-        };
-        store
-            .upsert_file_track(&id, Path::new("/music/corrupt.wav"), &meta, "1")
+        // Seed corrupt legacy values directly; ordinary upserts now reject them.
+        let seed_invalid = |id: &TrackId, path: &Path, bpm: f64| {
+            store
+                .upsert_file_track(
+                    id,
+                    path,
+                    &TrackMetadata::default(),
+                    TrackMetadataOrigin::Tag,
+                    "1",
+                )
+                .unwrap();
+            tracks::ActiveModel {
+                id: Set(id.as_str().to_string()),
+                bpm: Set(Some(bpm)),
+                ..Default::default()
+            }
+            .update(db.conn().unwrap().as_connection())
             .unwrap();
+        };
+        seed_invalid(&id, Path::new("/music/corrupt.wav"), -4.0);
 
         // Re-persisting the value that is already stored passes, so editing an
         // unrelated field neither fails nor clears the untouched column.
@@ -1125,18 +1289,7 @@ mod tests {
         // `-0.0` is `<= 0` (so it may not be *introduced*) yet compares equal
         // to the stored value, so an untouched round-trip must not reject it.
         let zero_id = TrackId::new("/music/negative-zero.wav");
-        let zero_meta = TrackMetadata {
-            bpm: Some(-0.0),
-            ..TrackMetadata::default()
-        };
-        store
-            .upsert_file_track(
-                &zero_id,
-                Path::new("/music/negative-zero.wav"),
-                &zero_meta,
-                "1",
-            )
-            .unwrap();
+        seed_invalid(&zero_id, Path::new("/music/negative-zero.wav"), -0.0);
         store
             .update_track_metadata(
                 &zero_id,
@@ -1196,7 +1349,13 @@ mod tests {
             ..TrackMetadata::default()
         };
         store
-            .upsert_file_track(&TrackId::new(path.clone()), Path::new(&path), &meta, "1")
+            .upsert_file_track(
+                &TrackId::new(path.clone()),
+                Path::new(&path),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .unwrap();
     }
 
@@ -1222,7 +1381,13 @@ mod tests {
             ..TrackMetadata::default()
         };
         let err = store
-            .upsert_file_track(&bad, Path::new(bad_path), &meta, "1")
+            .upsert_file_track(
+                &bad,
+                Path::new(bad_path),
+                &meta,
+                TrackMetadataOrigin::Tag,
+                "1",
+            )
             .expect_err("out-of-range colour must be rejected");
         assert!(
             format!("{err}").contains("invalid track colour"),
@@ -1298,7 +1463,9 @@ mod tests {
             color_rgb: Some(0x12_3456),
             ..TrackMetadata::default()
         };
-        store.upsert_file_track(&id, path, &meta, "1").unwrap();
+        store
+            .upsert_file_track(&id, path, &meta, TrackMetadataOrigin::Tag, "1")
+            .unwrap();
 
         let edit = |label: Option<library_core::ColorLabel>, title: &str| TrackMetadataEdit {
             title: Some(title.into()),
@@ -1347,7 +1514,13 @@ mod tests {
         let untouched = TrackId::new("/music/colour-unedited.wav");
         let untouched_path = Path::new("/music/colour-unedited.wav");
         store
-            .upsert_file_track(&untouched, untouched_path, &unlabelled_meta, "5")
+            .upsert_file_track(
+                &untouched,
+                untouched_path,
+                &unlabelled_meta,
+                TrackMetadataOrigin::Tag,
+                "5",
+            )
             .unwrap();
         store
             .update_track_metadata(&untouched, &edit(None, "Renamed again"), "6")
@@ -1365,7 +1538,7 @@ mod tests {
         // Once the editor owns the row, a refresh cannot bring a colour back
         // over the clear it wrote (#743).
         store
-            .upsert_file_track(&id, path, &unlabelled_meta, "7")
+            .upsert_file_track(&id, path, &unlabelled_meta, TrackMetadataOrigin::Tag, "7")
             .unwrap();
         assert_eq!(
             store.get_track(&id).unwrap().unwrap().metadata().color_rgb,

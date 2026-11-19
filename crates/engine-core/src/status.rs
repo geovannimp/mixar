@@ -233,7 +233,7 @@ fn deck_snapshot_from_dsp(
         duration_ms,
         hot_cues: control_hot_cues(control),
         saved_loops: Vec::new(),
-        loudness_lufs: None,
+        loudness_lufs: channel.loudness_lufs(),
         auto_gain_db: 0.0,
         active_sampler_bank_id: control.active_sampler_bank_id.clone(),
         top_jog_mode: map_jog_mode_to_api(deck.top_jog_mode()),

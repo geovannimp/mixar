@@ -10,7 +10,7 @@ use std::fmt;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set};
 
-use crate::db::{self, Db};
+use crate::db::Db;
 use crate::entity::{
     track_beat_grid, track_beat_segment, tracks, TrackBeatGridEntity, TrackBeatSegmentEntity,
     TrackEntity,
@@ -310,8 +310,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 struct LegacyGrid {
     beats: Vec<f32>,
-    #[serde(default, rename = "bars")]
-    _bars: Vec<f32>,
     #[serde(default)]
     downbeats: Vec<f32>,
     #[serde(default = "default_beats_per_bar")]
@@ -366,22 +364,31 @@ pub(crate) fn from_legacy_json(
     backend: &str,
     duration_ms: Option<i64>,
 ) -> std::result::Result<Option<CanonicalBeatGrid>, GridError> {
-    let legacy: LegacyGrid = serde_json::from_str(json)
-        .map_err(|err| GridError::Invalid(format!("legacy grid JSON: {err}")))?;
+    let legacy = parse_legacy_grid(json)?;
+    compact_legacy_grid(&legacy, fallback_bpm, backend, duration_ms)
+}
+
+fn parse_legacy_grid(json: &str) -> std::result::Result<LegacyGrid, GridError> {
+    serde_json::from_str(json).map_err(|err| GridError::Invalid(format!("legacy grid JSON: {err}")))
+}
+
+fn compact_legacy_grid(
+    legacy: &LegacyGrid,
+    fallback_bpm: Option<f64>,
+    backend: &str,
+    duration_ms: Option<i64>,
+) -> std::result::Result<Option<CanonicalBeatGrid>, GridError> {
     if legacy.beats.len() < 2 {
         return Ok(None);
     }
 
-    let beats: Vec<i64> = legacy
-        .beats
-        .iter()
-        .map(|seconds| (f64::from(*seconds) * 1000.0).round() as i64)
-        .collect();
-    let downbeats: Vec<i64> = legacy
-        .downbeats
-        .iter()
-        .map(|seconds| (f64::from(*seconds) * 1000.0).round() as i64)
-        .collect();
+    let beats = legacy_times_ms(&legacy.beats)?;
+    let downbeats = legacy_times_ms(&legacy.downbeats)?;
+    if beats[0] < 0 {
+        return Err(GridError::Invalid(
+            "legacy grid has negative beat times".into(),
+        ));
+    }
     let intervals: Vec<f64> = beats
         .windows(2)
         .map(|pair| (pair[1] - pair[0]) as f64)
@@ -495,6 +502,91 @@ pub(crate) fn from_legacy_json(
     Ok(Some(grid))
 }
 
+fn legacy_times_ms(seconds: &[f32]) -> std::result::Result<Vec<i64>, GridError> {
+    seconds
+        .iter()
+        .map(|value| {
+            let ms = (f64::from(*value) * 1000.0).round();
+            if !ms.is_finite() || ms < i64::MIN as f64 || ms >= i64::MAX as f64 {
+                return Err(GridError::Invalid(
+                    "legacy grid has an invalid timestamp".into(),
+                ));
+            }
+            Ok(ms as i64)
+        })
+        .collect()
+}
+
+/// Compact detector markers at the winning tempo without changing the audit JSON.
+pub(crate) fn from_analysis_json(
+    json: &str,
+    detector_bpm: Option<f64>,
+    preferred_bpm: Option<f64>,
+    covered_to_ms: Option<i64>,
+) -> std::result::Result<Option<CanonicalBeatGrid>, GridError> {
+    if preferred_bpm.is_some_and(|bpm| !(20.0..=400.0).contains(&bpm)) {
+        return Ok(None);
+    }
+    let legacy = parse_legacy_grid(json)?;
+    let Some(grid) = compact_legacy_grid(&legacy, detector_bpm, SOURCE_ANALYSIS, covered_to_ms)?
+    else {
+        return Ok(None);
+    };
+    let Some(preferred) = preferred_bpm else {
+        return Ok(Some(grid));
+    };
+    if grid.segments.len() > 1 {
+        return Ok(align_segmented_bpm(grid, preferred));
+    }
+
+    let detected = grid.segments[0].bpm;
+    if is_family_mismatch(detected, preferred) {
+        if let Some((beats, downbeats)) = analyzer_core::rebuild_grid_at(
+            &legacy.beats,
+            &legacy.downbeats,
+            preferred,
+            legacy.beats_per_bar.clamp(1, 16),
+        ) {
+            let rebuilt = LegacyGrid {
+                beats,
+                downbeats,
+                beats_per_bar: legacy.beats_per_bar,
+            };
+            if let Ok(Some(mut repaired)) =
+                compact_legacy_grid(&rebuilt, Some(preferred), SOURCE_ANALYSIS, covered_to_ms)
+            {
+                if repaired.segments.len() == 1 {
+                    repaired.covered_to_ms = grid.covered_to_ms;
+                    return Ok(Some(repaired));
+                }
+            }
+        }
+    }
+    // A non-family change or failed rebuild uses the original first beat and
+    // projects the downbeat onto the preferred constant tempo.
+    compact_legacy_grid(&legacy, Some(preferred), SOURCE_ANALYSIS, covered_to_ms)
+}
+
+pub(crate) fn is_family_mismatch(detected: f64, preferred: f64) -> bool {
+    (detected - preferred).abs() > 0.5
+        && analyzer_core::is_metrical_tempo_relation(detected, preferred)
+}
+
+/// Change only the first tempo, and only when a recognizably equivalent
+/// segment remains consistent with the next segment's timestamp.
+pub(crate) fn align_segmented_bpm(
+    mut grid: CanonicalBeatGrid,
+    preferred_bpm: f64,
+) -> Option<CanonicalBeatGrid> {
+    let first = grid.segments.first_mut()?;
+    if (first.bpm - preferred_bpm).abs() > 0.5 {
+        return None;
+    }
+    first.bpm = preferred_bpm;
+    grid.validate().ok()?;
+    Some(grid)
+}
+
 fn median(mut values: Vec<f64>) -> Option<f64> {
     if values.is_empty() {
         return None;
@@ -534,21 +626,9 @@ pub(crate) fn write_track_beat_grid(
     db: &Db,
     track_id: &TrackId,
     grid: &CanonicalBeatGrid,
+    bpm_source: &str,
 ) -> Result<()> {
-    grid.validate().map_err(grid_error)?;
-    let guard = db.conn()?;
-    let conn = guard.as_connection();
-    db::begin(conn)?;
-    match write_track_beat_grid_tx(conn, track_id, grid) {
-        Ok(()) => {
-            db::commit(conn)?;
-            Ok(())
-        }
-        Err(err) => {
-            db::rollback(conn);
-            Err(err)
-        }
-    }
+    db.transaction(|conn| write_track_beat_grid_tx(conn, track_id, grid, bpm_source))
 }
 
 /// Same writes as [`write_track_beat_grid`], without beginning a transaction.
@@ -559,6 +639,7 @@ pub(crate) fn write_track_beat_grid_tx(
     conn: &DatabaseConnection,
     track_id: &TrackId,
     grid: &CanonicalBeatGrid,
+    bpm_source: &str,
 ) -> Result<()> {
     grid.validate().map_err(grid_error)?;
     let now = chrono::Utc::now().to_rfc3339();
@@ -611,6 +692,7 @@ pub(crate) fn write_track_beat_grid_tx(
     let track = tracks::ActiveModel {
         id: Set(track_id.as_str().to_string()),
         bpm: Set(Some(grid.segments[0].bpm)),
+        bpm_source: Set(Some(bpm_source.to_string())),
         ..Default::default()
     };
     TrackEntity::update(track)
@@ -681,41 +763,29 @@ pub(crate) fn get_track_beat_grid_tx(
     }))
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn delete_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<()> {
-    TrackBeatGridEntity::delete_by_id(track_id.as_str())
-        .exec(db.conn()?.as_connection())
-        .map(|_| ())
-        .map_err(crate::db::db_err)
+    delete_track_beat_grid_tx(db.conn()?.as_connection(), track_id)
 }
 
-pub(crate) fn has_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<bool> {
-    Ok(TrackBeatGridEntity::find_by_id(track_id.as_str())
-        .one(db.conn()?.as_connection())
-        .map_err(crate::db::db_err)?
-        .is_some())
-}
-
-/// Mirror a grid's first BPM onto `tracks.bpm` without rewriting the grid.
-pub(crate) fn set_track_bpm(db: &Db, track_id: &TrackId, bpm: f64) -> Result<()> {
-    set_track_bpm_tx(db.conn()?.as_connection(), track_id, bpm)
-}
-
-/// Same write as [`set_track_bpm`] on a caller-provided connection.
-pub(crate) fn set_track_bpm_tx(
+pub(crate) fn delete_track_beat_grid_tx(
     conn: &DatabaseConnection,
     track_id: &TrackId,
-    bpm: f64,
 ) -> Result<()> {
-    let track = tracks::ActiveModel {
-        id: Set(track_id.as_str().to_string()),
-        bpm: Set(Some(bpm)),
-        ..Default::default()
-    };
-    TrackEntity::update(track)
+    TrackBeatGridEntity::delete_by_id(track_id.as_str())
         .exec(conn)
         .map(|_| ())
         .map_err(crate::db::db_err)
+}
+
+pub(crate) fn has_track_beat_grid_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+) -> Result<bool> {
+    Ok(TrackBeatGridEntity::find_by_id(track_id.as_str())
+        .one(conn)
+        .map_err(crate::db::db_err)?
+        .is_some())
 }
 
 fn grid_error(err: GridError) -> LibraryError {
@@ -890,6 +960,35 @@ mod tests {
     }
 
     #[test]
+    fn analysis_grid_aligns_only_equivalent_first_segments() {
+        let json = r#"{"beats":[0.0,0.5,1.0,1.4,1.8,2.2],"bars":"ignored","downbeats":[0.0]}"#;
+        let original = from_analysis_json(json, Some(128.0), None, Some(3_000))
+            .unwrap()
+            .unwrap();
+        let aligned = from_analysis_json(json, Some(128.0), Some(120.1), Some(3_000))
+            .unwrap()
+            .unwrap();
+        assert_eq!(aligned.bpm(), Some(120.1));
+        assert_eq!(aligned.segments[1..], original.segments[1..]);
+        assert_eq!(aligned.covered_to_ms, Some(3_000));
+        assert!(from_analysis_json(json, Some(128.0), Some(78.0), None)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn analysis_constant_grid_preserves_exact_anchor_and_meter_without_family_repair() {
+        let json = r#"{"beats":[0.5,1.0,1.5,2.0],"downbeats":[1.0],"beats_per_bar":3}"#;
+        let grid = from_analysis_json(json, Some(120.0), Some(120.25), None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(grid.bpm(), Some(120.25));
+        assert_eq!(grid.first_beat_ms(), Some(500));
+        assert_eq!(grid.segments[0].beats_per_bar, 3);
+        assert_eq!(grid.segments[0].downbeat_offset_beats, 1);
+    }
+
+    #[test]
     fn legacy_malformed_json_is_an_error() {
         assert!(from_legacy_json("{not json", Some(120.0), "analysis", None).is_err());
     }
@@ -950,7 +1049,7 @@ mod tests {
             ],
         };
 
-        write_track_beat_grid(&db, &"t1".into(), &grid).unwrap();
+        write_track_beat_grid(&db, &"t1".into(), &grid, &grid.source).unwrap();
         assert_eq!(get_track_beat_grid(&db, &"t1".into()).unwrap(), Some(grid));
         assert_eq!(track_bpm(&db, "t1"), Some(120.0));
     }
@@ -959,9 +1058,9 @@ mod tests {
     fn canonical_delete_removes_segments() {
         let db = crate::db::open_in_memory_unmigrated().unwrap();
         insert_test_track(&db, "t1");
-        write_track_beat_grid(&db, &"t1".into(), &constant()).unwrap();
+        write_track_beat_grid(&db, &"t1".into(), &constant(), SOURCE_ANALYSIS).unwrap();
         delete_track_beat_grid(&db, &"t1".into()).unwrap();
-        assert!(!has_track_beat_grid(&db, &"t1".into()).unwrap());
+        assert!(!has_track_beat_grid_tx(db.conn().unwrap().as_connection(), &"t1".into()).unwrap());
         assert_eq!(segment_count(&db, "t1"), 0);
     }
 }
