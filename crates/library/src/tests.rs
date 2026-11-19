@@ -23,16 +23,10 @@ pub(crate) fn write_minimal_wav(path: &Path) {
     file.write_all(&[0u8; 16]).unwrap();
 }
 
-/// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
-pub(crate) fn write_analysis_wav(path: &Path) {
-    let sample_rate = 48_000u32;
-    let duration_secs = 3u32;
-    let sample_count = (sample_rate * duration_secs) as usize;
-    let mut pcm = Vec::with_capacity(sample_count * 2);
-    for index in 0..sample_count {
-        let time = index as f32 / sample_rate as f32;
-        let sample =
-            (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
+/// Mono 16-bit PCM WAV from integer frames: one writer for every test signal.
+fn write_mono_wav(path: &Path, sample_rate: u32, samples: &[i16]) {
+    let mut pcm = Vec::with_capacity(samples.len() * 2);
+    for sample in samples {
         pcm.extend_from_slice(&sample.to_le_bytes());
     }
     let data_size = pcm.len() as u32;
@@ -52,6 +46,33 @@ pub(crate) fn write_analysis_wav(path: &Path) {
     file.write_all(b"data").unwrap();
     file.write_all(&data_size.to_le_bytes()).unwrap();
     file.write_all(&pcm).unwrap();
+}
+
+/// 16-bit sine frames at `freq_hz`.
+///
+/// `amplitude` is asked for the sample's time in seconds, so a stepped signal
+/// varies its level without a second copy of the generator.
+fn sine_samples(
+    frames: usize,
+    sample_rate: u32,
+    freq_hz: f32,
+    amplitude: impl Fn(f32) -> f32,
+) -> Vec<i16> {
+    (0..frames)
+        .map(|index| {
+            let time = index as f32 / sample_rate as f32;
+            (amplitude(time)
+                * (2.0 * std::f32::consts::PI * freq_hz * time).sin()
+                * i16::MAX as f32) as i16
+        })
+        .collect()
+}
+
+/// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
+pub(crate) fn write_analysis_wav(path: &Path) {
+    let sample_rate = 48_000u32;
+    let samples = sine_samples((sample_rate * 3) as usize, sample_rate, 440.0, |_| 0.25);
+    write_mono_wav(path, sample_rate, &samples);
 }
 
 /// Mono 16-bit PCM: `silence_ms` of digital silence, then a 0.5-amplitude
@@ -59,33 +80,27 @@ pub(crate) fn write_analysis_wav(path: &Path) {
 #[cfg(feature = "analysis")]
 fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sample_rate: u32) {
     let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
-    let mut pcm = Vec::with_capacity((frames(silence_ms) + frames(tone_ms)) * 2);
-    for _ in 0..frames(silence_ms) {
-        pcm.extend_from_slice(&0i16.to_le_bytes());
-    }
-    for index in 0..frames(tone_ms) {
-        let time = index as f32 / sample_rate as f32;
-        let sample =
-            (0.5 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
-        pcm.extend_from_slice(&sample.to_le_bytes());
-    }
-    let data_size = pcm.len() as u32;
-    let file_size = 36 + data_size;
-    let byte_rate = sample_rate * 2;
-    let mut file = std::fs::File::create(path).unwrap();
-    file.write_all(b"RIFF").unwrap();
-    file.write_all(&file_size.to_le_bytes()).unwrap();
-    file.write_all(b"WAVEfmt ").unwrap();
-    file.write_all(&16u32.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
-    file.write_all(&sample_rate.to_le_bytes()).unwrap();
-    file.write_all(&byte_rate.to_le_bytes()).unwrap();
-    file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
-    file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
-    file.write_all(b"data").unwrap();
-    file.write_all(&data_size.to_le_bytes()).unwrap();
-    file.write_all(&pcm).unwrap();
+    let mut samples = vec![0i16; frames(silence_ms)];
+    samples.extend(sine_samples(frames(tone_ms), sample_rate, 440.0, |_| 0.5));
+    write_mono_wav(path, sample_rate, &samples);
+}
+
+/// Mono 16-bit PCM 1 kHz tone: amplitude 0.9 for the first second, 0.1 after
+/// (plus a little tail so window ends never clamp against the duration).
+///
+/// Keep in sync with `stepped_tone` in `crates/audio-core/src/waveform/mod.rs`
+/// (test module): same carrier, same 0.9 → 0.1 step at one second. This path
+/// decodes a real file, so the signal is written as PCM rather than reusing that
+/// `Vec<f32>` builder.
+fn write_stepped_wav(path: &Path, sample_rate: u32, frames: usize) {
+    let samples = sine_samples(frames, sample_rate, 1_000.0, |time| {
+        if time < 1.0 {
+            0.9
+        } else {
+            0.1
+        }
+    });
+    write_mono_wav(path, sample_rate, &samples);
 }
 
 #[test]
@@ -93,7 +108,6 @@ fn import_and_get_track_round_trip() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track.wav");
     write_minimal_wav(&wav);
-
     let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let track = lib.import_file_path(&wav).unwrap();
 
@@ -255,6 +269,65 @@ fn compute_waveform_window_from_decode_cache() {
     assert_eq!(end_ms, 500);
     assert_eq!(peaks.len(), 64);
     assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
+}
+
+/// Mirror of the UI's L1 expansion: a later crop that starts mid-track must
+/// leave the buckets covering the same source frames untouched, and the
+/// track-wide reference must be computed once and cached with the decode.
+#[test]
+fn compute_waveform_window_shares_one_track_reference() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("stepped.wav");
+    write_stepped_wav(&wav, 48_000, 48_000 * 3 + 2_400);
+
+    let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+    let track_id = {
+        let lib = library.lock().unwrap();
+        lib.import_file_path(&wav).unwrap().id().clone()
+    };
+    LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+
+    let cached_peak = |library: &Mutex<LibraryManager>| {
+        let lib = library.lock().unwrap();
+        let mut cache = lib.decode_cache.lock().unwrap();
+        cache
+            .get_for_waveform(&track_id)
+            .and_then(|entry| entry.waveform_peak.get().copied())
+    };
+
+    let (first, start, end) =
+        LibraryManager::compute_waveform_window(&library, &track_id, 0, 2_000, 2_000).unwrap();
+    assert_eq!((start, end), (0, 2_000));
+    assert_eq!(first.len(), 2_000);
+    let reference = cached_peak(&library).expect("first request initializes the reference");
+    assert!(reference > 0.0);
+
+    let (second, start, end) =
+        LibraryManager::compute_waveform_window(&library, &track_id, 1_000, 3_000, 2_000).unwrap();
+    assert_eq!((start, end), (1_000, 3_000));
+    assert_eq!(second.len(), 2_000);
+
+    // 48 frames per bucket in both crops, so the second crop's buckets are the
+    // first crop's shifted by 1000.
+    for index in 0..1_000 {
+        let a = first[1_000 + index];
+        let b = second[index];
+        assert!(
+            (a.low - b.low).abs() <= 1e-6
+                && (a.mid - b.mid).abs() <= 1e-6
+                && (a.high - b.high).abs() <= 1e-6,
+            "shared bucket {index} moved: {a:?} vs {b:?}"
+        );
+    }
+    assert_eq!(
+        audio_core::peaks_to_rgb_bytes(&first[1_000..], audio_core::WaveformChannelMode::Mono),
+        audio_core::peaks_to_rgb_bytes(&second[..1_000], audio_core::WaveformChannelMode::Mono),
+        "packed detail bytes must not move between crops"
+    );
+
+    // Repeated requests reuse the cached scalar instead of recomputing it.
+    let _ = LibraryManager::compute_waveform_window(&library, &track_id, 500, 1_500, 512).unwrap();
+    assert_eq!(cached_peak(&library), Some(reference));
 }
 
 #[test]
