@@ -392,35 +392,37 @@ impl LibraryManager {
                 None => cache.insert_for_waveform(id.clone(), loaded),
             }
         };
-        let audio = entry.audio.clone();
-
         let duration_ms = {
-            let channels = usize::from(audio.channels.max(1));
-            let frames = audio.samples.len() / channels;
-            if audio.sample_rate == 0 || frames == 0 {
+            let channels = usize::from(entry.audio.channels.max(1));
+            let frames = entry.audio.samples.len() / channels;
+            if entry.audio.sample_rate == 0 || frames == 0 {
                 0
             } else {
-                audio_core::secs_to_ms(frames as f64 / f64::from(audio.sample_rate))
+                audio_core::secs_to_ms(frames as f64 / f64::from(entry.audio.sample_rate))
             }
         };
         let start_ms = start_ms.max(0).min(duration_ms.max(0));
         let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
+        // One config for both passes: the reference and the windows it scales
+        // must be measured with the same filters. The cached scalar is therefore
+        // each entry's reference for this default config only.
+        let config = audio_core::WaveformAnalysisConfig::default();
         // Both global locks are out of scope here, so the one-time whole-track
         // pass cannot block other library work; concurrent requests for this
         // entry just wait on its own cell.
         let normalization_peak = if end_ms > start_ms {
             *entry
                 .waveform_peak
-                .get_or_init(|| audio_core::spectral_normalization_peak(entry.audio.as_ref()))
+                .get_or_init(|| audio_core::spectral_normalization_peak(&entry.audio, &config))
         } else {
             0.0
         };
         let peaks = audio_core::compute_spectral_window(
-            audio.as_ref(),
+            &entry.audio,
             audio_core::ms_to_secs(start_ms),
             audio_core::ms_to_secs(end_ms),
             buckets,
-            &audio_core::WaveformAnalysisConfig::default(),
+            &config,
             normalization_peak,
         );
         Ok((peaks, start_ms, end_ms))

@@ -93,21 +93,21 @@ pub fn compute_overview_envelope(
 ///
 /// Window analysis normalizes against this one scalar instead of its own crop,
 /// so a louder passage scrolling off screen cannot rescale what is still
-/// visible. It is one continuous-filter pass over the complete track at the
-/// default analysis configuration, independent of crop bounds and bucket count.
+/// visible. It is one continuous-filter pass over the complete track,
+/// independent of crop bounds and bucket count.
+///
+/// `config` must be the same configuration the windows it normalizes are
+/// analyzed with — the filters and amplitude mode decide the band peaks, so a
+/// mismatch would rescale every window against a different measurement.
+///
 /// Zero sample rate, no complete frames, or a silent/unnormalizable track all
 /// return `0.0`.
-pub fn spectral_normalization_peak(audio: &LoadedAudio) -> f32 {
+pub fn spectral_normalization_peak(audio: &LoadedAudio, config: &WaveformAnalysisConfig) -> f32 {
     let channels = usize::from(audio.channels.max(1));
     if audio.sample_rate == 0 || audio.samples.len() / channels == 0 {
         return 0.0;
     }
-    let peak = spectral_peak_for_range(
-        &audio.samples,
-        audio.sample_rate,
-        channels,
-        &WaveformAnalysisConfig::default(),
-    );
+    let peak = spectral_peak_for_range(&audio.samples, audio.sample_rate, channels, config);
     let reference = peak.low.max(peak.mid).max(peak.high);
     if reference.is_finite() && reference > 0.0 {
         reference
@@ -119,8 +119,9 @@ pub fn spectral_normalization_peak(audio: &LoadedAudio) -> f32 {
 /// Hi-res envelope for a time slice of the track.
 ///
 /// `normalization_peak` is the track-wide [`spectral_normalization_peak`]
-/// reference: every band is divided by it and clamped to `0.0–1.0`. A
-/// nonpositive or nonfinite reference yields zero bands rather than dividing.
+/// reference for this same `config`: every band is divided by it and clamped to
+/// `0.0–1.0`. A nonpositive or nonfinite reference yields zero bands rather than
+/// dividing.
 pub fn compute_spectral_window(
     audio: &LoadedAudio,
     start_secs: f64,
@@ -157,7 +158,7 @@ pub fn compute_spectral_window(
         buckets,
         config,
         MAX_WAVEFORM_BUCKETS,
-        false,
+        Normalization::TrackReference,
     );
     normalize_to_reference(&mut peaks, normalization_peak);
     peaks
@@ -181,7 +182,7 @@ pub fn compute_spectral_envelope_frames(
         buckets,
         config,
         MAX_WAVEFORM_BUCKETS,
-        true,
+        Normalization::SelfMax,
     )
 }
 
@@ -206,8 +207,17 @@ pub fn compute_full_track_envelope(
         buckets,
         config,
         MAX_FULL_TRACK_BUCKETS,
-        true,
+        Normalization::SelfMax,
     )
+}
+
+/// How [`envelope_frames`] scales the peaks it returns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Normalization {
+    /// Divide by this window's own maximum: overview, whole-track and exports.
+    SelfMax,
+    /// Leave raw band peaks for the caller's track-wide reference.
+    TrackReference,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -220,7 +230,7 @@ fn envelope_frames(
     buckets: usize,
     config: &WaveformAnalysisConfig,
     max_buckets: usize,
-    normalize: bool,
+    normalization: Normalization,
 ) -> Vec<SpectralPeak> {
     let buckets = buckets.clamp(16, max_buckets);
     let frame_count = end_frame.saturating_sub(start_frame);
@@ -260,7 +270,7 @@ fn envelope_frames(
         ));
     }
 
-    if normalize {
+    if normalization == Normalization::SelfMax {
         normalize_spectral_peaks(&mut peaks);
     }
     peaks
@@ -428,6 +438,11 @@ mod tests {
             .collect()
     }
 
+    /// The track-wide reference for the default analysis config these tests use.
+    fn track_reference(audio: &LoadedAudio) -> f32 {
+        spectral_normalization_peak(audio, &WaveformAnalysisConfig::default())
+    }
+
     fn window(
         audio: &LoadedAudio,
         start_secs: f64,
@@ -448,7 +463,7 @@ mod tests {
     #[test]
     fn expanding_window_keeps_visible_detail_identical() {
         let audio = mono_audio(stepped_tone(48_000, 60.0, 40.0, 0.1, 0.9), 48_000);
-        let reference = spectral_normalization_peak(&audio);
+        let reference = track_reference(&audio);
         assert!(reference > 0.0, "a loud tail must give a reference");
 
         // 36 s / 2048 and 54 s / 3072 both ceiling-divide to 844 frames per
@@ -484,7 +499,7 @@ mod tests {
     fn window_reference_comes_from_the_whole_track() {
         // The loud part starts at 50 s, so neither crop below contains it.
         let audio = mono_audio(stepped_tone(48_000, 60.0, 50.0, 0.1, 0.9), 48_000);
-        let reference = spectral_normalization_peak(&audio);
+        let reference = track_reference(&audio);
 
         // 24 s at 48 kHz over 2048 buckets is 562.5 frames, ceiling-divided to
         // 563, so these crops do not share index-aligned frame ranges.
@@ -508,7 +523,7 @@ mod tests {
         // Loud for the first second, quiet after: the shared passage the two
         // crops below overlap is entirely in the quiet tail.
         let audio = mono_audio(stepped_tone(sample_rate, 3.0, 1.0, 0.9, 0.1), sample_rate);
-        let reference = spectral_normalization_peak(&audio);
+        let reference = track_reference(&audio);
 
         // 2 s at 48 kHz is exactly 96 000 frames: 48 frames per bucket, so the
         // second window's buckets are the first window's shifted by 1000.
@@ -533,8 +548,8 @@ mod tests {
         let quiet = mono_audio(tone_at(48_000, 2.0, 0.1), 48_000);
         let loud = mono_audio(tone_at(48_000, 2.0, 0.9), 48_000);
 
-        let quiet_peaks = window(&quiet, 0.0, 2.0, 128, spectral_normalization_peak(&quiet));
-        let loud_peaks = window(&loud, 0.0, 2.0, 128, spectral_normalization_peak(&loud));
+        let quiet_peaks = window(&quiet, 0.0, 2.0, 128, track_reference(&quiet));
+        let loud_peaks = window(&loud, 0.0, 2.0, 128, track_reference(&loud));
         assert_eq!(quiet_peaks.len(), 128);
         assert_eq!(loud_peaks.len(), 128);
 
@@ -554,8 +569,8 @@ mod tests {
     #[test]
     fn silent_and_degenerate_inputs_stay_finite() {
         let silent = mono_audio(vec![0.0; 48_000], 48_000);
-        assert_eq!(spectral_normalization_peak(&silent), 0.0);
-        let peaks = window(&silent, 0.0, 1.0, 32, spectral_normalization_peak(&silent));
+        assert_eq!(track_reference(&silent), 0.0);
+        let peaks = window(&silent, 0.0, 1.0, 32, track_reference(&silent));
         let zero = SpectralPeak {
             low: 0.0,
             mid: 0.0,
@@ -563,14 +578,8 @@ mod tests {
         };
         assert!(peaks.iter().all(|p| *p == zero));
 
-        assert_eq!(
-            spectral_normalization_peak(&mono_audio(vec![], 48_000)),
-            0.0
-        );
-        assert_eq!(
-            spectral_normalization_peak(&mono_audio(vec![0.1; 480], 0)),
-            0.0
-        );
+        assert_eq!(track_reference(&mono_audio(vec![], 48_000)), 0.0);
+        assert_eq!(track_reference(&mono_audio(vec![0.1; 480], 0)), 0.0);
 
         let tone = mono_audio(tone_at(48_000, 1.0, 0.5), 48_000);
         for reference in [0.0, -1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {

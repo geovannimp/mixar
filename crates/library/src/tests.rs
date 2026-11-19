@@ -87,8 +87,10 @@ fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sampl
 /// Mono 16-bit PCM 1 kHz tone: amplitude 0.9 for the first second, 0.1 after
 /// (plus a little tail so window ends never clamp against the duration).
 ///
-/// The library path has to decode a real file, so this mirrors the audio-core
-/// test helper's signal in a WAV instead of sharing its `Vec<f32>` builder.
+/// Keep in sync with `stepped_tone` in `crates/audio-core/src/waveform/mod.rs`
+/// (test module): same carrier, same 0.9 → 0.1 step at one second. This path
+/// decodes a real file, so the signal is written as PCM rather than reusing that
+/// `Vec<f32>` builder.
 fn write_stepped_wav(path: &Path, sample_rate: u32, frames: usize) {
     let samples = sine_samples(frames, sample_rate, 1_000.0, |time| {
         if time < 1.0 {
