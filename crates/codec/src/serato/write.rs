@@ -331,17 +331,18 @@ fn parse_markers2(payload: &[u8]) -> anyhow::Result<RawMarkers2> {
         };
         let len = u32::from_be_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]);
         pos += 4;
-        let end = pos
+        // Distinct from the payload `end` above: this is the end of one record.
+        let record_end = pos
             .checked_add(len as usize)
             .ok_or_else(|| anyhow::anyhow!("Serato Markers2 record length overflows"))?;
-        let Some(record_payload) = decoded.get(pos..end) else {
+        let Some(record_payload) = decoded.get(pos..record_end) else {
             anyhow::bail!("Serato Markers2 record payload is truncated");
         };
         records.push(RawRecord {
             name,
             payload: record_payload.to_vec(),
         });
-        pos = end;
+        pos = record_end;
     }
     Ok(RawMarkers2 {
         records,
@@ -516,6 +517,10 @@ fn cue_map(cues: &[SeratoCue]) -> anyhow::Result<std::collections::BTreeMap<u8, 
 
 fn loop_map(loops: &[SeratoLoop]) -> anyhow::Result<std::collections::BTreeMap<u8, &SeratoLoop>> {
     let mut map = std::collections::BTreeMap::new();
+    // Slot 8 exists only in the legacy descriptor, so dropping it here cannot
+    // clear a Markers2 slot: every Markers2 `LOOP` record is slot 0–7, and a DB
+    // row for such a slot is always in this map (adoption imported it) unless
+    // the user deleted it, which is exactly the clear this map expresses.
     for saved in loops.iter().filter(|saved| saved.slot < MARKERS2_SLOTS) {
         if map.insert(saved.slot, saved).is_some() {
             anyhow::bail!("duplicated requested loop slot {}", saved.slot);

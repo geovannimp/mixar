@@ -634,11 +634,11 @@ impl LibraryManager {
     ) -> Result<()> {
         let (result, plan) = {
             let lib = Self::lock_library(library)?;
-            let before = lib
+            let colour_before = lib
                 .get_track(track_id)?
                 .map(|source| colour_pair(source.metadata()));
             let result = lib.update_track_metadata(track_id, edit);
-            let after = if result.is_ok() {
+            let colour_after = if result.is_ok() {
                 lib.get_track(track_id)
                     .ok()
                     .flatten()
@@ -648,8 +648,8 @@ impl LibraryManager {
             };
             // Only a colour change is mirrored (and only the colour: these plans
             // never carry the ordinary fields). Non-colour edits stay DB-only.
-            let plan = match (before, after) {
-                (Some(before), Some(after)) if before != after => {
+            let plan = match (colour_before, colour_after) {
+                (Some(stored), Some(current)) if stored != current => {
                     crate::tags::plan_for_track(&lib, track_id, false)
                 }
                 _ => None,

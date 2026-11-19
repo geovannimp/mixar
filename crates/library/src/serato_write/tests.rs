@@ -83,6 +83,18 @@ fn tagged_wav(dir: &Path, frames: &[Vec<u8>]) -> PathBuf {
     path
 }
 
+/// A WAV carrying exactly one Markers2 `CUE` (slot 0, 1000 ms, "Intro"), the
+/// shape most write-back tests start from.
+fn single_cue_file(dir: &Path) -> PathBuf {
+    tagged_wav(
+        dir,
+        &[geob_frame(
+            "Serato Markers2",
+            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
+        )],
+    )
+}
+
 fn manager(write_back: bool) -> LibraryManager {
     LibraryManager::open_in_memory(LibraryConfig {
         tag_write_back: if write_back {
@@ -201,13 +213,7 @@ fn cue_and_loop_edits_reach_an_adopted_file() {
 #[test]
 fn db_only_cue_slots_never_reach_the_file() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = manager(true);
     let id = lib.import_file_path(&path).unwrap().id().clone();
 
@@ -296,13 +302,7 @@ fn automatic_loop_memory_is_never_exported() {
 #[test]
 fn write_back_off_creates_no_plan() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = manager(false);
     let id = lib.import_file_path(&path).unwrap().id().clone();
     let before = std::fs::read(&path).unwrap();
@@ -369,13 +369,7 @@ fn colour_edits_mirror_only_an_adopted_colour() {
 #[test]
 fn a_colour_absent_at_adoption_is_not_invented() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let library = Mutex::new(manager(true));
     let id = {
         let lib = library.lock().unwrap();
@@ -467,13 +461,7 @@ fn a_multi_segment_grid_is_left_byte_identical() {
 #[test]
 fn a_queued_plan_writes_the_latest_committed_state() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = manager(true);
     let id = lib.import_file_path(&path).unwrap().id().clone();
 
@@ -500,13 +488,7 @@ fn a_queued_plan_writes_the_latest_committed_state() {
 #[test]
 fn turning_write_back_off_cancels_a_queued_plan() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let mut lib = manager(true);
     let id = lib.import_file_path(&path).unwrap().id().clone();
     let plan = crate::tags::plan_for_track(&lib, &id, true).expect("plan");
@@ -525,13 +507,7 @@ fn turning_write_back_off_cancels_a_queued_plan() {
 #[allow(clippy::permissions_set_readonly_false)]
 fn a_file_failure_keeps_the_database_edit() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = manager(true);
     let id = lib.import_file_path(&path).unwrap().id().clone();
     let before = std::fs::read(&path).unwrap();
@@ -556,13 +532,7 @@ fn a_file_failure_keeps_the_database_edit() {
 #[test]
 fn a_deleted_or_moved_track_skips_the_write() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = manager(true);
     let id = lib.import_file_path(&path).unwrap().id().clone();
     let before = std::fs::read(&path).unwrap();
@@ -598,13 +568,7 @@ fn a_deleted_or_moved_track_skips_the_write() {
 #[test]
 fn off_mutex_execution_does_not_deadlock_with_a_gate_holder() {
     let dir = tempfile::tempdir().unwrap();
-    let path = tagged_wav(
-        dir.path(),
-        &[geob_frame(
-            "Serato Markers2",
-            &markers2_payload(&[("CUE", cue_record(0, 1000, [1, 2, 3], "Intro"))]),
-        )],
-    );
+    let path = single_cue_file(dir.path());
     let lib = Arc::new(Mutex::new(manager(true)));
     let id = {
         let guard = lib.lock().unwrap();

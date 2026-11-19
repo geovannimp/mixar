@@ -148,6 +148,13 @@ pub(crate) fn snapshot(lib: &LibraryManager, id: &TrackId) -> Result<Option<Sera
     if mask & SERATO_KIND_COLOUR != 0 {
         // The row's exact RGB is authoritative; a palette-only legacy row uses
         // its own swatch, exactly like the store's colour coherence rule.
+        //
+        // `None` means the user cleared the colour: the store treats a cleared
+        // editor value as a decision (never as "missing data"), and adoption
+        // never clears an adopted colour, so no unrelated path can reach here
+        // with an accidentally empty value. The codec turns it into "remove the
+        // Markers2 COLOR record", and does nothing when there is no record to
+        // remove, so repeated triggers stay no-ops.
         let rgb = metadata
             .color_rgb
             .filter(|value| *value <= 0x00FF_FFFF)
