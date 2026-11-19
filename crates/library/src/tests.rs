@@ -47,15 +47,30 @@ fn write_mono_wav(path: &Path, sample_rate: u32, samples: &[i16]) {
     file.write_all(&pcm).unwrap();
 }
 
+/// 16-bit sine frames at `freq_hz`.
+///
+/// `amplitude` is asked for the sample's time in seconds, so a stepped signal
+/// varies its level without a second copy of the generator.
+fn sine_samples(
+    frames: usize,
+    sample_rate: u32,
+    freq_hz: f32,
+    amplitude: impl Fn(f32) -> f32,
+) -> Vec<i16> {
+    (0..frames)
+        .map(|index| {
+            let time = index as f32 / sample_rate as f32;
+            (amplitude(time)
+                * (2.0 * std::f32::consts::PI * freq_hz * time).sin()
+                * i16::MAX as f32) as i16
+        })
+        .collect()
+}
+
 /// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
 pub(crate) fn write_analysis_wav(path: &Path) {
     let sample_rate = 48_000u32;
-    let samples: Vec<i16> = (0..(sample_rate * 3) as usize)
-        .map(|index| {
-            let time = index as f32 / sample_rate as f32;
-            (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16
-        })
-        .collect();
+    let samples = sine_samples((sample_rate * 3) as usize, sample_rate, 440.0, |_| 0.25);
     write_mono_wav(path, sample_rate, &samples);
 }
 
@@ -65,10 +80,7 @@ pub(crate) fn write_analysis_wav(path: &Path) {
 fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sample_rate: u32) {
     let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
     let mut samples = vec![0i16; frames(silence_ms)];
-    samples.extend((0..frames(tone_ms)).map(|index| {
-        let time = index as f32 / sample_rate as f32;
-        (0.5 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16
-    }));
+    samples.extend(sine_samples(frames(tone_ms), sample_rate, 440.0, |_| 0.5));
     write_mono_wav(path, sample_rate, &samples);
 }
 
@@ -78,14 +90,13 @@ fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sampl
 /// The library path has to decode a real file, so this mirrors the audio-core
 /// test helper's signal in a WAV instead of sharing its `Vec<f32>` builder.
 fn write_stepped_wav(path: &Path, sample_rate: u32, frames: usize) {
-    let samples: Vec<i16> = (0..frames)
-        .map(|index| {
-            let time = index as f32 / sample_rate as f32;
-            let amplitude = if time < 1.0 { 0.9 } else { 0.1 };
-            (amplitude * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin() * i16::MAX as f32)
-                as i16
-        })
-        .collect();
+    let samples = sine_samples(frames, sample_rate, 1_000.0, |time| {
+        if time < 1.0 {
+            0.9
+        } else {
+            0.1
+        }
+    });
     write_mono_wav(path, sample_rate, &samples);
 }
 
