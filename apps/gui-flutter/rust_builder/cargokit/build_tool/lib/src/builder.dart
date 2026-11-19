@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 import 'android_environment.dart';
 import 'cargo.dart';
 import 'environment.dart';
+import 'kache_shims.dart';
 import 'options.dart';
 import 'rustup.dart';
 import 'target.dart';
@@ -154,8 +155,8 @@ class RustBuilder {
         Platform.environment['CARGOKIT_CARGO_FLAGS'] ?? '[]';
     final List<String> platformFlags;
     try {
-      platformFlags = (jsonDecode(rawPlatformFlags) as List<Object?>)
-          .cast<String>();
+      platformFlags =
+          (jsonDecode(rawPlatformFlags) as List<Object?>).cast<String>();
     } on FormatException catch (e) {
       throw BuildException(
         'CARGOKIT_CARGO_FLAGS is not a JSON array of flags: '
@@ -163,6 +164,21 @@ class RustBuilder {
       );
     }
     final manifestPath = path.join(environment.manifestDir, 'Cargo.toml');
+    final shimsDir = resolveKacheShimsDir(
+      environment: Platform.environment,
+      isWindows: Platform.isWindows,
+    );
+    final buildEnvironment = withKacheShims(
+      environment: await _buildEnvironment(),
+      parentEnvironment: Platform.environment,
+      shimsDir: shimsDir,
+      isWindows: Platform.isWindows,
+    );
+    // Do not route this through `kache cargo` to enable new-target seeding:
+    // with cargokit's target dir (outside the workspace) it places build-script
+    // side effects such as ORT's libwebgpu_dawn.so in crates/target instead,
+    // and the Flutter install step cannot find them. The rustc wrapper alone
+    // already gets the compile hits; the shims below cover build-script C/C++.
     runCommand(
       'rustup',
       [
@@ -187,7 +203,7 @@ class RustBuilder {
         '--target-dir',
         environment.targetTempDir,
       ],
-      environment: await _buildEnvironment(),
+      environment: buildEnvironment,
     );
     return path.join(
       environment.targetTempDir,
