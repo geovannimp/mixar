@@ -19,8 +19,12 @@ pub struct Model {
     pub album: Option<String>,
     pub genre: Option<String>,
     pub bpm: Option<f64>,
+    pub bpm_source: Option<String>,
     #[sea_orm(column_name = "key")]
     pub key: Option<String>,
+    pub key_source: Option<String>,
+    pub loudness_lufs: Option<f64>,
+    pub analysis_completed_at: Option<String>,
     pub duration_ms: Option<i32>,
     pub sample_rate: Option<i32>,
     pub channels: Option<i32>,

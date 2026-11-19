@@ -17,11 +17,12 @@
 use std::path::Path;
 
 use library_core::{ColorLabel, ImportedTrack, Library, LibraryError, Result, TrackMetadata};
-use sea_orm::EntityTrait;
+use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
 use crate::beat_grid::{self, BeatSegment, CanonicalBeatGrid, SOURCE_IMPORT};
-use crate::entity::TrackEntity;
+use crate::entity::{tracks, TrackEntity};
 use crate::serato_adoption::{self, ApplyOutcome, VendorRead};
+use crate::store::TrackMetadataOrigin;
 use crate::{deck_data, model, store, tags, unix_secs_string, LibraryManager};
 
 /// Projected rows for a newly discovered track.
@@ -30,6 +31,7 @@ use crate::{deck_data, model, store, tags, unix_secs_string, LibraryManager};
 /// backfill can never disagree about a cue, a loop, the grid or the colour.
 pub(crate) struct ImportPlan {
     pub(crate) metadata: TrackMetadata,
+    pub(crate) key_from_import: bool,
     pub(crate) cues: Vec<codec::serato::SeratoCue>,
     pub(crate) loops: Vec<library_core::LoopImport>,
     pub(crate) grid: Option<CanonicalBeatGrid>,
@@ -41,12 +43,8 @@ impl LibraryManager {
     /// row that has not adopted it yet. Returns the authoritative stored source
     /// and whether it was created.
     ///
-    /// Existing rows refresh ordinary metadata (plus the user-owned and
-    /// raw-colour preservation that every refresh needs). One deliberate
-    /// exception keeps an imported value instead of erasing it: when the fresh
-    /// tags carry no key, the key already on the row survives, because it may
-    /// have come from a vendor frame and a missing tag is not evidence of
-    /// removal. `force` analysis and the editor can still change or clear it.
+    /// Existing rows refresh ordinary metadata without losing user-owned
+    /// fields or the BPM and key the catalog already owns.
     ///
     /// Adoption itself is never re-run once the row carries its marker, so a
     /// rescan cannot resurrect a cue the user deleted.
@@ -69,7 +67,7 @@ impl LibraryManager {
                         Some(payload) => build_import_plan(metadata, payload),
                         None => build_import_plan(metadata, &codec::SeratoPayload::default()),
                     };
-                    persist_new_track(conn, &id, path, &plan, &now)?;
+                    persist_new_track(conn, &id, path, metadata, &plan, &now)?;
                     true
                 }
                 Some(row) => {
@@ -80,31 +78,14 @@ impl LibraryManager {
                         &stored,
                         row.metadata_edited.unwrap_or(false),
                     );
-                    // An ordinary tag key wins over everything. When the tags
-                    // carry none, the key the row already has survives: it may
-                    // have been imported from a vendor frame that existing rows
-                    // deliberately do not re-adopt, so a missing (or newly
-                    // unreadable) tag is not evidence of removal, and there is no
-                    // provenance marker that could tell an imported key from a
-                    // curated one. A key cleared in the editor stays cleared
-                    // because the stored row is already empty here.
-                    if merged
-                        .key
-                        .as_deref()
-                        .is_none_or(|key| key.trim().is_empty())
-                    {
-                        if let Some(key) = nonblank_key(&stored) {
-                            merged.key = Some(key);
-                        }
-                    }
-                    store::upsert_file_track_tx(conn, &id, path, &merged, &now)?;
-                    // A canonical grid owns the BPM mirror; a tag refresh must
-                    // not move it back to the file's tag value.
-                    if let Some(bpm) =
-                        beat_grid::get_track_beat_grid_tx(conn, &id)?.and_then(|g| g.bpm())
-                    {
-                        beat_grid::set_track_bpm_tx(conn, &id, bpm)?;
-                    }
+                    store::upsert_file_track_tx(
+                        conn,
+                        &id,
+                        path,
+                        &merged,
+                        TrackMetadataOrigin::Tag,
+                        &now,
+                    )?;
                     false
                 }
             };
@@ -151,10 +132,25 @@ fn persist_new_track(
     conn: &sea_orm::DatabaseConnection,
     id: &library_core::TrackId,
     path: &Path,
+    tag_metadata: &TrackMetadata,
     plan: &ImportPlan,
     now: &str,
 ) -> Result<()> {
-    store::upsert_file_track_tx(conn, id, path, &plan.metadata, now)?;
+    let mut metadata = plan.metadata.clone();
+    metadata.bpm = tag_metadata.bpm;
+    metadata.key = tag_metadata.key.clone();
+    store::upsert_file_track_tx(conn, id, path, &metadata, TrackMetadataOrigin::Tag, now)?;
+
+    if plan.key_from_import {
+        tracks::ActiveModel {
+            id: Set(id.as_str().to_string()),
+            key: Set(plan.metadata.key.clone()),
+            key_source: Set(Some(SOURCE_IMPORT.to_string())),
+            ..Default::default()
+        }
+        .update(conn)
+        .map_err(crate::db::db_err)?;
+    }
 
     for cue in &plan.cues {
         // Filtered by `build_import_plan`; skipping here keeps this total without
@@ -176,7 +172,7 @@ fn persist_new_track(
         deck_data::import_loop_tx(conn, id, import)?;
     }
     if let Some(grid) = &plan.grid {
-        beat_grid::write_track_beat_grid_tx(conn, id, grid)?;
+        beat_grid::write_track_beat_grid_tx(conn, id, grid, SOURCE_IMPORT)?;
     }
     Ok(())
 }
@@ -198,11 +194,13 @@ pub(crate) fn build_import_plan(
         .key
         .as_deref()
         .is_none_or(|key| key.trim().is_empty());
+    let mut key_from_import = false;
     if tag_key_missing {
         if let Some(mik_key) = payload.mik_key.as_deref() {
             let normalized = tags::normalize_key_notation(mik_key);
             if !normalized.trim().is_empty() {
                 projected.key = Some(normalized);
+                key_from_import = true;
             }
         }
     }
@@ -238,25 +236,11 @@ pub(crate) fn build_import_plan(
 
     ImportPlan {
         metadata: projected,
+        key_from_import,
         cues,
         loops,
         grid,
     }
-}
-
-/// The stored key when it is non-blank.
-///
-/// Used by a refresh whose ordinary tags carry no key: the value on the row may
-/// be an imported vendor key, and re-reading the vendor frame is not required
-/// (it may be corrupt, absent or skipped by the scan bound) for the row to keep
-/// what it already owns.
-pub(crate) fn nonblank_key(metadata: &TrackMetadata) -> Option<String> {
-    metadata
-        .key
-        .as_deref()
-        .map(str::trim)
-        .filter(|key| !key.is_empty())
-        .map(str::to_string)
 }
 
 /// A cue position that survives the stored `INTEGER` column.

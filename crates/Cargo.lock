@@ -1536,6 +1536,7 @@ dependencies = [
  "library-core",
  "resampler",
  "rtrb",
+ "rusqlite",
  "serde",
  "tempfile",
  "thiserror 1.0.69",

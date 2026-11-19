@@ -33,6 +33,7 @@ tokio.workspace = true
 [dev-dependencies]
 library-core = { path = "../library-core" }
 codec = { path = "../codec" }
+rusqlite.workspace = true
 tempfile = "3.0"
 
 [lints]

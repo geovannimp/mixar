@@ -3,7 +3,7 @@
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
 use super::{Migration, MigrationError};
-use crate::beat_grid;
+use crate::beat_grid::{self, SOURCE_ANALYSIS, SOURCE_MANUAL};
 use crate::db::{TRACKS_TABLE, TRACK_ANALYSIS_TABLE, TRACK_BEAT_GRID_TABLE};
 
 pub(crate) const VERSION: &str = "2026111201_beat_grid_backfill";
@@ -13,6 +13,14 @@ pub(crate) const MIGRATION: Migration = Migration {
     up,
 };
 
+pub(super) fn usable_bpm(bpm: f64) -> bool {
+    (20.0..=400.0).contains(&bpm)
+}
+
+fn migration_error(err: impl std::fmt::Display) -> MigrationError {
+    super::migration_error(VERSION, err)
+}
+
 pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
     let rows = conn
         .query_all_raw(Statement::from_string(
@@ -21,13 +29,17 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
                 r#"
             SELECT t.id AS track_id,
                    t.bpm AS tracks_bpm,
+                   t.bpm_source,
+                   COALESCE(t.metadata_edited, 0) AS metadata_edited,
                    t.duration_ms AS track_duration_ms,
                    a.bpm AS analysis_bpm,
                    a.beat_grid_json,
                    a.backend,
                    a.duration_analyzed_ms
             FROM {TRACKS_TABLE} t
-            LEFT JOIN {TRACK_ANALYSIS_TABLE} a ON a.track_id = t.id
+            JOIN {TRACK_ANALYSIS_TABLE} a ON a.id = (
+                SELECT MAX(id) FROM {TRACK_ANALYSIS_TABLE} WHERE track_id = t.id
+            )
             WHERE a.beat_grid_json IS NOT NULL
               AND a.beat_grid_json NOT IN ('null', '')
               AND NOT EXISTS (
@@ -37,48 +49,73 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
             "#
             ),
         ))
-        .map_err(|err| MigrationError::new(VERSION, err.to_string()))?;
+        .map_err(migration_error)?;
 
     for row in rows {
-        let track_id: String = row
-            .try_get("", "track_id")
-            .map_err(|err| MigrationError::new(VERSION, err.to_string()))?;
-        let tracks_bpm: Option<f64> = row.try_get("", "tracks_bpm").ok().flatten();
-        let track_duration_ms: Option<i32> = row.try_get("", "track_duration_ms").ok().flatten();
-        let analysis_bpm: Option<f64> = row.try_get("", "analysis_bpm").ok().flatten();
-        let backend: String = row
-            .try_get::<Option<String>>("", "backend")
-            .ok()
-            .flatten()
-            .unwrap_or_else(|| "analysis".to_string());
-        let json: String = row
-            .try_get("", "beat_grid_json")
-            .map_err(|err| MigrationError::new(VERSION, err.to_string()))?;
-        let duration_analyzed_ms: Option<i32> =
-            row.try_get("", "duration_analyzed_ms").ok().flatten();
-        let covered_to_ms = if backend == "manual" {
-            None
+        let track_id: String = row.try_get("", "track_id").map_err(migration_error)?;
+        let tracks_bpm: Option<f64> = row.try_get("", "tracks_bpm").map_err(migration_error)?;
+        let bpm_source: Option<String> = row.try_get("", "bpm_source").map_err(migration_error)?;
+        let metadata_edited: bool = row
+            .try_get("", "metadata_edited")
+            .map_err(migration_error)?;
+        let track_duration_ms: Option<i32> = row
+            .try_get("", "track_duration_ms")
+            .map_err(migration_error)?;
+        let analysis_bpm: Option<f64> = row.try_get("", "analysis_bpm").map_err(migration_error)?;
+        let backend: String = row.try_get("", "backend").map_err(migration_error)?;
+        let json: String = row.try_get("", "beat_grid_json").map_err(migration_error)?;
+        let duration_analyzed_ms: i32 = row
+            .try_get("", "duration_analyzed_ms")
+            .map_err(migration_error)?;
+        if backend != SOURCE_MANUAL
+            && (tracks_bpm.is_some_and(|bpm| !usable_bpm(bpm))
+                || (tracks_bpm.is_none()
+                    && (metadata_edited || bpm_source.as_deref() == Some(SOURCE_MANUAL))))
+        {
+            tracing::warn!(
+                track_id,
+                "beat grid migration skipped a cleared or invalid track BPM"
+            );
+            continue;
+        }
+        let covered_to_ms = (duration_analyzed_ms > 0
+            && track_duration_ms.is_none_or(|duration| duration_analyzed_ms < duration))
+        .then(|| i64::from(duration_analyzed_ms));
+        let (grid, grid_bpm_source) = if backend == SOURCE_MANUAL {
+            (
+                beat_grid::from_legacy_json(
+                    &json,
+                    analysis_bpm
+                        .filter(|&bpm| usable_bpm(bpm))
+                        .or_else(|| tracks_bpm.filter(|&bpm| usable_bpm(bpm))),
+                    SOURCE_MANUAL,
+                    None,
+                ),
+                SOURCE_MANUAL,
+            )
         } else {
-            duration_analyzed_ms
-                .filter(|duration| *duration > 0)
-                .filter(|duration| {
-                    track_duration_ms.is_none_or(|track_duration| *duration < track_duration)
-                })
-                .map(i64::from)
+            (
+                beat_grid::from_analysis_json(&json, analysis_bpm, tracks_bpm, covered_to_ms),
+                bpm_source.as_deref().unwrap_or(if tracks_bpm.is_some() {
+                    "legacy"
+                } else {
+                    SOURCE_ANALYSIS
+                }),
+            )
         };
 
-        match beat_grid::from_legacy_json(
-            &json,
-            tracks_bpm.or(analysis_bpm),
-            &backend,
-            covered_to_ms,
-        ) {
+        match grid {
             Ok(Some(grid)) => {
-                beat_grid::write_track_beat_grid_tx(conn, &track_id.as_str().into(), &grid)
-                    .map_err(|err| MigrationError::new(VERSION, err.to_string()))?;
+                beat_grid::write_track_beat_grid_tx(
+                    conn,
+                    &track_id.as_str().into(),
+                    &grid,
+                    grid_bpm_source,
+                )
+                .map_err(migration_error)?;
             }
             Ok(None) => {
-                tracing::warn!(track_id, "beat grid migration skipped an empty grid");
+                tracing::warn!(track_id, "beat grid migration skipped unusable geometry");
             }
             Err(err) => {
                 tracing::warn!(track_id, error = %err, "beat grid migration skipped");
@@ -92,7 +129,7 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::beat_grid::{get_track_beat_grid, SOURCE_ANALYSIS};
+    use crate::beat_grid::get_track_beat_grid;
     use crate::db::open_in_memory_unmigrated;
     use crate::migrations::run_migrations;
 

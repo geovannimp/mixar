@@ -42,7 +42,7 @@ pub fn track_metadata(model: &tracks::Model) -> TrackMetadata {
             .color_rgb
             .and_then(|v| u32::try_from(v).ok())
             .filter(|v| *v <= 0x00FF_FFFF),
-        loudness_lufs: None,
+        loudness_lufs: model.loudness_lufs,
     }
 }
 

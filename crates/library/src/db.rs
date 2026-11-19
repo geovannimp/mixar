@@ -69,9 +69,11 @@ impl Db {
         Ok(SyncConnection(conn))
     }
 
-    /// Open an in-memory database without running migrations.
+    /// Open an in-memory database without running the data migrations.
     ///
     /// Migration tests need to insert legacy rows before the runner sees them.
+    /// The schema-compatibility phase has already run, so such a test resets
+    /// the ledger and replaces the table it wants to simulate.
     #[allow(dead_code)]
     pub(crate) fn open_in_memory_unmigrated() -> Result<Self> {
         Self::connect_unmigrated("sqlite::memory:")
@@ -165,6 +167,11 @@ pub(crate) fn open_in_memory_unmigrated() -> Result<Db> {
     Db::open_in_memory_unmigrated()
 }
 
+/// Prepare the schema: connection pragmas, legacy-layout migrations, then the
+/// SeaORM entity registry.
+///
+/// The compatibility migrations must run before the registry, which creates and
+/// extends tables but cannot rename one, drop one, or change a primary key.
 fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
     conn.execute_raw(Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
@@ -176,71 +183,10 @@ fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
         "PRAGMA journal_mode = WAL;".to_string(),
     ))?;
 
-    rename_legacy_collection_tracks_table(conn)?;
-    drop_legacy_track_stem_if_needed(conn)?;
+    crate::migrations::run_schema_compatibility_migrations(conn)
+        .map_err(|err| DbErr::Custom(err.to_string()))?;
 
     conn.get_schema_registry("library::entity::*").sync(conn)
-}
-
-fn rename_legacy_collection_tracks_table(
-    conn: &DatabaseConnection,
-) -> std::result::Result<(), DbErr> {
-    let has_old = conn
-        .query_one_raw(Statement::from_sql_and_values(
-            sea_orm::DatabaseBackend::Sqlite,
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='collection_tracks'",
-            [],
-        ))?
-        .and_then(|row| row.try_get::<i64>("", "count").ok())
-        .unwrap_or(0);
-    if has_old == 0 {
-        return Ok(());
-    }
-    conn.execute_raw(Statement::from_string(
-        sea_orm::DatabaseBackend::Sqlite,
-        "ALTER TABLE collection_tracks RENAME TO collection_entries".to_string(),
-    ))?;
-    Ok(())
-}
-
-/// Pre-NI-Stem DBs store four path columns (`vocals_path`, …). Sync cannot ADD a
-/// NOT NULL `path` onto that populated table. Drop the cache table so schema sync
-/// recreates it; stem files remain on disk until the next ensure / clear.
-fn drop_legacy_track_stem_if_needed(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
-    let has_table = conn
-        .query_one_raw(Statement::from_sql_and_values(
-            sea_orm::DatabaseBackend::Sqlite,
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='track_stem'",
-            [],
-        ))?
-        .and_then(|row| row.try_get::<i64>("", "count").ok())
-        .unwrap_or(0);
-    if has_table == 0 {
-        return Ok(());
-    }
-
-    let rows = conn.query_all_raw(Statement::from_string(
-        sea_orm::DatabaseBackend::Sqlite,
-        "PRAGMA table_info(track_stem)".to_string(),
-    ))?;
-    let mut has_path = false;
-    let mut has_legacy = false;
-    for row in rows {
-        let name: String = row.try_get("", "name").unwrap_or_default();
-        if name == "path" {
-            has_path = true;
-        }
-        if name == "vocals_path" || name == "drums_path" {
-            has_legacy = true;
-        }
-    }
-    if has_legacy || !has_path {
-        conn.execute_raw(Statement::from_string(
-            sea_orm::DatabaseBackend::Sqlite,
-            "DROP TABLE track_stem".to_string(),
-        ))?;
-    }
-    Ok(())
 }
 
 pub fn db_err(err: DbErr) -> LibraryError {

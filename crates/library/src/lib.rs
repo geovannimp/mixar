@@ -292,68 +292,14 @@ impl LibraryManager {
             &computed.embedded_metadata,
         )?;
 
-        let mut metadata = computed.metadata.clone();
-        // Precedence covered by `mik_key_precedes_analysis_on_first_discovery`
-        // (created rows, force and non-force) and
-        // `imported_mik_key_survives_non_forced_analysis` (existing rows).
-        if imported.created {
-            // On first discovery the imported key/grid BPM precede the analyzer.
-            // `force` keeps today's analysis-replacement semantics.
-            let imported_metadata = imported.source.metadata();
-            let tag_side = analyzer::TagMetadata {
-                bpm: imported_metadata.bpm,
-                key: imported_metadata.key.clone(),
-            };
-            let defaults = analyzer::AnalysisConfig::default();
-            let merged = analyzer::merge_track_metadata(
-                &tag_side,
-                &computed.analysis,
-                computed.force,
-                defaults.min_bpm_confidence,
-                defaults.min_key_confidence,
-            );
-            metadata.bpm = merged.bpm;
-            metadata.key = merged.key;
-        } else if !computed.force
-            && computed
-                .tag_metadata
-                .key
-                .as_deref()
-                .is_none_or(|key| key.trim().is_empty())
-        {
-            // The row's key may be an imported vendor key, which a missing tag
-            // must not erase and which a non-forced analysis must not replace.
-            // `force` keeps its replacement permission.
-            if let Some(key) = crate::embedded_metadata::nonblank_key(imported.source.metadata()) {
-                metadata.key = Some(key);
-            }
-        }
-
-        // A file tag that carries no value for a user-owned field must not
-        // clear what the editor stored: a foreign writer may not have written
-        // the tags Mixar mirrors (or written them on a scale it does not read).
-        if let Some((existing, edited)) = self
-            .store()
-            .file_track_metadata_and_edited(&path.to_string_lossy())?
-        {
-            tags::merge_user_metadata(&mut metadata, &existing, edited);
-        }
-        let source = self.upsert_file_source(&path, &metadata)?;
-        analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis, computed.force)?;
-        analysis::persist_analysis_grid(
-            &self.db,
-            source.id(),
-            &metadata,
-            &computed.analysis,
-            computed.force,
-        )?;
+        let id = imported.source.id();
+        analysis::persist_analysis_result(&self.db, id, computed)?;
+        let authoritative = self
+            .get_track(id)?
+            .ok_or_else(|| LibraryError::NotFound(id.as_str().to_string()))?;
         if persist_waveform {
-            waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
+            waveform::generate_and_store_overview(&self.db, id, &path)?;
         }
-        // A forced analysis grid may have replaced the BPM, so the authoritative
-        // stored row (not the pre-grid value) feeds the source. The plan carries
-        // only the row id: it re-reads the committed state when it runs.
-        let authoritative = self.get_track(source.id())?.unwrap_or(source);
         let plan = tags::TagWritePlan::for_track(self, authoritative.id(), true)?;
         Ok((authoritative, plan))
     }

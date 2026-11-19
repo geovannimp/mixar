@@ -243,7 +243,7 @@ pub(crate) fn save_track_beat_grid(
         None,
         SOURCE_MANUAL,
     );
-    beat_grid::write_track_beat_grid(db, track_id, &grid)?;
+    beat_grid::write_track_beat_grid(db, track_id, &grid, SOURCE_MANUAL)?;
     Ok(grid)
 }
 
@@ -433,7 +433,7 @@ impl LibraryManager {
 mod tests {
     use super::*;
     use crate::db;
-    use crate::store::Store;
+    use crate::store::{Store, TrackMetadataOrigin};
     use library_core::TrackMetadata;
     use std::path::Path;
 
@@ -459,6 +459,7 @@ mod tests {
                     duration_ms: Some(60_000),
                     ..TrackMetadata::default()
                 },
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -480,6 +481,7 @@ mod tests {
                     duration_ms: Some(60_000),
                     ..TrackMetadata::default()
                 },
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -514,6 +516,7 @@ mod tests {
                     duration_ms: Some(60_000),
                     ..TrackMetadata::default()
                 },
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -531,7 +534,7 @@ mod tests {
                 downbeat_offset_beats: 2,
             }],
         };
-        write_track_beat_grid(&db, &id, &grid).unwrap();
+        write_track_beat_grid(&db, &id, &grid, SOURCE_ANALYSIS).unwrap();
 
         let saved = save_track_beat_grid(&db, &id, 130.0, 0.25, false).unwrap();
         assert_eq!(saved.first_segment().unwrap().downbeat_offset_beats, 2);
@@ -555,6 +558,7 @@ mod tests {
                     duration_ms: Some(60_000),
                     ..TrackMetadata::default()
                 },
+                TrackMetadataOrigin::Tag,
                 "1",
             )
             .unwrap();
@@ -584,7 +588,7 @@ mod tests {
                 },
             ],
         };
-        write_track_beat_grid(&db, &id, &grid).unwrap();
+        write_track_beat_grid(&db, &id, &grid, SOURCE_ANALYSIS).unwrap();
 
         assert!(save_track_beat_grid(&db, &id, 130.0, 0.25, false).is_err());
         save_track_beat_grid(&db, &id, 130.0, 0.25, true).unwrap();

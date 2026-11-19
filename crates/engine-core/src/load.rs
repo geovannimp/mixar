@@ -102,8 +102,12 @@ impl Engine {
 
         let bpm = prepared.source.metadata().bpm;
         let track_id = prepared.track_id.clone();
-        let loudness_lufs =
-            loudness_from_metadata(prepared.source.metadata()).or(prepared.loudness_lufs);
+        // Library preparation already resolved and persisted effective loudness
+        // (including ReplayGain). Do not reinterpret a refreshed tag over it.
+        let loudness_lufs = prepared
+            .loudness_lufs
+            .filter(|value| value.is_finite())
+            .or_else(|| loudness_from_metadata(prepared.source.metadata()));
 
         // Phase B (unlocked): resampler/stretcher construction so the producer can keep filling.
         let deck_load = spec.prepare(prepared.audio)?;
