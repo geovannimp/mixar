@@ -1,17 +1,18 @@
 //! Session tests for cc14 pairing.
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+use bus_api::Command;
 use bus_api::{Event, SetVolume};
 use controller::{load_bundle, ActionPublish, MappingSession};
 use std::path::PathBuf;
 
 struct Capture {
-    cmds: Vec<Event>,
+    cmds: Vec<Command>,
 }
 
 impl ActionPublish for Capture {
-    fn publish_cmd(&mut self, event: Event) {
-        self.cmds.push(event);
+    fn publish_cmd(&mut self, command: Command) {
+        self.cmds.push(command);
     }
     fn publish_evt(&mut self, _event: Event) {}
 }
@@ -40,7 +41,7 @@ fn cc14_waits_for_both_bytes_then_publishes_volume() {
     // LSB completes pair
     session.handle_midi(&[0xB0, 0x33, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    let Event::SetVolume(SetVolume {
+    let Command::SetVolume(SetVolume {
         deck: 0,
         volume,
         soft_takeover: false,

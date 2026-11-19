@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use bus_api::AnalyzeTrack;
+use bus_api::Command;
 use bus_api::DeleteTrackLoop;
 use bus_api::Event;
 use bus_api::GenerateStems;
@@ -763,7 +764,7 @@ impl LibraryTransport {
     /// Queue analyze for a track via the library cmd bus only (worker emits evt).
     pub fn analyze_track(&self, track_id: String, force: bool) -> Result<(), String> {
         self.buses
-            .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack { track_id, force }))
+            .publish_cmd(Command::AnalyzeTrack(AnalyzeTrack { track_id, force }))
             .bridge()
     }
 
@@ -773,7 +774,7 @@ impl LibraryTransport {
     /// implicitly. No-op server-side when a valid stem cache already exists.
     pub fn generate_stems(&self, track_id: String) -> Result<(), String> {
         self.buses
-            .publish_cmd(Event::GenerateStems(GenerateStems { track_id }))
+            .publish_cmd(Command::GenerateStems(GenerateStems { track_id }))
             .bridge()
     }
 
@@ -781,10 +782,10 @@ impl LibraryTransport {
     ///
     /// Resolves the target set server-side with the non-force skip rule (tracks
     /// that already carry BPM/key or have an analysis row are skipped), then
-    /// publishes one [`Event::AnalyzeTrack`] per target — the same bus path as
+    /// publishes one [`Command::AnalyzeTrack`] per target — the same bus path as
     /// single-track analyze, so per-track `TrackProgress` / `TrackAnalyzed`
     /// events flow unchanged. With `generate_stems`, an
-    /// [`Event::GenerateStems`] is queued for every file track (stem cache
+    /// [`Command::GenerateStems`] is queued for every file track (stem cache
     /// state is independent of BPM/tags; the serial stem queue no-ops on valid
     /// caches, including native `.stem.mp4` files). Returns the queued analysis
     /// ids so the UI can mark them analyzing up front.
@@ -825,14 +826,14 @@ impl LibraryTransport {
         // land early instead of waiting behind every analysis.
         for track_id in &stem_ids {
             self.buses
-                .publish_cmd(Event::GenerateStems(GenerateStems {
+                .publish_cmd(Command::GenerateStems(GenerateStems {
                     track_id: track_id.clone(),
                 }))
                 .bridge()?;
         }
         for track_id in &analyze_ids {
             self.buses
-                .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack {
+                .publish_cmd(Command::AnalyzeTrack(AnalyzeTrack {
                     track_id: track_id.clone(),
                     force,
                 }))
@@ -922,7 +923,7 @@ impl LibraryTransport {
     /// Queue metadata refresh for a track via the library cmd bus only.
     pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
         self.buses
-            .publish_cmd(Event::RefreshTrack(RefreshTrack { track_id }))
+            .publish_cmd(Command::RefreshTrack(RefreshTrack { track_id }))
             .bridge()
     }
 
@@ -941,7 +942,7 @@ impl LibraryTransport {
             return Err("loop out must be after loop in".into());
         }
         self.buses
-            .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+            .publish_cmd(Command::SaveTrackLoop(SaveTrackLoop {
                 track_id,
                 slot,
                 in_ms,
@@ -958,7 +959,7 @@ impl LibraryTransport {
             return Err("loop slot must be 0..=15".into());
         }
         self.buses
-            .publish_cmd(Event::DeleteTrackLoop(DeleteTrackLoop { track_id, slot }))
+            .publish_cmd(Command::DeleteTrackLoop(DeleteTrackLoop { track_id, slot }))
             .bridge()
     }
 
@@ -977,7 +978,7 @@ impl LibraryTransport {
             return Err("beat grid first_beat_secs must be finite".into());
         }
         self.buses
-            .publish_cmd(Event::SaveBeatGrid(SaveBeatGrid {
+            .publish_cmd(Command::SaveBeatGrid(SaveBeatGrid {
                 track_id,
                 bpm,
                 first_beat_secs,
@@ -994,7 +995,7 @@ impl LibraryTransport {
 
     /// The library's cmd/evt bus (the process bus in the app).
     #[flutter_rust_bridge::frb(ignore)]
-    pub fn bus(&self) -> event_bus::EventBus<Event> {
+    pub fn bus(&self) -> event_bus::EventBus<Command, Event> {
         self.buses.bus()
     }
 

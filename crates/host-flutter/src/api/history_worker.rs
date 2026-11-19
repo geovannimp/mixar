@@ -6,9 +6,11 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crate::bridge::BridgeResult;
+use bus_api::Command;
 use bus_api::DeckSnapshot;
 use bus_api::DeckUpdated;
 use bus_api::Event;
+use bus_api::EventTopic;
 use event_bus::EventBus;
 use event_bus::Subscriber;
 use library::{DeckPlaySnapshot, LibraryManager};
@@ -32,10 +34,17 @@ impl Drop for HistoryWorker {
 
 impl HistoryWorker {
     pub fn start(
-        buses: &EventBus<Event>,
+        buses: &EventBus<Command, Event>,
         library: Arc<Mutex<LibraryManager>>,
     ) -> Result<Self, String> {
-        let rx = buses.subscribe_evt().bridge()?;
+        // Only deck switches and engine status start or close a set entry, so the
+        // worker filters instead of inspecting every position/level tick.
+        let rx = buses
+            .subscribe_evt_topics(
+                "history",
+                &[EventTopic::DeckUpdated, EventTopic::EngineSnapshot],
+            )
+            .bridge()?;
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
         let handle = std::thread::Builder::new()
@@ -50,14 +59,14 @@ impl HistoryWorker {
 }
 
 fn run_loop(
-    mut rx: Subscriber<Event>,
+    mut rx: Subscriber<Arc<Event>>,
     library: Arc<Mutex<LibraryManager>>,
     shutdown: Arc<AtomicBool>,
 ) {
     let mut last_tick = Instant::now();
     while !shutdown.load(Ordering::Relaxed) {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(event)) => apply_evt(&library, &event),
+            Ok(Some(event)) => apply_evt(&library, event.as_ref()),
             Ok(None) => {}
             Err(_) => break,
         }

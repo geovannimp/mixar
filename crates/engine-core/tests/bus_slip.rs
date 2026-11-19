@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::JogTouch;
 use bus_api::SetSlip;
 use common::recv_position;
@@ -45,10 +45,10 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_slip_publishes_enabled_flag_without_shadow() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetSlip(SetSlip {
+        .publish_cmd(Command::SetSlip(SetSlip {
             deck: 0,
             enabled: true,
         }))
@@ -104,7 +104,7 @@ fn exit_loop_with_slip_catches_up() {
 #[test]
 fn slip_shadow_publishes_only_during_a_manual_action() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
         .with_engine(|engine| {
@@ -128,7 +128,7 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
 
     // Jog touch arms the cursor …
     session
-        .publish_cmd(Event::JogTouch(JogTouch {
+        .publish_cmd(Command::JogTouch(JogTouch {
             deck: 0,
             touching: true,
         }))
@@ -141,7 +141,7 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
 
     // … and release catches up and clears it.
     session
-        .publish_cmd(Event::JogTouch(JogTouch {
+        .publish_cmd(Command::JogTouch(JogTouch {
             deck: 0,
             touching: false,
         }))

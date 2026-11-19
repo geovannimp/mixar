@@ -405,7 +405,7 @@ fn direct_and_off_mutex_analysis_adopt() {
 #[cfg(feature = "analysis")]
 #[test]
 fn worker_analyze_adopts() {
-    use bus_api::{AnalyzeTrack, Event};
+    use bus_api::{AnalyzeTrack, Command};
     use std::time::{Duration, Instant};
 
     let dir = tempfile::tempdir().unwrap();
@@ -419,7 +419,7 @@ fn worker_analyze_adopts() {
         seed_unmarked(&lib, &wav)
     };
     session
-        .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack {
+        .publish_cmd(Command::AnalyzeTrack(AnalyzeTrack {
             track_id: id.as_str().to_string(),
             force: false,
         }))

@@ -3,15 +3,16 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
+use bus_api::Command;
 use bus_api::Event;
 
 struct CaptureBus {
-    cmds: Vec<Event>,
+    cmds: Vec<Command>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, event: Event) {
-        self.cmds.push(event);
+    fn publish_cmd(&mut self, command: Command) {
+        self.cmds.push(command);
     }
     fn publish_evt(&mut self, _event: Event) {}
 }

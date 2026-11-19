@@ -1,15 +1,16 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+use bus_api::Command;
 use bus_api::Event;
 use std::path::Path;
 
 struct CaptureBus {
-    cmds: Vec<Event>,
+    cmds: Vec<Command>,
     evts: Vec<Event>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, event: Event) {
-        self.cmds.push(event);
+    fn publish_cmd(&mut self, command: Command) {
+        self.cmds.push(command);
     }
     fn publish_evt(&mut self, event: Event) {
         self.evts.push(event);
@@ -46,14 +47,14 @@ fn ddj400_fader_start_notes_publish_native_events() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::FaderStart(bus_api::FaderStart { deck: 0 })
+        Command::FaderStart(bus_api::FaderStart { deck: 0 })
     );
 
     s.handle_midi(&[0x90, 0x52, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
     assert_eq!(
         bus.cmds[1],
-        Event::FaderStop(bus_api::FaderStop { deck: 0 })
+        Command::FaderStop(bus_api::FaderStop { deck: 0 })
     );
 
     // deck 2 (MIDI channel 2)
@@ -61,14 +62,14 @@ fn ddj400_fader_start_notes_publish_native_events() {
     assert_eq!(bus.cmds.len(), 3);
     assert_eq!(
         bus.cmds[2],
-        Event::FaderStart(bus_api::FaderStart { deck: 1 })
+        Command::FaderStart(bus_api::FaderStart { deck: 1 })
     );
 
     s.handle_midi(&[0x91, 0x52, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 4);
     assert_eq!(
         bus.cmds[3],
-        Event::FaderStop(bus_api::FaderStop { deck: 1 })
+        Command::FaderStop(bus_api::FaderStop { deck: 1 })
     );
 }
 
@@ -82,7 +83,7 @@ fn ddj400_native_fader_notes_and_cc14_volume_stay_distinct_and_ordered() {
         assert!(s
             .handle_midi(&[0x90 | channel, 0x66, 0x7F], &mut bus, &mut midi)
             .is_none());
-        let mut expected = vec![Event::FaderStart(bus_api::FaderStart { deck })];
+        let mut expected = vec![Command::FaderStart(bus_api::FaderStart { deck })];
         assert_eq!(bus.cmds, expected);
 
         // A native note release must not act as the fader-stop control.
@@ -96,7 +97,7 @@ fn ddj400_native_fader_notes_and_cc14_volume_stay_distinct_and_ordered() {
         assert!(s
             .handle_midi(&[0xB0 | channel, 0x33, 0x7F], &mut bus, &mut midi)
             .is_none());
-        expected.push(Event::SetVolume(bus_api::SetVolume {
+        expected.push(Command::SetVolume(bus_api::SetVolume {
             deck,
             volume: 1.0,
             soft_takeover: true,
@@ -107,7 +108,7 @@ fn ddj400_native_fader_notes_and_cc14_volume_stay_distinct_and_ordered() {
         );
 
         s.handle_midi(&[0x90 | channel, 0x52, 0x7F], &mut bus, &mut midi);
-        expected.push(Event::FaderStop(bus_api::FaderStop { deck }));
+        expected.push(Command::FaderStop(bus_api::FaderStop { deck }));
         assert_eq!(bus.cmds, expected);
 
         // MIDI permits both explicit note-off and zero-velocity note-on

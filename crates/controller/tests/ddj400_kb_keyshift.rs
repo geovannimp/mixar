@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::KeyShiftPadPress;
 use bus_api::KeyboardPadPress;
@@ -15,12 +16,12 @@ use bus_api::SetPadMode;
 use bus_api::ToggleMasterCue;
 
 struct CaptureBus {
-    cmds: Vec<Event>,
+    cmds: Vec<Command>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, event: Event) {
-        self.cmds.push(event);
+    fn publish_cmd(&mut self, command: Command) {
+        self.cmds.push(command);
     }
     fn publish_evt(&mut self, _event: Event) {}
 }
@@ -58,7 +59,7 @@ fn keyboard_and_key_shift_banks_dispatch() {
     s.handle_midi(&[0x97, 0x40, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::KeyboardPadPress(KeyboardPadPress {
+        Some(&Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 0,
             shift: false
@@ -68,7 +69,7 @@ fn keyboard_and_key_shift_banks_dispatch() {
     s.handle_midi(&[0x87, 0x40, 0x00], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::KeyboardPadRelease(KeyboardPadRelease {
+        Some(&Command::KeyboardPadRelease(KeyboardPadRelease {
             deck: 0,
             slot: 0
         }))
@@ -78,7 +79,7 @@ fn keyboard_and_key_shift_banks_dispatch() {
     s.handle_midi(&[0x97, 0x70, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::KeyShiftPadPress(KeyShiftPadPress {
+        Some(&Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 0,
             shift: false
@@ -89,7 +90,7 @@ fn keyboard_and_key_shift_banks_dispatch() {
     s.handle_midi(&[0x98, 0x40, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::KeyboardPadPress(KeyboardPadPress {
+        Some(&Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 0,
             shift: true
@@ -100,7 +101,7 @@ fn keyboard_and_key_shift_banks_dispatch() {
     s.handle_midi(&[0x98, 0x70, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::KeyShiftPadPress(KeyShiftPadPress {
+        Some(&Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 0,
             shift: true
@@ -118,7 +119,7 @@ fn key_shift_pad_lights_led_and_reset_clears() {
     s.handle_midi(&[0x90, 0x6F, 0x7F], &mut bus, &mut midi);
     assert!(matches!(
         bus.cmds.last(),
-        Some(Event::SetPadMode(SetPadMode { .. }))
+        Some(Command::SetPadMode(SetPadMode { .. }))
     ));
     midi.frames.clear();
 
@@ -187,7 +188,7 @@ fn mode_buttons_set_pad_mode() {
     s.handle_midi(&[0x90, 0x69, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::SetPadMode(SetPadMode {
+        Some(&Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard
         }))
@@ -197,7 +198,7 @@ fn mode_buttons_set_pad_mode() {
     s.handle_midi(&[0x90, 0x6F, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         bus.cmds.last(),
-        Some(&Event::SetPadMode(SetPadMode {
+        Some(&Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::KeyShift
         }))
@@ -213,7 +214,7 @@ fn master_mixer_controls_dispatch() {
     // MASTER CUE (ch7 / note 0x63) → ToggleMasterCue + LED on/off
     s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0], Event::ToggleMasterCue(ToggleMasterCue {}));
+    assert_eq!(bus.cmds[0], Command::ToggleMasterCue(ToggleMasterCue {}));
     assert_eq!(midi.frames.len(), 1, "MASTER CUE LED should turn on");
     assert_eq!(midi.frames[0], vec![0x96, 0x63, 0x7F]);
 
@@ -223,7 +224,7 @@ fn master_mixer_controls_dispatch() {
 
     s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
-    assert_eq!(bus.cmds[1], Event::ToggleMasterCue(ToggleMasterCue {}));
+    assert_eq!(bus.cmds[1], Command::ToggleMasterCue(ToggleMasterCue {}));
     assert_eq!(midi.frames.len(), 2, "MASTER CUE LED should turn off");
     assert_eq!(midi.frames[1], vec![0x96, 0x63, 0x00]);
 
@@ -233,7 +234,7 @@ fn master_mixer_controls_dispatch() {
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x2C, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    let Event::SetCueMix(SetCueMix {
+    let Command::SetCueMix(SetCueMix {
         soft_takeover: true,
         ..
     }) = bus.cmds[0]
@@ -247,7 +248,7 @@ fn master_mixer_controls_dispatch() {
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x28, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    let Event::SetMasterVolume(SetMasterVolume {
+    let Command::SetMasterVolume(SetMasterVolume {
         soft_takeover: true,
         ..
     }) = bus.cmds[0]
@@ -264,7 +265,7 @@ fn master_mixer_controls_dispatch() {
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x2D, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    let Event::SetCueVolume(SetCueVolume {
+    let Command::SetCueVolume(SetCueVolume {
         soft_takeover: true,
         ..
     }) = bus.cmds[0]

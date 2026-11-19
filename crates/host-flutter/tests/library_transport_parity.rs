@@ -205,7 +205,7 @@ fn add_folder_collection_skips_nested_when_not_recursive() {
 #[test]
 fn refresh_missing_track_publishes_error_evt() {
     let transport = host_flutter::testing::open_library_in_memory().unwrap();
-    let mut rx = transport.bus().subscribe_evt().unwrap();
+    let mut rx = transport.bus().subscribe_evt("test").unwrap();
 
     transport.refresh_track("missing-track-id".into()).unwrap();
 
@@ -213,7 +213,7 @@ fn refresh_missing_track_publishes_error_evt() {
         .recv_timeout(Duration::from_secs(2))
         .expect("evt bus alive")
         .expect("Error evt");
-    match event {
+    match event.as_ref() {
         Event::Error(Error {
             message, track_id, ..
         }) => {
@@ -227,7 +227,7 @@ fn refresh_missing_track_publishes_error_evt() {
 #[test]
 fn analyze_missing_track_publishes_error_evt() {
     let transport = host_flutter::testing::open_library_in_memory().unwrap();
-    let mut rx = transport.bus().subscribe_evt().unwrap();
+    let mut rx = transport.bus().subscribe_evt("test").unwrap();
 
     transport
         .analyze_track("missing-track-id".into(), false)
@@ -241,13 +241,13 @@ fn analyze_missing_track_publishes_error_evt() {
             .expect("evt bus alive")
             .expect("Error evt");
         // Analyze publishes TrackProgress before failure; wait for the Error.
-        match event {
+        match event.as_ref() {
             Event::Error(_) => break event,
             Event::TrackProgress(_) => {}
             other => panic!("unexpected event before Error: {other:?}"),
         }
     };
-    match event {
+    match event.as_ref() {
         Event::Error(Error {
             message, track_id, ..
         }) => {
@@ -273,18 +273,120 @@ fn refresh_existing_track_emits_track_updated() {
         .unwrap();
     assert_eq!(tracks.len(), 1);
 
-    let mut rx = transport.bus().subscribe_evt().unwrap();
+    let mut rx = transport.bus().subscribe_evt("test").unwrap();
     transport.refresh_track(tracks[0].id.clone()).unwrap();
 
     let event = rx
         .recv_timeout(Duration::from_secs(2))
         .expect("evt bus alive")
         .expect("TrackUpdated evt");
-    match event {
+    match event.as_ref() {
         Event::TrackUpdated(TrackUpdated { track }) => {
             assert_eq!(track.id, tracks[0].id);
             assert!(track.path.ends_with("track_b.wav"));
         }
         other => panic!("unexpected event {other:?}"),
     }
+}
+
+/// A library save is visible to every observer, and the engine applies the ack.
+///
+/// The engine only commits deck memory when the library confirms with
+/// `HotCuesChanged`; that acknowledgement now travels on a topic-filtered
+/// subscription, so this covers the filter as well as the event itself.
+#[test]
+fn saving_a_hot_cue_reaches_every_observer_and_the_engine() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("track_cue.wav");
+    write_minimal_wav(&wav);
+
+    let bus = host_flutter::api::bus::BusTransport::open().unwrap();
+    let library = host_flutter::api::library::LibraryTransport::open_in_memory(&bus).unwrap();
+    let added = library
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
+        .unwrap();
+    let tracks = library
+        .list_collection_entries(added.collection.id.clone())
+        .unwrap();
+    assert_eq!(tracks.len(), 1);
+    let track_id = tracks[0].id.clone();
+
+    let config = engine_core::EngineConfig {
+        backend: "null".into(),
+        ..engine_core::EngineConfig::default()
+    };
+    let engine = host_flutter::testing::start_engine(&bus, &library, config).unwrap();
+
+    // Two observers, both registered before the save: the Flutter stream and a
+    // history-shaped observer with its own label.
+    let mut flutter = host_flutter::testing::subscribe_evt(&bus).unwrap();
+    let mut history = host_flutter::testing::subscribe_evt(&bus).unwrap();
+
+    engine
+        .load_path(0, wav.to_string_lossy().into_owned())
+        .unwrap();
+    // Drain the load burst so the assertions below see the save's events.
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
+        match flutter.recv_timeout(Duration::from_millis(50)) {
+            Ok(Some(event)) => {
+                if matches!(event.as_ref(), Event::DeckUpdated(update) if update.deck == 0) {
+                    break;
+                }
+            }
+            Ok(None) => {}
+            Err(error) => panic!("evt bus disconnected: {error}"),
+        }
+    }
+
+    engine.set_cue_point(0).unwrap();
+    engine.hot_cue_pad_press(0, 1, false).unwrap();
+
+    // Each observer scans its own stream: both receive the whole sequence, so
+    // the same acknowledgement must appear in both, in order.
+    let mut flutter_hot_cues = None;
+    let mut acknowledged_on_deck = false;
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
+        let Ok(Some(event)) = flutter.recv_timeout(Duration::from_millis(50)) else {
+            continue;
+        };
+        match event.as_ref() {
+            Event::HotCuesChanged(changed) => {
+                assert_eq!(changed.track_id, track_id, "the save names its track");
+                flutter_hot_cues = Some(changed.hot_cues.clone());
+            }
+            Event::DeckUpdated(update) if update.deck == 0 && !update.hot_cues.is_empty() => {
+                acknowledged_on_deck = true;
+            }
+            _ => {}
+        }
+        if flutter_hot_cues.is_some() && acknowledged_on_deck {
+            break;
+        }
+    }
+
+    let mut history_hot_cues = None;
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while std::time::Instant::now() < deadline && history_hot_cues.is_none() {
+        let Ok(Some(event)) = history.recv_timeout(Duration::from_millis(50)) else {
+            continue;
+        };
+        if let Event::HotCuesChanged(changed) = event.as_ref() {
+            history_hot_cues = Some(changed.hot_cues.clone());
+        }
+    }
+    assert_eq!(
+        history_hot_cues, flutter_hot_cues,
+        "every observer sees the same acknowledgement"
+    );
+
+    assert!(
+        flutter_hot_cues.is_some(),
+        "the library save published no HotCuesChanged"
+    );
+    assert!(
+        acknowledged_on_deck,
+        "the engine never committed the acknowledged hot cue"
+    );
 }

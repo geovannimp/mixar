@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::{FaderStart, FaderStop, Play, Seek, SetCuePoint, SetFaderStartNative, SetVolume};
 use common::recv_updated;
@@ -78,35 +79,35 @@ fn load_test_track(session: &EngineSession) {
         .expect("load");
 }
 
-fn publish(session: &EngineSession, event: Event) {
+fn publish(session: &EngineSession, event: Command) {
     session.publish_cmd(event).expect("publish");
 }
 
 fn started_session(config: EngineConfig) -> (EngineSession, common::TestReceiver) {
     let session = EngineSession::new(config).expect("session");
-    let evt = session.subscribe_evt_all().expect("sub");
+    let evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
     (session, evt)
 }
 
 fn assert_native_events_silent(session: &EngineSession, evt: &mut common::TestReceiver) {
-    publish(session, Event::FaderStart(FaderStart { deck: 0 }));
-    publish(session, Event::FaderStop(FaderStop { deck: 0 }));
+    publish(session, Command::FaderStart(FaderStart { deck: 0 }));
+    publish(session, Command::FaderStop(FaderStop { deck: 0 }));
     assert_no_deck_updated(evt, Duration::from_millis(250));
 }
 
 #[test]
 fn fader_leaving_zero_plays_and_returning_pauses() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
     // Seed the latch at zero.
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -118,7 +119,7 @@ fn fader_leaving_zero_plays_and_returning_pauses() {
     // Move up: deck starts playing.
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.5,
             soft_takeover: false,
@@ -130,7 +131,7 @@ fn fader_leaving_zero_plays_and_returning_pauses() {
     // Move back down: deck pauses.
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -148,13 +149,13 @@ fn default_config_never_touches_transport() {
     };
     assert!(!config.fader_start().enabled);
     let session = EngineSession::new(config).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -164,7 +165,7 @@ fn default_config_never_touches_transport() {
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.5,
             soft_takeover: false,
@@ -180,12 +181,12 @@ fn default_config_never_touches_transport() {
 #[test]
 fn fader_start_without_a_track_is_a_silent_no_op() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -195,7 +196,7 @@ fn fader_start_without_a_track_is_a_silent_no_op() {
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.5,
             soft_takeover: false,
@@ -208,39 +209,39 @@ fn fader_start_without_a_track_is_a_silent_no_op() {
 #[test]
 fn pause_and_cue_returns_to_the_cue_point() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
     // Set a cue point at 5000 ms.
     publish(
         &session,
-        Event::Seek(Seek {
+        Command::Seek(Seek {
             deck: 0,
             position_ms: 5000,
         }),
     );
     let _ = recv_updated(&mut evt);
-    publish(&session, Event::SetCuePoint(SetCuePoint { deck: 0 }));
+    publish(&session, Command::SetCuePoint(SetCuePoint { deck: 0 }));
     let cue = recv_updated(&mut evt);
     assert_eq!(cue.cue_point_ms, Some(5000));
 
     // Play from 9000 ms.
     publish(
         &session,
-        Event::Seek(Seek {
+        Command::Seek(Seek {
             deck: 0,
             position_ms: 9000,
         }),
     );
     let _ = recv_updated(&mut evt);
-    publish(&session, Event::Play(Play { deck: 0 }));
+    publish(&session, Command::Play(Play { deck: 0 }));
     let _ = recv_updated(&mut evt);
 
     // Seed, cross up (no-op while already playing), then cross down.
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -249,7 +250,7 @@ fn pause_and_cue_returns_to_the_cue_point() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.5,
             soft_takeover: false,
@@ -258,7 +259,7 @@ fn pause_and_cue_returns_to_the_cue_point() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -272,7 +273,7 @@ fn pause_and_cue_returns_to_the_cue_point() {
 #[test]
 fn pause_and_cue_returns_to_the_loaded_cue() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
@@ -280,20 +281,20 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     // The freshly loaded track already has a temporary cue at the start (0 ms).
     publish(
         &session,
-        Event::Seek(Seek {
+        Command::Seek(Seek {
             deck: 0,
             position_ms: 9000,
         }),
     );
     let _ = recv_updated(&mut evt);
-    publish(&session, Event::Play(Play { deck: 0 }));
+    publish(&session, Command::Play(Play { deck: 0 }));
     let playing = recv_updated(&mut evt);
     assert!(playing.playing);
 
     // Seed, cross up (no-op while already playing), then cross down.
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -302,7 +303,7 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.5,
             soft_takeover: false,
@@ -311,7 +312,7 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -334,7 +335,7 @@ fn assert_no_deck_updated(sub: &mut common::TestReceiver, timeout: Duration) {
         match sub.recv_timeout(remaining) {
             Ok(None) => {}
             Ok(Some(event)) => {
-                if matches!(event, Event::DeckUpdated(_) | Event::Error(_)) {
+                if matches!(event.as_ref(), Event::DeckUpdated(_) | Event::Error(_)) {
                     panic!("expected no DeckUpdated or Error, got {event:?}");
                 }
             }
@@ -346,15 +347,15 @@ fn assert_no_deck_updated(sub: &mut common::TestReceiver, timeout: Duration) {
 #[test]
 fn native_events_run_the_configured_actions() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
-    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    publish(&session, Command::FaderStart(FaderStart { deck: 0 }));
     let started = recv_updated(&mut evt);
     assert!(started.playing, "FaderStart on_non_zero must play the deck");
 
-    publish(&session, Event::FaderStop(FaderStop { deck: 0 }));
+    publish(&session, Command::FaderStop(FaderStop { deck: 0 }));
     let stopped = recv_updated(&mut evt);
     assert!(!stopped.playing, "FaderStop on_zero must pause the deck");
     assert_eq!(stopped.position_ms, Some(0));
@@ -363,13 +364,13 @@ fn native_events_run_the_configured_actions() {
 #[test]
 fn native_deck_ignores_the_software_threshold() {
     let session = EngineSession::new(enabled_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     load_test_track(&session);
 
     publish(
         &session,
-        Event::SetFaderStartNative(SetFaderStartNative {
+        Command::SetFaderStartNative(SetFaderStartNative {
             deck: 0,
             native: true,
         }),
@@ -379,7 +380,7 @@ fn native_deck_ignores_the_software_threshold() {
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.0,
             soft_takeover: false,
@@ -389,7 +390,7 @@ fn native_deck_ignores_the_software_threshold() {
 
     publish(
         &session,
-        Event::SetVolume(SetVolume {
+        Command::SetVolume(SetVolume {
             deck: 0,
             volume: 0.8,
             soft_takeover: false,
@@ -401,7 +402,7 @@ fn native_deck_ignores_the_software_threshold() {
         "native deck must ignore the software fader threshold"
     );
 
-    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    publish(&session, Command::FaderStart(FaderStart { deck: 0 }));
     let playing = recv_updated(&mut evt);
     assert!(playing.playing, "controller-native FaderStart must play");
 }

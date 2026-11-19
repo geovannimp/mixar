@@ -1,15 +1,16 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+use bus_api::Command;
 use bus_api::Event;
 use std::path::Path;
 
 struct CaptureBus {
-    cmds: Vec<Event>,
+    cmds: Vec<Command>,
     evts: Vec<Event>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, event: Event) {
-        self.cmds.push(event);
+    fn publish_cmd(&mut self, command: Command) {
+        self.cmds.push(command);
     }
     fn publish_evt(&mut self, event: Event) {
         self.evts.push(event);
@@ -54,7 +55,7 @@ fn note_toggle_play_publishes_toggle_play() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::TogglePlay(bus_api::TogglePlay { deck: 0 })
+        Command::TogglePlay(bus_api::TogglePlay { deck: 0 })
     );
 }
 
@@ -74,7 +75,7 @@ fn modifier_shift_selects_set_filter() {
     assert_eq!(bus.cmds.len(), 1);
     assert!(matches!(
         bus.cmds[0],
-        Event::SetFilter(bus_api::SetFilter { deck: 0, .. })
+        Command::SetFilter(bus_api::SetFilter { deck: 0, .. })
     ));
 }
 
@@ -89,7 +90,7 @@ fn soft_takeover_flag_passed_on_absolute_volume() {
     s.handle_midi(&[0xB0, 0x13, 13], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     match &bus.cmds[0] {
-        Event::SetVolume(bus_api::SetVolume {
+        Command::SetVolume(bus_api::SetVolume {
             deck: 0,
             soft_takeover: true,
             ..
@@ -111,7 +112,7 @@ fn headphone_cue_toggles_and_lights_led() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
+        Command::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
     );
     assert_eq!(midi.frames.len(), 1, "PFL LED should turn on");
     assert_eq!(midi.frames[0], vec![0x90, 0x54, 0x7F]);
@@ -121,7 +122,7 @@ fn headphone_cue_toggles_and_lights_led() {
     assert_eq!(bus.cmds.len(), 2);
     assert_eq!(
         bus.cmds[1],
-        Event::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
+        Command::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
     );
     assert_eq!(midi.frames.len(), 2, "PFL LED should turn off");
     assert_eq!(midi.frames[1], vec![0x90, 0x54, 0x00]);
@@ -147,7 +148,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::HotCuePadPress(bus_api::HotCuePadPress {
+        Command::HotCuePadPress(bus_api::HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: false
@@ -160,7 +161,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::HotCuePadRelease(bus_api::HotCuePadRelease { deck: 0, slot: 0 })
+        Command::HotCuePadRelease(bus_api::HotCuePadRelease { deck: 0, slot: 0 })
     );
 
     bus.cmds.clear();
@@ -169,7 +170,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::TogglePlay(bus_api::TogglePlay { deck: 0 })
+        Command::TogglePlay(bus_api::TogglePlay { deck: 0 })
     );
 }
 
@@ -256,13 +257,13 @@ fn fader_start_leaves_map_to_the_native_events() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::FaderStart(bus_api::FaderStart { deck: 0 })
+        Command::FaderStart(bus_api::FaderStart { deck: 0 })
     );
 
     s.handle_midi(&[0x90, 0x52, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
     assert_eq!(
         bus.cmds[1],
-        Event::FaderStop(bus_api::FaderStop { deck: 0 })
+        Command::FaderStop(bus_api::FaderStop { deck: 0 })
     );
 }

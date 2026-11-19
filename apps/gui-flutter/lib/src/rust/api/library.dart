@@ -9,7 +9,7 @@ import 'bus.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `library_arc`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bus`, `library_buses`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -61,10 +61,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   ///
   /// Resolves the target set server-side with the non-force skip rule (tracks
   /// that already carry BPM/key or have an analysis row are skipped), then
-  /// publishes one [`Event::AnalyzeTrack`] per target — the same bus path as
+  /// publishes one [`Command::AnalyzeTrack`] per target — the same bus path as
   /// single-track analyze, so per-track `TrackProgress` / `TrackAnalyzed`
   /// events flow unchanged. With `generate_stems`, an
-  /// [`Event::GenerateStems`] is queued for every file track (stem cache
+  /// [`Command::GenerateStems`] is queued for every file track (stem cache
   /// state is independent of BPM/tags; the serial stem queue no-ops on valid
   /// caches, including native `.stem.mp4` files). Returns the queued analysis
   /// ids so the UI can mark them analyzing up front.

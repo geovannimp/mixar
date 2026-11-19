@@ -4,6 +4,7 @@ use bus_api::BeatJump;
 use bus_api::BeatJumpPadPress;
 use bus_api::BeatJumpPadRelease;
 use bus_api::BeginCueHold;
+use bus_api::Command;
 use bus_api::CrossfaderAssign;
 use bus_api::DeleteDeckHotCue;
 use bus_api::EndCueHold;
@@ -396,15 +397,15 @@ fn next_tempo_range(current: f32) -> f32 {
 #[derive(Clone, Debug, PartialEq)]
 pub enum RoutedAction {
     /// One command for the engine or library worker.
-    Cmd(Event),
+    Cmd(Command),
     /// One physical control publishing several cmds (exclusive routing groups).
-    Cmds(Vec<Event>),
+    Cmds(Vec<Command>),
     /// Egress event the host re-broadcasts (library navigate/focus/load).
     Evt(Event),
 }
 
 /// Deck-scoped command: `None` when the bound section addresses no deck.
-fn deck_cmd(scope: EngineScope, build: impl FnOnce(u16) -> Event) -> Option<RoutedAction> {
+fn deck_cmd(scope: EngineScope, build: impl FnOnce(u16) -> Command) -> Option<RoutedAction> {
     match scope {
         EngineScope::Deck(deck) => Some(RoutedAction::Cmd(build(deck))),
         EngineScope::Mixer | EngineScope::Engine => None,
@@ -415,7 +416,7 @@ fn deck_cmd(scope: EngineScope, build: impl FnOnce(u16) -> Event) -> Option<Rout
 fn deck_press(
     active: bool,
     scope: EngineScope,
-    build: impl FnOnce(u16) -> Event,
+    build: impl FnOnce(u16) -> Command,
 ) -> Option<RoutedAction> {
     if active {
         deck_cmd(scope, build)
@@ -425,14 +426,14 @@ fn deck_press(
 }
 
 /// Mixer-scoped command (no deck to fill in).
-fn mixer_cmd(event: impl FnOnce() -> Event) -> Option<RoutedAction> {
-    Some(RoutedAction::Cmd(event()))
+fn mixer_cmd(build: impl FnOnce() -> Command) -> Option<RoutedAction> {
+    Some(RoutedAction::Cmd(build()))
 }
 
 /// Mixer-scoped command gated on a press edge.
-fn mixer_press(active: bool, event: impl FnOnce() -> Event) -> Option<RoutedAction> {
+fn mixer_press(active: bool, build: impl FnOnce() -> Command) -> Option<RoutedAction> {
     if active {
-        mixer_cmd(event)
+        mixer_cmd(build)
     } else {
         None
     }
@@ -441,7 +442,7 @@ fn mixer_press(active: bool, event: impl FnOnce() -> Event) -> Option<RoutedActi
 /// Arm or disarm the shared Beat FX unit ([`FX_SLOT`]).
 fn fx_unit_enabled(enabled: bool) -> Option<RoutedAction> {
     mixer_cmd(|| {
-        Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
+        Command::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
             slot: FX_SLOT,
             enabled,
         })
@@ -571,66 +572,70 @@ pub fn resolve_action(
 
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
-        "toggle_play" => deck_press(active, scope, |deck| Event::TogglePlay(TogglePlay { deck })),
-        "play" => deck_press(active, scope, |deck| Event::Play(Play { deck })),
-        "pause" => deck_press(active, scope, |deck| Event::Pause(Pause { deck })),
+        "toggle_play" => deck_press(active, scope, |deck| {
+            Command::TogglePlay(TogglePlay { deck })
+        }),
+        "play" => deck_press(active, scope, |deck| Command::Play(Play { deck })),
+        "pause" => deck_press(active, scope, |deck| Command::Pause(Pause { deck })),
         "cue" => deck_press(active, scope, |deck| {
-            Event::SetCuePoint(SetCuePoint { deck })
+            Command::SetCuePoint(SetCuePoint { deck })
         }),
         "cue_default" => {
             if active {
-                deck_cmd(scope, |deck| Event::BeginCueHold(BeginCueHold { deck }))
+                deck_cmd(scope, |deck| Command::BeginCueHold(BeginCueHold { deck }))
             } else {
-                deck_cmd(scope, |deck| Event::EndCueHold(EndCueHold { deck }))
+                deck_cmd(scope, |deck| Command::EndCueHold(EndCueHold { deck }))
             }
         }
-        "fader_start" => deck_press(active, scope, |deck| Event::FaderStart(FaderStart { deck })),
-        "fader_stop" => deck_press(active, scope, |deck| Event::FaderStop(FaderStop { deck })),
+        "fader_start" => deck_press(active, scope, |deck| {
+            Command::FaderStart(FaderStart { deck })
+        }),
+        "fader_stop" => deck_press(active, scope, |deck| Command::FaderStop(FaderStop { deck })),
         "begin_cue_hold" => deck_press(active, scope, |deck| {
-            Event::BeginCueHold(BeginCueHold { deck })
+            Command::BeginCueHold(BeginCueHold { deck })
         }),
         "end_cue_hold" => {
             if active {
                 None
             } else {
-                deck_cmd(scope, |deck| Event::EndCueHold(EndCueHold { deck }))
+                deck_cmd(scope, |deck| Command::EndCueHold(EndCueHold { deck }))
             }
         }
         "toggle_sync" => deck_press(active, scope, |deck| {
-            Event::ToggleSync(ToggleSync {
+            Command::ToggleSync(ToggleSync {
                 deck,
                 beat_sync: false,
             })
         }),
         "set_quantize" => deck_press(active, scope, |deck| {
-            Event::ToggleQuantize(ToggleQuantize { deck })
+            Command::ToggleQuantize(ToggleQuantize { deck })
         }),
         "toggle_stem_eq" => deck_press(active, scope, |deck| {
-            Event::ToggleStemEq(ToggleStemEq { deck })
+            Command::ToggleStemEq(ToggleStemEq { deck })
         }),
         "set_volume" => deck_cmd(scope, |deck| {
-            Event::SetVolume(SetVolume {
+            Command::SetVolume(SetVolume {
                 deck,
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_filter" => deck_cmd(scope, |deck| {
-            Event::SetFilter(SetFilter {
+            Command::SetFilter(SetFilter {
                 deck,
                 filter: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_gain" => deck_cmd(scope, |deck| {
-            Event::SetGainTrim(SetGainTrim {
+            Command::SetGainTrim(SetGainTrim {
                 deck,
                 gain_trim: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_speed" => deck_cmd(scope, |deck| {
-            Event::SetSpeed(SetSpeed {
+            Command::SetSpeed(SetSpeed {
                 deck,
                 speed: norm.clamp(0.0, 1.0),
                 soft_takeover,
@@ -642,7 +647,7 @@ pub fn resolve_action(
             }
             let id = args.require_ident("id").ok()?;
             deck_cmd(scope, |deck| {
-                Event::SetTempoCurve(SetTempoCurve {
+                Command::SetTempoCurve(SetTempoCurve {
                     deck,
                     id: id.to_string(),
                 })
@@ -658,7 +663,7 @@ pub fn resolve_action(
             let i = deck_idx(d)?;
             let next = next_tempo_range(snap.tempo_range[i]);
             deck_cmd(scope, |deck| {
-                Event::SetTempoRange(SetTempoRange {
+                Command::SetTempoRange(SetTempoRange {
                     deck,
                     tempo_range: next,
                 })
@@ -667,7 +672,7 @@ pub fn resolve_action(
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
             let band = eq_band_from_leaf(leaf)?;
             deck_cmd(scope, |deck| {
-                Event::SetEqBand(SetEqBand {
+                Command::SetEqBand(SetEqBand {
                     deck,
                     band,
                     gain: norm.clamp(0.0, 1.0),
@@ -678,7 +683,7 @@ pub fn resolve_action(
         "set_stem_eq_low" | "set_stem_eq_mid" | "set_stem_eq_high" => {
             let band = eq_band_from_leaf(leaf)?;
             deck_cmd(scope, |deck| {
-                Event::SetStemEqBand(SetStemEqBand {
+                Command::SetStemEqBand(SetStemEqBand {
                     deck,
                     band,
                     gain: norm.clamp(0.0, 1.0),
@@ -695,48 +700,48 @@ pub fn resolve_action(
                 CrossfaderAssign::B
             };
             deck_cmd(scope, |deck| {
-                Event::SetCrossfaderAssign(SetCrossfaderAssign { deck, assignment })
+                Command::SetCrossfaderAssign(SetCrossfaderAssign { deck, assignment })
             })
         }
         "set_crossfader" => mixer_cmd(|| {
-            Event::SetCrossfader(SetCrossfader {
+            Command::SetCrossfader(SetCrossfader {
                 position: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_master_volume" => mixer_cmd(|| {
-            Event::SetMasterVolume(SetMasterVolume {
+            Command::SetMasterVolume(SetMasterVolume {
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_cue_volume" => mixer_cmd(|| {
-            Event::SetCueVolume(SetCueVolume {
+            Command::SetCueVolume(SetCueVolume {
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
         "set_cue_mix" => mixer_cmd(|| {
-            Event::SetCueMix(SetCueMix {
+            Command::SetCueMix(SetCueMix {
                 mix: norm.clamp(0.0, 1.0),
                 soft_takeover,
             })
         }),
-        "set_master_cue" => mixer_press(active, || Event::ToggleMasterCue(ToggleMasterCue {})),
+        "set_master_cue" => mixer_press(active, || Command::ToggleMasterCue(ToggleMasterCue {})),
         // Curve library: a button selects a preset/custom curve, a knob sweeps a set.
         "set_crossfader_curve" => {
             if !active {
                 return None;
             }
             let id = args.require_ident("id").ok()?;
-            mixer_cmd(|| Event::SetCrossfaderCurve(SetCrossfaderCurve { id: id.to_string() }))
+            mixer_cmd(|| Command::SetCrossfaderCurve(SetCrossfaderCurve { id: id.to_string() }))
         }
         "set_channel_fader_curve" => {
             if !active {
                 return None;
             }
             let id = args.require_ident("id").ok()?;
-            mixer_cmd(|| Event::SetChannelFaderCurve(SetChannelFaderCurve { id: id.to_string() }))
+            mixer_cmd(|| Command::SetChannelFaderCurve(SetChannelFaderCurve { id: id.to_string() }))
         }
         "cycle_crossfader_curve" => {
             if !active {
@@ -744,7 +749,7 @@ pub fn resolve_action(
             }
             let next = next_curve_id(&snap.crossfader_curve);
             mixer_cmd(|| {
-                Event::SetCrossfaderCurve(SetCrossfaderCurve {
+                Command::SetCrossfaderCurve(SetCrossfaderCurve {
                     id: next.to_string(),
                 })
             })
@@ -752,7 +757,7 @@ pub fn resolve_action(
         "set_crossfader_curve_amount" => {
             let set = args.require_ident("set").ok()?;
             mixer_cmd(|| {
-                Event::SetCrossfaderCurveAmount(SetCrossfaderCurveAmount {
+                Command::SetCrossfaderCurveAmount(SetCrossfaderCurveAmount {
                     set: set.to_string(),
                     amount: norm.clamp(0.0, 1.0),
                     soft_takeover,
@@ -768,7 +773,9 @@ pub fn resolve_action(
             } else {
                 (snap.crossfader_hamster, !snap.crossfader_disabled)
             };
-            mixer_cmd(|| Event::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled }))
+            mixer_cmd(|| {
+                Command::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled })
+            })
         }
         // Beat FX: ON/OFF arms the shared unit; SHIFT+ON/OFF disarms it.
         "toggle_fx" => active.then(|| fx_unit_enabled(!snap.fx.enabled)).flatten(),
@@ -788,7 +795,7 @@ pub fn resolve_action(
                 (i + len - 1) % len
             };
             mixer_cmd(|| {
-                Event::SetFxUnitSlot(SetFxUnitSlot {
+                Command::SetFxUnitSlot(SetFxUnitSlot {
                     slot: FX_SLOT,
                     kind: FX_SELECT_CYCLE[next],
                 })
@@ -807,7 +814,7 @@ pub fn resolve_action(
                 return None;
             }
             mixer_cmd(|| {
-                Event::SetFxUnitParam(SetFxUnitParam {
+                Command::SetFxUnitParam(SetFxUnitParam {
                     slot: FX_SLOT,
                     param: 0,
                     value: next as f32 / last,
@@ -815,7 +822,7 @@ pub fn resolve_action(
             })
         }
         "set_fx_wet" => mixer_cmd(|| {
-            Event::SetFxUnitWet(SetFxUnitWet {
+            Command::SetFxUnitWet(SetFxUnitWet {
                 slot: FX_SLOT,
                 wet: norm.clamp(0.0, 1.0),
                 soft_takeover,
@@ -826,15 +833,16 @@ pub fn resolve_action(
                 return None;
             }
             let id = args.require_ident("id").ok()?;
-            mixer_cmd(|| Event::SetFxLevelCurve(SetFxLevelCurve { id: id.to_string() }))
+            mixer_cmd(|| Command::SetFxLevelCurve(SetFxLevelCurve { id: id.to_string() }))
         }
         // CH SELECT is exclusive: every press publishes the full routing group.
         "set_fx_route" => {
             if !active {
                 return None;
             }
-            let routed =
-                |deck: u16, on: bool| Event::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
+            let routed = |deck: u16, on: bool| {
+                Command::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on })
+            };
             let cmds = match args.require_ident("target").ok()? {
                 "ch1" => vec![routed(0, true), routed(1, false)],
                 "ch2" => vec![routed(0, false), routed(1, true)],
@@ -845,10 +853,10 @@ pub fn resolve_action(
             Some(RoutedAction::Cmds(cmds))
         }
         "set_headphone_cue" => deck_press(active, scope, |deck| {
-            Event::ToggleHeadphoneCue(ToggleHeadphoneCue { deck })
+            Command::ToggleHeadphoneCue(ToggleHeadphoneCue { deck })
         }),
         "jog_touch" => deck_cmd(scope, |deck| {
-            Event::JogTouch(JogTouch {
+            Command::JogTouch(JogTouch {
                 deck,
                 touching: active,
             })
@@ -858,7 +866,7 @@ pub fn resolve_action(
             if delta == 0 {
                 return None;
             }
-            deck_cmd(scope, |deck| Event::JogTurn(JogTurn { deck, delta }))
+            deck_cmd(scope, |deck| Command::JogTurn(JogTurn { deck, delta }))
         }
         "trigger_hot_cue" => {
             if !active {
@@ -877,7 +885,7 @@ pub fn resolve_action(
             let idx = (slot_u - 1) as usize;
             if idx >= cues.len() {
                 return deck_cmd(scope, |deck| {
-                    Event::SaveDeckHotCue(SaveDeckHotCue {
+                    Command::SaveDeckHotCue(SaveDeckHotCue {
                         deck,
                         slot: slot_u - 1,
                     })
@@ -885,13 +893,13 @@ pub fn resolve_action(
             }
             match cues[idx] {
                 Some(pos) => deck_cmd(scope, |deck| {
-                    Event::TriggerHotCue(TriggerHotCue {
+                    Command::TriggerHotCue(TriggerHotCue {
                         deck,
                         position_ms: pos,
                     })
                 }),
                 None => deck_cmd(scope, |deck| {
-                    Event::SaveDeckHotCue(SaveDeckHotCue {
+                    Command::SaveDeckHotCue(SaveDeckHotCue {
                         deck,
                         slot: slot_u - 1,
                     })
@@ -907,7 +915,7 @@ pub fn resolve_action(
                 return None;
             }
             deck_cmd(scope, |deck| {
-                Event::DeleteDeckHotCue(DeleteDeckHotCue {
+                Command::DeleteDeckHotCue(DeleteDeckHotCue {
                     deck,
                     slot: (slot as u8) - 1,
                 })
@@ -922,7 +930,7 @@ pub fn resolve_action(
             };
             let i = deck_idx(d)?;
             deck_cmd(scope, |deck| {
-                Event::LoopIn(LoopIn {
+                Command::LoopIn(LoopIn {
                     deck,
                     position_ms: snap.position_ms[i],
                 })
@@ -937,13 +945,13 @@ pub fn resolve_action(
             };
             let i = deck_idx(d)?;
             deck_cmd(scope, |deck| {
-                Event::LoopOut(LoopOut {
+                Command::LoopOut(LoopOut {
                     deck,
                     position_ms: snap.position_ms[i],
                 })
             })
         }
-        "exit_loop" => deck_press(active, scope, |deck| Event::ExitLoop(ExitLoop { deck })),
+        "exit_loop" => deck_press(active, scope, |deck| Command::ExitLoop(ExitLoop { deck })),
         "auto_loop" => {
             if !active {
                 return None;
@@ -953,7 +961,7 @@ pub fn resolve_action(
                 return None;
             }
             deck_cmd(scope, |deck| {
-                Event::SetAutoLoop(SetAutoLoop { deck, beats })
+                Command::SetAutoLoop(SetAutoLoop { deck, beats })
             })
         }
         "beat_jump" => {
@@ -964,7 +972,7 @@ pub fn resolve_action(
             if !beats.is_finite() || beats == 0.0 {
                 return None;
             }
-            deck_cmd(scope, |deck| Event::BeatJump(BeatJump { deck, beats }))
+            deck_cmd(scope, |deck| Command::BeatJump(BeatJump { deck, beats }))
         }
         "pad_mode" => {
             if !active {
@@ -981,20 +989,20 @@ pub fn resolve_action(
                 "key_shift" => PadMode::KeyShift,
                 _ => return None,
             };
-            deck_cmd(scope, |deck| Event::SetPadMode(SetPadMode { deck, mode }))
+            deck_cmd(scope, |deck| Command::SetPadMode(SetPadMode { deck, mode }))
         }
         "pad" => {
             let slot = pad_n_slot(&args)?;
             if active {
                 deck_cmd(scope, |deck| {
-                    Event::PadPress(PadPress {
+                    Command::PadPress(PadPress {
                         deck,
                         slot,
                         shift: false,
                     })
                 })
             } else {
-                deck_cmd(scope, |deck| Event::PadRelease(PadRelease { deck, slot }))
+                deck_cmd(scope, |deck| Command::PadRelease(PadRelease { deck, slot }))
             }
         }
         "hot_cue_pad" => {
@@ -1031,7 +1039,7 @@ pub fn resolve_action(
             let slot = u8::try_from(slot - 1).ok()?;
             if active {
                 deck_cmd(scope, |deck| {
-                    Event::SamplerPadPress(SamplerPadPress {
+                    Command::SamplerPadPress(SamplerPadPress {
                         deck,
                         slot,
                         shift: false,
@@ -1039,7 +1047,7 @@ pub fn resolve_action(
                 })
             } else {
                 deck_cmd(scope, |deck| {
-                    Event::SamplerPadRelease(SamplerPadRelease { deck, slot })
+                    Command::SamplerPadRelease(SamplerPadRelease { deck, slot })
                 })
             }
         }
@@ -1072,36 +1080,44 @@ fn resolve_pad_slot(
     mode: PadMode,
 ) -> Option<RoutedAction> {
     deck_cmd(scope, |deck| match (mode, active) {
-        (PadMode::HotCue, true) => Event::HotCuePadPress(HotCuePadPress {
+        (PadMode::HotCue, true) => Command::HotCuePadPress(HotCuePadPress {
             deck,
             slot,
             shift: false,
         }),
-        (PadMode::HotCue, false) => Event::HotCuePadRelease(HotCuePadRelease { deck, slot }),
-        (PadMode::LoopRoll, true) => Event::LoopRollPadPress(LoopRollPadPress { deck, slot }),
-        (PadMode::LoopRoll, false) => Event::LoopRollPadRelease(LoopRollPadRelease { deck, slot }),
-        (PadMode::BeatJump, true) => Event::BeatJumpPadPress(BeatJumpPadPress { deck, slot }),
-        (PadMode::BeatJump, false) => Event::BeatJumpPadRelease(BeatJumpPadRelease { deck, slot }),
-        (PadMode::Sampler, true) => Event::SamplerPadPress(SamplerPadPress {
+        (PadMode::HotCue, false) => Command::HotCuePadRelease(HotCuePadRelease { deck, slot }),
+        (PadMode::LoopRoll, true) => Command::LoopRollPadPress(LoopRollPadPress { deck, slot }),
+        (PadMode::LoopRoll, false) => {
+            Command::LoopRollPadRelease(LoopRollPadRelease { deck, slot })
+        }
+        (PadMode::BeatJump, true) => Command::BeatJumpPadPress(BeatJumpPadPress { deck, slot }),
+        (PadMode::BeatJump, false) => {
+            Command::BeatJumpPadRelease(BeatJumpPadRelease { deck, slot })
+        }
+        (PadMode::Sampler, true) => Command::SamplerPadPress(SamplerPadPress {
             deck,
             slot,
             shift: false,
         }),
-        (PadMode::Sampler, false) => Event::SamplerPadRelease(SamplerPadRelease { deck, slot }),
-        (PadMode::Stems, true) => Event::PadPress(PadPress {
+        (PadMode::Sampler, false) => Command::SamplerPadRelease(SamplerPadRelease { deck, slot }),
+        (PadMode::Stems, true) => Command::PadPress(PadPress {
             deck,
             slot,
             shift: false,
         }),
-        (PadMode::Stems, false) => Event::PadRelease(PadRelease { deck, slot }),
+        (PadMode::Stems, false) => Command::PadRelease(PadRelease { deck, slot }),
         (PadMode::Keyboard, true) => {
-            Event::KeyboardPadPress(KeyboardPadPress { deck, slot, shift })
+            Command::KeyboardPadPress(KeyboardPadPress { deck, slot, shift })
         }
-        (PadMode::Keyboard, false) => Event::KeyboardPadRelease(KeyboardPadRelease { deck, slot }),
+        (PadMode::Keyboard, false) => {
+            Command::KeyboardPadRelease(KeyboardPadRelease { deck, slot })
+        }
         (PadMode::KeyShift, true) => {
-            Event::KeyShiftPadPress(KeyShiftPadPress { deck, slot, shift })
+            Command::KeyShiftPadPress(KeyShiftPadPress { deck, slot, shift })
         }
-        (PadMode::KeyShift, false) => Event::KeyShiftPadRelease(KeyShiftPadRelease { deck, slot }),
+        (PadMode::KeyShift, false) => {
+            Command::KeyShiftPadRelease(KeyShiftPadRelease { deck, slot })
+        }
     })
 }
 
@@ -1127,7 +1143,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetEqBand(SetEqBand {
+            RoutedAction::Cmd(Command::SetEqBand(SetEqBand {
                 deck: 0,
                 band: EqBand::Low,
                 gain,
@@ -1150,7 +1166,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetEqBand(SetEqBand {
+            RoutedAction::Cmd(Command::SetEqBand(SetEqBand {
                 deck: 0,
                 band: EqBand::Mid,
                 gain,
@@ -1173,7 +1189,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetStemEqBand(SetStemEqBand {
+            RoutedAction::Cmd(Command::SetStemEqBand(SetStemEqBand {
                 deck: 0,
                 band: EqBand::High,
                 gain,
@@ -1196,7 +1212,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetFilter(SetFilter {
+            RoutedAction::Cmd(Command::SetFilter(SetFilter {
                 deck: 0,
                 filter,
                 soft_takeover: false,
@@ -1218,7 +1234,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetGainTrim(SetGainTrim {
+            RoutedAction::Cmd(Command::SetGainTrim(SetGainTrim {
                 deck: 0,
                 gain_trim,
                 soft_takeover: false,
@@ -1240,7 +1256,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::Cmd(Event::PadPress(PadPress {
+            RoutedAction::Cmd(Command::PadPress(PadPress {
                 deck: 0,
                 slot,
                 shift,
@@ -1261,7 +1277,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::Cmd(Event::PadRelease(PadRelease { deck: 0, slot: 0 }))
+            RoutedAction::Cmd(Command::PadRelease(PadRelease { deck: 0, slot: 0 }))
         ));
 
         snap.pad_mode[0] = PadMode::BeatJump;
@@ -1278,7 +1294,7 @@ mod tests {
         assert!(
             matches!(
                 still_generic,
-                RoutedAction::Cmd(Event::PadPress(PadPress {
+                RoutedAction::Cmd(Command::PadPress(PadPress {
                     deck: 0,
                     slot: 0,
                     shift: false
@@ -1301,7 +1317,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::Cmd(Event::HotCuePadPress(HotCuePadPress {
+            RoutedAction::Cmd(Command::HotCuePadPress(HotCuePadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1319,7 +1335,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::Cmd(Event::HotCuePadRelease(HotCuePadRelease {
+            RoutedAction::Cmd(Command::HotCuePadRelease(HotCuePadRelease {
                 deck: 0,
                 slot: 0
             }))
@@ -1335,7 +1351,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::BeatJumpPadPress(BeatJumpPadPress { deck: 0, slot })) => {
+            RoutedAction::Cmd(Command::BeatJumpPadPress(BeatJumpPadPress { deck: 0, slot })) => {
                 assert_eq!(slot, 0)
             }
             other => panic!("expected BeatJumpPadPress, got {other:?}"),
@@ -1351,7 +1367,7 @@ mod tests {
         )
         .unwrap();
         match begin {
-            RoutedAction::Cmd(Event::LoopRollPadPress(LoopRollPadPress { deck: 0, slot })) => {
+            RoutedAction::Cmd(Command::LoopRollPadPress(LoopRollPadPress { deck: 0, slot })) => {
                 assert_eq!(slot, 2)
             }
             other => panic!("expected LoopRollPadPress slot 2, got {other:?}"),
@@ -1367,7 +1383,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::Cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+            RoutedAction::Cmd(Command::LoopRollPadRelease(LoopRollPadRelease {
                 deck: 0,
                 slot: 2
             }))
@@ -1383,7 +1399,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SamplerPadPress(SamplerPadPress {
+            RoutedAction::Cmd(Command::SamplerPadPress(SamplerPadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1401,7 +1417,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::Cmd(Event::SamplerPadRelease(SamplerPadRelease {
+            RoutedAction::Cmd(Command::SamplerPadRelease(SamplerPadRelease {
                 deck: 0,
                 slot: 1
             }))
@@ -1421,7 +1437,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::PadPress(PadPress {
+            RoutedAction::Cmd(Command::PadPress(PadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1447,7 +1463,7 @@ mod tests {
         )
         .unwrap();
         match named {
-            RoutedAction::Cmd(Event::HotCuePadPress(HotCuePadPress {
+            RoutedAction::Cmd(Command::HotCuePadPress(HotCuePadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1469,7 +1485,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::Cmd(Event::SamplerPadPress(SamplerPadPress {
+            RoutedAction::Cmd(Command::SamplerPadPress(SamplerPadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1487,7 +1503,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::Cmd(Event::SamplerPadRelease(SamplerPadRelease {
+            RoutedAction::Cmd(Command::SamplerPadRelease(SamplerPadRelease {
                 deck: 0,
                 slot: 1
             }))
@@ -1507,7 +1523,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetPadMode(SetPadMode { deck: 0, mode })) => {
+            RoutedAction::Cmd(Command::SetPadMode(SetPadMode { deck: 0, mode })) => {
                 assert_eq!(mode, PadMode::LoopRoll)
             }
             other => panic!("unexpected {other:?}"),
@@ -1528,7 +1544,7 @@ mod tests {
         )
         .unwrap();
         match inn {
-            RoutedAction::Cmd(Event::LoopIn(LoopIn {
+            RoutedAction::Cmd(Command::LoopIn(LoopIn {
                 deck: 0,
                 position_ms,
             })) => assert_eq!(position_ms, 12_345),
@@ -1544,7 +1560,7 @@ mod tests {
         )
         .unwrap();
         match out {
-            RoutedAction::Cmd(Event::LoopOut(LoopOut {
+            RoutedAction::Cmd(Command::LoopOut(LoopOut {
                 deck: 0,
                 position_ms,
             })) => assert_eq!(position_ms, 12_345),
@@ -1565,7 +1581,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetAutoLoop(SetAutoLoop { deck: 0, beats })) => {
+            RoutedAction::Cmd(Command::SetAutoLoop(SetAutoLoop { deck: 0, beats })) => {
                 assert!((beats - 0.25).abs() < 1e-6)
             }
             other => panic!("expected SetAutoLoop 0.25, got {other:?}"),
@@ -1628,7 +1644,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::JogTurn(JogTurn { deck: 0, delta })) => {
+            RoutedAction::Cmd(Command::JogTurn(JogTurn { deck: 0, delta })) => {
                 assert_eq!(delta, 3)
             }
             other => panic!("expected JogTurn, got {other:?}"),
@@ -1683,7 +1699,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetTempoRange(SetTempoRange {
+            RoutedAction::Cmd(Command::SetTempoRange(SetTempoRange {
                 deck: 0,
                 tempo_range,
             })) => assert!((tempo_range - 0.10).abs() < 1e-5),
@@ -1700,7 +1716,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::Cmd(Event::SetTempoRange(SetTempoRange {
+            RoutedAction::Cmd(Command::SetTempoRange(SetTempoRange {
                 deck: 0,
                 tempo_range,
             })) => assert!((tempo_range - 0.06).abs() < 1e-5),
@@ -1723,7 +1739,7 @@ mod tests {
         };
         assert_eq!(
             route(true).unwrap(),
-            RoutedAction::Cmd(Event::SetTempoCurve(SetTempoCurve {
+            RoutedAction::Cmd(Command::SetTempoCurve(SetTempoCurve {
                 deck: 0,
                 id: "linear".into(),
             }))
@@ -1746,7 +1762,7 @@ mod tests {
         };
         assert_eq!(
             route(true).unwrap(),
-            RoutedAction::Cmd(Event::SetFxLevelCurve(SetFxLevelCurve {
+            RoutedAction::Cmd(Command::SetFxLevelCurve(SetFxLevelCurve {
                 id: "taper".into(),
             }))
         );
@@ -1794,7 +1810,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             a,
-            RoutedAction::Cmd(Event::KeyShiftPadPress(KeyShiftPadPress { deck: 0, .. }))
+            RoutedAction::Cmd(Command::KeyShiftPadPress(KeyShiftPadPress { deck: 0, .. }))
         ));
     }
 
@@ -1812,7 +1828,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             keyboard,
-            RoutedAction::Cmd(Event::KeyboardPadPress(KeyboardPadPress {
+            RoutedAction::Cmd(Command::KeyboardPadPress(KeyboardPadPress {
                 shift: true,
                 ..
             }))
@@ -1828,7 +1844,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             key_shift,
-            RoutedAction::Cmd(Event::KeyShiftPadPress(KeyShiftPadPress {
+            RoutedAction::Cmd(Command::KeyShiftPadPress(KeyShiftPadPress {
                 shift: true,
                 ..
             }))
@@ -1845,7 +1861,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             plain,
-            RoutedAction::Cmd(Event::KeyboardPadPress(KeyboardPadPress {
+            RoutedAction::Cmd(Command::KeyboardPadPress(KeyboardPadPress {
                 shift: false,
                 ..
             }))
@@ -1948,7 +1964,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::Cmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })) => kind,
+            RoutedAction::Cmd(Command::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })) => kind,
             other => panic!("unexpected {other:?}"),
         };
 
@@ -1978,7 +1994,7 @@ mod tests {
 
         // Boot division is index 3 of 7 → 4/6 after one up-step.
         match step(&snap, "step_fx_division_up").unwrap() {
-            RoutedAction::Cmd(Event::SetFxUnitParam(SetFxUnitParam {
+            RoutedAction::Cmd(Command::SetFxUnitParam(SetFxUnitParam {
                 slot: 0,
                 param: 0,
                 value,
@@ -2015,7 +2031,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::Cmd(Event::SetFxUnitWet(SetFxUnitWet {
+            RoutedAction::Cmd(Command::SetFxUnitWet(SetFxUnitWet {
                 slot: 0,
                 wet,
                 soft_takeover: true,
@@ -2038,7 +2054,7 @@ mod tests {
             )
         };
         let routed =
-            |deck: u16, on: bool| Event::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
+            |deck: u16, on: bool| Command::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
 
         assert_eq!(
             route("ch1").unwrap(),
@@ -2097,7 +2113,7 @@ mod tests {
         ] {
             assert_eq!(
                 map(value),
-                Some(RoutedAction::Cmd(Event::SetCrossfaderAssign(
+                Some(RoutedAction::Cmd(Command::SetCrossfaderAssign(
                     SetCrossfaderAssign {
                         deck: 3,
                         assignment: expected
@@ -2131,7 +2147,7 @@ mod tests {
         };
         assert_eq!(
             route(true).unwrap(),
-            RoutedAction::Cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve {
+            RoutedAction::Cmd(Command::SetCrossfaderCurve(SetCrossfaderCurve {
                 id: "fast_cut".into(),
             }))
         );
@@ -2153,7 +2169,7 @@ mod tests {
         };
         assert_eq!(
             route(true).unwrap(),
-            RoutedAction::Cmd(Event::SetChannelFaderCurve(SetChannelFaderCurve {
+            RoutedAction::Cmd(Command::SetChannelFaderCurve(SetChannelFaderCurve {
                 id: "linear".into(),
             }))
         );
@@ -2173,7 +2189,7 @@ mod tests {
                 snap,
             )
             .and_then(|routed| match routed {
-                RoutedAction::Cmd(Event::SetCrossfaderCurve(event)) => Some(event.id),
+                RoutedAction::Cmd(Command::SetCrossfaderCurve(event)) => Some(event.id),
                 _ => None,
             })
             .unwrap()
@@ -2202,7 +2218,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::Cmd(Event::SetCrossfaderCurveAmount(event)) => {
+            RoutedAction::Cmd(Command::SetCrossfaderCurveAmount(event)) => {
                 assert_eq!(event.set, "sweep");
                 assert!((event.amount - 0.25).abs() < 1e-6);
                 assert!(event.soft_takeover);
@@ -2226,7 +2242,7 @@ mod tests {
         };
         assert_eq!(
             route("set_crossfader_hamster", &snap).unwrap(),
-            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+            RoutedAction::Cmd(Command::SetCrossfaderBehavior(SetCrossfaderBehavior {
                 hamster: true,
                 disabled: false,
             }))
@@ -2234,7 +2250,7 @@ mod tests {
         snap.crossfader_hamster = true;
         assert_eq!(
             route("set_crossfader_disabled", &snap).unwrap(),
-            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+            RoutedAction::Cmd(Command::SetCrossfaderBehavior(SetCrossfaderBehavior {
                 hamster: true,
                 disabled: true,
             }))
@@ -2242,7 +2258,7 @@ mod tests {
         snap.crossfader_disabled = true;
         assert_eq!(
             route("set_crossfader_hamster", &snap).unwrap(),
-            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+            RoutedAction::Cmd(Command::SetCrossfaderBehavior(SetCrossfaderBehavior {
                 hamster: false,
                 disabled: true,
             }))

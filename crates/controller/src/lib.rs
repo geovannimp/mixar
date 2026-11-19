@@ -47,6 +47,6 @@ pub use midi::{
 };
 pub use ports::list_midi_input_ports;
 pub use session::{
-    ActionPublish, BusPublish, LedState, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
+    ActionPublish, LedState, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
     BLINK_HALF_PERIOD,
 };

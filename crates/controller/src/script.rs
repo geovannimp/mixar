@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use bus_api::Command;
 use bus_api::Error;
 use bus_api::Event;
 use bus_api::Notice;
@@ -243,10 +244,10 @@ struct SetVolumePayload {
 /// does not parse) after a warning, matching the previous wire behaviour.
 fn resolve_publish(scope: EngineScope, kind: &str, payload: &str) -> Option<RoutedAction> {
     match kind {
-        "play" => Some(RoutedAction::Cmd(Event::Play(Play {
+        "play" => Some(RoutedAction::Cmd(Command::Play(Play {
             deck: scope.deck_or_default(),
         }))),
-        "pause" => Some(RoutedAction::Cmd(Event::Pause(Pause {
+        "pause" => Some(RoutedAction::Cmd(Command::Pause(Pause {
             deck: scope.deck_or_default(),
         }))),
         "set_volume" => {
@@ -257,7 +258,7 @@ fn resolve_publish(scope: EngineScope, kind: &str, payload: &str) -> Option<Rout
                     return None;
                 }
             };
-            Some(RoutedAction::Cmd(Event::SetVolume(SetVolume {
+            Some(RoutedAction::Cmd(Command::SetVolume(SetVolume {
                 deck: scope.deck_or_default(),
                 volume: parsed.volume,
                 soft_takeover: parsed.soft_takeover,

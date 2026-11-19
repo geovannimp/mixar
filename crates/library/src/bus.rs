@@ -2,26 +2,19 @@
 
 use crate::LibraryError;
 use crate::Result;
+use bus_api::Command;
+use bus_api::CommandTarget;
 use bus_api::Event;
+use bus_api::EventTopic;
 use event_bus::EventBus;
 use event_bus::Subscriber;
 use library_core::AnalysisDurationMode;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-/// Shared bus type: one [`Event`] enum carries the engine's, the library's and
-/// (later) the controller's events, so a host subscribes once.
-pub type LibraryBus = EventBus<Event>;
-
-/// Command depth. Deeper than the engine's 256 because bulk analysis and bulk
-/// stem generation queue one command per track, and the worker drains them
-/// serially; a collection-wide run must not overflow while it works through the
-/// backlog.
-const CMD_CAPACITY: usize = 4096;
-
-/// Egress depth. Per subscriber, so it has to hold a UI drain gap without
-/// dropping discrete events. Same sizing the engine evt side uses.
-const EVT_CAPACITY: usize = 2048;
+/// Shared bus type: one command/event pair carries the engine's, the library's
+/// and the controller's messages, so a host subscribes once.
+pub type LibraryBus = EventBus<Command, Event>;
 
 /// Host-owned cloneable bus handle + the config the worker reads.
 ///
@@ -42,7 +35,7 @@ pub const STEM_MODELS: [&str; 2] = [DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL];
 
 #[derive(Clone)]
 pub struct LibraryBuses {
-    buses: EventBus<Event>,
+    buses: EventBus<Command, Event>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
     /// Silence threshold (dBFS) cue detection uses for load-time analysis.
     cue_threshold_db: Arc<Mutex<f32>>,
@@ -61,11 +54,11 @@ pub struct LibraryBuses {
 impl LibraryBuses {
     /// Create a private cmd/evt pair (tests, offline hosts).
     pub fn new() -> Self {
-        Self::with_bus(EventBus::new(CMD_CAPACITY, EVT_CAPACITY))
+        Self::with_bus(EventBus::new())
     }
 
     /// Attach to the process-wide bus the engine and controller already use.
-    pub fn with_bus(bus: EventBus<Event>) -> Self {
+    pub fn with_bus(bus: EventBus<Command, Event>) -> Self {
         Self {
             buses: bus,
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
@@ -78,28 +71,59 @@ impl LibraryBuses {
         }
     }
 
-    /// Fire-and-forget publish of a command.
-    pub fn publish_cmd(&self, event: Event) -> Result<()> {
-        self.buses.publish_cmd(event).map_err(omnibus_err)
+    /// Move one command to its owning worker.
+    ///
+    /// The bus hands the command back when no worker owns it (or the lane is
+    /// closed or poisoned), so a caller that can still act on it keeps it. The
+    /// `crate::Result<()>` wrappers above this one map the reason into
+    /// [`LibraryError`] and drop the payload; reach for [`Self::bus`] when the
+    /// command itself matters.
+    pub fn publish_cmd(
+        &self,
+        command: Command,
+    ) -> std::result::Result<(), event_bus::CommandPublishError<Command>> {
+        self.buses.publish_cmd(command)
     }
 
-    /// Fire-and-forget publish of an egress event.
+    /// Publish an egress event.
     pub fn publish_evt(&self, event: Event) -> Result<()> {
-        self.buses.publish_evt(event).map_err(omnibus_err)
+        self.buses
+            .publish_evt(event)
+            .map(|_report| ())
+            .map_err(bus_err)
     }
 
-    /// Subscribe to every command (the worker).
-    pub fn subscribe_cmd(&self) -> Result<Subscriber<Event>> {
-        self.buses.subscribe_cmd().map_err(omnibus_err)
+    /// Claim the library worker's inbox.
+    ///
+    /// Always [`CommandTarget::Library`] labelled `"library"`: the worker that
+    /// drains library commands is the only owner this target can have, so a
+    /// second one fails instead of competing for messages.
+    pub fn subscribe_cmd(&self) -> Result<Subscriber<Command>> {
+        self.buses
+            .subscribe_cmd(CommandTarget::Library, "library")
+            .map_err(bus_err)
     }
 
     /// Subscribe to every egress event (UI / bridge / engine ack sync).
-    pub fn subscribe_evt(&self) -> Result<Subscriber<Event>> {
-        self.buses.subscribe_evt().map_err(omnibus_err)
+    ///
+    /// `label` identifies the observer in [`event_bus::BusDiagnostics`].
+    pub fn subscribe_evt(&self, label: &'static str) -> Result<Subscriber<Arc<Event>>> {
+        self.buses.subscribe_evt(label).map_err(bus_err)
+    }
+
+    /// Subscribe to the events whose topic is in `topics`.
+    pub fn subscribe_evt_topics(
+        &self,
+        label: &'static str,
+        topics: &[EventTopic],
+    ) -> Result<Subscriber<Arc<Event>>> {
+        self.buses
+            .subscribe_evt_topics(label, topics)
+            .map_err(bus_err)
     }
 
     /// Clone handle to the shared bus (hosts that publish outside these setters).
-    pub fn bus(&self) -> EventBus<Event> {
+    pub fn bus(&self) -> EventBus<Command, Event> {
         self.buses.clone()
     }
 
@@ -224,8 +248,20 @@ impl Default for LibraryBuses {
     }
 }
 
-fn omnibus_err(e: event_bus::BusError) -> LibraryError {
+fn bus_err(e: event_bus::BusError) -> LibraryError {
     LibraryError::Io(std::io::Error::other(e.to_string()))
+}
+
+/// Report a refused command where the return type cannot carry the payload.
+///
+/// `LibraryError` lives in `library-core`, which cannot name a bus-api command,
+/// so this keeps the typed reason and drops the payload. Callers that must keep
+/// the command use [`LibraryBuses::publish_cmd`], which returns it.
+pub(crate) fn cmd_err(err: event_bus::CommandPublishError<Command>) -> LibraryError {
+    LibraryError::Backend {
+        backend: "bus",
+        message: err.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -265,14 +301,14 @@ mod tests {
         let buses = LibraryBuses::new();
         let mut cmd = buses.subscribe_cmd().expect("cmd subscription");
         buses
-            .publish_cmd(Event::RefreshTrack(bus_api::RefreshTrack {
+            .publish_cmd(Command::RefreshTrack(bus_api::RefreshTrack {
                 track_id: "t1".into(),
             }))
             .expect("publish");
         assert_eq!(
             cmd.recv_timeout(std::time::Duration::from_millis(200))
                 .expect("recv"),
-            Some(Event::RefreshTrack(bus_api::RefreshTrack {
+            Some(Command::RefreshTrack(bus_api::RefreshTrack {
                 track_id: "t1".into()
             }))
         );

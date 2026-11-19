@@ -1534,7 +1534,6 @@ dependencies = [
  "event-bus",
  "library",
  "library-core",
- "omnibus",
  "resampler",
  "rtrb",
  "serde",
@@ -1590,6 +1589,8 @@ dependencies = [
 name = "event-bus"
 version = "0.1.0"
 dependencies = [
+ "criterion",
+ "crossbeam-channel",
  "omnibus",
 ]
 

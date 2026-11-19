@@ -8,9 +8,10 @@ import 'event_mirrors.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bus`, `deck_chrome`, `ensure_forwarder`, `forward_loop`, `with_deck_chrome`
+// These functions are ignored because they are not marked as `pub`: `bus`, `deck_chrome`, `forward_loop`, `start_forwarder`, `subscribe_sink`, `with_deck_chrome`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `drop`
+// These functions are ignored (category: IgnoreBecauseNotAllowedOwner): `send`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BusTransport>>
 abstract class BusTransport implements RustOpaqueInterface {
@@ -22,5 +23,13 @@ abstract class BusTransport implements RustOpaqueInterface {
   Future<void> publishEvt({required Event event});
 
   /// Subscribe to every event. Several sinks may be live at once.
+  ///
+  /// The sink is registered before a newly created forwarder is started, so
+  /// there is no window where the Rust subscription is live and the Dart
+  /// stream is not: anything published after this returns is delivered once.
   Stream<Event> subscribeEvents();
+}
+
+abstract class EventSink {
+  Future<bool> send({required Event event});
 }

@@ -116,7 +116,7 @@ pub struct LibraryManager {
     decode_cache: Mutex<DecodeCache>,
     /// Serializes file tag writes, which run outside this manager's own lock.
     tag_write_gate: Arc<Mutex<()>>,
-    /// Host-injected omnibus buses (None until [`Self::set_buses`]).
+    /// Host-injected buses (None until [`Self::set_buses`]).
     buses: Option<LibraryBuses>,
 }
 
@@ -157,7 +157,7 @@ impl LibraryManager {
         store::Store::new(&self.db)
     }
 
-    /// Attach host-owned omnibus buses (clones stored on the manager).
+    /// Attach host-owned buses (clones stored on the manager).
     pub fn set_buses(&mut self, buses: LibraryBuses) {
         self.buses = Some(buses);
     }
@@ -195,19 +195,28 @@ impl LibraryManager {
         Ok(playlist)
     }
 
-    /// Fire-and-forget publish of a command on the shared typed bus.
-    pub fn publish_cmd(&self, event: bus_api::Event) -> Result<()> {
-        self.require_buses()?.publish_cmd(event)
+    /// Move one command to its owning worker on the shared typed bus.
+    ///
+    /// Maps the bus's typed refusal into [`LibraryError`]; use
+    /// [`Self::buses`] with `EventBus::publish_cmd` when the refused command
+    /// itself matters.
+    pub fn publish_cmd(&self, command: bus_api::Command) -> Result<()> {
+        self.require_buses()?
+            .publish_cmd(command)
+            .map_err(crate::bus::cmd_err)
     }
 
-    /// Fire-and-forget publish of an egress event on the shared typed bus.
+    /// Publish an egress event on the shared typed bus.
     pub fn publish_evt(&self, event: bus_api::Event) -> Result<()> {
         self.require_buses()?.publish_evt(event)
     }
 
     /// Subscribe to all egress events (host bridge / engine ack sync).
-    pub fn subscribe_evt(&self) -> Result<event_bus::Subscriber<bus_api::Event>> {
-        self.require_buses()?.subscribe_evt()
+    pub fn subscribe_evt(
+        &self,
+        label: &'static str,
+    ) -> Result<event_bus::Subscriber<std::sync::Arc<bus_api::Event>>> {
+        self.require_buses()?.subscribe_evt(label)
     }
 
     /// Update default analysis duration used by AnalyzeTrack cmds.

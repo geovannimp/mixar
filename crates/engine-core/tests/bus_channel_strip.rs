@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::SetFilter;
 use bus_api::SetGainTrim;
 use bus_api::SetHeadphoneCue;
@@ -24,9 +24,9 @@ fn null_session() -> EngineSession {
 #[test]
 fn set_filter_publishes_updated_with_filter_norm() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
-        .publish_cmd(Event::SetFilter(SetFilter {
+        .publish_cmd(Command::SetFilter(SetFilter {
             deck: 0,
             filter: 0.75,
             soft_takeover: false,
@@ -39,10 +39,10 @@ fn set_filter_publishes_updated_with_filter_norm() {
 #[test]
 fn set_gain_trim_and_headphone_cue_roundtrip() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetGainTrim(SetGainTrim {
+        .publish_cmd(Command::SetGainTrim(SetGainTrim {
             deck: 0,
             gain_trim: 0.6,
             soft_takeover: false,
@@ -52,7 +52,7 @@ fn set_gain_trim_and_headphone_cue_roundtrip() {
     assert!((gain_update.gain_trim - 0.6).abs() < 0.01);
 
     session
-        .publish_cmd(Event::SetHeadphoneCue(SetHeadphoneCue {
+        .publish_cmd(Command::SetHeadphoneCue(SetHeadphoneCue {
             deck: 0,
             enabled: true,
         }))

@@ -11,6 +11,7 @@ use crate::sync::DeckControlState;
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{AudioStream, Sample, StreamParams};
+use bus_api::Command;
 use bus_api::Event;
 use engine_dsp::DspEngine;
 use event_bus::EventBus;
@@ -37,7 +38,7 @@ pub struct Engine {
     pub(crate) library: Option<Arc<Mutex<LibraryManager>>>,
     /// Optional library cmd bus for deck performance persistence (hot cues / loops).
     pub(crate) library_cmd: Option<LibraryBus>,
-    pub(crate) engine_buses: Option<EventBus<Event>>,
+    pub(crate) engine_buses: Option<EventBus<Command, Event>>,
     pub(crate) master_deck: usize,
     pub(crate) deck_control: Vec<DeckControlState>,
     /// Last published `stems_ready` per deck, so the tick emits one `Updated`
@@ -193,12 +194,12 @@ impl Engine {
     }
 
     /// Attach the host-owned bus (a clone is stored on the engine).
-    pub fn set_buses(&mut self, buses: EventBus<Event>) {
+    pub fn set_buses(&mut self, buses: EventBus<Command, Event>) {
         self.engine_buses = Some(buses);
     }
 
     /// Clone of the attached bus, if any.
-    pub fn buses(&self) -> Option<EventBus<Event>> {
+    pub fn buses(&self) -> Option<EventBus<Command, Event>> {
         self.engine_buses.clone()
     }
 
@@ -207,27 +208,37 @@ impl Engine {
         self.library.clone()
     }
 
-    fn require_buses(&self) -> Result<&EventBus<Event>> {
+    fn require_buses(&self) -> Result<&EventBus<Command, Event>> {
         self.engine_buses
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("engine buses not attached; call set_buses first"))
     }
 
-    /// Fire-and-forget publish of a command.
-    pub fn publish_cmd(&self, event: Event) -> Result<()> {
-        self.require_buses()?.publish_cmd(event)?;
+    /// Publish one command to its owning worker.
+    ///
+    /// A refused command comes back in the error: the engine never silently
+    /// drops a control change, so the caller decides what to do about it.
+    pub fn publish_cmd(&self, command: Command) -> Result<()> {
+        self.require_buses()?
+            .publish_cmd(command)
+            .map_err(anyhow::Error::new)?;
         Ok(())
     }
 
     /// Publish an egress event.
     pub fn publish_evt(&self, event: Event) -> Result<()> {
-        self.require_buses()?.publish_evt(event)?;
+        self.require_buses()?
+            .publish_evt(event)
+            .map(|_report| ())
+            .map_err(anyhow::Error::new)?;
         Ok(())
     }
 
     /// Subscribe to every egress event (host bridge / controller feedback).
-    pub fn subscribe_evt_all(&self) -> Result<Subscriber<Event>> {
-        Ok(self.require_buses()?.subscribe_evt()?)
+    ///
+    /// `label` identifies the observer in [`event_bus::BusDiagnostics`].
+    pub fn subscribe_evt_all(&self, label: &'static str) -> Result<Subscriber<Arc<Event>>> {
+        Ok(self.require_buses()?.subscribe_evt(label)?)
     }
 
     /// Whether [`Self::start`] has opened streams (producer running).

@@ -6882,7 +6882,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6912,7 +6912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 148,
           )!;
         },
         codec: SseCodec(
@@ -6941,7 +6941,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6968,7 +6968,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6995,7 +6995,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 151,
           )!;
         },
         codec: SseCodec(
@@ -7021,7 +7021,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 152,
             port: port_,
           );
         },
@@ -7051,7 +7051,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 153,
             port: port_,
           );
         },
@@ -7086,7 +7086,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 154,
             port: port_,
           );
         },
@@ -7116,7 +7116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 155,
             port: port_,
           );
         },
@@ -7143,7 +7143,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 156,
             port: port_,
           );
         },
@@ -7173,7 +7173,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 157,
             port: port_,
           );
         },
@@ -7204,7 +7204,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 158,
             port: port_,
           );
         },
@@ -7235,7 +7235,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 159,
             port: port_,
           );
         },
@@ -7265,7 +7265,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 159,
+            funcId: 160,
             port: port_,
           );
         },
@@ -7295,7 +7295,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 160,
+            funcId: 161,
             port: port_,
           );
         },
@@ -7322,7 +7322,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 161,
+            funcId: 162,
             port: port_,
           );
         },
@@ -7349,7 +7349,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 162,
+            funcId: 163,
             port: port_,
           );
         },
@@ -7379,7 +7379,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 163,
+            funcId: 164,
             port: port_,
           );
         },
@@ -7412,7 +7412,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 164,
+            funcId: 165,
             port: port_,
           );
         },
@@ -7442,7 +7442,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 165,
+            funcId: 166,
             port: port_,
           );
         },
@@ -7475,7 +7475,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 166,
+            funcId: 167,
             port: port_,
           );
         },
@@ -7505,7 +7505,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 167,
+            funcId: 168,
             port: port_,
           );
         },
@@ -7536,7 +7536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 168,
+            funcId: 169,
             port: port_,
           );
         },
@@ -7563,7 +7563,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 169,
+            funcId: 170,
             port: port_,
           );
         },
@@ -7590,7 +7590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 170,
+            funcId: 171,
             port: port_,
           );
         },
@@ -7621,7 +7621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 171,
+            funcId: 172,
             port: port_,
           );
         },
@@ -7878,6 +7878,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EventSink dco_decode_TraitDef_EventSink(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   AccentPaletteSetting dco_decode_accent_palette_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AccentPaletteSetting.values[raw as int];
@@ -7915,18 +7921,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return AnalyzeCollectionResult(
       queuedTrackIds: dco_decode_list_String(arr[0]),
       stemTrackIds: dco_decode_list_String(arr[1]),
-    );
-  }
-
-  @protected
-  AnalyzeTrack dco_decode_analyze_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return AnalyzeTrack(
-      trackId: dco_decode_String(arr[0]),
-      force: dco_decode_bool(arr[1]),
     );
   }
 
@@ -8007,32 +8001,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AssignSampler dco_decode_assign_sampler(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return AssignSampler(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      path: dco_decode_String(arr[2]),
-    );
-  }
-
-  @protected
-  AssignSamplerTrack dco_decode_assign_sampler_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return AssignSamplerTrack(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      trackId: dco_decode_String(arr[2]),
-    );
-  }
-
-  @protected
   BeatGrid dco_decode_beat_grid(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -8092,42 +8060,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BeatJump dco_decode_beat_jump(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return BeatJump(
-      deck: dco_decode_u_16(arr[0]),
-      beats: dco_decode_f_32(arr[1]),
-    );
-  }
-
-  @protected
-  BeatJumpPadPress dco_decode_beat_jump_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return BeatJumpPadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  BeatJumpPadRelease dco_decode_beat_jump_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return BeatJumpPadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
   BeatSegment dco_decode_beat_segment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -8146,54 +8078,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BeginCueHold dco_decode_begin_cue_hold(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return BeginCueHold(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  BeginLoopRoll dco_decode_begin_loop_roll(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return BeginLoopRoll(
-      deck: dco_decode_u_16(arr[0]),
-      beats: dco_decode_f_32(arr[1]),
-    );
-  }
-
-  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
   }
 
   @protected
-  AnalyzeTrack dco_decode_box_autoadd_analyze_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_analyze_track(raw);
-  }
-
-  @protected
   AppSettings dco_decode_box_autoadd_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_app_settings(raw);
-  }
-
-  @protected
-  AssignSampler dco_decode_box_autoadd_assign_sampler(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_assign_sampler(raw);
-  }
-
-  @protected
-  AssignSamplerTrack dco_decode_box_autoadd_assign_sampler_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_assign_sampler_track(raw);
   }
 
   @protected
@@ -8206,42 +8099,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BeatGridData dco_decode_box_autoadd_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_beat_grid_data(raw);
-  }
-
-  @protected
-  BeatJump dco_decode_box_autoadd_beat_jump(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_beat_jump(raw);
-  }
-
-  @protected
-  BeatJumpPadPress dco_decode_box_autoadd_beat_jump_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_beat_jump_pad_press(raw);
-  }
-
-  @protected
-  BeatJumpPadRelease dco_decode_box_autoadd_beat_jump_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_beat_jump_pad_release(raw);
-  }
-
-  @protected
-  BeginCueHold dco_decode_box_autoadd_begin_cue_hold(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_begin_cue_hold(raw);
-  }
-
-  @protected
-  BeginLoopRoll dco_decode_box_autoadd_begin_loop_roll(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_begin_loop_roll(raw);
-  }
-
-  @protected
-  ClearSampler dco_decode_box_autoadd_clear_sampler(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_clear_sampler(raw);
   }
 
   @protected
@@ -8299,36 +8156,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DeleteDeckHotCue dco_decode_box_autoadd_delete_deck_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_delete_deck_hot_cue(raw);
-  }
-
-  @protected
-  DeleteTrackHotCue dco_decode_box_autoadd_delete_track_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_delete_track_hot_cue(raw);
-  }
-
-  @protected
-  DeleteTrackLoop dco_decode_box_autoadd_delete_track_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_delete_track_loop(raw);
-  }
-
-  @protected
-  EndCueHold dco_decode_box_autoadd_end_cue_hold(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_end_cue_hold(raw);
-  }
-
-  @protected
-  EndLoopRoll dco_decode_box_autoadd_end_loop_roll(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_end_loop_roll(raw);
-  }
-
-  @protected
   EngineSnapshot dco_decode_box_autoadd_engine_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_engine_snapshot(raw);
@@ -8347,12 +8174,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  ExitLoop dco_decode_box_autoadd_exit_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_exit_loop(raw);
-  }
-
-  @protected
   double dco_decode_box_autoadd_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -8365,27 +8186,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FaderStart dco_decode_box_autoadd_fader_start(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_fader_start(raw);
-  }
-
-  @protected
-  FaderStop dco_decode_box_autoadd_fader_stop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_fader_stop(raw);
-  }
-
-  @protected
   Focus dco_decode_box_autoadd_focus(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_focus(raw);
-  }
-
-  @protected
-  GenerateStems dco_decode_box_autoadd_generate_stems(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_generate_stems(raw);
   }
 
   @protected
@@ -8405,18 +8208,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  HotCuePadPress dco_decode_box_autoadd_hot_cue_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_hot_cue_pad_press(raw);
-  }
-
-  @protected
-  HotCuePadRelease dco_decode_box_autoadd_hot_cue_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_hot_cue_pad_release(raw);
-  }
-
-  @protected
   HotCuesChanged dco_decode_box_autoadd_hot_cues_changed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_hot_cues_changed(raw);
@@ -8432,42 +8223,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
-  }
-
-  @protected
-  JogTouch dco_decode_box_autoadd_jog_touch(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_jog_touch(raw);
-  }
-
-  @protected
-  JogTurn dco_decode_box_autoadd_jog_turn(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_jog_turn(raw);
-  }
-
-  @protected
-  KeyShiftPadPress dco_decode_box_autoadd_key_shift_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_key_shift_pad_press(raw);
-  }
-
-  @protected
-  KeyShiftPadRelease dco_decode_box_autoadd_key_shift_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_key_shift_pad_release(raw);
-  }
-
-  @protected
-  KeyboardPadPress dco_decode_box_autoadd_keyboard_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_keyboard_pad_press(raw);
-  }
-
-  @protected
-  KeyboardPadRelease dco_decode_box_autoadd_keyboard_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_keyboard_pad_release(raw);
   }
 
   @protected
@@ -8491,33 +8246,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  LoopIn dco_decode_box_autoadd_loop_in(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_loop_in(raw);
-  }
-
-  @protected
-  LoopOut dco_decode_box_autoadd_loop_out(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_loop_out(raw);
-  }
-
-  @protected
   LoopRegion dco_decode_box_autoadd_loop_region(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_loop_region(raw);
-  }
-
-  @protected
-  LoopRollPadPress dco_decode_box_autoadd_loop_roll_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_loop_roll_pad_press(raw);
-  }
-
-  @protected
-  LoopRollPadRelease dco_decode_box_autoadd_loop_roll_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_loop_roll_pad_release(raw);
   }
 
   @protected
@@ -8557,30 +8288,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  PadPress dco_decode_box_autoadd_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_pad_press(raw);
-  }
-
-  @protected
-  PadRelease dco_decode_box_autoadd_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_pad_release(raw);
-  }
-
-  @protected
-  Pause dco_decode_box_autoadd_pause(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_pause(raw);
-  }
-
-  @protected
-  Play dco_decode_box_autoadd_play(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_play(raw);
-  }
-
-  @protected
   RealtimeStemsCapability dco_decode_box_autoadd_realtime_stems_capability(
     dynamic raw,
   ) {
@@ -8589,369 +8296,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RecallSavedLoop dco_decode_box_autoadd_recall_saved_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_recall_saved_loop(raw);
-  }
-
-  @protected
-  RefreshTrack dco_decode_box_autoadd_refresh_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_refresh_track(raw);
-  }
-
-  @protected
-  SamplerPadPress dco_decode_box_autoadd_sampler_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_sampler_pad_press(raw);
-  }
-
-  @protected
-  SamplerPadRelease dco_decode_box_autoadd_sampler_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_sampler_pad_release(raw);
-  }
-
-  @protected
   SamplerPlayMode dco_decode_box_autoadd_sampler_play_mode(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_sampler_play_mode(raw);
-  }
-
-  @protected
-  SaveBeatGrid dco_decode_box_autoadd_save_beat_grid(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_save_beat_grid(raw);
-  }
-
-  @protected
-  SaveDeckHotCue dco_decode_box_autoadd_save_deck_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_save_deck_hot_cue(raw);
-  }
-
-  @protected
-  SaveTrackCue dco_decode_box_autoadd_save_track_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_save_track_cue(raw);
-  }
-
-  @protected
-  SaveTrackHotCue dco_decode_box_autoadd_save_track_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_save_track_hot_cue(raw);
-  }
-
-  @protected
-  SaveTrackLoop dco_decode_box_autoadd_save_track_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_save_track_loop(raw);
-  }
-
-  @protected
-  Seek dco_decode_box_autoadd_seek(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_seek(raw);
-  }
-
-  @protected
-  SetAutoLoop dco_decode_box_autoadd_set_auto_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_auto_loop(raw);
-  }
-
-  @protected
-  SetChannelFaderCurve dco_decode_box_autoadd_set_channel_fader_curve(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_channel_fader_curve(raw);
-  }
-
-  @protected
-  SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_crossfader(raw);
-  }
-
-  @protected
-  SetCrossfaderAssign dco_decode_box_autoadd_set_crossfader_assign(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_crossfader_assign(raw);
-  }
-
-  @protected
-  SetCrossfaderBehavior dco_decode_box_autoadd_set_crossfader_behavior(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_crossfader_behavior(raw);
-  }
-
-  @protected
-  SetCrossfaderCurve dco_decode_box_autoadd_set_crossfader_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_crossfader_curve(raw);
-  }
-
-  @protected
-  SetCrossfaderCurveAmount dco_decode_box_autoadd_set_crossfader_curve_amount(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_crossfader_curve_amount(raw);
-  }
-
-  @protected
-  SetCueMix dco_decode_box_autoadd_set_cue_mix(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_cue_mix(raw);
-  }
-
-  @protected
-  SetCuePoint dco_decode_box_autoadd_set_cue_point(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_cue_point(raw);
-  }
-
-  @protected
-  SetCueVolume dco_decode_box_autoadd_set_cue_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_cue_volume(raw);
-  }
-
-  @protected
-  SetCurveLibrary dco_decode_box_autoadd_set_curve_library(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_curve_library(raw);
-  }
-
-  @protected
-  SetDeckFxRouted dco_decode_box_autoadd_set_deck_fx_routed(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_deck_fx_routed(raw);
-  }
-
-  @protected
-  SetEq dco_decode_box_autoadd_set_eq(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_eq(raw);
-  }
-
-  @protected
-  SetEqBand dco_decode_box_autoadd_set_eq_band(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_eq_band(raw);
-  }
-
-  @protected
-  SetFaderStartNative dco_decode_box_autoadd_set_fader_start_native(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fader_start_native(raw);
-  }
-
-  @protected
-  SetFilter dco_decode_box_autoadd_set_filter(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_filter(raw);
-  }
-
-  @protected
-  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fx_level_curve(raw);
-  }
-
-  @protected
-  SetFxUnitParam dco_decode_box_autoadd_set_fx_unit_param(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fx_unit_param(raw);
-  }
-
-  @protected
-  SetFxUnitSlot dco_decode_box_autoadd_set_fx_unit_slot(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fx_unit_slot(raw);
-  }
-
-  @protected
-  SetFxUnitSlotEnabled dco_decode_box_autoadd_set_fx_unit_slot_enabled(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fx_unit_slot_enabled(raw);
-  }
-
-  @protected
-  SetFxUnitWet dco_decode_box_autoadd_set_fx_unit_wet(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_fx_unit_wet(raw);
-  }
-
-  @protected
-  SetGainTrim dco_decode_box_autoadd_set_gain_trim(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_gain_trim(raw);
-  }
-
-  @protected
-  SetHeadphoneCue dco_decode_box_autoadd_set_headphone_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_headphone_cue(raw);
-  }
-
-  @protected
-  SetJogMode dco_decode_box_autoadd_set_jog_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_jog_mode(raw);
-  }
-
-  @protected
-  SetKeyLock dco_decode_box_autoadd_set_key_lock(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_key_lock(raw);
-  }
-
-  @protected
-  SetKeyShift dco_decode_box_autoadd_set_key_shift(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_key_shift(raw);
-  }
-
-  @protected
-  SetKeyShiftPage dco_decode_box_autoadd_set_key_shift_page(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_key_shift_page(raw);
-  }
-
-  @protected
-  SetKeyboardPage dco_decode_box_autoadd_set_keyboard_page(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_keyboard_page(raw);
-  }
-
-  @protected
-  SetKeyboardRoot dco_decode_box_autoadd_set_keyboard_root(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_keyboard_root(raw);
-  }
-
-  @protected
-  SetMasterCue dco_decode_box_autoadd_set_master_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_master_cue(raw);
-  }
-
-  @protected
-  SetMasterDeck dco_decode_box_autoadd_set_master_deck(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_master_deck(raw);
-  }
-
-  @protected
-  SetMasterVolume dco_decode_box_autoadd_set_master_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_master_volume(raw);
-  }
-
-  @protected
-  SetPadMode dco_decode_box_autoadd_set_pad_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_pad_mode(raw);
-  }
-
-  @protected
-  SetQuantize dco_decode_box_autoadd_set_quantize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_quantize(raw);
-  }
-
-  @protected
-  SetSlip dco_decode_box_autoadd_set_slip(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_slip(raw);
-  }
-
-  @protected
-  SetSpeed dco_decode_box_autoadd_set_speed(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_speed(raw);
-  }
-
-  @protected
-  SetStemEqBand dco_decode_box_autoadd_set_stem_eq_band(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_stem_eq_band(raw);
-  }
-
-  @protected
-  SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_stem_eq_enabled(raw);
-  }
-
-  @protected
-  SetTempoCurve dco_decode_box_autoadd_set_tempo_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_tempo_curve(raw);
-  }
-
-  @protected
-  SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_tempo_range(raw);
-  }
-
-  @protected
-  SetVolume dco_decode_box_autoadd_set_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_set_volume(raw);
-  }
-
-  @protected
-  ToggleHeadphoneCue dco_decode_box_autoadd_toggle_headphone_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_headphone_cue(raw);
-  }
-
-  @protected
-  ToggleMasterCue dco_decode_box_autoadd_toggle_master_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_master_cue(raw);
-  }
-
-  @protected
-  TogglePlay dco_decode_box_autoadd_toggle_play(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_play(raw);
-  }
-
-  @protected
-  ToggleQuantize dco_decode_box_autoadd_toggle_quantize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_quantize(raw);
-  }
-
-  @protected
-  ToggleSlip dco_decode_box_autoadd_toggle_slip(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_slip(raw);
-  }
-
-  @protected
-  ToggleStemEq dco_decode_box_autoadd_toggle_stem_eq(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_stem_eq(raw);
-  }
-
-  @protected
-  ToggleSync dco_decode_box_autoadd_toggle_sync(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_toggle_sync(raw);
   }
 
   @protected
@@ -8973,12 +8320,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TriggerHotCue dco_decode_box_autoadd_trigger_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_trigger_hot_cue(raw);
-  }
-
-  @protected
   int dco_decode_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -8994,12 +8335,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_box_autoadd_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
-  }
-
-  @protected
-  Unload dco_decode_box_autoadd_unload(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_unload(raw);
   }
 
   @protected
@@ -9044,18 +8379,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bytesCopied: dco_decode_u_64(arr[4]),
       errors: dco_decode_list_String(arr[5]),
       warnings: dco_decode_list_String(arr[6]),
-    );
-  }
-
-  @protected
-  ClearSampler dco_decode_clear_sampler(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return ClearSampler(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
     );
   }
 
@@ -9486,42 +8809,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DeleteDeckHotCue dco_decode_delete_deck_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return DeleteDeckHotCue(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  DeleteTrackHotCue dco_decode_delete_track_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return DeleteTrackHotCue(
-      trackId: dco_decode_String(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  DeleteTrackLoop dco_decode_delete_track_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return DeleteTrackLoop(
-      trackId: dco_decode_String(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
   DetectedController dco_decode_detected_controller(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -9532,24 +8819,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mappingName: dco_decode_opt_String(arr[1]),
       deviceId: dco_decode_opt_String(arr[2]),
     );
-  }
-
-  @protected
-  EndCueHold dco_decode_end_cue_hold(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return EndCueHold(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  EndLoopRoll dco_decode_end_loop_roll(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return EndLoopRoll(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -9605,373 +8874,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return Event_Play(dco_decode_box_autoadd_play(raw[1]));
-      case 1:
-        return Event_Pause(dco_decode_box_autoadd_pause(raw[1]));
-      case 2:
-        return Event_TogglePlay(dco_decode_box_autoadd_toggle_play(raw[1]));
-      case 3:
-        return Event_Seek(dco_decode_box_autoadd_seek(raw[1]));
-      case 4:
-        return Event_Unload(dco_decode_box_autoadd_unload(raw[1]));
-      case 5:
-        return Event_SetVolume(dco_decode_box_autoadd_set_volume(raw[1]));
-      case 6:
-        return Event_SetEq(dco_decode_box_autoadd_set_eq(raw[1]));
-      case 7:
-        return Event_SetEqBand(dco_decode_box_autoadd_set_eq_band(raw[1]));
-      case 8:
-        return Event_SetStemEqBand(
-          dco_decode_box_autoadd_set_stem_eq_band(raw[1]),
-        );
-      case 9:
-        return Event_SetStemEqEnabled(
-          dco_decode_box_autoadd_set_stem_eq_enabled(raw[1]),
-        );
-      case 10:
-        return Event_ToggleStemEq(
-          dco_decode_box_autoadd_toggle_stem_eq(raw[1]),
-        );
-      case 11:
-        return Event_SetFilter(dco_decode_box_autoadd_set_filter(raw[1]));
-      case 12:
-        return Event_SetGainTrim(dco_decode_box_autoadd_set_gain_trim(raw[1]));
-      case 13:
-        return Event_SetHeadphoneCue(
-          dco_decode_box_autoadd_set_headphone_cue(raw[1]),
-        );
-      case 14:
-        return Event_ToggleHeadphoneCue(
-          dco_decode_box_autoadd_toggle_headphone_cue(raw[1]),
-        );
-      case 15:
-        return Event_SetCrossfaderAssign(
-          dco_decode_box_autoadd_set_crossfader_assign(raw[1]),
-        );
-      case 16:
-        return Event_SetSpeed(dco_decode_box_autoadd_set_speed(raw[1]));
-      case 17:
-        return Event_SetTempoRange(
-          dco_decode_box_autoadd_set_tempo_range(raw[1]),
-        );
-      case 18:
-        return Event_SetTempoCurve(
-          dco_decode_box_autoadd_set_tempo_curve(raw[1]),
-        );
-      case 19:
-        return Event_SetKeyLock(dco_decode_box_autoadd_set_key_lock(raw[1]));
-      case 20:
-        return Event_SetKeyShift(dco_decode_box_autoadd_set_key_shift(raw[1]));
-      case 21:
-        return Event_SetKeyboardRoot(
-          dco_decode_box_autoadd_set_keyboard_root(raw[1]),
-        );
-      case 22:
-        return Event_SetKeyboardPage(
-          dco_decode_box_autoadd_set_keyboard_page(raw[1]),
-        );
-      case 23:
-        return Event_SetKeyShiftPage(
-          dco_decode_box_autoadd_set_key_shift_page(raw[1]),
-        );
-      case 24:
-        return Event_ToggleSync(dco_decode_box_autoadd_toggle_sync(raw[1]));
-      case 25:
-        return Event_SetMasterDeck(
-          dco_decode_box_autoadd_set_master_deck(raw[1]),
-        );
-      case 26:
-        return Event_SetCuePoint(dco_decode_box_autoadd_set_cue_point(raw[1]));
-      case 27:
-        return Event_BeginCueHold(
-          dco_decode_box_autoadd_begin_cue_hold(raw[1]),
-        );
-      case 28:
-        return Event_EndCueHold(dco_decode_box_autoadd_end_cue_hold(raw[1]));
-      case 29:
-        return Event_FaderStart(dco_decode_box_autoadd_fader_start(raw[1]));
-      case 30:
-        return Event_FaderStop(dco_decode_box_autoadd_fader_stop(raw[1]));
-      case 31:
-        return Event_SetFaderStartNative(
-          dco_decode_box_autoadd_set_fader_start_native(raw[1]),
-        );
-      case 32:
-        return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
-      case 33:
-        return Event_ToggleQuantize(
-          dco_decode_box_autoadd_toggle_quantize(raw[1]),
-        );
-      case 34:
-        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
-      case 35:
-        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
-      case 36:
-        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
-      case 37:
-        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
-      case 38:
-        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
-      case 39:
-        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
-      case 40:
-        return Event_RecallSavedLoop(
-          dco_decode_box_autoadd_recall_saved_loop(raw[1]),
-        );
-      case 41:
-        return Event_BeginLoopRoll(
-          dco_decode_box_autoadd_begin_loop_roll(raw[1]),
-        );
-      case 42:
-        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
-      case 43:
-        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
-      case 44:
-        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
-      case 45:
-        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
-      case 46:
-        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
-      case 47:
-        return Event_HotCuePadPress(
-          dco_decode_box_autoadd_hot_cue_pad_press(raw[1]),
-        );
-      case 48:
-        return Event_HotCuePadRelease(
-          dco_decode_box_autoadd_hot_cue_pad_release(raw[1]),
-        );
-      case 49:
-        return Event_LoopRollPadPress(
-          dco_decode_box_autoadd_loop_roll_pad_press(raw[1]),
-        );
-      case 50:
-        return Event_LoopRollPadRelease(
-          dco_decode_box_autoadd_loop_roll_pad_release(raw[1]),
-        );
-      case 51:
-        return Event_BeatJumpPadPress(
-          dco_decode_box_autoadd_beat_jump_pad_press(raw[1]),
-        );
-      case 52:
-        return Event_BeatJumpPadRelease(
-          dco_decode_box_autoadd_beat_jump_pad_release(raw[1]),
-        );
-      case 53:
-        return Event_SamplerPadPress(
-          dco_decode_box_autoadd_sampler_pad_press(raw[1]),
-        );
-      case 54:
-        return Event_SamplerPadRelease(
-          dco_decode_box_autoadd_sampler_pad_release(raw[1]),
-        );
-      case 55:
-        return Event_KeyboardPadPress(
-          dco_decode_box_autoadd_keyboard_pad_press(raw[1]),
-        );
-      case 56:
-        return Event_KeyboardPadRelease(
-          dco_decode_box_autoadd_keyboard_pad_release(raw[1]),
-        );
-      case 57:
-        return Event_KeyShiftPadPress(
-          dco_decode_box_autoadd_key_shift_pad_press(raw[1]),
-        );
-      case 58:
-        return Event_KeyShiftPadRelease(
-          dco_decode_box_autoadd_key_shift_pad_release(raw[1]),
-        );
-      case 59:
-        return Event_TriggerHotCue(
-          dco_decode_box_autoadd_trigger_hot_cue(raw[1]),
-        );
-      case 60:
-        return Event_SaveDeckHotCue(
-          dco_decode_box_autoadd_save_deck_hot_cue(raw[1]),
-        );
-      case 61:
-        return Event_DeleteDeckHotCue(
-          dco_decode_box_autoadd_delete_deck_hot_cue(raw[1]),
-        );
-      case 62:
-        return Event_AssignSampler(
-          dco_decode_box_autoadd_assign_sampler(raw[1]),
-        );
-      case 63:
-        return Event_AssignSamplerTrack(
-          dco_decode_box_autoadd_assign_sampler_track(raw[1]),
-        );
-      case 64:
-        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
-      case 65:
-        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
-      case 66:
-        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
-      case 67:
-        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
-      case 68:
-        return Event_SetCrossfader(
-          dco_decode_box_autoadd_set_crossfader(raw[1]),
-        );
-      case 69:
-        return Event_SetMasterVolume(
-          dco_decode_box_autoadd_set_master_volume(raw[1]),
-        );
-      case 70:
-        return Event_SetCueVolume(
-          dco_decode_box_autoadd_set_cue_volume(raw[1]),
-        );
-      case 71:
-        return Event_SetCueMix(dco_decode_box_autoadd_set_cue_mix(raw[1]));
-      case 72:
-        return Event_SetMasterCue(
-          dco_decode_box_autoadd_set_master_cue(raw[1]),
-        );
-      case 73:
-        return Event_ToggleMasterCue(
-          dco_decode_box_autoadd_toggle_master_cue(raw[1]),
-        );
-      case 74:
-        return Event_SetCurveLibrary(
-          dco_decode_box_autoadd_set_curve_library(raw[1]),
-        );
-      case 75:
-        return Event_SetCrossfaderCurve(
-          dco_decode_box_autoadd_set_crossfader_curve(raw[1]),
-        );
-      case 76:
-        return Event_SetCrossfaderCurveAmount(
-          dco_decode_box_autoadd_set_crossfader_curve_amount(raw[1]),
-        );
-      case 77:
-        return Event_SetCrossfaderBehavior(
-          dco_decode_box_autoadd_set_crossfader_behavior(raw[1]),
-        );
-      case 78:
-        return Event_SetChannelFaderCurve(
-          dco_decode_box_autoadd_set_channel_fader_curve(raw[1]),
-        );
-      case 79:
-        return Event_SetFxUnitSlot(
-          dco_decode_box_autoadd_set_fx_unit_slot(raw[1]),
-        );
-      case 80:
-        return Event_SetFxUnitSlotEnabled(
-          dco_decode_box_autoadd_set_fx_unit_slot_enabled(raw[1]),
-        );
-      case 81:
-        return Event_SetFxUnitWet(
-          dco_decode_box_autoadd_set_fx_unit_wet(raw[1]),
-        );
-      case 82:
-        return Event_SetFxLevelCurve(
-          dco_decode_box_autoadd_set_fx_level_curve(raw[1]),
-        );
-      case 83:
-        return Event_SetFxUnitParam(
-          dco_decode_box_autoadd_set_fx_unit_param(raw[1]),
-        );
-      case 84:
-        return Event_SetDeckFxRouted(
-          dco_decode_box_autoadd_set_deck_fx_routed(raw[1]),
-        );
-      case 85:
         return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
-      case 86:
+      case 1:
         return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
-      case 87:
+      case 2:
         return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
-      case 88:
+      case 3:
         return Event_EngineSnapshot(
           dco_decode_box_autoadd_engine_snapshot(raw[1]),
         );
-      case 89:
+      case 4:
         return Event_Error(dco_decode_box_autoadd_error(raw[1]));
-      case 90:
+      case 5:
         return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
-      case 91:
-        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
-      case 92:
-        return Event_GenerateStems(
-          dco_decode_box_autoadd_generate_stems(raw[1]),
-        );
-      case 93:
-        return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
-      case 94:
-        return Event_SaveBeatGrid(
-          dco_decode_box_autoadd_save_beat_grid(raw[1]),
-        );
-      case 95:
-        return Event_SaveTrackCue(
-          dco_decode_box_autoadd_save_track_cue(raw[1]),
-        );
-      case 96:
-        return Event_SaveTrackHotCue(
-          dco_decode_box_autoadd_save_track_hot_cue(raw[1]),
-        );
-      case 97:
-        return Event_DeleteTrackHotCue(
-          dco_decode_box_autoadd_delete_track_hot_cue(raw[1]),
-        );
-      case 98:
-        return Event_SaveTrackLoop(
-          dco_decode_box_autoadd_save_track_loop(raw[1]),
-        );
-      case 99:
-        return Event_DeleteTrackLoop(
-          dco_decode_box_autoadd_delete_track_loop(raw[1]),
-        );
-      case 100:
+      case 6:
         return Event_TrackAnalyzed(
           dco_decode_box_autoadd_track_analyzed(raw[1]),
         );
-      case 101:
+      case 7:
         return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
-      case 102:
+      case 8:
         return Event_TrackProgress(
           dco_decode_box_autoadd_track_progress(raw[1]),
         );
-      case 103:
+      case 9:
         return Event_HotCuesChanged(
           dco_decode_box_autoadd_hot_cues_changed(raw[1]),
         );
-      case 104:
+      case 10:
         return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
-      case 105:
+      case 11:
         return Event_BeatGridChanged(
           dco_decode_box_autoadd_beat_grid_changed(raw[1]),
         );
-      case 106:
+      case 12:
         return Event_HistorySessionUpdated(
           dco_decode_box_autoadd_history_session_updated(raw[1]),
         );
-      case 107:
+      case 13:
         return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
-      case 108:
+      case 14:
         return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
-      case 109:
+      case 15:
         return Event_Load(dco_decode_box_autoadd_load(raw[1]));
-      case 110:
+      case 16:
         return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
-      case 111:
+      case 17:
         return Event_MappingAttached(
           dco_decode_box_autoadd_mapping_attached(raw[1]),
         );
-      case 112:
+      case 18:
         return Event_MappingDetached(
           dco_decode_box_autoadd_mapping_detached(raw[1]),
         );
       default:
         throw Exception("unreachable");
     }
-  }
-
-  @protected
-  ExitLoop dco_decode_exit_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ExitLoop(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -9987,15 +8945,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FaderStart dco_decode_fader_start(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return FaderStart(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
   FaderStartOnNonZeroSetting dco_decode_fader_start_on_non_zero_setting(
     dynamic raw,
   ) {
@@ -10007,15 +8956,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FaderStartOnZeroSetting dco_decode_fader_start_on_zero_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return FaderStartOnZeroSetting.values[raw as int];
-  }
-
-  @protected
-  FaderStop dco_decode_fader_stop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return FaderStop(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -10084,15 +9024,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       wet: dco_decode_f_32(arr[2]),
       params: dco_decode_list_prim_f_32_strict(arr[3]),
     );
-  }
-
-  @protected
-  GenerateStems dco_decode_generate_stems(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return GenerateStems(trackId: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -10181,31 +9112,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  HotCuePadPress dco_decode_hot_cue_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return HotCuePadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      shift: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  HotCuePadRelease dco_decode_hot_cue_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return HotCuePadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
   HotCuesChanged dco_decode_hot_cues_changed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10242,30 +9148,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  JogTouch dco_decode_jog_touch(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return JogTouch(
-      deck: dco_decode_u_16(arr[0]),
-      touching: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  JogTurn dco_decode_jog_turn(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return JogTurn(
-      deck: dco_decode_u_16(arr[0]),
-      delta: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
   KeyColorModeSetting dco_decode_key_color_mode_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return KeyColorModeSetting.values[raw as int];
@@ -10275,56 +9157,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return KeyDisplayModeSetting.values[raw as int];
-  }
-
-  @protected
-  KeyShiftPadPress dco_decode_key_shift_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return KeyShiftPadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      shift: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  KeyShiftPadRelease dco_decode_key_shift_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return KeyShiftPadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  KeyboardPadPress dco_decode_keyboard_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return KeyboardPadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      shift: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  KeyboardPadRelease dco_decode_keyboard_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return KeyboardPadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
   }
 
   @protected
@@ -10669,30 +9501,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  LoopIn dco_decode_loop_in(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return LoopIn(
-      deck: dco_decode_u_16(arr[0]),
-      positionMs: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
-  LoopOut dco_decode_loop_out(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return LoopOut(
-      deck: dco_decode_u_16(arr[0]),
-      positionMs: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
   LoopRegion dco_decode_loop_region(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10702,30 +9510,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       inMs: dco_decode_i_32(arr[0]),
       outMs: dco_decode_i_32(arr[1]),
       active: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  LoopRollPadPress dco_decode_loop_roll_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return LoopRollPadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  LoopRollPadRelease dco_decode_loop_roll_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return LoopRollPadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
     );
   }
 
@@ -11007,49 +9791,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  PadPress dco_decode_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return PadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      shift: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  PadRelease dco_decode_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return PadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  Pause dco_decode_pause(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return Pause(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  Play dco_decode_play(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return Play(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
   RealtimeStemsBenchmarkProgress dco_decode_realtime_stems_benchmark_progress(
     dynamic raw,
   ) {
@@ -11076,28 +9817,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       modelSha: dco_decode_String(arr[3]),
       allowed: dco_decode_bool(arr[4]),
     );
-  }
-
-  @protected
-  RecallSavedLoop dco_decode_recall_saved_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return RecallSavedLoop(
-      deck: dco_decode_u_16(arr[0]),
-      inMs: dco_decode_i_32(arr[1]),
-      outMs: dco_decode_i_32(arr[2]),
-    );
-  }
-
-  @protected
-  RefreshTrack dco_decode_refresh_track(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return RefreshTrack(trackId: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -11176,31 +9895,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SamplerPadPress dco_decode_sampler_pad_press(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SamplerPadPress(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      shift: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SamplerPadRelease dco_decode_sampler_pad_release(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SamplerPadRelease(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
   SamplerPlayMode dco_decode_sampler_play_mode(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return SamplerPlayMode.values[raw as int];
@@ -11235,76 +9929,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SaveBeatGrid dco_decode_save_beat_grid(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return SaveBeatGrid(
-      trackId: dco_decode_String(arr[0]),
-      bpm: dco_decode_f_64(arr[1]),
-      firstBeatSecs: dco_decode_f_32(arr[2]),
-      replace: dco_decode_bool(arr[3]),
-    );
-  }
-
-  @protected
-  SaveDeckHotCue dco_decode_save_deck_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SaveDeckHotCue(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  SaveTrackCue dco_decode_save_track_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SaveTrackCue(
-      trackId: dco_decode_String(arr[0]),
-      positionMs: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
-  SaveTrackHotCue dco_decode_save_track_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-    return SaveTrackHotCue(
-      trackId: dco_decode_String(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      positionMs: dco_decode_i_32(arr[2]),
-      loopLengthBeats: dco_decode_opt_box_autoadd_i_32(arr[3]),
-      color: dco_decode_opt_String(arr[4]),
-      label: dco_decode_opt_String(arr[5]),
-    );
-  }
-
-  @protected
-  SaveTrackLoop dco_decode_save_track_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-    return SaveTrackLoop(
-      trackId: dco_decode_String(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-      inMs: dco_decode_i_32(arr[2]),
-      outMs: dco_decode_i_32(arr[3]),
-      label: dco_decode_opt_String(arr[4]),
-      color: dco_decode_opt_String(arr[5]),
-    );
-  }
-
-  @protected
   SavedLoop dco_decode_saved_loop(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -11320,506 +9944,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Seek dco_decode_seek(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return Seek(
-      deck: dco_decode_u_16(arr[0]),
-      positionMs: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
   SelectStyleSetting dco_decode_select_style_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return SelectStyleSetting.values[raw as int];
-  }
-
-  @protected
-  SetAutoLoop dco_decode_set_auto_loop(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetAutoLoop(
-      deck: dco_decode_u_16(arr[0]),
-      beats: dco_decode_f_32(arr[1]),
-    );
-  }
-
-  @protected
-  SetChannelFaderCurve dco_decode_set_channel_fader_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetChannelFaderCurve(id: dco_decode_String(arr[0]));
-  }
-
-  @protected
-  SetCrossfader dco_decode_set_crossfader(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetCrossfader(
-      position: dco_decode_f_32(arr[0]),
-      softTakeover: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetCrossfaderAssign dco_decode_set_crossfader_assign(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetCrossfaderAssign(
-      deck: dco_decode_u_16(arr[0]),
-      assignment: dco_decode_crossfader_assign(arr[1]),
-    );
-  }
-
-  @protected
-  SetCrossfaderBehavior dco_decode_set_crossfader_behavior(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetCrossfaderBehavior(
-      hamster: dco_decode_bool(arr[0]),
-      disabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetCrossfaderCurve dco_decode_set_crossfader_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetCrossfaderCurve(id: dco_decode_String(arr[0]));
-  }
-
-  @protected
-  SetCrossfaderCurveAmount dco_decode_set_crossfader_curve_amount(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetCrossfaderCurveAmount(
-      set_: dco_decode_String(arr[0]),
-      amount: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SetCueMix dco_decode_set_cue_mix(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetCueMix(
-      mix: dco_decode_f_32(arr[0]),
-      softTakeover: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetCuePoint dco_decode_set_cue_point(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetCuePoint(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  SetCueVolume dco_decode_set_cue_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetCueVolume(
-      volume: dco_decode_f_32(arr[0]),
-      softTakeover: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetCurveLibrary dco_decode_set_curve_library(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetCurveLibrary(library_: dco_decode_curve_library_spec(arr[0]));
-  }
-
-  @protected
-  SetDeckFxRouted dco_decode_set_deck_fx_routed(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetDeckFxRouted(
-      deck: dco_decode_u_16(arr[0]),
-      routed: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetEq dco_decode_set_eq(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return SetEq(
-      deck: dco_decode_u_16(arr[0]),
-      low: dco_decode_f_32(arr[1]),
-      mid: dco_decode_f_32(arr[2]),
-      high: dco_decode_f_32(arr[3]),
-    );
-  }
-
-  @protected
-  SetEqBand dco_decode_set_eq_band(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return SetEqBand(
-      deck: dco_decode_u_16(arr[0]),
-      band: dco_decode_eq_band(arr[1]),
-      gain: dco_decode_f_32(arr[2]),
-      softTakeover: dco_decode_bool(arr[3]),
-    );
-  }
-
-  @protected
-  SetFaderStartNative dco_decode_set_fader_start_native(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetFaderStartNative(
-      deck: dco_decode_u_16(arr[0]),
-      native: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetFilter dco_decode_set_filter(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetFilter(
-      deck: dco_decode_u_16(arr[0]),
-      filter: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetFxLevelCurve(id: dco_decode_String(arr[0]));
-  }
-
-  @protected
-  SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetFxUnitParam(
-      slot: dco_decode_u_8(arr[0]),
-      param: dco_decode_u_8(arr[1]),
-      value: dco_decode_f_32(arr[2]),
-    );
-  }
-
-  @protected
-  SetFxUnitSlot dco_decode_set_fx_unit_slot(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetFxUnitSlot(
-      slot: dco_decode_u_8(arr[0]),
-      kind: dco_decode_fx_kind(arr[1]),
-    );
-  }
-
-  @protected
-  SetFxUnitSlotEnabled dco_decode_set_fx_unit_slot_enabled(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetFxUnitSlotEnabled(
-      slot: dco_decode_u_8(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetFxUnitWet dco_decode_set_fx_unit_wet(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetFxUnitWet(
-      slot: dco_decode_u_8(arr[0]),
-      wet: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SetGainTrim dco_decode_set_gain_trim(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetGainTrim(
-      deck: dco_decode_u_16(arr[0]),
-      gainTrim: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SetHeadphoneCue dco_decode_set_headphone_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetHeadphoneCue(
-      deck: dco_decode_u_16(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetJogMode dco_decode_set_jog_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetJogMode(
-      deck: dco_decode_u_16(arr[0]),
-      top: dco_decode_jog_mode(arr[1]),
-      outer: dco_decode_jog_mode(arr[2]),
-    );
-  }
-
-  @protected
-  SetKeyLock dco_decode_set_key_lock(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetKeyLock(
-      deck: dco_decode_u_16(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetKeyShift dco_decode_set_key_shift(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetKeyShift(
-      deck: dco_decode_u_16(arr[0]),
-      semitones: dco_decode_f_32(arr[1]),
-    );
-  }
-
-  @protected
-  SetKeyShiftPage dco_decode_set_key_shift_page(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetKeyShiftPage(
-      deck: dco_decode_u_16(arr[0]),
-      page: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  SetKeyboardPage dco_decode_set_keyboard_page(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetKeyboardPage(
-      deck: dco_decode_u_16(arr[0]),
-      page: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  SetKeyboardRoot dco_decode_set_keyboard_root(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetKeyboardRoot(
-      deck: dco_decode_u_16(arr[0]),
-      slot: dco_decode_u_8(arr[1]),
-    );
-  }
-
-  @protected
-  SetMasterCue dco_decode_set_master_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetMasterCue(enabled: dco_decode_bool(arr[0]));
-  }
-
-  @protected
-  SetMasterDeck dco_decode_set_master_deck(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SetMasterDeck(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  SetMasterVolume dco_decode_set_master_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetMasterVolume(
-      volume: dco_decode_f_32(arr[0]),
-      softTakeover: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetPadMode dco_decode_set_pad_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetPadMode(
-      deck: dco_decode_u_16(arr[0]),
-      mode: dco_decode_pad_mode(arr[1]),
-    );
-  }
-
-  @protected
-  SetQuantize dco_decode_set_quantize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetQuantize(
-      deck: dco_decode_u_16(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetSlip dco_decode_set_slip(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetSlip(
-      deck: dco_decode_u_16(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetSpeed dco_decode_set_speed(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetSpeed(
-      deck: dco_decode_u_16(arr[0]),
-      speed: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
-  }
-
-  @protected
-  SetStemEqBand dco_decode_set_stem_eq_band(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return SetStemEqBand(
-      deck: dco_decode_u_16(arr[0]),
-      band: dco_decode_eq_band(arr[1]),
-      gain: dco_decode_f_32(arr[2]),
-      softTakeover: dco_decode_bool(arr[3]),
-    );
-  }
-
-  @protected
-  SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetStemEqEnabled(
-      deck: dco_decode_u_16(arr[0]),
-      enabled: dco_decode_bool(arr[1]),
-    );
-  }
-
-  @protected
-  SetTempoCurve dco_decode_set_tempo_curve(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetTempoCurve(
-      deck: dco_decode_u_16(arr[0]),
-      id: dco_decode_String(arr[1]),
-    );
-  }
-
-  @protected
-  SetTempoRange dco_decode_set_tempo_range(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SetTempoRange(
-      deck: dco_decode_u_16(arr[0]),
-      tempoRange: dco_decode_f_32(arr[1]),
-    );
-  }
-
-  @protected
-  SetVolume dco_decode_set_volume(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SetVolume(
-      deck: dco_decode_u_16(arr[0]),
-      volume: dco_decode_f_32(arr[1]),
-      softTakeover: dco_decode_bool(arr[2]),
-    );
   }
 
   @protected
@@ -11846,72 +9973,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ThemeSetting dco_decode_theme_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ThemeSetting.values[raw as int];
-  }
-
-  @protected
-  ToggleHeadphoneCue dco_decode_toggle_headphone_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ToggleHeadphoneCue(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  ToggleMasterCue dco_decode_toggle_master_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 0)
-      throw Exception('unexpected arr length: expect 0 but see ${arr.length}');
-    return ToggleMasterCue();
-  }
-
-  @protected
-  TogglePlay dco_decode_toggle_play(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return TogglePlay(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  ToggleQuantize dco_decode_toggle_quantize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ToggleQuantize(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  ToggleSlip dco_decode_toggle_slip(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ToggleSlip(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  ToggleStemEq dco_decode_toggle_stem_eq(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ToggleStemEq(deck: dco_decode_u_16(arr[0]));
-  }
-
-  @protected
-  ToggleSync dco_decode_toggle_sync(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return ToggleSync(
-      deck: dco_decode_u_16(arr[0]),
-      beatSync: dco_decode_bool(arr[1]),
-    );
   }
 
   @protected
@@ -11973,18 +10034,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TriggerHotCue dco_decode_trigger_hot_cue(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return TriggerHotCue(
-      deck: dco_decode_u_16(arr[0]),
-      positionMs: dco_decode_i_32(arr[1]),
-    );
-  }
-
-  @protected
   int dco_decode_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -12018,15 +10067,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
-  }
-
-  @protected
-  Unload dco_decode_unload(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return Unload(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -12388,14 +10428,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AnalyzeTrack sse_decode_analyze_track(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_force = sse_decode_bool(deserializer);
-    return AnalyzeTrack(trackId: var_trackId, force: var_force);
-  }
-
-  @protected
   AppSettings sse_decode_app_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_bufferSize = sse_decode_u_32(deserializer);
@@ -12556,30 +10588,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AssignSampler sse_decode_assign_sampler(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_path = sse_decode_String(deserializer);
-    return AssignSampler(deck: var_deck, slot: var_slot, path: var_path);
-  }
-
-  @protected
-  AssignSamplerTrack sse_decode_assign_sampler_track(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_trackId = sse_decode_String(deserializer);
-    return AssignSamplerTrack(
-      deck: var_deck,
-      slot: var_slot,
-      trackId: var_trackId,
-    );
-  }
-
-  @protected
   BeatGrid sse_decode_beat_grid(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_source = sse_decode_String(deserializer);
@@ -12645,34 +10653,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BeatJump sse_decode_beat_jump(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_beats = sse_decode_f_32(deserializer);
-    return BeatJump(deck: var_deck, beats: var_beats);
-  }
-
-  @protected
-  BeatJumpPadPress sse_decode_beat_jump_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return BeatJumpPadPress(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  BeatJumpPadRelease sse_decode_beat_jump_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return BeatJumpPadRelease(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
   BeatSegment sse_decode_beat_segment(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_segmentIndex = sse_decode_i_32(deserializer);
@@ -12696,32 +10676,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BeginCueHold sse_decode_begin_cue_hold(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return BeginCueHold(deck: var_deck);
-  }
-
-  @protected
-  BeginLoopRoll sse_decode_begin_loop_roll(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_beats = sse_decode_f_32(deserializer);
-    return BeginLoopRoll(deck: var_deck, beats: var_beats);
-  }
-
-  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
-  AnalyzeTrack sse_decode_box_autoadd_analyze_track(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_analyze_track(deserializer));
   }
 
   @protected
@@ -12730,22 +10687,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_app_settings(deserializer));
-  }
-
-  @protected
-  AssignSampler sse_decode_box_autoadd_assign_sampler(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_assign_sampler(deserializer));
-  }
-
-  @protected
-  AssignSamplerTrack sse_decode_box_autoadd_assign_sampler_track(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_assign_sampler_track(deserializer));
   }
 
   @protected
@@ -12762,52 +10703,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_beat_grid_data(deserializer));
-  }
-
-  @protected
-  BeatJump sse_decode_box_autoadd_beat_jump(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_beat_jump(deserializer));
-  }
-
-  @protected
-  BeatJumpPadPress sse_decode_box_autoadd_beat_jump_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_beat_jump_pad_press(deserializer));
-  }
-
-  @protected
-  BeatJumpPadRelease sse_decode_box_autoadd_beat_jump_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_beat_jump_pad_release(deserializer));
-  }
-
-  @protected
-  BeginCueHold sse_decode_box_autoadd_begin_cue_hold(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_begin_cue_hold(deserializer));
-  }
-
-  @protected
-  BeginLoopRoll sse_decode_box_autoadd_begin_loop_roll(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_begin_loop_roll(deserializer));
-  }
-
-  @protected
-  ClearSampler sse_decode_box_autoadd_clear_sampler(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_clear_sampler(deserializer));
   }
 
   @protected
@@ -12873,44 +10768,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DeleteDeckHotCue sse_decode_box_autoadd_delete_deck_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_delete_deck_hot_cue(deserializer));
-  }
-
-  @protected
-  DeleteTrackHotCue sse_decode_box_autoadd_delete_track_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_delete_track_hot_cue(deserializer));
-  }
-
-  @protected
-  DeleteTrackLoop sse_decode_box_autoadd_delete_track_loop(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_delete_track_loop(deserializer));
-  }
-
-  @protected
-  EndCueHold sse_decode_box_autoadd_end_cue_hold(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_end_cue_hold(deserializer));
-  }
-
-  @protected
-  EndLoopRoll sse_decode_box_autoadd_end_loop_roll(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_end_loop_roll(deserializer));
-  }
-
-  @protected
   EngineSnapshot sse_decode_box_autoadd_engine_snapshot(
     SseDeserializer deserializer,
   ) {
@@ -12931,12 +10788,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  ExitLoop sse_decode_box_autoadd_exit_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_exit_loop(deserializer));
-  }
-
-  @protected
   double sse_decode_box_autoadd_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_f_32(deserializer));
@@ -12949,29 +10800,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  FaderStart sse_decode_box_autoadd_fader_start(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_fader_start(deserializer));
-  }
-
-  @protected
-  FaderStop sse_decode_box_autoadd_fader_stop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_fader_stop(deserializer));
-  }
-
-  @protected
   Focus sse_decode_box_autoadd_focus(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_focus(deserializer));
-  }
-
-  @protected
-  GenerateStems sse_decode_box_autoadd_generate_stems(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_generate_stems(deserializer));
   }
 
   @protected
@@ -12988,22 +10819,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_history_session_updated(deserializer));
-  }
-
-  @protected
-  HotCuePadPress sse_decode_box_autoadd_hot_cue_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_hot_cue_pad_press(deserializer));
-  }
-
-  @protected
-  HotCuePadRelease sse_decode_box_autoadd_hot_cue_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_hot_cue_pad_release(deserializer));
   }
 
   @protected
@@ -13024,50 +10839,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
-  }
-
-  @protected
-  JogTouch sse_decode_box_autoadd_jog_touch(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_jog_touch(deserializer));
-  }
-
-  @protected
-  JogTurn sse_decode_box_autoadd_jog_turn(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_jog_turn(deserializer));
-  }
-
-  @protected
-  KeyShiftPadPress sse_decode_box_autoadd_key_shift_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_key_shift_pad_press(deserializer));
-  }
-
-  @protected
-  KeyShiftPadRelease sse_decode_box_autoadd_key_shift_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_key_shift_pad_release(deserializer));
-  }
-
-  @protected
-  KeyboardPadPress sse_decode_box_autoadd_keyboard_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_keyboard_pad_press(deserializer));
-  }
-
-  @protected
-  KeyboardPadRelease sse_decode_box_autoadd_keyboard_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_keyboard_pad_release(deserializer));
   }
 
   @protected
@@ -13093,37 +10864,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  LoopIn sse_decode_box_autoadd_loop_in(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_loop_in(deserializer));
-  }
-
-  @protected
-  LoopOut sse_decode_box_autoadd_loop_out(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_loop_out(deserializer));
-  }
-
-  @protected
   LoopRegion sse_decode_box_autoadd_loop_region(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_loop_region(deserializer));
-  }
-
-  @protected
-  LoopRollPadPress sse_decode_box_autoadd_loop_roll_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_loop_roll_pad_press(deserializer));
-  }
-
-  @protected
-  LoopRollPadRelease sse_decode_box_autoadd_loop_roll_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_loop_roll_pad_release(deserializer));
   }
 
   @protected
@@ -13171,30 +10914,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  PadPress sse_decode_box_autoadd_pad_press(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_pad_press(deserializer));
-  }
-
-  @protected
-  PadRelease sse_decode_box_autoadd_pad_release(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_pad_release(deserializer));
-  }
-
-  @protected
-  Pause sse_decode_box_autoadd_pause(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_pause(deserializer));
-  }
-
-  @protected
-  Play sse_decode_box_autoadd_play(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_play(deserializer));
-  }
-
-  @protected
   RealtimeStemsCapability sse_decode_box_autoadd_realtime_stems_capability(
     SseDeserializer deserializer,
   ) {
@@ -13203,447 +10922,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RecallSavedLoop sse_decode_box_autoadd_recall_saved_loop(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_recall_saved_loop(deserializer));
-  }
-
-  @protected
-  RefreshTrack sse_decode_box_autoadd_refresh_track(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_refresh_track(deserializer));
-  }
-
-  @protected
-  SamplerPadPress sse_decode_box_autoadd_sampler_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_sampler_pad_press(deserializer));
-  }
-
-  @protected
-  SamplerPadRelease sse_decode_box_autoadd_sampler_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_sampler_pad_release(deserializer));
-  }
-
-  @protected
   SamplerPlayMode sse_decode_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_sampler_play_mode(deserializer));
-  }
-
-  @protected
-  SaveBeatGrid sse_decode_box_autoadd_save_beat_grid(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_save_beat_grid(deserializer));
-  }
-
-  @protected
-  SaveDeckHotCue sse_decode_box_autoadd_save_deck_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_save_deck_hot_cue(deserializer));
-  }
-
-  @protected
-  SaveTrackCue sse_decode_box_autoadd_save_track_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_save_track_cue(deserializer));
-  }
-
-  @protected
-  SaveTrackHotCue sse_decode_box_autoadd_save_track_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_save_track_hot_cue(deserializer));
-  }
-
-  @protected
-  SaveTrackLoop sse_decode_box_autoadd_save_track_loop(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_save_track_loop(deserializer));
-  }
-
-  @protected
-  Seek sse_decode_box_autoadd_seek(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_seek(deserializer));
-  }
-
-  @protected
-  SetAutoLoop sse_decode_box_autoadd_set_auto_loop(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_auto_loop(deserializer));
-  }
-
-  @protected
-  SetChannelFaderCurve sse_decode_box_autoadd_set_channel_fader_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_channel_fader_curve(deserializer));
-  }
-
-  @protected
-  SetCrossfader sse_decode_box_autoadd_set_crossfader(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_crossfader(deserializer));
-  }
-
-  @protected
-  SetCrossfaderAssign sse_decode_box_autoadd_set_crossfader_assign(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_crossfader_assign(deserializer));
-  }
-
-  @protected
-  SetCrossfaderBehavior sse_decode_box_autoadd_set_crossfader_behavior(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_crossfader_behavior(deserializer));
-  }
-
-  @protected
-  SetCrossfaderCurve sse_decode_box_autoadd_set_crossfader_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_crossfader_curve(deserializer));
-  }
-
-  @protected
-  SetCrossfaderCurveAmount sse_decode_box_autoadd_set_crossfader_curve_amount(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_crossfader_curve_amount(deserializer));
-  }
-
-  @protected
-  SetCueMix sse_decode_box_autoadd_set_cue_mix(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_cue_mix(deserializer));
-  }
-
-  @protected
-  SetCuePoint sse_decode_box_autoadd_set_cue_point(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_cue_point(deserializer));
-  }
-
-  @protected
-  SetCueVolume sse_decode_box_autoadd_set_cue_volume(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_cue_volume(deserializer));
-  }
-
-  @protected
-  SetCurveLibrary sse_decode_box_autoadd_set_curve_library(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_curve_library(deserializer));
-  }
-
-  @protected
-  SetDeckFxRouted sse_decode_box_autoadd_set_deck_fx_routed(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_deck_fx_routed(deserializer));
-  }
-
-  @protected
-  SetEq sse_decode_box_autoadd_set_eq(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_eq(deserializer));
-  }
-
-  @protected
-  SetEqBand sse_decode_box_autoadd_set_eq_band(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_eq_band(deserializer));
-  }
-
-  @protected
-  SetFaderStartNative sse_decode_box_autoadd_set_fader_start_native(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fader_start_native(deserializer));
-  }
-
-  @protected
-  SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_filter(deserializer));
-  }
-
-  @protected
-  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fx_level_curve(deserializer));
-  }
-
-  @protected
-  SetFxUnitParam sse_decode_box_autoadd_set_fx_unit_param(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fx_unit_param(deserializer));
-  }
-
-  @protected
-  SetFxUnitSlot sse_decode_box_autoadd_set_fx_unit_slot(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fx_unit_slot(deserializer));
-  }
-
-  @protected
-  SetFxUnitSlotEnabled sse_decode_box_autoadd_set_fx_unit_slot_enabled(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fx_unit_slot_enabled(deserializer));
-  }
-
-  @protected
-  SetFxUnitWet sse_decode_box_autoadd_set_fx_unit_wet(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_fx_unit_wet(deserializer));
-  }
-
-  @protected
-  SetGainTrim sse_decode_box_autoadd_set_gain_trim(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_gain_trim(deserializer));
-  }
-
-  @protected
-  SetHeadphoneCue sse_decode_box_autoadd_set_headphone_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_headphone_cue(deserializer));
-  }
-
-  @protected
-  SetJogMode sse_decode_box_autoadd_set_jog_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_jog_mode(deserializer));
-  }
-
-  @protected
-  SetKeyLock sse_decode_box_autoadd_set_key_lock(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_key_lock(deserializer));
-  }
-
-  @protected
-  SetKeyShift sse_decode_box_autoadd_set_key_shift(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_key_shift(deserializer));
-  }
-
-  @protected
-  SetKeyShiftPage sse_decode_box_autoadd_set_key_shift_page(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_key_shift_page(deserializer));
-  }
-
-  @protected
-  SetKeyboardPage sse_decode_box_autoadd_set_keyboard_page(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_keyboard_page(deserializer));
-  }
-
-  @protected
-  SetKeyboardRoot sse_decode_box_autoadd_set_keyboard_root(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_keyboard_root(deserializer));
-  }
-
-  @protected
-  SetMasterCue sse_decode_box_autoadd_set_master_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_master_cue(deserializer));
-  }
-
-  @protected
-  SetMasterDeck sse_decode_box_autoadd_set_master_deck(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_master_deck(deserializer));
-  }
-
-  @protected
-  SetMasterVolume sse_decode_box_autoadd_set_master_volume(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_master_volume(deserializer));
-  }
-
-  @protected
-  SetPadMode sse_decode_box_autoadd_set_pad_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_pad_mode(deserializer));
-  }
-
-  @protected
-  SetQuantize sse_decode_box_autoadd_set_quantize(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_quantize(deserializer));
-  }
-
-  @protected
-  SetSlip sse_decode_box_autoadd_set_slip(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_slip(deserializer));
-  }
-
-  @protected
-  SetSpeed sse_decode_box_autoadd_set_speed(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_speed(deserializer));
-  }
-
-  @protected
-  SetStemEqBand sse_decode_box_autoadd_set_stem_eq_band(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_stem_eq_band(deserializer));
-  }
-
-  @protected
-  SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_stem_eq_enabled(deserializer));
-  }
-
-  @protected
-  SetTempoCurve sse_decode_box_autoadd_set_tempo_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_tempo_curve(deserializer));
-  }
-
-  @protected
-  SetTempoRange sse_decode_box_autoadd_set_tempo_range(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_tempo_range(deserializer));
-  }
-
-  @protected
-  SetVolume sse_decode_box_autoadd_set_volume(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_set_volume(deserializer));
-  }
-
-  @protected
-  ToggleHeadphoneCue sse_decode_box_autoadd_toggle_headphone_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_headphone_cue(deserializer));
-  }
-
-  @protected
-  ToggleMasterCue sse_decode_box_autoadd_toggle_master_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_master_cue(deserializer));
-  }
-
-  @protected
-  TogglePlay sse_decode_box_autoadd_toggle_play(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_play(deserializer));
-  }
-
-  @protected
-  ToggleQuantize sse_decode_box_autoadd_toggle_quantize(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_quantize(deserializer));
-  }
-
-  @protected
-  ToggleSlip sse_decode_box_autoadd_toggle_slip(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_slip(deserializer));
-  }
-
-  @protected
-  ToggleStemEq sse_decode_box_autoadd_toggle_stem_eq(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_stem_eq(deserializer));
-  }
-
-  @protected
-  ToggleSync sse_decode_box_autoadd_toggle_sync(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_toggle_sync(deserializer));
   }
 
   @protected
@@ -13671,14 +10954,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TriggerHotCue sse_decode_box_autoadd_trigger_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_trigger_hot_cue(deserializer));
-  }
-
-  @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_16(deserializer));
@@ -13694,12 +10969,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_8(deserializer));
-  }
-
-  @protected
-  Unload sse_decode_box_autoadd_unload(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_unload(deserializer));
   }
 
   @protected
@@ -13755,14 +11024,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       errors: var_errors,
       warnings: var_warnings,
     );
-  }
-
-  @protected
-  ClearSampler sse_decode_clear_sampler(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return ClearSampler(deck: var_deck, slot: var_slot);
   }
 
   @protected
@@ -14311,34 +11572,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DeleteDeckHotCue sse_decode_delete_deck_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return DeleteDeckHotCue(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  DeleteTrackHotCue sse_decode_delete_track_hot_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return DeleteTrackHotCue(trackId: var_trackId, slot: var_slot);
-  }
-
-  @protected
-  DeleteTrackLoop sse_decode_delete_track_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return DeleteTrackLoop(trackId: var_trackId, slot: var_slot);
-  }
-
-  @protected
   DetectedController sse_decode_detected_controller(
     SseDeserializer deserializer,
   ) {
@@ -14351,20 +11584,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mappingName: var_mappingName,
       deviceId: var_deviceId,
     );
-  }
-
-  @protected
-  EndCueHold sse_decode_end_cue_hold(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return EndCueHold(deck: var_deck);
-  }
-
-  @protected
-  EndLoopRoll sse_decode_end_loop_roll(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return EndLoopRoll(deck: var_deck);
   }
 
   @protected
@@ -14424,408 +11643,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_box_autoadd_play(deserializer);
-        return Event_Play(var_field0);
-      case 1:
-        var var_field0 = sse_decode_box_autoadd_pause(deserializer);
-        return Event_Pause(var_field0);
-      case 2:
-        var var_field0 = sse_decode_box_autoadd_toggle_play(deserializer);
-        return Event_TogglePlay(var_field0);
-      case 3:
-        var var_field0 = sse_decode_box_autoadd_seek(deserializer);
-        return Event_Seek(var_field0);
-      case 4:
-        var var_field0 = sse_decode_box_autoadd_unload(deserializer);
-        return Event_Unload(var_field0);
-      case 5:
-        var var_field0 = sse_decode_box_autoadd_set_volume(deserializer);
-        return Event_SetVolume(var_field0);
-      case 6:
-        var var_field0 = sse_decode_box_autoadd_set_eq(deserializer);
-        return Event_SetEq(var_field0);
-      case 7:
-        var var_field0 = sse_decode_box_autoadd_set_eq_band(deserializer);
-        return Event_SetEqBand(var_field0);
-      case 8:
-        var var_field0 = sse_decode_box_autoadd_set_stem_eq_band(deserializer);
-        return Event_SetStemEqBand(var_field0);
-      case 9:
-        var var_field0 = sse_decode_box_autoadd_set_stem_eq_enabled(
-          deserializer,
-        );
-        return Event_SetStemEqEnabled(var_field0);
-      case 10:
-        var var_field0 = sse_decode_box_autoadd_toggle_stem_eq(deserializer);
-        return Event_ToggleStemEq(var_field0);
-      case 11:
-        var var_field0 = sse_decode_box_autoadd_set_filter(deserializer);
-        return Event_SetFilter(var_field0);
-      case 12:
-        var var_field0 = sse_decode_box_autoadd_set_gain_trim(deserializer);
-        return Event_SetGainTrim(var_field0);
-      case 13:
-        var var_field0 = sse_decode_box_autoadd_set_headphone_cue(deserializer);
-        return Event_SetHeadphoneCue(var_field0);
-      case 14:
-        var var_field0 = sse_decode_box_autoadd_toggle_headphone_cue(
-          deserializer,
-        );
-        return Event_ToggleHeadphoneCue(var_field0);
-      case 15:
-        var var_field0 = sse_decode_box_autoadd_set_crossfader_assign(
-          deserializer,
-        );
-        return Event_SetCrossfaderAssign(var_field0);
-      case 16:
-        var var_field0 = sse_decode_box_autoadd_set_speed(deserializer);
-        return Event_SetSpeed(var_field0);
-      case 17:
-        var var_field0 = sse_decode_box_autoadd_set_tempo_range(deserializer);
-        return Event_SetTempoRange(var_field0);
-      case 18:
-        var var_field0 = sse_decode_box_autoadd_set_tempo_curve(deserializer);
-        return Event_SetTempoCurve(var_field0);
-      case 19:
-        var var_field0 = sse_decode_box_autoadd_set_key_lock(deserializer);
-        return Event_SetKeyLock(var_field0);
-      case 20:
-        var var_field0 = sse_decode_box_autoadd_set_key_shift(deserializer);
-        return Event_SetKeyShift(var_field0);
-      case 21:
-        var var_field0 = sse_decode_box_autoadd_set_keyboard_root(deserializer);
-        return Event_SetKeyboardRoot(var_field0);
-      case 22:
-        var var_field0 = sse_decode_box_autoadd_set_keyboard_page(deserializer);
-        return Event_SetKeyboardPage(var_field0);
-      case 23:
-        var var_field0 = sse_decode_box_autoadd_set_key_shift_page(
-          deserializer,
-        );
-        return Event_SetKeyShiftPage(var_field0);
-      case 24:
-        var var_field0 = sse_decode_box_autoadd_toggle_sync(deserializer);
-        return Event_ToggleSync(var_field0);
-      case 25:
-        var var_field0 = sse_decode_box_autoadd_set_master_deck(deserializer);
-        return Event_SetMasterDeck(var_field0);
-      case 26:
-        var var_field0 = sse_decode_box_autoadd_set_cue_point(deserializer);
-        return Event_SetCuePoint(var_field0);
-      case 27:
-        var var_field0 = sse_decode_box_autoadd_begin_cue_hold(deserializer);
-        return Event_BeginCueHold(var_field0);
-      case 28:
-        var var_field0 = sse_decode_box_autoadd_end_cue_hold(deserializer);
-        return Event_EndCueHold(var_field0);
-      case 29:
-        var var_field0 = sse_decode_box_autoadd_fader_start(deserializer);
-        return Event_FaderStart(var_field0);
-      case 30:
-        var var_field0 = sse_decode_box_autoadd_fader_stop(deserializer);
-        return Event_FaderStop(var_field0);
-      case 31:
-        var var_field0 = sse_decode_box_autoadd_set_fader_start_native(
-          deserializer,
-        );
-        return Event_SetFaderStartNative(var_field0);
-      case 32:
-        var var_field0 = sse_decode_box_autoadd_set_quantize(deserializer);
-        return Event_SetQuantize(var_field0);
-      case 33:
-        var var_field0 = sse_decode_box_autoadd_toggle_quantize(deserializer);
-        return Event_ToggleQuantize(var_field0);
-      case 34:
-        var var_field0 = sse_decode_box_autoadd_set_slip(deserializer);
-        return Event_SetSlip(var_field0);
-      case 35:
-        var var_field0 = sse_decode_box_autoadd_toggle_slip(deserializer);
-        return Event_ToggleSlip(var_field0);
-      case 36:
-        var var_field0 = sse_decode_box_autoadd_set_auto_loop(deserializer);
-        return Event_SetAutoLoop(var_field0);
-      case 37:
-        var var_field0 = sse_decode_box_autoadd_loop_in(deserializer);
-        return Event_LoopIn(var_field0);
-      case 38:
-        var var_field0 = sse_decode_box_autoadd_loop_out(deserializer);
-        return Event_LoopOut(var_field0);
-      case 39:
-        var var_field0 = sse_decode_box_autoadd_exit_loop(deserializer);
-        return Event_ExitLoop(var_field0);
-      case 40:
-        var var_field0 = sse_decode_box_autoadd_recall_saved_loop(deserializer);
-        return Event_RecallSavedLoop(var_field0);
-      case 41:
-        var var_field0 = sse_decode_box_autoadd_begin_loop_roll(deserializer);
-        return Event_BeginLoopRoll(var_field0);
-      case 42:
-        var var_field0 = sse_decode_box_autoadd_end_loop_roll(deserializer);
-        return Event_EndLoopRoll(var_field0);
-      case 43:
-        var var_field0 = sse_decode_box_autoadd_beat_jump(deserializer);
-        return Event_BeatJump(var_field0);
-      case 44:
-        var var_field0 = sse_decode_box_autoadd_set_pad_mode(deserializer);
-        return Event_SetPadMode(var_field0);
-      case 45:
-        var var_field0 = sse_decode_box_autoadd_pad_press(deserializer);
-        return Event_PadPress(var_field0);
-      case 46:
-        var var_field0 = sse_decode_box_autoadd_pad_release(deserializer);
-        return Event_PadRelease(var_field0);
-      case 47:
-        var var_field0 = sse_decode_box_autoadd_hot_cue_pad_press(deserializer);
-        return Event_HotCuePadPress(var_field0);
-      case 48:
-        var var_field0 = sse_decode_box_autoadd_hot_cue_pad_release(
-          deserializer,
-        );
-        return Event_HotCuePadRelease(var_field0);
-      case 49:
-        var var_field0 = sse_decode_box_autoadd_loop_roll_pad_press(
-          deserializer,
-        );
-        return Event_LoopRollPadPress(var_field0);
-      case 50:
-        var var_field0 = sse_decode_box_autoadd_loop_roll_pad_release(
-          deserializer,
-        );
-        return Event_LoopRollPadRelease(var_field0);
-      case 51:
-        var var_field0 = sse_decode_box_autoadd_beat_jump_pad_press(
-          deserializer,
-        );
-        return Event_BeatJumpPadPress(var_field0);
-      case 52:
-        var var_field0 = sse_decode_box_autoadd_beat_jump_pad_release(
-          deserializer,
-        );
-        return Event_BeatJumpPadRelease(var_field0);
-      case 53:
-        var var_field0 = sse_decode_box_autoadd_sampler_pad_press(deserializer);
-        return Event_SamplerPadPress(var_field0);
-      case 54:
-        var var_field0 = sse_decode_box_autoadd_sampler_pad_release(
-          deserializer,
-        );
-        return Event_SamplerPadRelease(var_field0);
-      case 55:
-        var var_field0 = sse_decode_box_autoadd_keyboard_pad_press(
-          deserializer,
-        );
-        return Event_KeyboardPadPress(var_field0);
-      case 56:
-        var var_field0 = sse_decode_box_autoadd_keyboard_pad_release(
-          deserializer,
-        );
-        return Event_KeyboardPadRelease(var_field0);
-      case 57:
-        var var_field0 = sse_decode_box_autoadd_key_shift_pad_press(
-          deserializer,
-        );
-        return Event_KeyShiftPadPress(var_field0);
-      case 58:
-        var var_field0 = sse_decode_box_autoadd_key_shift_pad_release(
-          deserializer,
-        );
-        return Event_KeyShiftPadRelease(var_field0);
-      case 59:
-        var var_field0 = sse_decode_box_autoadd_trigger_hot_cue(deserializer);
-        return Event_TriggerHotCue(var_field0);
-      case 60:
-        var var_field0 = sse_decode_box_autoadd_save_deck_hot_cue(deserializer);
-        return Event_SaveDeckHotCue(var_field0);
-      case 61:
-        var var_field0 = sse_decode_box_autoadd_delete_deck_hot_cue(
-          deserializer,
-        );
-        return Event_DeleteDeckHotCue(var_field0);
-      case 62:
-        var var_field0 = sse_decode_box_autoadd_assign_sampler(deserializer);
-        return Event_AssignSampler(var_field0);
-      case 63:
-        var var_field0 = sse_decode_box_autoadd_assign_sampler_track(
-          deserializer,
-        );
-        return Event_AssignSamplerTrack(var_field0);
-      case 64:
-        var var_field0 = sse_decode_box_autoadd_clear_sampler(deserializer);
-        return Event_ClearSampler(var_field0);
-      case 65:
-        var var_field0 = sse_decode_box_autoadd_jog_touch(deserializer);
-        return Event_JogTouch(var_field0);
-      case 66:
-        var var_field0 = sse_decode_box_autoadd_jog_turn(deserializer);
-        return Event_JogTurn(var_field0);
-      case 67:
-        var var_field0 = sse_decode_box_autoadd_set_jog_mode(deserializer);
-        return Event_SetJogMode(var_field0);
-      case 68:
-        var var_field0 = sse_decode_box_autoadd_set_crossfader(deserializer);
-        return Event_SetCrossfader(var_field0);
-      case 69:
-        var var_field0 = sse_decode_box_autoadd_set_master_volume(deserializer);
-        return Event_SetMasterVolume(var_field0);
-      case 70:
-        var var_field0 = sse_decode_box_autoadd_set_cue_volume(deserializer);
-        return Event_SetCueVolume(var_field0);
-      case 71:
-        var var_field0 = sse_decode_box_autoadd_set_cue_mix(deserializer);
-        return Event_SetCueMix(var_field0);
-      case 72:
-        var var_field0 = sse_decode_box_autoadd_set_master_cue(deserializer);
-        return Event_SetMasterCue(var_field0);
-      case 73:
-        var var_field0 = sse_decode_box_autoadd_toggle_master_cue(deserializer);
-        return Event_ToggleMasterCue(var_field0);
-      case 74:
-        var var_field0 = sse_decode_box_autoadd_set_curve_library(deserializer);
-        return Event_SetCurveLibrary(var_field0);
-      case 75:
-        var var_field0 = sse_decode_box_autoadd_set_crossfader_curve(
-          deserializer,
-        );
-        return Event_SetCrossfaderCurve(var_field0);
-      case 76:
-        var var_field0 = sse_decode_box_autoadd_set_crossfader_curve_amount(
-          deserializer,
-        );
-        return Event_SetCrossfaderCurveAmount(var_field0);
-      case 77:
-        var var_field0 = sse_decode_box_autoadd_set_crossfader_behavior(
-          deserializer,
-        );
-        return Event_SetCrossfaderBehavior(var_field0);
-      case 78:
-        var var_field0 = sse_decode_box_autoadd_set_channel_fader_curve(
-          deserializer,
-        );
-        return Event_SetChannelFaderCurve(var_field0);
-      case 79:
-        var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot(deserializer);
-        return Event_SetFxUnitSlot(var_field0);
-      case 80:
-        var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot_enabled(
-          deserializer,
-        );
-        return Event_SetFxUnitSlotEnabled(var_field0);
-      case 81:
-        var var_field0 = sse_decode_box_autoadd_set_fx_unit_wet(deserializer);
-        return Event_SetFxUnitWet(var_field0);
-      case 82:
-        var var_field0 = sse_decode_box_autoadd_set_fx_level_curve(
-          deserializer,
-        );
-        return Event_SetFxLevelCurve(var_field0);
-      case 83:
-        var var_field0 = sse_decode_box_autoadd_set_fx_unit_param(deserializer);
-        return Event_SetFxUnitParam(var_field0);
-      case 84:
-        var var_field0 = sse_decode_box_autoadd_set_deck_fx_routed(
-          deserializer,
-        );
-        return Event_SetDeckFxRouted(var_field0);
-      case 85:
         var var_field0 = sse_decode_box_autoadd_deck_updated(deserializer);
         return Event_DeckUpdated(var_field0);
-      case 86:
+      case 1:
         var var_field0 = sse_decode_box_autoadd_deck_position(deserializer);
         return Event_DeckPosition(var_field0);
-      case 87:
+      case 2:
         var var_field0 = sse_decode_box_autoadd_deck_levels(deserializer);
         return Event_DeckLevels(var_field0);
-      case 88:
+      case 3:
         var var_field0 = sse_decode_box_autoadd_engine_snapshot(deserializer);
         return Event_EngineSnapshot(var_field0);
-      case 89:
+      case 4:
         var var_field0 = sse_decode_box_autoadd_error(deserializer);
         return Event_Error(var_field0);
-      case 90:
+      case 5:
         var var_field0 = sse_decode_box_autoadd_notice(deserializer);
         return Event_Notice(var_field0);
-      case 91:
-        var var_field0 = sse_decode_box_autoadd_analyze_track(deserializer);
-        return Event_AnalyzeTrack(var_field0);
-      case 92:
-        var var_field0 = sse_decode_box_autoadd_generate_stems(deserializer);
-        return Event_GenerateStems(var_field0);
-      case 93:
-        var var_field0 = sse_decode_box_autoadd_refresh_track(deserializer);
-        return Event_RefreshTrack(var_field0);
-      case 94:
-        var var_field0 = sse_decode_box_autoadd_save_beat_grid(deserializer);
-        return Event_SaveBeatGrid(var_field0);
-      case 95:
-        var var_field0 = sse_decode_box_autoadd_save_track_cue(deserializer);
-        return Event_SaveTrackCue(var_field0);
-      case 96:
-        var var_field0 = sse_decode_box_autoadd_save_track_hot_cue(
-          deserializer,
-        );
-        return Event_SaveTrackHotCue(var_field0);
-      case 97:
-        var var_field0 = sse_decode_box_autoadd_delete_track_hot_cue(
-          deserializer,
-        );
-        return Event_DeleteTrackHotCue(var_field0);
-      case 98:
-        var var_field0 = sse_decode_box_autoadd_save_track_loop(deserializer);
-        return Event_SaveTrackLoop(var_field0);
-      case 99:
-        var var_field0 = sse_decode_box_autoadd_delete_track_loop(deserializer);
-        return Event_DeleteTrackLoop(var_field0);
-      case 100:
+      case 6:
         var var_field0 = sse_decode_box_autoadd_track_analyzed(deserializer);
         return Event_TrackAnalyzed(var_field0);
-      case 101:
+      case 7:
         var var_field0 = sse_decode_box_autoadd_track_updated(deserializer);
         return Event_TrackUpdated(var_field0);
-      case 102:
+      case 8:
         var var_field0 = sse_decode_box_autoadd_track_progress(deserializer);
         return Event_TrackProgress(var_field0);
-      case 103:
+      case 9:
         var var_field0 = sse_decode_box_autoadd_hot_cues_changed(deserializer);
         return Event_HotCuesChanged(var_field0);
-      case 104:
+      case 10:
         var var_field0 = sse_decode_box_autoadd_loops_changed(deserializer);
         return Event_LoopsChanged(var_field0);
-      case 105:
+      case 11:
         var var_field0 = sse_decode_box_autoadd_beat_grid_changed(deserializer);
         return Event_BeatGridChanged(var_field0);
-      case 106:
+      case 12:
         var var_field0 = sse_decode_box_autoadd_history_session_updated(
           deserializer,
         );
         return Event_HistorySessionUpdated(var_field0);
-      case 107:
+      case 13:
         var var_field0 = sse_decode_box_autoadd_navigate(deserializer);
         return Event_Navigate(var_field0);
-      case 108:
+      case 14:
         var var_field0 = sse_decode_box_autoadd_focus(deserializer);
         return Event_Focus(var_field0);
-      case 109:
+      case 15:
         var var_field0 = sse_decode_box_autoadd_load(deserializer);
         return Event_Load(var_field0);
-      case 110:
+      case 16:
         var var_field0 = sse_decode_box_autoadd_mapping_offer(deserializer);
         return Event_MappingOffer(var_field0);
-      case 111:
+      case 17:
         var var_field0 = sse_decode_box_autoadd_mapping_attached(deserializer);
         return Event_MappingAttached(var_field0);
-      case 112:
+      case 18:
         var var_field0 = sse_decode_box_autoadd_mapping_detached(deserializer);
         return Event_MappingDetached(var_field0);
       default:
         throw UnimplementedError('');
     }
-  }
-
-  @protected
-  ExitLoop sse_decode_exit_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return ExitLoop(deck: var_deck);
   }
 
   @protected
@@ -14838,13 +11716,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
-  }
-
-  @protected
-  FaderStart sse_decode_fader_start(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return FaderStart(deck: var_deck);
   }
 
   @protected
@@ -14863,13 +11734,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return FaderStartOnZeroSetting.values[inner];
-  }
-
-  @protected
-  FaderStop sse_decode_fader_stop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return FaderStop(deck: var_deck);
   }
 
   @protected
@@ -14937,13 +11801,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       wet: var_wet,
       params: var_params,
     );
-  }
-
-  @protected
-  GenerateStems sse_decode_generate_stems(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    return GenerateStems(trackId: var_trackId);
   }
 
   @protected
@@ -15053,25 +11910,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  HotCuePadPress sse_decode_hot_cue_pad_press(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_shift = sse_decode_bool(deserializer);
-    return HotCuePadPress(deck: var_deck, slot: var_slot, shift: var_shift);
-  }
-
-  @protected
-  HotCuePadRelease sse_decode_hot_cue_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return HotCuePadRelease(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
   HotCuesChanged sse_decode_hot_cues_changed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_trackId = sse_decode_String(deserializer);
@@ -15106,22 +11944,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  JogTouch sse_decode_jog_touch(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_touching = sse_decode_bool(deserializer);
-    return JogTouch(deck: var_deck, touching: var_touching);
-  }
-
-  @protected
-  JogTurn sse_decode_jog_turn(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_delta = sse_decode_i_32(deserializer);
-    return JogTurn(deck: var_deck, delta: var_delta);
-  }
-
-  @protected
   KeyColorModeSetting sse_decode_key_color_mode_setting(
     SseDeserializer deserializer,
   ) {
@@ -15137,46 +11959,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return KeyDisplayModeSetting.values[inner];
-  }
-
-  @protected
-  KeyShiftPadPress sse_decode_key_shift_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_shift = sse_decode_bool(deserializer);
-    return KeyShiftPadPress(deck: var_deck, slot: var_slot, shift: var_shift);
-  }
-
-  @protected
-  KeyShiftPadRelease sse_decode_key_shift_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return KeyShiftPadRelease(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  KeyboardPadPress sse_decode_keyboard_pad_press(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_shift = sse_decode_bool(deserializer);
-    return KeyboardPadPress(deck: var_deck, slot: var_slot, shift: var_shift);
-  }
-
-  @protected
-  KeyboardPadRelease sse_decode_keyboard_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return KeyboardPadRelease(deck: var_deck, slot: var_slot);
   }
 
   @protected
@@ -15779,48 +12561,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  LoopIn sse_decode_loop_in(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    return LoopIn(deck: var_deck, positionMs: var_positionMs);
-  }
-
-  @protected
-  LoopOut sse_decode_loop_out(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    return LoopOut(deck: var_deck, positionMs: var_positionMs);
-  }
-
-  @protected
   LoopRegion sse_decode_loop_region(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_inMs = sse_decode_i_32(deserializer);
     var var_outMs = sse_decode_i_32(deserializer);
     var var_active = sse_decode_bool(deserializer);
     return LoopRegion(inMs: var_inMs, outMs: var_outMs, active: var_active);
-  }
-
-  @protected
-  LoopRollPadPress sse_decode_loop_roll_pad_press(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return LoopRollPadPress(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  LoopRollPadRelease sse_decode_loop_roll_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return LoopRollPadRelease(deck: var_deck, slot: var_slot);
   }
 
   @protected
@@ -16205,37 +12951,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  PadPress sse_decode_pad_press(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_shift = sse_decode_bool(deserializer);
-    return PadPress(deck: var_deck, slot: var_slot, shift: var_shift);
-  }
-
-  @protected
-  PadRelease sse_decode_pad_release(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return PadRelease(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  Pause sse_decode_pause(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return Pause(deck: var_deck);
-  }
-
-  @protected
-  Play sse_decode_play(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return Play(deck: var_deck);
-  }
-
-  @protected
   RealtimeStemsBenchmarkProgress sse_decode_realtime_stems_benchmark_progress(
     SseDeserializer deserializer,
   ) {
@@ -16265,22 +12980,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       modelSha: var_modelSha,
       allowed: var_allowed,
     );
-  }
-
-  @protected
-  RecallSavedLoop sse_decode_recall_saved_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_inMs = sse_decode_i_32(deserializer);
-    var var_outMs = sse_decode_i_32(deserializer);
-    return RecallSavedLoop(deck: var_deck, inMs: var_inMs, outMs: var_outMs);
-  }
-
-  @protected
-  RefreshTrack sse_decode_refresh_track(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    return RefreshTrack(trackId: var_trackId);
   }
 
   @protected
@@ -16371,25 +13070,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SamplerPadPress sse_decode_sampler_pad_press(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_shift = sse_decode_bool(deserializer);
-    return SamplerPadPress(deck: var_deck, slot: var_slot, shift: var_shift);
-  }
-
-  @protected
-  SamplerPadRelease sse_decode_sampler_pad_release(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return SamplerPadRelease(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
   SamplerPlayMode sse_decode_sampler_play_mode(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -16430,75 +13110,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SaveBeatGrid sse_decode_save_beat_grid(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_bpm = sse_decode_f_64(deserializer);
-    var var_firstBeatSecs = sse_decode_f_32(deserializer);
-    var var_replace = sse_decode_bool(deserializer);
-    return SaveBeatGrid(
-      trackId: var_trackId,
-      bpm: var_bpm,
-      firstBeatSecs: var_firstBeatSecs,
-      replace: var_replace,
-    );
-  }
-
-  @protected
-  SaveDeckHotCue sse_decode_save_deck_hot_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return SaveDeckHotCue(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  SaveTrackCue sse_decode_save_track_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    return SaveTrackCue(trackId: var_trackId, positionMs: var_positionMs);
-  }
-
-  @protected
-  SaveTrackHotCue sse_decode_save_track_hot_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    var var_loopLengthBeats = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_color = sse_decode_opt_String(deserializer);
-    var var_label = sse_decode_opt_String(deserializer);
-    return SaveTrackHotCue(
-      trackId: var_trackId,
-      slot: var_slot,
-      positionMs: var_positionMs,
-      loopLengthBeats: var_loopLengthBeats,
-      color: var_color,
-      label: var_label,
-    );
-  }
-
-  @protected
-  SaveTrackLoop sse_decode_save_track_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_String(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_inMs = sse_decode_i_32(deserializer);
-    var var_outMs = sse_decode_i_32(deserializer);
-    var var_label = sse_decode_opt_String(deserializer);
-    var var_color = sse_decode_opt_String(deserializer);
-    return SaveTrackLoop(
-      trackId: var_trackId,
-      slot: var_slot,
-      inMs: var_inMs,
-      outMs: var_outMs,
-      label: var_label,
-      color: var_color,
-    );
-  }
-
-  @protected
   SavedLoop sse_decode_saved_loop(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_slot = sse_decode_u_8(deserializer);
@@ -16516,408 +13127,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Seek sse_decode_seek(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    return Seek(deck: var_deck, positionMs: var_positionMs);
-  }
-
-  @protected
   SelectStyleSetting sse_decode_select_style_setting(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return SelectStyleSetting.values[inner];
-  }
-
-  @protected
-  SetAutoLoop sse_decode_set_auto_loop(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_beats = sse_decode_f_32(deserializer);
-    return SetAutoLoop(deck: var_deck, beats: var_beats);
-  }
-
-  @protected
-  SetChannelFaderCurve sse_decode_set_channel_fader_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_String(deserializer);
-    return SetChannelFaderCurve(id: var_id);
-  }
-
-  @protected
-  SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_position = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetCrossfader(
-      position: var_position,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetCrossfaderAssign sse_decode_set_crossfader_assign(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_assignment = sse_decode_crossfader_assign(deserializer);
-    return SetCrossfaderAssign(deck: var_deck, assignment: var_assignment);
-  }
-
-  @protected
-  SetCrossfaderBehavior sse_decode_set_crossfader_behavior(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_hamster = sse_decode_bool(deserializer);
-    var var_disabled = sse_decode_bool(deserializer);
-    return SetCrossfaderBehavior(hamster: var_hamster, disabled: var_disabled);
-  }
-
-  @protected
-  SetCrossfaderCurve sse_decode_set_crossfader_curve(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_String(deserializer);
-    return SetCrossfaderCurve(id: var_id);
-  }
-
-  @protected
-  SetCrossfaderCurveAmount sse_decode_set_crossfader_curve_amount(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_set_ = sse_decode_String(deserializer);
-    var var_amount = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetCrossfaderCurveAmount(
-      set_: var_set_,
-      amount: var_amount,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetCueMix sse_decode_set_cue_mix(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_mix = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetCueMix(mix: var_mix, softTakeover: var_softTakeover);
-  }
-
-  @protected
-  SetCuePoint sse_decode_set_cue_point(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return SetCuePoint(deck: var_deck);
-  }
-
-  @protected
-  SetCueVolume sse_decode_set_cue_volume(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_volume = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetCueVolume(volume: var_volume, softTakeover: var_softTakeover);
-  }
-
-  @protected
-  SetCurveLibrary sse_decode_set_curve_library(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_library_ = sse_decode_curve_library_spec(deserializer);
-    return SetCurveLibrary(library_: var_library_);
-  }
-
-  @protected
-  SetDeckFxRouted sse_decode_set_deck_fx_routed(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_routed = sse_decode_bool(deserializer);
-    return SetDeckFxRouted(deck: var_deck, routed: var_routed);
-  }
-
-  @protected
-  SetEq sse_decode_set_eq(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_low = sse_decode_f_32(deserializer);
-    var var_mid = sse_decode_f_32(deserializer);
-    var var_high = sse_decode_f_32(deserializer);
-    return SetEq(deck: var_deck, low: var_low, mid: var_mid, high: var_high);
-  }
-
-  @protected
-  SetEqBand sse_decode_set_eq_band(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_band = sse_decode_eq_band(deserializer);
-    var var_gain = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetEqBand(
-      deck: var_deck,
-      band: var_band,
-      gain: var_gain,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetFaderStartNative sse_decode_set_fader_start_native(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_native = sse_decode_bool(deserializer);
-    return SetFaderStartNative(deck: var_deck, native: var_native);
-  }
-
-  @protected
-  SetFilter sse_decode_set_filter(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_filter = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetFilter(
-      deck: var_deck,
-      filter: var_filter,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_String(deserializer);
-    return SetFxLevelCurve(id: var_id);
-  }
-
-  @protected
-  SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_param = sse_decode_u_8(deserializer);
-    var var_value = sse_decode_f_32(deserializer);
-    return SetFxUnitParam(slot: var_slot, param: var_param, value: var_value);
-  }
-
-  @protected
-  SetFxUnitSlot sse_decode_set_fx_unit_slot(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_kind = sse_decode_fx_kind(deserializer);
-    return SetFxUnitSlot(slot: var_slot, kind: var_kind);
-  }
-
-  @protected
-  SetFxUnitSlotEnabled sse_decode_set_fx_unit_slot_enabled(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetFxUnitSlotEnabled(slot: var_slot, enabled: var_enabled);
-  }
-
-  @protected
-  SetFxUnitWet sse_decode_set_fx_unit_wet(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_slot = sse_decode_u_8(deserializer);
-    var var_wet = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetFxUnitWet(
-      slot: var_slot,
-      wet: var_wet,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetGainTrim sse_decode_set_gain_trim(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_gainTrim = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetGainTrim(
-      deck: var_deck,
-      gainTrim: var_gainTrim,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetHeadphoneCue sse_decode_set_headphone_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetHeadphoneCue(deck: var_deck, enabled: var_enabled);
-  }
-
-  @protected
-  SetJogMode sse_decode_set_jog_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_top = sse_decode_jog_mode(deserializer);
-    var var_outer = sse_decode_jog_mode(deserializer);
-    return SetJogMode(deck: var_deck, top: var_top, outer: var_outer);
-  }
-
-  @protected
-  SetKeyLock sse_decode_set_key_lock(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetKeyLock(deck: var_deck, enabled: var_enabled);
-  }
-
-  @protected
-  SetKeyShift sse_decode_set_key_shift(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_semitones = sse_decode_f_32(deserializer);
-    return SetKeyShift(deck: var_deck, semitones: var_semitones);
-  }
-
-  @protected
-  SetKeyShiftPage sse_decode_set_key_shift_page(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_page = sse_decode_u_8(deserializer);
-    return SetKeyShiftPage(deck: var_deck, page: var_page);
-  }
-
-  @protected
-  SetKeyboardPage sse_decode_set_keyboard_page(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_page = sse_decode_u_8(deserializer);
-    return SetKeyboardPage(deck: var_deck, page: var_page);
-  }
-
-  @protected
-  SetKeyboardRoot sse_decode_set_keyboard_root(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_slot = sse_decode_u_8(deserializer);
-    return SetKeyboardRoot(deck: var_deck, slot: var_slot);
-  }
-
-  @protected
-  SetMasterCue sse_decode_set_master_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetMasterCue(enabled: var_enabled);
-  }
-
-  @protected
-  SetMasterDeck sse_decode_set_master_deck(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return SetMasterDeck(deck: var_deck);
-  }
-
-  @protected
-  SetMasterVolume sse_decode_set_master_volume(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_volume = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetMasterVolume(volume: var_volume, softTakeover: var_softTakeover);
-  }
-
-  @protected
-  SetPadMode sse_decode_set_pad_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_mode = sse_decode_pad_mode(deserializer);
-    return SetPadMode(deck: var_deck, mode: var_mode);
-  }
-
-  @protected
-  SetQuantize sse_decode_set_quantize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetQuantize(deck: var_deck, enabled: var_enabled);
-  }
-
-  @protected
-  SetSlip sse_decode_set_slip(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetSlip(deck: var_deck, enabled: var_enabled);
-  }
-
-  @protected
-  SetSpeed sse_decode_set_speed(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_speed = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetSpeed(
-      deck: var_deck,
-      speed: var_speed,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetStemEqBand sse_decode_set_stem_eq_band(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_band = sse_decode_eq_band(deserializer);
-    var var_gain = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetStemEqBand(
-      deck: var_deck,
-      band: var_band,
-      gain: var_gain,
-      softTakeover: var_softTakeover,
-    );
-  }
-
-  @protected
-  SetStemEqEnabled sse_decode_set_stem_eq_enabled(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_enabled = sse_decode_bool(deserializer);
-    return SetStemEqEnabled(deck: var_deck, enabled: var_enabled);
-  }
-
-  @protected
-  SetTempoCurve sse_decode_set_tempo_curve(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_id = sse_decode_String(deserializer);
-    return SetTempoCurve(deck: var_deck, id: var_id);
-  }
-
-  @protected
-  SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_tempoRange = sse_decode_f_32(deserializer);
-    return SetTempoRange(deck: var_deck, tempoRange: var_tempoRange);
-  }
-
-  @protected
-  SetVolume sse_decode_set_volume(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_volume = sse_decode_f_32(deserializer);
-    var var_softTakeover = sse_decode_bool(deserializer);
-    return SetVolume(
-      deck: var_deck,
-      volume: var_volume,
-      softTakeover: var_softTakeover,
-    );
   }
 
   @protected
@@ -16947,57 +13162,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return ThemeSetting.values[inner];
-  }
-
-  @protected
-  ToggleHeadphoneCue sse_decode_toggle_headphone_cue(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return ToggleHeadphoneCue(deck: var_deck);
-  }
-
-  @protected
-  ToggleMasterCue sse_decode_toggle_master_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ToggleMasterCue();
-  }
-
-  @protected
-  TogglePlay sse_decode_toggle_play(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return TogglePlay(deck: var_deck);
-  }
-
-  @protected
-  ToggleQuantize sse_decode_toggle_quantize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return ToggleQuantize(deck: var_deck);
-  }
-
-  @protected
-  ToggleSlip sse_decode_toggle_slip(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return ToggleSlip(deck: var_deck);
-  }
-
-  @protected
-  ToggleStemEq sse_decode_toggle_stem_eq(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return ToggleStemEq(deck: var_deck);
-  }
-
-  @protected
-  ToggleSync sse_decode_toggle_sync(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_beatSync = sse_decode_bool(deserializer);
-    return ToggleSync(deck: var_deck, beatSync: var_beatSync);
   }
 
   @protected
@@ -17069,14 +13233,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TriggerHotCue sse_decode_trigger_hot_cue(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    return TriggerHotCue(deck: var_deck, positionMs: var_positionMs);
-  }
-
-  @protected
   int sse_decode_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint16();
@@ -17112,13 +13268,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  Unload sse_decode_unload(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_deck = sse_decode_u_16(deserializer);
-    return Unload(deck: var_deck);
   }
 
   @protected
@@ -17517,13 +13666,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_analyze_track(AnalyzeTrack self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_bool(self.force, serializer);
-  }
-
-  @protected
   void sse_encode_app_settings(AppSettings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.bufferSize, serializer);
@@ -17609,25 +13751,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_assign_sampler(AssignSampler self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_String(self.path, serializer);
-  }
-
-  @protected
-  void sse_encode_assign_sampler_track(
-    AssignSamplerTrack self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_String(self.trackId, serializer);
-  }
-
-  @protected
   void sse_encode_beat_grid(BeatGrid self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.source, serializer);
@@ -17673,33 +13796,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_beat_jump(BeatJump self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.beats, serializer);
-  }
-
-  @protected
-  void sse_encode_beat_jump_pad_press(
-    BeatJumpPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_beat_jump_pad_release(
-    BeatJumpPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
   void sse_encode_beat_segment(BeatSegment self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.segmentIndex, serializer);
@@ -17713,34 +13809,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_begin_cue_hold(BeginCueHold self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_begin_loop_roll(
-    BeginLoopRoll self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.beats, serializer);
-  }
-
-  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_analyze_track(
-    AnalyzeTrack self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_analyze_track(self, serializer);
   }
 
   @protected
@@ -17750,24 +13821,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_app_settings(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_assign_sampler(
-    AssignSampler self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_assign_sampler(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_assign_sampler_track(
-    AssignSamplerTrack self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_assign_sampler_track(self, serializer);
   }
 
   @protected
@@ -17786,60 +13839,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_beat_grid_data(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_beat_jump(
-    BeatJump self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_beat_jump(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_beat_jump_pad_press(
-    BeatJumpPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_beat_jump_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_beat_jump_pad_release(
-    BeatJumpPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_beat_jump_pad_release(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_begin_cue_hold(
-    BeginCueHold self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_begin_cue_hold(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_begin_loop_roll(
-    BeginLoopRoll self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_begin_loop_roll(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_clear_sampler(
-    ClearSampler self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_clear_sampler(self, serializer);
   }
 
   @protected
@@ -17915,51 +13914,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_delete_deck_hot_cue(
-    DeleteDeckHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_delete_deck_hot_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_delete_track_hot_cue(
-    DeleteTrackHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_delete_track_hot_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_delete_track_loop(
-    DeleteTrackLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_delete_track_loop(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_end_cue_hold(
-    EndCueHold self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_end_cue_hold(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_end_loop_roll(
-    EndLoopRoll self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_end_loop_roll(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_engine_snapshot(
     EngineSnapshot self,
     SseSerializer serializer,
@@ -17981,15 +13935,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_exit_loop(
-    ExitLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_exit_loop(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_32(self, serializer);
@@ -18002,36 +13947,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_fader_start(
-    FaderStart self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_fader_start(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_fader_stop(
-    FaderStop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_fader_stop(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_focus(Focus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_focus(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_generate_stems(
-    GenerateStems self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_generate_stems(self, serializer);
   }
 
   @protected
@@ -18050,24 +13968,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_history_session_updated(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_hot_cue_pad_press(
-    HotCuePadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_hot_cue_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_hot_cue_pad_release(
-    HotCuePadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_hot_cue_pad_release(self, serializer);
   }
 
   @protected
@@ -18095,57 +13995,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_jog_touch(
-    JogTouch self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_jog_touch(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_jog_turn(JogTurn self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_jog_turn(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_key_shift_pad_press(
-    KeyShiftPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_key_shift_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_key_shift_pad_release(
-    KeyShiftPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_key_shift_pad_release(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_keyboard_pad_press(
-    KeyboardPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_keyboard_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_keyboard_pad_release(
-    KeyboardPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_keyboard_pad_release(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_library_color_label(
     LibraryColorLabel self,
     SseSerializer serializer,
@@ -18170,42 +14019,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_loop_in(LoopIn self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_loop_in(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_loop_out(LoopOut self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_loop_out(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_loop_region(
     LoopRegion self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_loop_region(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_loop_roll_pad_press(
-    LoopRollPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_loop_roll_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_loop_roll_pad_release(
-    LoopRollPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_loop_roll_pad_release(self, serializer);
   }
 
   @protected
@@ -18260,36 +14079,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_pad_press(
-    PadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_pad_release(
-    PadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_pad_release(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_pause(Pause self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_pause(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_play(Play self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_play(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_realtime_stems_capability(
     RealtimeStemsCapability self,
     SseSerializer serializer,
@@ -18299,525 +14088,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_recall_saved_loop(
-    RecallSavedLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_recall_saved_loop(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_refresh_track(
-    RefreshTrack self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_refresh_track(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_sampler_pad_press(
-    SamplerPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_sampler_pad_press(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_sampler_pad_release(
-    SamplerPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_sampler_pad_release(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_sampler_play_mode(
     SamplerPlayMode self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_sampler_play_mode(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_save_beat_grid(
-    SaveBeatGrid self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_save_beat_grid(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_save_deck_hot_cue(
-    SaveDeckHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_save_deck_hot_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_save_track_cue(
-    SaveTrackCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_save_track_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_save_track_hot_cue(
-    SaveTrackHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_save_track_hot_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_save_track_loop(
-    SaveTrackLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_save_track_loop(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_seek(Seek self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_seek(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_auto_loop(
-    SetAutoLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_auto_loop(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_channel_fader_curve(
-    SetChannelFaderCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_channel_fader_curve(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_crossfader(
-    SetCrossfader self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_crossfader(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_crossfader_assign(
-    SetCrossfaderAssign self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_crossfader_assign(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_crossfader_behavior(
-    SetCrossfaderBehavior self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_crossfader_behavior(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_crossfader_curve(
-    SetCrossfaderCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_crossfader_curve(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_crossfader_curve_amount(
-    SetCrossfaderCurveAmount self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_crossfader_curve_amount(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_cue_mix(
-    SetCueMix self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_cue_mix(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_cue_point(
-    SetCuePoint self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_cue_point(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_cue_volume(
-    SetCueVolume self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_cue_volume(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_curve_library(
-    SetCurveLibrary self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_curve_library(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_deck_fx_routed(
-    SetDeckFxRouted self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_deck_fx_routed(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_eq(SetEq self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_eq(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_eq_band(
-    SetEqBand self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_eq_band(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fader_start_native(
-    SetFaderStartNative self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fader_start_native(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_filter(
-    SetFilter self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_filter(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fx_level_curve(
-    SetFxLevelCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fx_level_curve(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fx_unit_param(
-    SetFxUnitParam self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fx_unit_param(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fx_unit_slot(
-    SetFxUnitSlot self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fx_unit_slot(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fx_unit_slot_enabled(
-    SetFxUnitSlotEnabled self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fx_unit_slot_enabled(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_fx_unit_wet(
-    SetFxUnitWet self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_fx_unit_wet(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_gain_trim(
-    SetGainTrim self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_gain_trim(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_headphone_cue(
-    SetHeadphoneCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_headphone_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_jog_mode(
-    SetJogMode self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_jog_mode(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_key_lock(
-    SetKeyLock self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_key_lock(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_key_shift(
-    SetKeyShift self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_key_shift(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_key_shift_page(
-    SetKeyShiftPage self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_key_shift_page(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_keyboard_page(
-    SetKeyboardPage self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_keyboard_page(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_keyboard_root(
-    SetKeyboardRoot self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_keyboard_root(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_master_cue(
-    SetMasterCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_master_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_master_deck(
-    SetMasterDeck self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_master_deck(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_master_volume(
-    SetMasterVolume self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_master_volume(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_pad_mode(
-    SetPadMode self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_pad_mode(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_quantize(
-    SetQuantize self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_quantize(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_slip(SetSlip self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_slip(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_speed(
-    SetSpeed self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_speed(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_stem_eq_band(
-    SetStemEqBand self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_stem_eq_band(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_stem_eq_enabled(
-    SetStemEqEnabled self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_stem_eq_enabled(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_tempo_curve(
-    SetTempoCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_tempo_curve(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_tempo_range(
-    SetTempoRange self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_tempo_range(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_set_volume(
-    SetVolume self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_set_volume(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_headphone_cue(
-    ToggleHeadphoneCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_headphone_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_master_cue(
-    ToggleMasterCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_master_cue(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_play(
-    TogglePlay self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_play(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_quantize(
-    ToggleQuantize self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_quantize(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_slip(
-    ToggleSlip self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_slip(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_stem_eq(
-    ToggleStemEq self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_stem_eq(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_toggle_sync(
-    ToggleSync self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_toggle_sync(self, serializer);
   }
 
   @protected
@@ -18848,15 +14124,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_trigger_hot_cue(
-    TriggerHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_trigger_hot_cue(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self, serializer);
@@ -18872,12 +14139,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_unload(Unload self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_unload(self, serializer);
   }
 
   @protected
@@ -18925,13 +14186,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_64(self.bytesCopied, serializer);
     sse_encode_list_String(self.errors, serializer);
     sse_encode_list_String(self.warnings, serializer);
-  }
-
-  @protected
-  void sse_encode_clear_sampler(ClearSampler self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
   }
 
   @protected
@@ -19300,36 +14554,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_delete_deck_hot_cue(
-    DeleteDeckHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_delete_track_hot_cue(
-    DeleteTrackHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_delete_track_loop(
-    DeleteTrackLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
   void sse_encode_detected_controller(
     DetectedController self,
     SseSerializer serializer,
@@ -19338,18 +14562,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.portName, serializer);
     sse_encode_opt_String(self.mappingName, serializer);
     sse_encode_opt_String(self.deviceId, serializer);
-  }
-
-  @protected
-  void sse_encode_end_cue_hold(EndCueHold self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_end_loop_roll(EndLoopRoll self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -19394,352 +14606,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_event(Event self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case Event_Play(field0: final field0):
-        sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_play(field0, serializer);
-      case Event_Pause(field0: final field0):
-        sse_encode_i_32(1, serializer);
-        sse_encode_box_autoadd_pause(field0, serializer);
-      case Event_TogglePlay(field0: final field0):
-        sse_encode_i_32(2, serializer);
-        sse_encode_box_autoadd_toggle_play(field0, serializer);
-      case Event_Seek(field0: final field0):
-        sse_encode_i_32(3, serializer);
-        sse_encode_box_autoadd_seek(field0, serializer);
-      case Event_Unload(field0: final field0):
-        sse_encode_i_32(4, serializer);
-        sse_encode_box_autoadd_unload(field0, serializer);
-      case Event_SetVolume(field0: final field0):
-        sse_encode_i_32(5, serializer);
-        sse_encode_box_autoadd_set_volume(field0, serializer);
-      case Event_SetEq(field0: final field0):
-        sse_encode_i_32(6, serializer);
-        sse_encode_box_autoadd_set_eq(field0, serializer);
-      case Event_SetEqBand(field0: final field0):
-        sse_encode_i_32(7, serializer);
-        sse_encode_box_autoadd_set_eq_band(field0, serializer);
-      case Event_SetStemEqBand(field0: final field0):
-        sse_encode_i_32(8, serializer);
-        sse_encode_box_autoadd_set_stem_eq_band(field0, serializer);
-      case Event_SetStemEqEnabled(field0: final field0):
-        sse_encode_i_32(9, serializer);
-        sse_encode_box_autoadd_set_stem_eq_enabled(field0, serializer);
-      case Event_ToggleStemEq(field0: final field0):
-        sse_encode_i_32(10, serializer);
-        sse_encode_box_autoadd_toggle_stem_eq(field0, serializer);
-      case Event_SetFilter(field0: final field0):
-        sse_encode_i_32(11, serializer);
-        sse_encode_box_autoadd_set_filter(field0, serializer);
-      case Event_SetGainTrim(field0: final field0):
-        sse_encode_i_32(12, serializer);
-        sse_encode_box_autoadd_set_gain_trim(field0, serializer);
-      case Event_SetHeadphoneCue(field0: final field0):
-        sse_encode_i_32(13, serializer);
-        sse_encode_box_autoadd_set_headphone_cue(field0, serializer);
-      case Event_ToggleHeadphoneCue(field0: final field0):
-        sse_encode_i_32(14, serializer);
-        sse_encode_box_autoadd_toggle_headphone_cue(field0, serializer);
-      case Event_SetCrossfaderAssign(field0: final field0):
-        sse_encode_i_32(15, serializer);
-        sse_encode_box_autoadd_set_crossfader_assign(field0, serializer);
-      case Event_SetSpeed(field0: final field0):
-        sse_encode_i_32(16, serializer);
-        sse_encode_box_autoadd_set_speed(field0, serializer);
-      case Event_SetTempoRange(field0: final field0):
-        sse_encode_i_32(17, serializer);
-        sse_encode_box_autoadd_set_tempo_range(field0, serializer);
-      case Event_SetTempoCurve(field0: final field0):
-        sse_encode_i_32(18, serializer);
-        sse_encode_box_autoadd_set_tempo_curve(field0, serializer);
-      case Event_SetKeyLock(field0: final field0):
-        sse_encode_i_32(19, serializer);
-        sse_encode_box_autoadd_set_key_lock(field0, serializer);
-      case Event_SetKeyShift(field0: final field0):
-        sse_encode_i_32(20, serializer);
-        sse_encode_box_autoadd_set_key_shift(field0, serializer);
-      case Event_SetKeyboardRoot(field0: final field0):
-        sse_encode_i_32(21, serializer);
-        sse_encode_box_autoadd_set_keyboard_root(field0, serializer);
-      case Event_SetKeyboardPage(field0: final field0):
-        sse_encode_i_32(22, serializer);
-        sse_encode_box_autoadd_set_keyboard_page(field0, serializer);
-      case Event_SetKeyShiftPage(field0: final field0):
-        sse_encode_i_32(23, serializer);
-        sse_encode_box_autoadd_set_key_shift_page(field0, serializer);
-      case Event_ToggleSync(field0: final field0):
-        sse_encode_i_32(24, serializer);
-        sse_encode_box_autoadd_toggle_sync(field0, serializer);
-      case Event_SetMasterDeck(field0: final field0):
-        sse_encode_i_32(25, serializer);
-        sse_encode_box_autoadd_set_master_deck(field0, serializer);
-      case Event_SetCuePoint(field0: final field0):
-        sse_encode_i_32(26, serializer);
-        sse_encode_box_autoadd_set_cue_point(field0, serializer);
-      case Event_BeginCueHold(field0: final field0):
-        sse_encode_i_32(27, serializer);
-        sse_encode_box_autoadd_begin_cue_hold(field0, serializer);
-      case Event_EndCueHold(field0: final field0):
-        sse_encode_i_32(28, serializer);
-        sse_encode_box_autoadd_end_cue_hold(field0, serializer);
-      case Event_FaderStart(field0: final field0):
-        sse_encode_i_32(29, serializer);
-        sse_encode_box_autoadd_fader_start(field0, serializer);
-      case Event_FaderStop(field0: final field0):
-        sse_encode_i_32(30, serializer);
-        sse_encode_box_autoadd_fader_stop(field0, serializer);
-      case Event_SetFaderStartNative(field0: final field0):
-        sse_encode_i_32(31, serializer);
-        sse_encode_box_autoadd_set_fader_start_native(field0, serializer);
-      case Event_SetQuantize(field0: final field0):
-        sse_encode_i_32(32, serializer);
-        sse_encode_box_autoadd_set_quantize(field0, serializer);
-      case Event_ToggleQuantize(field0: final field0):
-        sse_encode_i_32(33, serializer);
-        sse_encode_box_autoadd_toggle_quantize(field0, serializer);
-      case Event_SetSlip(field0: final field0):
-        sse_encode_i_32(34, serializer);
-        sse_encode_box_autoadd_set_slip(field0, serializer);
-      case Event_ToggleSlip(field0: final field0):
-        sse_encode_i_32(35, serializer);
-        sse_encode_box_autoadd_toggle_slip(field0, serializer);
-      case Event_SetAutoLoop(field0: final field0):
-        sse_encode_i_32(36, serializer);
-        sse_encode_box_autoadd_set_auto_loop(field0, serializer);
-      case Event_LoopIn(field0: final field0):
-        sse_encode_i_32(37, serializer);
-        sse_encode_box_autoadd_loop_in(field0, serializer);
-      case Event_LoopOut(field0: final field0):
-        sse_encode_i_32(38, serializer);
-        sse_encode_box_autoadd_loop_out(field0, serializer);
-      case Event_ExitLoop(field0: final field0):
-        sse_encode_i_32(39, serializer);
-        sse_encode_box_autoadd_exit_loop(field0, serializer);
-      case Event_RecallSavedLoop(field0: final field0):
-        sse_encode_i_32(40, serializer);
-        sse_encode_box_autoadd_recall_saved_loop(field0, serializer);
-      case Event_BeginLoopRoll(field0: final field0):
-        sse_encode_i_32(41, serializer);
-        sse_encode_box_autoadd_begin_loop_roll(field0, serializer);
-      case Event_EndLoopRoll(field0: final field0):
-        sse_encode_i_32(42, serializer);
-        sse_encode_box_autoadd_end_loop_roll(field0, serializer);
-      case Event_BeatJump(field0: final field0):
-        sse_encode_i_32(43, serializer);
-        sse_encode_box_autoadd_beat_jump(field0, serializer);
-      case Event_SetPadMode(field0: final field0):
-        sse_encode_i_32(44, serializer);
-        sse_encode_box_autoadd_set_pad_mode(field0, serializer);
-      case Event_PadPress(field0: final field0):
-        sse_encode_i_32(45, serializer);
-        sse_encode_box_autoadd_pad_press(field0, serializer);
-      case Event_PadRelease(field0: final field0):
-        sse_encode_i_32(46, serializer);
-        sse_encode_box_autoadd_pad_release(field0, serializer);
-      case Event_HotCuePadPress(field0: final field0):
-        sse_encode_i_32(47, serializer);
-        sse_encode_box_autoadd_hot_cue_pad_press(field0, serializer);
-      case Event_HotCuePadRelease(field0: final field0):
-        sse_encode_i_32(48, serializer);
-        sse_encode_box_autoadd_hot_cue_pad_release(field0, serializer);
-      case Event_LoopRollPadPress(field0: final field0):
-        sse_encode_i_32(49, serializer);
-        sse_encode_box_autoadd_loop_roll_pad_press(field0, serializer);
-      case Event_LoopRollPadRelease(field0: final field0):
-        sse_encode_i_32(50, serializer);
-        sse_encode_box_autoadd_loop_roll_pad_release(field0, serializer);
-      case Event_BeatJumpPadPress(field0: final field0):
-        sse_encode_i_32(51, serializer);
-        sse_encode_box_autoadd_beat_jump_pad_press(field0, serializer);
-      case Event_BeatJumpPadRelease(field0: final field0):
-        sse_encode_i_32(52, serializer);
-        sse_encode_box_autoadd_beat_jump_pad_release(field0, serializer);
-      case Event_SamplerPadPress(field0: final field0):
-        sse_encode_i_32(53, serializer);
-        sse_encode_box_autoadd_sampler_pad_press(field0, serializer);
-      case Event_SamplerPadRelease(field0: final field0):
-        sse_encode_i_32(54, serializer);
-        sse_encode_box_autoadd_sampler_pad_release(field0, serializer);
-      case Event_KeyboardPadPress(field0: final field0):
-        sse_encode_i_32(55, serializer);
-        sse_encode_box_autoadd_keyboard_pad_press(field0, serializer);
-      case Event_KeyboardPadRelease(field0: final field0):
-        sse_encode_i_32(56, serializer);
-        sse_encode_box_autoadd_keyboard_pad_release(field0, serializer);
-      case Event_KeyShiftPadPress(field0: final field0):
-        sse_encode_i_32(57, serializer);
-        sse_encode_box_autoadd_key_shift_pad_press(field0, serializer);
-      case Event_KeyShiftPadRelease(field0: final field0):
-        sse_encode_i_32(58, serializer);
-        sse_encode_box_autoadd_key_shift_pad_release(field0, serializer);
-      case Event_TriggerHotCue(field0: final field0):
-        sse_encode_i_32(59, serializer);
-        sse_encode_box_autoadd_trigger_hot_cue(field0, serializer);
-      case Event_SaveDeckHotCue(field0: final field0):
-        sse_encode_i_32(60, serializer);
-        sse_encode_box_autoadd_save_deck_hot_cue(field0, serializer);
-      case Event_DeleteDeckHotCue(field0: final field0):
-        sse_encode_i_32(61, serializer);
-        sse_encode_box_autoadd_delete_deck_hot_cue(field0, serializer);
-      case Event_AssignSampler(field0: final field0):
-        sse_encode_i_32(62, serializer);
-        sse_encode_box_autoadd_assign_sampler(field0, serializer);
-      case Event_AssignSamplerTrack(field0: final field0):
-        sse_encode_i_32(63, serializer);
-        sse_encode_box_autoadd_assign_sampler_track(field0, serializer);
-      case Event_ClearSampler(field0: final field0):
-        sse_encode_i_32(64, serializer);
-        sse_encode_box_autoadd_clear_sampler(field0, serializer);
-      case Event_JogTouch(field0: final field0):
-        sse_encode_i_32(65, serializer);
-        sse_encode_box_autoadd_jog_touch(field0, serializer);
-      case Event_JogTurn(field0: final field0):
-        sse_encode_i_32(66, serializer);
-        sse_encode_box_autoadd_jog_turn(field0, serializer);
-      case Event_SetJogMode(field0: final field0):
-        sse_encode_i_32(67, serializer);
-        sse_encode_box_autoadd_set_jog_mode(field0, serializer);
-      case Event_SetCrossfader(field0: final field0):
-        sse_encode_i_32(68, serializer);
-        sse_encode_box_autoadd_set_crossfader(field0, serializer);
-      case Event_SetMasterVolume(field0: final field0):
-        sse_encode_i_32(69, serializer);
-        sse_encode_box_autoadd_set_master_volume(field0, serializer);
-      case Event_SetCueVolume(field0: final field0):
-        sse_encode_i_32(70, serializer);
-        sse_encode_box_autoadd_set_cue_volume(field0, serializer);
-      case Event_SetCueMix(field0: final field0):
-        sse_encode_i_32(71, serializer);
-        sse_encode_box_autoadd_set_cue_mix(field0, serializer);
-      case Event_SetMasterCue(field0: final field0):
-        sse_encode_i_32(72, serializer);
-        sse_encode_box_autoadd_set_master_cue(field0, serializer);
-      case Event_ToggleMasterCue(field0: final field0):
-        sse_encode_i_32(73, serializer);
-        sse_encode_box_autoadd_toggle_master_cue(field0, serializer);
-      case Event_SetCurveLibrary(field0: final field0):
-        sse_encode_i_32(74, serializer);
-        sse_encode_box_autoadd_set_curve_library(field0, serializer);
-      case Event_SetCrossfaderCurve(field0: final field0):
-        sse_encode_i_32(75, serializer);
-        sse_encode_box_autoadd_set_crossfader_curve(field0, serializer);
-      case Event_SetCrossfaderCurveAmount(field0: final field0):
-        sse_encode_i_32(76, serializer);
-        sse_encode_box_autoadd_set_crossfader_curve_amount(field0, serializer);
-      case Event_SetCrossfaderBehavior(field0: final field0):
-        sse_encode_i_32(77, serializer);
-        sse_encode_box_autoadd_set_crossfader_behavior(field0, serializer);
-      case Event_SetChannelFaderCurve(field0: final field0):
-        sse_encode_i_32(78, serializer);
-        sse_encode_box_autoadd_set_channel_fader_curve(field0, serializer);
-      case Event_SetFxUnitSlot(field0: final field0):
-        sse_encode_i_32(79, serializer);
-        sse_encode_box_autoadd_set_fx_unit_slot(field0, serializer);
-      case Event_SetFxUnitSlotEnabled(field0: final field0):
-        sse_encode_i_32(80, serializer);
-        sse_encode_box_autoadd_set_fx_unit_slot_enabled(field0, serializer);
-      case Event_SetFxUnitWet(field0: final field0):
-        sse_encode_i_32(81, serializer);
-        sse_encode_box_autoadd_set_fx_unit_wet(field0, serializer);
-      case Event_SetFxLevelCurve(field0: final field0):
-        sse_encode_i_32(82, serializer);
-        sse_encode_box_autoadd_set_fx_level_curve(field0, serializer);
-      case Event_SetFxUnitParam(field0: final field0):
-        sse_encode_i_32(83, serializer);
-        sse_encode_box_autoadd_set_fx_unit_param(field0, serializer);
-      case Event_SetDeckFxRouted(field0: final field0):
-        sse_encode_i_32(84, serializer);
-        sse_encode_box_autoadd_set_deck_fx_routed(field0, serializer);
       case Event_DeckUpdated(field0: final field0):
-        sse_encode_i_32(85, serializer);
+        sse_encode_i_32(0, serializer);
         sse_encode_box_autoadd_deck_updated(field0, serializer);
       case Event_DeckPosition(field0: final field0):
-        sse_encode_i_32(86, serializer);
+        sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_deck_position(field0, serializer);
       case Event_DeckLevels(field0: final field0):
-        sse_encode_i_32(87, serializer);
+        sse_encode_i_32(2, serializer);
         sse_encode_box_autoadd_deck_levels(field0, serializer);
       case Event_EngineSnapshot(field0: final field0):
-        sse_encode_i_32(88, serializer);
+        sse_encode_i_32(3, serializer);
         sse_encode_box_autoadd_engine_snapshot(field0, serializer);
       case Event_Error(field0: final field0):
-        sse_encode_i_32(89, serializer);
+        sse_encode_i_32(4, serializer);
         sse_encode_box_autoadd_error(field0, serializer);
       case Event_Notice(field0: final field0):
-        sse_encode_i_32(90, serializer);
+        sse_encode_i_32(5, serializer);
         sse_encode_box_autoadd_notice(field0, serializer);
-      case Event_AnalyzeTrack(field0: final field0):
-        sse_encode_i_32(91, serializer);
-        sse_encode_box_autoadd_analyze_track(field0, serializer);
-      case Event_GenerateStems(field0: final field0):
-        sse_encode_i_32(92, serializer);
-        sse_encode_box_autoadd_generate_stems(field0, serializer);
-      case Event_RefreshTrack(field0: final field0):
-        sse_encode_i_32(93, serializer);
-        sse_encode_box_autoadd_refresh_track(field0, serializer);
-      case Event_SaveBeatGrid(field0: final field0):
-        sse_encode_i_32(94, serializer);
-        sse_encode_box_autoadd_save_beat_grid(field0, serializer);
-      case Event_SaveTrackCue(field0: final field0):
-        sse_encode_i_32(95, serializer);
-        sse_encode_box_autoadd_save_track_cue(field0, serializer);
-      case Event_SaveTrackHotCue(field0: final field0):
-        sse_encode_i_32(96, serializer);
-        sse_encode_box_autoadd_save_track_hot_cue(field0, serializer);
-      case Event_DeleteTrackHotCue(field0: final field0):
-        sse_encode_i_32(97, serializer);
-        sse_encode_box_autoadd_delete_track_hot_cue(field0, serializer);
-      case Event_SaveTrackLoop(field0: final field0):
-        sse_encode_i_32(98, serializer);
-        sse_encode_box_autoadd_save_track_loop(field0, serializer);
-      case Event_DeleteTrackLoop(field0: final field0):
-        sse_encode_i_32(99, serializer);
-        sse_encode_box_autoadd_delete_track_loop(field0, serializer);
       case Event_TrackAnalyzed(field0: final field0):
-        sse_encode_i_32(100, serializer);
+        sse_encode_i_32(6, serializer);
         sse_encode_box_autoadd_track_analyzed(field0, serializer);
       case Event_TrackUpdated(field0: final field0):
-        sse_encode_i_32(101, serializer);
+        sse_encode_i_32(7, serializer);
         sse_encode_box_autoadd_track_updated(field0, serializer);
       case Event_TrackProgress(field0: final field0):
-        sse_encode_i_32(102, serializer);
+        sse_encode_i_32(8, serializer);
         sse_encode_box_autoadd_track_progress(field0, serializer);
       case Event_HotCuesChanged(field0: final field0):
-        sse_encode_i_32(103, serializer);
+        sse_encode_i_32(9, serializer);
         sse_encode_box_autoadd_hot_cues_changed(field0, serializer);
       case Event_LoopsChanged(field0: final field0):
-        sse_encode_i_32(104, serializer);
+        sse_encode_i_32(10, serializer);
         sse_encode_box_autoadd_loops_changed(field0, serializer);
       case Event_BeatGridChanged(field0: final field0):
-        sse_encode_i_32(105, serializer);
+        sse_encode_i_32(11, serializer);
         sse_encode_box_autoadd_beat_grid_changed(field0, serializer);
       case Event_HistorySessionUpdated(field0: final field0):
-        sse_encode_i_32(106, serializer);
+        sse_encode_i_32(12, serializer);
         sse_encode_box_autoadd_history_session_updated(field0, serializer);
       case Event_Navigate(field0: final field0):
-        sse_encode_i_32(107, serializer);
+        sse_encode_i_32(13, serializer);
         sse_encode_box_autoadd_navigate(field0, serializer);
       case Event_Focus(field0: final field0):
-        sse_encode_i_32(108, serializer);
+        sse_encode_i_32(14, serializer);
         sse_encode_box_autoadd_focus(field0, serializer);
       case Event_Load(field0: final field0):
-        sse_encode_i_32(109, serializer);
+        sse_encode_i_32(15, serializer);
         sse_encode_box_autoadd_load(field0, serializer);
       case Event_MappingOffer(field0: final field0):
-        sse_encode_i_32(110, serializer);
+        sse_encode_i_32(16, serializer);
         sse_encode_box_autoadd_mapping_offer(field0, serializer);
       case Event_MappingAttached(field0: final field0):
-        sse_encode_i_32(111, serializer);
+        sse_encode_i_32(17, serializer);
         sse_encode_box_autoadd_mapping_attached(field0, serializer);
       case Event_MappingDetached(field0: final field0):
-        sse_encode_i_32(112, serializer);
+        sse_encode_i_32(18, serializer);
         sse_encode_box_autoadd_mapping_detached(field0, serializer);
     }
-  }
-
-  @protected
-  void sse_encode_exit_loop(ExitLoop self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -19752,12 +14676,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
-  }
-
-  @protected
-  void sse_encode_fader_start(FaderStart self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -19776,12 +14694,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_fader_stop(FaderStop self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -19830,12 +14742,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.enabled, serializer);
     sse_encode_f_32(self.wet, serializer);
     sse_encode_list_prim_f_32_strict(self.params, serializer);
-  }
-
-  @protected
-  void sse_encode_generate_stems(GenerateStems self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
   }
 
   @protected
@@ -19914,27 +14820,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_hot_cue_pad_press(
-    HotCuePadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.shift, serializer);
-  }
-
-  @protected
-  void sse_encode_hot_cue_pad_release(
-    HotCuePadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
   void sse_encode_hot_cues_changed(
     HotCuesChanged self,
     SseSerializer serializer,
@@ -19972,20 +14857,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_jog_touch(JogTouch self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.touching, serializer);
-  }
-
-  @protected
-  void sse_encode_jog_turn(JogTurn self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.delta, serializer);
-  }
-
-  @protected
   void sse_encode_key_color_mode_setting(
     KeyColorModeSetting self,
     SseSerializer serializer,
@@ -20001,48 +14872,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_key_shift_pad_press(
-    KeyShiftPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.shift, serializer);
-  }
-
-  @protected
-  void sse_encode_key_shift_pad_release(
-    KeyShiftPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_keyboard_pad_press(
-    KeyboardPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.shift, serializer);
-  }
-
-  @protected
-  void sse_encode_keyboard_pad_release(
-    KeyboardPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
   }
 
   @protected
@@ -20560,45 +15389,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_loop_in(LoopIn self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-  }
-
-  @protected
-  void sse_encode_loop_out(LoopOut self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-  }
-
-  @protected
   void sse_encode_loop_region(LoopRegion self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.inMs, serializer);
     sse_encode_i_32(self.outMs, serializer);
     sse_encode_bool(self.active, serializer);
-  }
-
-  @protected
-  void sse_encode_loop_roll_pad_press(
-    LoopRollPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_loop_roll_pad_release(
-    LoopRollPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
   }
 
   @protected
@@ -20947,33 +15742,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_pad_press(PadPress self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.shift, serializer);
-  }
-
-  @protected
-  void sse_encode_pad_release(PadRelease self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_pause(Pause self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_play(Play self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
   void sse_encode_realtime_stems_benchmark_progress(
     RealtimeStemsBenchmarkProgress self,
     SseSerializer serializer,
@@ -20994,23 +15762,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.hops, serializer);
     sse_encode_String(self.modelSha, serializer);
     sse_encode_bool(self.allowed, serializer);
-  }
-
-  @protected
-  void sse_encode_recall_saved_loop(
-    RecallSavedLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.inMs, serializer);
-    sse_encode_i_32(self.outMs, serializer);
-  }
-
-  @protected
-  void sse_encode_refresh_track(RefreshTrack self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
   }
 
   @protected
@@ -21079,27 +15830,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_sampler_pad_press(
-    SamplerPadPress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.shift, serializer);
-  }
-
-  @protected
-  void sse_encode_sampler_pad_release(
-    SamplerPadRelease self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
   void sse_encode_sampler_play_mode(
     SamplerPlayMode self,
     SseSerializer serializer,
@@ -21139,60 +15869,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_save_beat_grid(SaveBeatGrid self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_f_64(self.bpm, serializer);
-    sse_encode_f_32(self.firstBeatSecs, serializer);
-    sse_encode_bool(self.replace, serializer);
-  }
-
-  @protected
-  void sse_encode_save_deck_hot_cue(
-    SaveDeckHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_save_track_cue(SaveTrackCue self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-  }
-
-  @protected
-  void sse_encode_save_track_hot_cue(
-    SaveTrackHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.loopLengthBeats, serializer);
-    sse_encode_opt_String(self.color, serializer);
-    sse_encode_opt_String(self.label, serializer);
-  }
-
-  @protected
-  void sse_encode_save_track_loop(
-    SaveTrackLoop self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.trackId, serializer);
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_i_32(self.inMs, serializer);
-    sse_encode_i_32(self.outMs, serializer);
-    sse_encode_opt_String(self.label, serializer);
-    sse_encode_opt_String(self.color, serializer);
-  }
-
-  @protected
   void sse_encode_saved_loop(SavedLoop self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self.slot, serializer);
@@ -21203,379 +15879,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_seek(Seek self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-  }
-
-  @protected
   void sse_encode_select_style_setting(
     SelectStyleSetting self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_set_auto_loop(SetAutoLoop self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.beats, serializer);
-  }
-
-  @protected
-  void sse_encode_set_channel_fader_curve(
-    SetChannelFaderCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.id, serializer);
-  }
-
-  @protected
-  void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_32(self.position, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_crossfader_assign(
-    SetCrossfaderAssign self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_crossfader_assign(self.assignment, serializer);
-  }
-
-  @protected
-  void sse_encode_set_crossfader_behavior(
-    SetCrossfaderBehavior self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.hamster, serializer);
-    sse_encode_bool(self.disabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_crossfader_curve(
-    SetCrossfaderCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.id, serializer);
-  }
-
-  @protected
-  void sse_encode_set_crossfader_curve_amount(
-    SetCrossfaderCurveAmount self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.set_, serializer);
-    sse_encode_f_32(self.amount, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_cue_mix(SetCueMix self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_32(self.mix, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_cue_point(SetCuePoint self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_set_cue_volume(SetCueVolume self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_32(self.volume, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_curve_library(
-    SetCurveLibrary self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_curve_library_spec(self.library_, serializer);
-  }
-
-  @protected
-  void sse_encode_set_deck_fx_routed(
-    SetDeckFxRouted self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.routed, serializer);
-  }
-
-  @protected
-  void sse_encode_set_eq(SetEq self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.low, serializer);
-    sse_encode_f_32(self.mid, serializer);
-    sse_encode_f_32(self.high, serializer);
-  }
-
-  @protected
-  void sse_encode_set_eq_band(SetEqBand self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_eq_band(self.band, serializer);
-    sse_encode_f_32(self.gain, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fader_start_native(
-    SetFaderStartNative self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.native, serializer);
-  }
-
-  @protected
-  void sse_encode_set_filter(SetFilter self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.filter, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fx_level_curve(
-    SetFxLevelCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.id, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fx_unit_param(
-    SetFxUnitParam self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_u_8(self.param, serializer);
-    sse_encode_f_32(self.value, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fx_unit_slot(
-    SetFxUnitSlot self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_fx_kind(self.kind, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fx_unit_slot_enabled(
-    SetFxUnitSlotEnabled self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_fx_unit_wet(SetFxUnitWet self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_8(self.slot, serializer);
-    sse_encode_f_32(self.wet, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_gain_trim(SetGainTrim self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.gainTrim, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_headphone_cue(
-    SetHeadphoneCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_jog_mode(SetJogMode self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_jog_mode(self.top, serializer);
-    sse_encode_jog_mode(self.outer, serializer);
-  }
-
-  @protected
-  void sse_encode_set_key_lock(SetKeyLock self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_key_shift(SetKeyShift self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.semitones, serializer);
-  }
-
-  @protected
-  void sse_encode_set_key_shift_page(
-    SetKeyShiftPage self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.page, serializer);
-  }
-
-  @protected
-  void sse_encode_set_keyboard_page(
-    SetKeyboardPage self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.page, serializer);
-  }
-
-  @protected
-  void sse_encode_set_keyboard_root(
-    SetKeyboardRoot self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_u_8(self.slot, serializer);
-  }
-
-  @protected
-  void sse_encode_set_master_cue(SetMasterCue self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_master_deck(
-    SetMasterDeck self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_set_master_volume(
-    SetMasterVolume self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_32(self.volume, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_pad_mode(SetPadMode self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_pad_mode(self.mode, serializer);
-  }
-
-  @protected
-  void sse_encode_set_quantize(SetQuantize self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_slip(SetSlip self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_speed(SetSpeed self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.speed, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_stem_eq_band(
-    SetStemEqBand self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_eq_band(self.band, serializer);
-    sse_encode_f_32(self.gain, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
-  }
-
-  @protected
-  void sse_encode_set_stem_eq_enabled(
-    SetStemEqEnabled self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.enabled, serializer);
-  }
-
-  @protected
-  void sse_encode_set_tempo_curve(
-    SetTempoCurve self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_String(self.id, serializer);
-  }
-
-  @protected
-  void sse_encode_set_tempo_range(
-    SetTempoRange self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.tempoRange, serializer);
-  }
-
-  @protected
-  void sse_encode_set_volume(SetVolume self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_f_32(self.volume, serializer);
-    sse_encode_bool(self.softTakeover, serializer);
   }
 
   @protected
@@ -21597,57 +15906,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_theme_setting(ThemeSetting self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_headphone_cue(
-    ToggleHeadphoneCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_master_cue(
-    ToggleMasterCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_toggle_play(TogglePlay self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_quantize(
-    ToggleQuantize self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_slip(ToggleSlip self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_stem_eq(ToggleStemEq self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-  }
-
-  @protected
-  void sse_encode_toggle_sync(ToggleSync self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_bool(self.beatSync, serializer);
   }
 
   @protected
@@ -21693,16 +15951,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_trigger_hot_cue(
-    TriggerHotCue self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-  }
-
-  @protected
   void sse_encode_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint16(self);
@@ -21738,12 +15986,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_unload(Unload self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -21875,6 +16117,10 @@ class BusTransportImpl extends RustOpaque implements BusTransport {
       .crateApiBusBusTransportPublishEvt(that: this, event: event);
 
   /// Subscribe to every event. Several sinks may be live at once.
+  ///
+  /// The sink is registered before a newly created forwarder is started, so
+  /// there is no window where the Rust subscription is live and the Dart
+  /// stream is not: anything published after this returns is delivered once.
   Stream<Event> subscribeEvents() =>
       RustLib.instance.api.crateApiBusBusTransportSubscribeEvents(that: this);
 }
@@ -22575,10 +16821,10 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   ///
   /// Resolves the target set server-side with the non-force skip rule (tracks
   /// that already carry BPM/key or have an analysis row are skipped), then
-  /// publishes one [`Event::AnalyzeTrack`] per target — the same bus path as
+  /// publishes one [`Command::AnalyzeTrack`] per target — the same bus path as
   /// single-track analyze, so per-track `TrackProgress` / `TrackAnalyzed`
   /// events flow unchanged. With `generate_stems`, an
-  /// [`Event::GenerateStems`] is queued for every file track (stem cache
+  /// [`Command::GenerateStems`] is queued for every file track (stem cache
   /// state is independent of BPM/tags; the serial stem queue no-ops on valid
   /// caches, including native `.stem.mp4` files). Returns the queued analysis
   /// ids so the UI can mark them analyzing up front.

@@ -5,8 +5,8 @@ mod common;
 
 use bus_api::BeatJumpPadPress;
 use bus_api::BeginLoopRoll;
+use bus_api::Command;
 use bus_api::EndLoopRoll;
-use bus_api::Event;
 use bus_api::LoopRollPadPress;
 use bus_api::LoopRollPadRelease;
 use bus_api::PadMode;
@@ -37,10 +37,10 @@ fn null_session_loaded() -> EngineSession {
 #[test]
 fn set_pad_mode_publishes_updated() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetPadMode(SetPadMode {
+        .publish_cmd(Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::LoopRoll,
         }))
@@ -53,10 +53,10 @@ fn set_pad_mode_publishes_updated() {
 #[test]
 fn begin_and_end_loop_roll_clears_when_no_prior() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::BeginLoopRoll(BeginLoopRoll {
+        .publish_cmd(Command::BeginLoopRoll(BeginLoopRoll {
             deck: 0,
             beats: 4.0,
         }))
@@ -68,7 +68,7 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
     assert!(region.out_ms > region.in_ms);
 
     session
-        .publish_cmd(Event::EndLoopRoll(EndLoopRoll { deck: 0 }))
+        .publish_cmd(Command::EndLoopRoll(EndLoopRoll { deck: 0 }))
         .expect("end roll");
 
     let update = recv_updated(&mut evt);
@@ -78,10 +78,10 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
 #[test]
 fn auto_loop_quarter_beat_preserves_length() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+        .publish_cmd(Command::SetAutoLoop(SetAutoLoop {
             deck: 0,
             beats: 0.25,
         }))
@@ -102,10 +102,10 @@ fn auto_loop_quarter_beat_preserves_length() {
 #[test]
 fn end_loop_roll_restores_prior_active_loop() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+        .publish_cmd(Command::SetAutoLoop(SetAutoLoop {
             deck: 0,
             beats: 8.0,
         }))
@@ -114,7 +114,7 @@ fn end_loop_roll_restores_prior_active_loop() {
     let prior = update.active_loop.expect("prior loop");
 
     session
-        .publish_cmd(Event::BeginLoopRoll(BeginLoopRoll {
+        .publish_cmd(Command::BeginLoopRoll(BeginLoopRoll {
             deck: 0,
             beats: 1.0,
         }))
@@ -122,7 +122,7 @@ fn end_loop_roll_restores_prior_active_loop() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::EndLoopRoll(EndLoopRoll { deck: 0 }))
+        .publish_cmd(Command::EndLoopRoll(EndLoopRoll { deck: 0 }))
         .expect("end roll");
 
     let update = recv_updated(&mut evt);
@@ -135,10 +135,10 @@ fn end_loop_roll_restores_prior_active_loop() {
 #[test]
 fn loop_roll_pad_press_release_roundtrip() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::LoopRollPadPress(LoopRollPadPress {
+        .publish_cmd(Command::LoopRollPadPress(LoopRollPadPress {
             deck: 0,
             slot: 2,
         }))
@@ -150,7 +150,7 @@ fn loop_roll_pad_press_release_roundtrip() {
     assert!(region.out_ms > region.in_ms);
 
     session
-        .publish_cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+        .publish_cmd(Command::LoopRollPadRelease(LoopRollPadRelease {
             deck: 0,
             slot: 2,
         }))
@@ -169,10 +169,10 @@ fn beat_jump_pad_press_moves_playhead() {
             Ok(())
         })
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::BeatJumpPadPress(BeatJumpPadPress {
+        .publish_cmd(Command::BeatJumpPadPress(BeatJumpPadPress {
             deck: 0,
             slot: 0,
         }))
@@ -196,10 +196,10 @@ fn pad_press_follows_engine_pad_mode() {
             Ok(())
         })
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetPadMode(SetPadMode {
+        .publish_cmd(Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::BeatJump,
         }))
@@ -207,7 +207,7 @@ fn pad_press_follows_engine_pad_mode() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::PadPress(PadPress {
+        .publish_cmd(Command::PadPress(PadPress {
             deck: 0,
             slot: 0,
             shift: false,

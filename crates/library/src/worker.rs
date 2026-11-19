@@ -6,6 +6,7 @@ use bus_api::AnalyzeTrack;
 use bus_api::BeatGrid;
 use bus_api::BeatGridChanged;
 use bus_api::BeatSegment;
+use bus_api::Command;
 use bus_api::DeleteTrackHotCue;
 use bus_api::DeleteTrackLoop;
 use bus_api::Error;
@@ -128,27 +129,113 @@ pub(crate) fn worker_thread_loop(
 
     while !shutdown.load(Ordering::Relaxed) {
         match cmd.recv_timeout(RECV_TIMEOUT) {
-            Ok(Some(event)) => handle_cmd(event, &library, &buses),
+            Ok(Some(command)) => handle_cmd(command, &library, &buses),
             Ok(None) => continue,
             Err(_) => break,
         }
     }
 }
 
-fn handle_cmd(event: Event, library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuses) {
-    match event {
-        Event::AnalyzeTrack(cmd) => handle_analyze(cmd, library, buses),
-        Event::GenerateStems(cmd) => handle_generate_stems(cmd, library, buses),
-        Event::RefreshTrack(cmd) => handle_refresh_track(cmd, library, buses),
-        Event::SaveTrackHotCue(cmd) => handle_save_hot_cue(cmd, library, buses),
-        Event::DeleteTrackHotCue(cmd) => handle_delete_hot_cue(cmd, library, buses),
-        Event::SaveTrackLoop(cmd) => handle_save_loop(cmd, library, buses),
-        Event::DeleteTrackLoop(cmd) => handle_delete_loop(cmd, library, buses),
-        Event::SaveBeatGrid(cmd) => handle_save_beat_grid(cmd, library, buses),
-        Event::SaveTrackCue(cmd) => handle_save_track_cue(cmd, library, buses),
-        // Egress events published onto cmd by mistake, plus engine and controller
-        // commands that are not the library worker's business.
-        _ => {}
+fn handle_cmd(command: Command, library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuses) {
+    match command {
+        Command::AnalyzeTrack(cmd) => handle_analyze(cmd, library, buses),
+        Command::GenerateStems(cmd) => handle_generate_stems(cmd, library, buses),
+        Command::RefreshTrack(cmd) => handle_refresh_track(cmd, library, buses),
+        Command::SaveTrackHotCue(cmd) => handle_save_hot_cue(cmd, library, buses),
+        Command::DeleteTrackHotCue(cmd) => handle_delete_hot_cue(cmd, library, buses),
+        Command::SaveTrackLoop(cmd) => handle_save_loop(cmd, library, buses),
+        Command::DeleteTrackLoop(cmd) => handle_delete_loop(cmd, library, buses),
+        Command::SaveBeatGrid(cmd) => handle_save_beat_grid(cmd, library, buses),
+        Command::SaveTrackCue(cmd) => handle_save_track_cue(cmd, library, buses),
+        // Every engine-owned command. Routing sends a command only to its
+        // target's single inbox, so this worker never receives one; the arms
+        // exist so a new variant has to be classified by both dispatchers
+        // instead of falling into a catch-all.
+        Command::Play(_)
+        | Command::Pause(_)
+        | Command::TogglePlay(_)
+        | Command::Seek(_)
+        | Command::Unload(_)
+        | Command::SetVolume(_)
+        | Command::SetEq(_)
+        | Command::SetEqBand(_)
+        | Command::SetStemEqBand(_)
+        | Command::SetStemEqEnabled(_)
+        | Command::ToggleStemEq(_)
+        | Command::SetFilter(_)
+        | Command::SetGainTrim(_)
+        | Command::SetHeadphoneCue(_)
+        | Command::ToggleHeadphoneCue(_)
+        | Command::SetCrossfaderAssign(_)
+        | Command::SetSpeed(_)
+        | Command::SetTempoRange(_)
+        | Command::SetTempoCurve(_)
+        | Command::SetKeyLock(_)
+        | Command::SetKeyShift(_)
+        | Command::SetKeyboardRoot(_)
+        | Command::SetKeyboardPage(_)
+        | Command::SetKeyShiftPage(_)
+        | Command::ToggleSync(_)
+        | Command::SetMasterDeck(_)
+        | Command::SetCuePoint(_)
+        | Command::BeginCueHold(_)
+        | Command::EndCueHold(_)
+        | Command::FaderStart(_)
+        | Command::FaderStop(_)
+        | Command::SetFaderStartNative(_)
+        | Command::SetQuantize(_)
+        | Command::ToggleQuantize(_)
+        | Command::SetSlip(_)
+        | Command::ToggleSlip(_)
+        | Command::SetAutoLoop(_)
+        | Command::LoopIn(_)
+        | Command::LoopOut(_)
+        | Command::ExitLoop(_)
+        | Command::RecallSavedLoop(_)
+        | Command::BeginLoopRoll(_)
+        | Command::EndLoopRoll(_)
+        | Command::BeatJump(_)
+        | Command::SetPadMode(_)
+        | Command::PadPress(_)
+        | Command::PadRelease(_)
+        | Command::HotCuePadPress(_)
+        | Command::HotCuePadRelease(_)
+        | Command::LoopRollPadPress(_)
+        | Command::LoopRollPadRelease(_)
+        | Command::BeatJumpPadPress(_)
+        | Command::BeatJumpPadRelease(_)
+        | Command::SamplerPadPress(_)
+        | Command::SamplerPadRelease(_)
+        | Command::KeyboardPadPress(_)
+        | Command::KeyboardPadRelease(_)
+        | Command::KeyShiftPadPress(_)
+        | Command::KeyShiftPadRelease(_)
+        | Command::TriggerHotCue(_)
+        | Command::SaveDeckHotCue(_)
+        | Command::DeleteDeckHotCue(_)
+        | Command::AssignSampler(_)
+        | Command::AssignSamplerTrack(_)
+        | Command::ClearSampler(_)
+        | Command::JogTouch(_)
+        | Command::JogTurn(_)
+        | Command::SetJogMode(_)
+        | Command::SetCrossfader(_)
+        | Command::SetMasterVolume(_)
+        | Command::SetCueVolume(_)
+        | Command::SetCueMix(_)
+        | Command::SetMasterCue(_)
+        | Command::ToggleMasterCue(_)
+        | Command::SetCurveLibrary(_)
+        | Command::SetCrossfaderCurve(_)
+        | Command::SetCrossfaderCurveAmount(_)
+        | Command::SetCrossfaderBehavior(_)
+        | Command::SetChannelFaderCurve(_)
+        | Command::SetFxUnitSlot(_)
+        | Command::SetFxUnitSlotEnabled(_)
+        | Command::SetFxUnitWet(_)
+        | Command::SetFxLevelCurve(_)
+        | Command::SetFxUnitParam(_)
+        | Command::SetDeckFxRouted(_) => {}
     }
 }
 
@@ -177,23 +264,29 @@ fn handle_refresh_track(
     match result {
         Ok((track, cues, loops)) => {
             if let Some(track) = track {
-                let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
+                publish_evt(buses, Event::TrackUpdated(TrackUpdated { track }));
             }
             match cues {
                 Ok(rows) => {
-                    let _ = buses.publish_evt(Event::HotCuesChanged(HotCuesChanged {
-                        track_id: track_id.clone(),
-                        hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
-                    }));
+                    publish_evt(
+                        buses,
+                        Event::HotCuesChanged(HotCuesChanged {
+                            track_id: track_id.clone(),
+                            hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+                        }),
+                    );
                 }
                 Err(err) => publish_error(buses, err.to_string(), Some(track_id.clone())),
             }
             match loops {
                 Ok(rows) => {
-                    let _ = buses.publish_evt(Event::LoopsChanged(LoopsChanged {
-                        track_id: track_id.clone(),
-                        loops: rows.into_iter().map(saved_loop_from_record).collect(),
-                    }));
+                    publish_evt(
+                        buses,
+                        Event::LoopsChanged(LoopsChanged {
+                            track_id: track_id.clone(),
+                            loops: rows.into_iter().map(saved_loop_from_record).collect(),
+                        }),
+                    );
                 }
                 Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
             }
@@ -216,11 +309,14 @@ fn handle_analyze(cmd: AnalyzeTrack, library: &Arc<Mutex<LibraryManager>>, buses
         cue_threshold_db: Some(cue_threshold_db),
     };
 
-    let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
-        track_id: track_id.clone(),
-        phase: "analyze".into(),
-        fraction: None,
-    }));
+    publish_evt(
+        buses,
+        Event::TrackProgress(TrackProgress {
+            track_id: track_id.clone(),
+            phase: "analyze".into(),
+            fraction: None,
+        }),
+    );
 
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);
@@ -228,7 +324,7 @@ fn handle_analyze(cmd: AnalyzeTrack, library: &Arc<Mutex<LibraryManager>>, buses
     match result {
         Ok(source) => match track_summary(&source) {
             Some(track) => {
-                let _ = buses.publish_evt(Event::TrackAnalyzed(TrackAnalyzed { track }));
+                publish_evt(buses, Event::TrackAnalyzed(TrackAnalyzed { track }));
             }
             None => publish_error(
                 buses,
@@ -253,11 +349,14 @@ fn handle_generate_stems(
 
     // Publish the queued phase before enqueueing so the UI shows a loader even
     // if the job turns out to be a no-op against an existing cache.
-    let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
-        track_id: track_id.clone(),
-        phase: "stems_queued".into(),
-        fraction: None,
-    }));
+    publish_evt(
+        buses,
+        Event::TrackProgress(TrackProgress {
+            track_id: track_id.clone(),
+            phase: "stems_queued".into(),
+            fraction: None,
+        }),
+    );
     if !buses.queue_stem(track_id.clone()) {
         // No serial queue installed (worker spawned without stem thread, e.g. in
         // some unit-test harnesses): fall back to a one-off thread so the job
@@ -275,11 +374,14 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
     let track_id_for_cb = track_id.to_string();
     let buses_cb = buses.clone();
     let progress: crate::StemProgressFn = Arc::new(move |phase, fraction| {
-        let _ = buses_cb.publish_evt(Event::TrackProgress(TrackProgress {
-            track_id: track_id_for_cb.clone(),
-            phase: phase.to_string(),
-            fraction,
-        }));
+        publish_evt(
+            &buses_cb,
+            Event::TrackProgress(TrackProgress {
+                track_id: track_id_for_cb.clone(),
+                phase: phase.to_string(),
+                fraction,
+            }),
+        );
     });
     let result = crate::ensure_track_stems_with_progress(
         library,
@@ -292,19 +394,25 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
     );
     match result {
         Ok(()) => {
-            let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
-                track_id: track_id.to_string(),
-                phase: "stems_ready".into(),
-                fraction: Some(1.0),
-            }));
+            publish_evt(
+                buses,
+                Event::TrackProgress(TrackProgress {
+                    track_id: track_id.to_string(),
+                    phase: "stems_ready".into(),
+                    fraction: Some(1.0),
+                }),
+            );
         }
         Err(err) => {
             let message = err.to_string();
-            let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
-                track_id: track_id.to_string(),
-                phase: "stems_failed".into(),
-                fraction: None,
-            }));
+            publish_evt(
+                buses,
+                Event::TrackProgress(TrackProgress {
+                    track_id: track_id.to_string(),
+                    phase: "stems_failed".into(),
+                    fraction: None,
+                }),
+            );
             publish_error(buses, message, Some(track_id.to_string()));
         }
     }
@@ -508,13 +616,16 @@ fn publish_beat_grid_result(
                     })
                     .collect(),
             };
-            let _ = buses.publish_evt(Event::BeatGridChanged(BeatGridChanged {
-                track_id: track_id.clone(),
-                beat_grid,
-            }));
+            publish_evt(
+                buses,
+                Event::BeatGridChanged(BeatGridChanged {
+                    track_id: track_id.clone(),
+                    beat_grid,
+                }),
+            );
             if let Some(source) = source {
                 if let Some(track) = track_summary(&source) {
-                    let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
+                    publish_evt(buses, Event::TrackUpdated(TrackUpdated { track }));
                 }
             }
         }
@@ -529,10 +640,13 @@ fn publish_hot_cues_result(
 ) {
     match result {
         Ok(rows) => {
-            let _ = buses.publish_evt(Event::HotCuesChanged(HotCuesChanged {
-                track_id,
-                hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
-            }));
+            publish_evt(
+                buses,
+                Event::HotCuesChanged(HotCuesChanged {
+                    track_id,
+                    hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+                }),
+            );
         }
         Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
@@ -545,10 +659,13 @@ fn publish_loops_result(
 ) {
     match result {
         Ok(rows) => {
-            let _ = buses.publish_evt(Event::LoopsChanged(LoopsChanged {
-                track_id,
-                loops: rows.into_iter().map(saved_loop_from_record).collect(),
-            }));
+            publish_evt(
+                buses,
+                Event::LoopsChanged(LoopsChanged {
+                    track_id,
+                    loops: rows.into_iter().map(saved_loop_from_record).collect(),
+                }),
+            );
         }
         Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
@@ -574,12 +691,26 @@ fn saved_loop_from_record(record: LoopRecord) -> SavedLoop {
     }
 }
 
+/// Publish one egress event, reporting a dead lane instead of hiding it.
+///
+/// The library worker cannot fail at this boundary: a closed bus means the host
+/// went away, which must not stop an analysis or a save already in flight. A
+/// poisoned lane is a bug worth a log line, so it is reported either way.
+fn publish_evt(buses: &LibraryBuses, event: Event) {
+    if let Err(err) = buses.publish_evt(event) {
+        tracing::error!(error = %err, "event bus publication failed");
+    }
+}
+
 fn publish_error(buses: &LibraryBuses, message: String, track_id: Option<String>) {
-    let _ = buses.publish_evt(Event::Error(Error {
-        message,
-        track_id,
-        deck: None,
-    }));
+    publish_evt(
+        buses,
+        Event::Error(Error {
+            message,
+            track_id,
+            deck: None,
+        }),
+    );
 }
 
 fn track_summary(source: &AudioSource) -> Option<TrackSummary> {
@@ -647,9 +778,9 @@ mod tests {
             id
         };
 
-        let mut rx = session.subscribe_evt().expect("evt bus");
+        let mut rx = session.subscribe_evt("test").expect("evt bus");
         session
-            .publish_cmd(Event::RefreshTrack(RefreshTrack {
+            .publish_cmd(Command::RefreshTrack(RefreshTrack {
                 track_id: id.as_str().to_string(),
             }))
             .expect("cmd bus");
@@ -660,7 +791,7 @@ mod tests {
             let Ok(Some(event)) = rx.recv_timeout(std::time::Duration::from_millis(200)) else {
                 continue;
             };
-            match event {
+            match event.as_ref() {
                 Event::HotCuesChanged(HotCuesChanged { track_id, hot_cues })
                     if track_id == id.as_str() =>
                 {

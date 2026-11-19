@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use bus_api::Command;
 use bus_api::DeckHotCue;
 use bus_api::DeckSavedLoop;
 use bus_api::Event;
@@ -164,16 +165,22 @@ pub enum ControllerDeviceDirection {
 /// Publishes what the mapping engine resolves: commands to the cmd side, the
 /// UI-originated library events to the egress side Flutter reads.
 struct HostPublish {
-    bus: EventBus<Event>,
+    bus: EventBus<Command, Event>,
 }
 
 impl ActionPublish for HostPublish {
-    fn publish_cmd(&mut self, event: Event) {
-        let _ = self.bus.publish_cmd(event);
+    fn publish_cmd(&mut self, command: Command) {
+        // A refused command means no worker owns it; the mapping still worked,
+        // so this is a log line, not a controller error.
+        if let Err(err) = self.bus.publish_cmd(command) {
+            tracing::error!(error = %err, "event bus publication failed");
+        }
     }
 
     fn publish_evt(&mut self, event: Event) {
-        let _ = self.bus.publish_evt(event);
+        if let Err(err) = self.bus.publish_evt(event) {
+            tracing::error!(error = %err, "event bus publication failed");
+        }
     }
 }
 
@@ -223,6 +230,21 @@ impl ControllerTransport {
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
         let engine_buses = bus.bus();
+        // Subscribe before any thread exists: the mirror must be registered
+        // before the engine can publish, and a failure here must not leave
+        // workers running behind an error return.
+        let mirror_rx = engine_buses
+            .subscribe_evt_topics(
+                "controller-mirror",
+                &[
+                    bus_api::EventTopic::DeckUpdated,
+                    bus_api::EventTopic::DeckPosition,
+                    bus_api::EventTopic::DeckLevels,
+                    bus_api::EventTopic::EngineSnapshot,
+                    bus_api::EventTopic::HotCuesChanged,
+                ],
+            )
+            .map_err(|e| e.to_string())?;
 
         let mut threads = Vec::with_capacity(3);
         {
@@ -258,11 +280,12 @@ impl ControllerTransport {
                     };
                     let events = if let Ok(mut eng) = controller_engine.lock() {
                         eng.pump(&mut bus);
-                        eng.take_events()
+                        (eng.take_events(), eng.take_commands())
                     } else {
-                        Vec::new()
+                        (Vec::new(), Vec::new())
                     };
-                    publish_events(&engine_buses, events);
+                    publish_events(&engine_buses, events.0);
+                    publish_commands(&engine_buses, events.1);
                     std::thread::sleep(PUMP_INTERVAL);
                 }
             })?;
@@ -270,9 +293,8 @@ impl ControllerTransport {
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
-            let engine_buses = engine_buses.clone();
             spawn_named("controller-mirror", &stop, &mut threads, move || {
-                mirror_engine_library_to_controller(stop_flag, controller_engine, engine_buses);
+                mirror_engine_library_to_controller(stop_flag, controller_engine, mirror_rx);
             })?;
         }
 
@@ -350,9 +372,20 @@ impl ControllerTransport {
 }
 
 /// Controller events are ordinary bus events; Flutter reads them on the one stream.
-fn publish_events(bus: &EventBus<Event>, events: Vec<Event>) {
+fn publish_events(bus: &EventBus<Command, Event>, events: Vec<Event>) {
     for event in events {
-        let _ = bus.publish_evt(event);
+        if let Err(err) = bus.publish_evt(event) {
+            tracing::error!(error = %err, "event bus publication failed");
+        }
+    }
+}
+
+/// Controller commands (fader-start native toggles) go to their owning worker.
+fn publish_commands(bus: &EventBus<Command, Event>, commands: Vec<Command>) {
+    for command in commands {
+        if let Err(err) = bus.publish_cmd(command) {
+            tracing::error!(error = %err, "event bus publication failed");
+        }
     }
 }
 
@@ -548,23 +581,28 @@ fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i3
     ctrl.set_deck_position_ms(deck, position_ms);
 }
 
+/// Mirror the engine and library state the controller needs onto its snapshot.
+///
+/// The subscription is created by the caller before this thread exists, so no
+/// event published after startup can be missed; a disconnection ends the loop.
 fn mirror_engine_library_to_controller(
     stop: Arc<AtomicBool>,
     controller: Arc<Mutex<ControllerEngine>>,
-    engine_buses: EventBus<Event>,
+    mut engine_rx: event_bus::Subscriber<Arc<Event>>,
 ) {
-    // One bus carries engine and library egress; a single subscription sees both.
-    let Ok(mut engine_rx) = engine_buses.subscribe_evt() else {
-        return;
-    };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
     // None until the first EngineStatus; avoids treating deck 0 as master by default.
     let mut master_deck: Option<u16> = None;
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
             Ok(Some(event)) => {
-                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, &event);
-                apply_library_mirror(&controller, &deck_tracks, &event);
+                apply_engine_mirror(
+                    &controller,
+                    &mut deck_tracks,
+                    &mut master_deck,
+                    event.as_ref(),
+                );
+                apply_library_mirror(&controller, &deck_tracks, event.as_ref());
             }
             Ok(None) => {}
             Err(_) => return,

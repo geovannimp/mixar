@@ -9,6 +9,7 @@ use crate::config::EngineConfig;
 use crate::control::{spawn_engine_worker, EngineWorker};
 use crate::engine::Engine;
 use anyhow::Result;
+use bus_api::Command;
 use bus_api::Event;
 use event_bus::EventBus;
 use event_bus::Subscriber;
@@ -23,7 +24,7 @@ pub struct EngineSession {
     #[allow(dead_code)]
     worker: EngineWorker,
     engine: Arc<Mutex<Option<Engine>>>,
-    buses: EventBus<Event>,
+    buses: EventBus<Command, Event>,
 }
 
 impl EngineSession {
@@ -62,24 +63,31 @@ impl EngineSession {
     }
 
     /// Clone of the cmd/evt bus.
-    pub fn bus(&self) -> EventBus<Event> {
+    pub fn bus(&self) -> EventBus<Command, Event> {
         self.buses.clone()
     }
 
     /// Subscribe to every egress event. Hides the subscription plumbing.
-    pub fn subscribe_evt_all(&self) -> Result<Subscriber<Event>> {
-        Ok(self.buses.subscribe_evt()?)
+    ///
+    /// `label` identifies the observer in [`event_bus::BusDiagnostics`].
+    pub fn subscribe_evt_all(&self, label: &'static str) -> Result<Subscriber<Arc<Event>>> {
+        Ok(self.buses.subscribe_evt(label)?)
     }
 
-    /// Fire-and-forget publish of a command.
-    pub fn publish_cmd(&self, event: Event) -> Result<()> {
-        self.buses.publish_cmd(event)?;
+    /// Publish one command to its owning worker.
+    pub fn publish_cmd(&self, command: Command) -> Result<()> {
+        self.buses
+            .publish_cmd(command)
+            .map_err(anyhow::Error::new)?;
         Ok(())
     }
 
     /// Host/engine egress: publish on the evt bus.
     pub fn publish_evt(&self, event: Event) -> Result<()> {
-        self.buses.publish_evt(event)?;
+        self.buses
+            .publish_evt(event)
+            .map(|_report| ())
+            .map_err(anyhow::Error::new)?;
         Ok(())
     }
 

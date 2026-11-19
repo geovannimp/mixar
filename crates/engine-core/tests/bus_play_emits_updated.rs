@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::Play;
 use bus_api::SetCrossfader;
 use common::recv_error;
@@ -25,10 +25,10 @@ fn null_config() -> EngineConfig {
 #[test]
 fn play_on_empty_deck_publishes_track_error() {
     let session = EngineSession::new(null_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     session
-        .publish_cmd(Event::Play(Play { deck: 0 }))
+        .publish_cmd(Command::Play(Play { deck: 0 }))
         .expect("publish");
     let error = recv_error(&mut evt);
     assert_eq!(error.deck, Some(0));
@@ -43,7 +43,7 @@ fn play_on_empty_deck_publishes_track_error() {
 #[test]
 fn play_with_track_loaded_publishes_updated_playing() {
     let session = EngineSession::new(null_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
         .with_engine(|engine| {
             engine.start()?;
@@ -55,7 +55,7 @@ fn play_with_track_loaded_publishes_updated_playing() {
         })
         .expect("setup");
     session
-        .publish_cmd(Event::Play(Play { deck: 0 }))
+        .publish_cmd(Command::Play(Play { deck: 0 }))
         .expect("publish");
     let update = recv_updated(&mut evt);
     assert_eq!(update.deck, 0);
@@ -65,10 +65,10 @@ fn play_with_track_loaded_publishes_updated_playing() {
 #[test]
 fn set_crossfader_publishes_status() {
     let session = EngineSession::new(null_config()).expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
     session
-        .publish_cmd(Event::SetCrossfader(SetCrossfader {
+        .publish_cmd(Command::SetCrossfader(SetCrossfader {
             position: 0.75,
             soft_takeover: false,
         }))

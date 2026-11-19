@@ -4,6 +4,7 @@
 mod common;
 
 use anyhow::Result;
+use bus_api::Command;
 use bus_api::EqBand;
 use bus_api::Event;
 use bus_api::SetEqBand;
@@ -34,7 +35,7 @@ fn null_session() -> EngineSession {
 }
 
 /// Session holding one native `.stem.mp4` loaded on deck 0, so `stems_ready` is true.
-fn stem_session(frame_amp: f32) -> Result<(EngineSession, Subscriber<Event>)> {
+fn stem_session(frame_amp: f32) -> Result<(EngineSession, Subscriber<Arc<Event>>)> {
     use codec::encode_stem_mp4;
     use codec::StemAtom;
     use codec::StemMuxFormat;
@@ -74,7 +75,7 @@ fn stem_session(frame_amp: f32) -> Result<(EngineSession, Subscriber<Event>)> {
     )?));
     let imported = lib.lock().unwrap().import_file_path(&stem_path)?;
     let session = EngineSession::new_with_library(config, Arc::clone(&lib))?;
-    let mut evt = session.subscribe_evt_all()?;
+    let mut evt = session.subscribe_evt_all("test")?;
     session.with_engine(|engine| engine.start())?;
     session.with_engine(|engine| engine.load_track_from_library(0, imported.id()))?;
     // `stems_ready` gates the routing, so a silently buffer-less load must fail
@@ -111,10 +112,10 @@ fn wait_stems_audible(session: &EngineSession, expected: bool) {
 fn live_session() -> Result<(
     EngineSession,
     Arc<audio_core::LiveStemRing>,
-    Subscriber<Event>,
+    Subscriber<Arc<Event>>,
 )> {
     let session = null_session();
-    let evt = session.subscribe_evt_all()?;
+    let evt = session.subscribe_evt_all("test")?;
     session.with_engine(|engine| {
         engine.load_track(
             0,
@@ -132,9 +133,9 @@ fn live_session() -> Result<(
 #[test]
 fn set_stem_eq_band_publishes_snapshot_and_leaves_channel_eq() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
-        .publish_cmd(Event::SetStemEqBand(SetStemEqBand {
+        .publish_cmd(Command::SetStemEqBand(SetStemEqBand {
             deck: 0,
             band: EqBand::High,
             gain: 0.0,
@@ -167,8 +168,8 @@ fn set_stem_eq_band_publishes_snapshot_and_leaves_channel_eq() {
 #[test]
 fn stem_eq_toggle_without_stems_leaves_eq_on_the_channel() -> Result<()> {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all()?;
-    session.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
+    let mut evt = session.subscribe_evt_all("test")?;
+    session.publish_cmd(Command::SetStemEqEnabled(SetStemEqEnabled {
         deck: 0,
         enabled: true,
     }))?;
@@ -177,7 +178,7 @@ fn stem_eq_toggle_without_stems_leaves_eq_on_the_channel() -> Result<()> {
     assert!(!update.stems_ready, "no stems on an empty deck");
 
     // The knobs must stay audible: EQ lands on the channel, never on hidden stems.
-    session.publish_cmd(Event::SetEqBand(SetEqBand {
+    session.publish_cmd(Command::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Low,
         gain: 1.0,
@@ -200,7 +201,7 @@ fn stem_eq_toggle_without_stems_leaves_eq_on_the_channel() -> Result<()> {
 #[test]
 fn stem_eq_toggle_routes_eq_band_to_stem_eq() -> Result<()> {
     let (session, mut evt) = stem_session(0.2)?;
-    session.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
+    session.publish_cmd(Command::SetStemEqEnabled(SetStemEqEnabled {
         deck: 0,
         enabled: true,
     }))?;
@@ -208,7 +209,7 @@ fn stem_eq_toggle_routes_eq_band_to_stem_eq() -> Result<()> {
     assert!(update.stem_eq_enabled);
     assert!(update.stems_ready);
 
-    session.publish_cmd(Event::SetEqBand(SetEqBand {
+    session.publish_cmd(Command::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Low,
         gain: 0.2,
@@ -235,7 +236,7 @@ fn stem_eq_toggle_routes_eq_band_to_stem_eq() -> Result<()> {
 #[test]
 fn stem_eq_routes_to_the_stem_eq_while_live_coverage_covers_the_playhead() -> Result<()> {
     let (session, _ring, mut evt) = live_session()?;
-    session.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
+    session.publish_cmd(Command::SetStemEqEnabled(SetStemEqEnabled {
         deck: 0,
         enabled: true,
     }))?;
@@ -245,7 +246,7 @@ fn stem_eq_routes_to_the_stem_eq_while_live_coverage_covers_the_playhead() -> Re
         "published coverage covers the playhead"
     );
 
-    session.publish_cmd(Event::SetEqBand(SetEqBand {
+    session.publish_cmd(Command::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Low,
         gain: 0.2,
@@ -273,7 +274,7 @@ fn stem_eq_routes_to_the_stem_eq_while_live_coverage_covers_the_playhead() -> Re
 #[test]
 fn stem_eq_falls_back_to_the_channel_while_live_stems_are_starved() -> Result<()> {
     let (session, ring, mut evt) = live_session()?;
-    session.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
+    session.publish_cmd(Command::SetStemEqEnabled(SetStemEqEnabled {
         deck: 0,
         enabled: true,
     }))?;
@@ -282,7 +283,7 @@ fn stem_eq_falls_back_to_the_channel_while_live_stems_are_starved() -> Result<()
     // Producer re-epochs / drops coverage: the deck now plays the dry mix.
     ring.reset(0);
     wait_stems_audible(&session, false);
-    session.publish_cmd(Event::SetEqBand(SetEqBand {
+    session.publish_cmd(Command::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Mid,
         gain: 0.1,
@@ -307,14 +308,14 @@ fn stem_eq_falls_back_to_the_channel_while_live_stems_are_starved() -> Result<()
 #[test]
 fn toggle_stem_eq_flips_the_per_deck_flag() -> Result<()> {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all()?;
-    session.publish_cmd(Event::ToggleStemEq(ToggleStemEq { deck: 1 }))?;
+    let mut evt = session.subscribe_evt_all("test")?;
+    session.publish_cmd(Command::ToggleStemEq(ToggleStemEq { deck: 1 }))?;
     let update = recv_updated_where(&mut evt, |update| {
         update.deck == 1 && update.stem_eq_enabled
     });
     assert_eq!(update.deck, 1);
 
-    session.publish_cmd(Event::ToggleStemEq(ToggleStemEq { deck: 1 }))?;
+    session.publish_cmd(Command::ToggleStemEq(ToggleStemEq { deck: 1 }))?;
     let update = recv_updated_where(&mut evt, |update| update.deck == 1);
     assert!(!update.stem_eq_enabled);
     Ok(())
@@ -323,8 +324,8 @@ fn toggle_stem_eq_flips_the_per_deck_flag() -> Result<()> {
 #[test]
 fn non_finite_stem_eq_gain_leaves_bands_neutral() -> Result<()> {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all()?;
-    session.publish_cmd(Event::SetStemEqBand(SetStemEqBand {
+    let mut evt = session.subscribe_evt_all("test")?;
+    session.publish_cmd(Command::SetStemEqBand(SetStemEqBand {
         deck: 0,
         band: EqBand::Mid,
         gain: f32::NAN,

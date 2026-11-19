@@ -1,11 +1,37 @@
-//! Engine event schema: every engine payload and the closed [`Event`] enum.
+//! Engine schema: every payload, plus the closed [`Command`] and [`Event`] enums.
 //!
-//! `events::Event` is the only thing that crosses the bus. Payload structs are
-//! plain data with no wire format — the bus carries them typed, and Flutter
-//! receives them through FRB as generated sealed classes.
+//! [`commands::Command`] is the control direction (one owner per command, see
+//! [`CommandTarget`]); [`events::Event`] is the egress direction every observer
+//! may watch. Payload structs live in `messages` and are plain data — no wire
+//! format — so Flutter receives them through FRB as generated classes.
+//!
+//! # Direction is a compile-time fact
+//!
+//! Commands and events are disjoint enums, so a wrong-direction publication is
+//! a compile error instead of a message a worker silently ignores:
+//!
+//! ```compile_fail
+//! use bus_api::{Command, Event};
+//!
+//! let bus = event_bus::EventBus::<Command, Event>::new();
+//! // A notice is egress: publishing it as a command does not compile.
+//! let _ = bus.publish_cmd(Event::Notice(bus_api::Notice {
+//!     message: "hi".into(),
+//! }));
+//! ```
+//!
+//! ```compile_fail
+//! use bus_api::{Command, Event};
+//!
+//! let bus = event_bus::EventBus::<Command, Event>::new();
+//! // Play is control: publishing it as an event does not compile.
+//! let _ = bus.publish_evt(Command::Play(bus_api::Play { deck: 1 }));
+//! ```
 
+mod commands;
 mod events;
 pub mod library;
+mod messages;
 pub mod pads;
 mod payload;
 
@@ -37,9 +63,7 @@ pub use payload::{
     FX_SLOT_COUNT,
 };
 
-pub use events::Event;
-pub use events::Topic;
-pub use events::{
+pub use messages::{
     AnalyzeTrack, AssignSampler, AssignSamplerTrack, BeatGridChanged, BeatJump, BeatJumpPadPress,
     BeatJumpPadRelease, BeginCueHold, BeginLoopRoll, ClearSampler, DeckLevels, DeckPosition,
     DeckUpdated, DeleteDeckHotCue, DeleteTrackHotCue, DeleteTrackLoop, EndCueHold, EndLoopRoll,
@@ -60,3 +84,6 @@ pub use events::{
     ToggleQuantize, ToggleSlip, ToggleStemEq, ToggleSync, TrackAnalyzed, TrackProgress,
     TrackUpdated, TriggerHotCue, Unload,
 };
+
+pub use commands::{Command, CommandTarget};
+pub use events::{Event, EventTopic};

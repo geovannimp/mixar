@@ -575,7 +575,7 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Current implementation:** [`event-bus-design.md`](event-bus-design.md) — one process-wide **omnibus** cmd/evt pair carrying one typed `Event` enum; the host encodes nothing and Flutter subscribes once through `BusTransport.subscribeEvents()`.
+**Current implementation:** [`event-bus-design.md`](event-bus-design.md) — one process-wide **cmd/evt pair**: commands move to the single owning worker, events fan out to every observer. The two directions are separate closed enums (`Command` / `Event`) on unbounded queues, so a wrong-direction publication does not compile and a burst is queued rather than dropped.
 
 Library metadata / decode / waveform peaks / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
 

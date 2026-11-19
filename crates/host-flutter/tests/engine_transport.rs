@@ -14,6 +14,7 @@ use host_flutter::api::bus::BusTransport;
 use host_flutter::api::engine::EngineTransport;
 use host_flutter::api::library::LibraryTransport;
 use host_flutter::testing;
+use std::sync::Arc;
 
 fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
@@ -32,7 +33,7 @@ fn null_engine_config() -> engine_core::EngineConfig {
     }
 }
 
-type EvtRx = Subscriber<Event>;
+type EvtRx = Subscriber<Arc<Event>>;
 
 /// Receive the next event `pick` accepts, in short slices against `timeout`.
 ///
@@ -49,7 +50,7 @@ fn recv_matching<T>(
         let remaining = deadline.saturating_duration_since(Instant::now());
         match rx.recv_timeout(remaining.min(Duration::from_millis(50))) {
             Ok(Some(event)) => {
-                if let Some(picked) = pick(event) {
+                if let Some(picked) = pick(Arc::unwrap_or_clone(event)) {
                     return picked;
                 }
             }
@@ -489,4 +490,45 @@ fn fx_unit_and_deck_routing_publish_updated() {
 
     transport.set_deck_fx_routed(1, true).unwrap();
     assert!(expect_deck_fx_routed(&mut rx, 1, Duration::from_secs(2)));
+}
+
+/// A burst that ends on play must leave the deck playing.
+///
+/// The bus this replaces folded pending commands per key, so `Play, Pause, Play`
+/// arrived as `Play, Pause` and the deck ended paused. Asserting the final state
+/// (not a count of interleaved telemetry) is what catches that.
+#[test]
+fn a_play_pause_play_burst_ends_playing() {
+    let bus = BusTransport::open().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
+    let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
+    // Subscribe before publishing: the burst must be observed from its start.
+    let mut rx = testing::subscribe_evt(&bus).unwrap();
+    load_fixture(&transport, &mut rx, 0);
+
+    transport.play(0).unwrap();
+    transport.pause(0).unwrap();
+    transport.play(0).unwrap();
+
+    // Reuse the shared receive protocol rather than a second copy of it: the
+    // sequence is what matters here, so collect successive deck updates.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut playing_sequence = Vec::new();
+    while Instant::now() < deadline {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let update = recv_deck_updated(&mut rx, 0, remaining.max(Duration::from_millis(1)));
+        playing_sequence.push(update.playing);
+        if playing_sequence.len() >= 3 && *playing_sequence.last().unwrap() {
+            break;
+        }
+    }
+    assert!(
+        playing_sequence.contains(&false),
+        "the pause must be delivered, not folded away: {playing_sequence:?}"
+    );
+    assert_eq!(
+        playing_sequence.last(),
+        Some(&true),
+        "the last accepted command decides the state: {playing_sequence:?}"
+    );
 }

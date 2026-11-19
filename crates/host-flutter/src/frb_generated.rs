@@ -8735,23 +8735,6 @@ fn wire__crate__api__settings__waveform_position_setting_default_impl(
 #[allow(clippy::unnecessary_literal_unwrap)]
 const _: fn() = || {
     {
-        let AnalyzeTrack = None::<crate::api::event_mirrors::AnalyzeTrack>.unwrap();
-        let _: String = AnalyzeTrack.track_id;
-        let _: bool = AnalyzeTrack.force;
-    }
-    {
-        let AssignSampler = None::<crate::api::event_mirrors::AssignSampler>.unwrap();
-        let _: u16 = AssignSampler.deck;
-        let _: u8 = AssignSampler.slot;
-        let _: String = AssignSampler.path;
-    }
-    {
-        let AssignSamplerTrack = None::<crate::api::event_mirrors::AssignSamplerTrack>.unwrap();
-        let _: u16 = AssignSamplerTrack.deck;
-        let _: u8 = AssignSamplerTrack.slot;
-        let _: String = AssignSamplerTrack.track_id;
-    }
-    {
         let BeatGrid = None::<crate::api::event_mirrors::BeatGrid>.unwrap();
         let _: String = BeatGrid.source;
         let _: Option<i64> = BeatGrid.covered_to_ms;
@@ -8763,21 +8746,6 @@ const _: fn() = || {
         let _: crate::api::event_mirrors::BeatGrid = BeatGridChanged.beat_grid;
     }
     {
-        let BeatJump = None::<crate::api::event_mirrors::BeatJump>.unwrap();
-        let _: u16 = BeatJump.deck;
-        let _: f32 = BeatJump.beats;
-    }
-    {
-        let BeatJumpPadPress = None::<crate::api::event_mirrors::BeatJumpPadPress>.unwrap();
-        let _: u16 = BeatJumpPadPress.deck;
-        let _: u8 = BeatJumpPadPress.slot;
-    }
-    {
-        let BeatJumpPadRelease = None::<crate::api::event_mirrors::BeatJumpPadRelease>.unwrap();
-        let _: u16 = BeatJumpPadRelease.deck;
-        let _: u8 = BeatJumpPadRelease.slot;
-    }
-    {
         let BeatSegment = None::<crate::api::event_mirrors::BeatSegment>.unwrap();
         let _: i32 = BeatSegment.segment_index;
         let _: i64 = BeatSegment.start_time_ms;
@@ -8787,20 +8755,6 @@ const _: fn() = || {
         let _: i64 = BeatSegment.start_beat_index;
         let _: Option<i64> = BeatSegment.beats_to_next;
         let _: u8 = BeatSegment.downbeat_offset_beats;
-    }
-    {
-        let BeginCueHold = None::<crate::api::event_mirrors::BeginCueHold>.unwrap();
-        let _: u16 = BeginCueHold.deck;
-    }
-    {
-        let BeginLoopRoll = None::<crate::api::event_mirrors::BeginLoopRoll>.unwrap();
-        let _: u16 = BeginLoopRoll.deck;
-        let _: f32 = BeginLoopRoll.beats;
-    }
-    {
-        let ClearSampler = None::<crate::api::event_mirrors::ClearSampler>.unwrap();
-        let _: u16 = ClearSampler.deck;
-        let _: u8 = ClearSampler.slot;
     }
     {
         let CrossfaderBehaviorSetting =
@@ -9004,29 +8958,6 @@ const _: fn() = || {
         let _: Vec<crate::api::event_mirrors::SamplerSlotInfo> = DeckUpdated.sampler_slots;
     }
     {
-        let DeleteDeckHotCue = None::<crate::api::event_mirrors::DeleteDeckHotCue>.unwrap();
-        let _: u16 = DeleteDeckHotCue.deck;
-        let _: u8 = DeleteDeckHotCue.slot;
-    }
-    {
-        let DeleteTrackHotCue = None::<crate::api::event_mirrors::DeleteTrackHotCue>.unwrap();
-        let _: String = DeleteTrackHotCue.track_id;
-        let _: u8 = DeleteTrackHotCue.slot;
-    }
-    {
-        let DeleteTrackLoop = None::<crate::api::event_mirrors::DeleteTrackLoop>.unwrap();
-        let _: String = DeleteTrackLoop.track_id;
-        let _: u8 = DeleteTrackLoop.slot;
-    }
-    {
-        let EndCueHold = None::<crate::api::event_mirrors::EndCueHold>.unwrap();
-        let _: u16 = EndCueHold.deck;
-    }
-    {
-        let EndLoopRoll = None::<crate::api::event_mirrors::EndLoopRoll>.unwrap();
-        let _: u16 = EndLoopRoll.deck;
-    }
-    {
         let EngineSnapshot = None::<crate::api::event_mirrors::EngineSnapshot>.unwrap();
         let _: crate::api::event_mirrors::EngineStatus = EngineSnapshot.status;
     }
@@ -9050,261 +8981,6 @@ const _: fn() = || {
         let _: Option<u16> = Error.deck;
     }
     match None::<crate::api::event_mirrors::Event>.unwrap() {
-        crate::api::event_mirrors::Event::Play(field0) => {
-            let _: crate::api::event_mirrors::Play = field0;
-        }
-        crate::api::event_mirrors::Event::Pause(field0) => {
-            let _: crate::api::event_mirrors::Pause = field0;
-        }
-        crate::api::event_mirrors::Event::TogglePlay(field0) => {
-            let _: crate::api::event_mirrors::TogglePlay = field0;
-        }
-        crate::api::event_mirrors::Event::Seek(field0) => {
-            let _: crate::api::event_mirrors::Seek = field0;
-        }
-        crate::api::event_mirrors::Event::Unload(field0) => {
-            let _: crate::api::event_mirrors::Unload = field0;
-        }
-        crate::api::event_mirrors::Event::SetVolume(field0) => {
-            let _: crate::api::event_mirrors::SetVolume = field0;
-        }
-        crate::api::event_mirrors::Event::SetEq(field0) => {
-            let _: crate::api::event_mirrors::SetEq = field0;
-        }
-        crate::api::event_mirrors::Event::SetEqBand(field0) => {
-            let _: crate::api::event_mirrors::SetEqBand = field0;
-        }
-        crate::api::event_mirrors::Event::SetStemEqBand(field0) => {
-            let _: crate::api::event_mirrors::SetStemEqBand = field0;
-        }
-        crate::api::event_mirrors::Event::SetStemEqEnabled(field0) => {
-            let _: crate::api::event_mirrors::SetStemEqEnabled = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleStemEq(field0) => {
-            let _: crate::api::event_mirrors::ToggleStemEq = field0;
-        }
-        crate::api::event_mirrors::Event::SetFilter(field0) => {
-            let _: crate::api::event_mirrors::SetFilter = field0;
-        }
-        crate::api::event_mirrors::Event::SetGainTrim(field0) => {
-            let _: crate::api::event_mirrors::SetGainTrim = field0;
-        }
-        crate::api::event_mirrors::Event::SetHeadphoneCue(field0) => {
-            let _: crate::api::event_mirrors::SetHeadphoneCue = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleHeadphoneCue(field0) => {
-            let _: crate::api::event_mirrors::ToggleHeadphoneCue = field0;
-        }
-        crate::api::event_mirrors::Event::SetCrossfaderAssign(field0) => {
-            let _: crate::api::event_mirrors::SetCrossfaderAssign = field0;
-        }
-        crate::api::event_mirrors::Event::SetSpeed(field0) => {
-            let _: crate::api::event_mirrors::SetSpeed = field0;
-        }
-        crate::api::event_mirrors::Event::SetTempoRange(field0) => {
-            let _: crate::api::event_mirrors::SetTempoRange = field0;
-        }
-        crate::api::event_mirrors::Event::SetTempoCurve(field0) => {
-            let _: crate::api::event_mirrors::SetTempoCurve = field0;
-        }
-        crate::api::event_mirrors::Event::SetKeyLock(field0) => {
-            let _: crate::api::event_mirrors::SetKeyLock = field0;
-        }
-        crate::api::event_mirrors::Event::SetKeyShift(field0) => {
-            let _: crate::api::event_mirrors::SetKeyShift = field0;
-        }
-        crate::api::event_mirrors::Event::SetKeyboardRoot(field0) => {
-            let _: crate::api::event_mirrors::SetKeyboardRoot = field0;
-        }
-        crate::api::event_mirrors::Event::SetKeyboardPage(field0) => {
-            let _: crate::api::event_mirrors::SetKeyboardPage = field0;
-        }
-        crate::api::event_mirrors::Event::SetKeyShiftPage(field0) => {
-            let _: crate::api::event_mirrors::SetKeyShiftPage = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleSync(field0) => {
-            let _: crate::api::event_mirrors::ToggleSync = field0;
-        }
-        crate::api::event_mirrors::Event::SetMasterDeck(field0) => {
-            let _: crate::api::event_mirrors::SetMasterDeck = field0;
-        }
-        crate::api::event_mirrors::Event::SetCuePoint(field0) => {
-            let _: crate::api::event_mirrors::SetCuePoint = field0;
-        }
-        crate::api::event_mirrors::Event::BeginCueHold(field0) => {
-            let _: crate::api::event_mirrors::BeginCueHold = field0;
-        }
-        crate::api::event_mirrors::Event::EndCueHold(field0) => {
-            let _: crate::api::event_mirrors::EndCueHold = field0;
-        }
-        crate::api::event_mirrors::Event::FaderStart(field0) => {
-            let _: crate::api::event_mirrors::FaderStart = field0;
-        }
-        crate::api::event_mirrors::Event::FaderStop(field0) => {
-            let _: crate::api::event_mirrors::FaderStop = field0;
-        }
-        crate::api::event_mirrors::Event::SetFaderStartNative(field0) => {
-            let _: crate::api::event_mirrors::SetFaderStartNative = field0;
-        }
-        crate::api::event_mirrors::Event::SetQuantize(field0) => {
-            let _: crate::api::event_mirrors::SetQuantize = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleQuantize(field0) => {
-            let _: crate::api::event_mirrors::ToggleQuantize = field0;
-        }
-        crate::api::event_mirrors::Event::SetSlip(field0) => {
-            let _: crate::api::event_mirrors::SetSlip = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleSlip(field0) => {
-            let _: crate::api::event_mirrors::ToggleSlip = field0;
-        }
-        crate::api::event_mirrors::Event::SetAutoLoop(field0) => {
-            let _: crate::api::event_mirrors::SetAutoLoop = field0;
-        }
-        crate::api::event_mirrors::Event::LoopIn(field0) => {
-            let _: crate::api::event_mirrors::LoopIn = field0;
-        }
-        crate::api::event_mirrors::Event::LoopOut(field0) => {
-            let _: crate::api::event_mirrors::LoopOut = field0;
-        }
-        crate::api::event_mirrors::Event::ExitLoop(field0) => {
-            let _: crate::api::event_mirrors::ExitLoop = field0;
-        }
-        crate::api::event_mirrors::Event::RecallSavedLoop(field0) => {
-            let _: crate::api::event_mirrors::RecallSavedLoop = field0;
-        }
-        crate::api::event_mirrors::Event::BeginLoopRoll(field0) => {
-            let _: crate::api::event_mirrors::BeginLoopRoll = field0;
-        }
-        crate::api::event_mirrors::Event::EndLoopRoll(field0) => {
-            let _: crate::api::event_mirrors::EndLoopRoll = field0;
-        }
-        crate::api::event_mirrors::Event::BeatJump(field0) => {
-            let _: crate::api::event_mirrors::BeatJump = field0;
-        }
-        crate::api::event_mirrors::Event::SetPadMode(field0) => {
-            let _: crate::api::event_mirrors::SetPadMode = field0;
-        }
-        crate::api::event_mirrors::Event::PadPress(field0) => {
-            let _: crate::api::event_mirrors::PadPress = field0;
-        }
-        crate::api::event_mirrors::Event::PadRelease(field0) => {
-            let _: crate::api::event_mirrors::PadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::HotCuePadPress(field0) => {
-            let _: crate::api::event_mirrors::HotCuePadPress = field0;
-        }
-        crate::api::event_mirrors::Event::HotCuePadRelease(field0) => {
-            let _: crate::api::event_mirrors::HotCuePadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::LoopRollPadPress(field0) => {
-            let _: crate::api::event_mirrors::LoopRollPadPress = field0;
-        }
-        crate::api::event_mirrors::Event::LoopRollPadRelease(field0) => {
-            let _: crate::api::event_mirrors::LoopRollPadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::BeatJumpPadPress(field0) => {
-            let _: crate::api::event_mirrors::BeatJumpPadPress = field0;
-        }
-        crate::api::event_mirrors::Event::BeatJumpPadRelease(field0) => {
-            let _: crate::api::event_mirrors::BeatJumpPadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::SamplerPadPress(field0) => {
-            let _: crate::api::event_mirrors::SamplerPadPress = field0;
-        }
-        crate::api::event_mirrors::Event::SamplerPadRelease(field0) => {
-            let _: crate::api::event_mirrors::SamplerPadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::KeyboardPadPress(field0) => {
-            let _: crate::api::event_mirrors::KeyboardPadPress = field0;
-        }
-        crate::api::event_mirrors::Event::KeyboardPadRelease(field0) => {
-            let _: crate::api::event_mirrors::KeyboardPadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::KeyShiftPadPress(field0) => {
-            let _: crate::api::event_mirrors::KeyShiftPadPress = field0;
-        }
-        crate::api::event_mirrors::Event::KeyShiftPadRelease(field0) => {
-            let _: crate::api::event_mirrors::KeyShiftPadRelease = field0;
-        }
-        crate::api::event_mirrors::Event::TriggerHotCue(field0) => {
-            let _: crate::api::event_mirrors::TriggerHotCue = field0;
-        }
-        crate::api::event_mirrors::Event::SaveDeckHotCue(field0) => {
-            let _: crate::api::event_mirrors::SaveDeckHotCue = field0;
-        }
-        crate::api::event_mirrors::Event::DeleteDeckHotCue(field0) => {
-            let _: crate::api::event_mirrors::DeleteDeckHotCue = field0;
-        }
-        crate::api::event_mirrors::Event::AssignSampler(field0) => {
-            let _: crate::api::event_mirrors::AssignSampler = field0;
-        }
-        crate::api::event_mirrors::Event::AssignSamplerTrack(field0) => {
-            let _: crate::api::event_mirrors::AssignSamplerTrack = field0;
-        }
-        crate::api::event_mirrors::Event::ClearSampler(field0) => {
-            let _: crate::api::event_mirrors::ClearSampler = field0;
-        }
-        crate::api::event_mirrors::Event::JogTouch(field0) => {
-            let _: crate::api::event_mirrors::JogTouch = field0;
-        }
-        crate::api::event_mirrors::Event::JogTurn(field0) => {
-            let _: crate::api::event_mirrors::JogTurn = field0;
-        }
-        crate::api::event_mirrors::Event::SetJogMode(field0) => {
-            let _: crate::api::event_mirrors::SetJogMode = field0;
-        }
-        crate::api::event_mirrors::Event::SetCrossfader(field0) => {
-            let _: crate::api::event_mirrors::SetCrossfader = field0;
-        }
-        crate::api::event_mirrors::Event::SetMasterVolume(field0) => {
-            let _: crate::api::event_mirrors::SetMasterVolume = field0;
-        }
-        crate::api::event_mirrors::Event::SetCueVolume(field0) => {
-            let _: crate::api::event_mirrors::SetCueVolume = field0;
-        }
-        crate::api::event_mirrors::Event::SetCueMix(field0) => {
-            let _: crate::api::event_mirrors::SetCueMix = field0;
-        }
-        crate::api::event_mirrors::Event::SetMasterCue(field0) => {
-            let _: crate::api::event_mirrors::SetMasterCue = field0;
-        }
-        crate::api::event_mirrors::Event::ToggleMasterCue(field0) => {
-            let _: crate::api::event_mirrors::ToggleMasterCue = field0;
-        }
-        crate::api::event_mirrors::Event::SetCurveLibrary(field0) => {
-            let _: crate::api::event_mirrors::SetCurveLibrary = field0;
-        }
-        crate::api::event_mirrors::Event::SetCrossfaderCurve(field0) => {
-            let _: crate::api::event_mirrors::SetCrossfaderCurve = field0;
-        }
-        crate::api::event_mirrors::Event::SetCrossfaderCurveAmount(field0) => {
-            let _: crate::api::event_mirrors::SetCrossfaderCurveAmount = field0;
-        }
-        crate::api::event_mirrors::Event::SetCrossfaderBehavior(field0) => {
-            let _: crate::api::event_mirrors::SetCrossfaderBehavior = field0;
-        }
-        crate::api::event_mirrors::Event::SetChannelFaderCurve(field0) => {
-            let _: crate::api::event_mirrors::SetChannelFaderCurve = field0;
-        }
-        crate::api::event_mirrors::Event::SetFxUnitSlot(field0) => {
-            let _: crate::api::event_mirrors::SetFxUnitSlot = field0;
-        }
-        crate::api::event_mirrors::Event::SetFxUnitSlotEnabled(field0) => {
-            let _: crate::api::event_mirrors::SetFxUnitSlotEnabled = field0;
-        }
-        crate::api::event_mirrors::Event::SetFxUnitWet(field0) => {
-            let _: crate::api::event_mirrors::SetFxUnitWet = field0;
-        }
-        crate::api::event_mirrors::Event::SetFxLevelCurve(field0) => {
-            let _: crate::api::event_mirrors::SetFxLevelCurve = field0;
-        }
-        crate::api::event_mirrors::Event::SetFxUnitParam(field0) => {
-            let _: crate::api::event_mirrors::SetFxUnitParam = field0;
-        }
-        crate::api::event_mirrors::Event::SetDeckFxRouted(field0) => {
-            let _: crate::api::event_mirrors::SetDeckFxRouted = field0;
-        }
         crate::api::event_mirrors::Event::DeckUpdated(field0) => {
             let _: crate::api::event_mirrors::DeckUpdated = field0;
         }
@@ -9322,33 +8998,6 @@ const _: fn() = || {
         }
         crate::api::event_mirrors::Event::Notice(field0) => {
             let _: crate::api::event_mirrors::Notice = field0;
-        }
-        crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
-            let _: crate::api::event_mirrors::AnalyzeTrack = field0;
-        }
-        crate::api::event_mirrors::Event::GenerateStems(field0) => {
-            let _: crate::api::event_mirrors::GenerateStems = field0;
-        }
-        crate::api::event_mirrors::Event::RefreshTrack(field0) => {
-            let _: crate::api::event_mirrors::RefreshTrack = field0;
-        }
-        crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
-            let _: crate::api::event_mirrors::SaveBeatGrid = field0;
-        }
-        crate::api::event_mirrors::Event::SaveTrackCue(field0) => {
-            let _: crate::api::event_mirrors::SaveTrackCue = field0;
-        }
-        crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
-            let _: crate::api::event_mirrors::SaveTrackHotCue = field0;
-        }
-        crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
-            let _: crate::api::event_mirrors::DeleteTrackHotCue = field0;
-        }
-        crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
-            let _: crate::api::event_mirrors::SaveTrackLoop = field0;
-        }
-        crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
-            let _: crate::api::event_mirrors::DeleteTrackLoop = field0;
         }
         crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
             let _: crate::api::event_mirrors::TrackAnalyzed = field0;
@@ -9391,18 +9040,6 @@ const _: fn() = || {
         }
     }
     {
-        let ExitLoop = None::<crate::api::event_mirrors::ExitLoop>.unwrap();
-        let _: u16 = ExitLoop.deck;
-    }
-    {
-        let FaderStart = None::<crate::api::event_mirrors::FaderStart>.unwrap();
-        let _: u16 = FaderStart.deck;
-    }
-    {
-        let FaderStop = None::<crate::api::event_mirrors::FaderStop>.unwrap();
-        let _: u16 = FaderStop.deck;
-    }
-    {
         let Focus = None::<crate::api::event_mirrors::Focus>.unwrap();
         let _: i32 = Focus.delta;
     }
@@ -9412,10 +9049,6 @@ const _: fn() = || {
         let _: bool = FxSlotState.enabled;
         let _: f32 = FxSlotState.wet;
         let _: Vec<f32> = FxSlotState.params;
-    }
-    {
-        let GenerateStems = None::<crate::api::event_mirrors::GenerateStems>.unwrap();
-        let _: String = GenerateStems.track_id;
     }
     {
         let HistorySessionUpdated =
@@ -9431,82 +9064,19 @@ const _: fn() = || {
         let _: Option<String> = HotCue.label;
     }
     {
-        let HotCuePadPress = None::<crate::api::event_mirrors::HotCuePadPress>.unwrap();
-        let _: u16 = HotCuePadPress.deck;
-        let _: u8 = HotCuePadPress.slot;
-        let _: bool = HotCuePadPress.shift;
-    }
-    {
-        let HotCuePadRelease = None::<crate::api::event_mirrors::HotCuePadRelease>.unwrap();
-        let _: u16 = HotCuePadRelease.deck;
-        let _: u8 = HotCuePadRelease.slot;
-    }
-    {
         let HotCuesChanged = None::<crate::api::event_mirrors::HotCuesChanged>.unwrap();
         let _: String = HotCuesChanged.track_id;
         let _: Vec<crate::api::event_mirrors::HotCue> = HotCuesChanged.hot_cues;
-    }
-    {
-        let JogTouch = None::<crate::api::event_mirrors::JogTouch>.unwrap();
-        let _: u16 = JogTouch.deck;
-        let _: bool = JogTouch.touching;
-    }
-    {
-        let JogTurn = None::<crate::api::event_mirrors::JogTurn>.unwrap();
-        let _: u16 = JogTurn.deck;
-        let _: i32 = JogTurn.delta;
-    }
-    {
-        let KeyShiftPadPress = None::<crate::api::event_mirrors::KeyShiftPadPress>.unwrap();
-        let _: u16 = KeyShiftPadPress.deck;
-        let _: u8 = KeyShiftPadPress.slot;
-        let _: bool = KeyShiftPadPress.shift;
-    }
-    {
-        let KeyShiftPadRelease = None::<crate::api::event_mirrors::KeyShiftPadRelease>.unwrap();
-        let _: u16 = KeyShiftPadRelease.deck;
-        let _: u8 = KeyShiftPadRelease.slot;
-    }
-    {
-        let KeyboardPadPress = None::<crate::api::event_mirrors::KeyboardPadPress>.unwrap();
-        let _: u16 = KeyboardPadPress.deck;
-        let _: u8 = KeyboardPadPress.slot;
-        let _: bool = KeyboardPadPress.shift;
-    }
-    {
-        let KeyboardPadRelease = None::<crate::api::event_mirrors::KeyboardPadRelease>.unwrap();
-        let _: u16 = KeyboardPadRelease.deck;
-        let _: u8 = KeyboardPadRelease.slot;
     }
     {
         let Load = None::<crate::api::event_mirrors::Load>.unwrap();
         let _: u16 = Load.deck;
     }
     {
-        let LoopIn = None::<crate::api::event_mirrors::LoopIn>.unwrap();
-        let _: u16 = LoopIn.deck;
-        let _: i32 = LoopIn.position_ms;
-    }
-    {
-        let LoopOut = None::<crate::api::event_mirrors::LoopOut>.unwrap();
-        let _: u16 = LoopOut.deck;
-        let _: i32 = LoopOut.position_ms;
-    }
-    {
         let LoopRegion = None::<crate::api::event_mirrors::LoopRegion>.unwrap();
         let _: i32 = LoopRegion.in_ms;
         let _: i32 = LoopRegion.out_ms;
         let _: bool = LoopRegion.active;
-    }
-    {
-        let LoopRollPadPress = None::<crate::api::event_mirrors::LoopRollPadPress>.unwrap();
-        let _: u16 = LoopRollPadPress.deck;
-        let _: u8 = LoopRollPadPress.slot;
-    }
-    {
-        let LoopRollPadRelease = None::<crate::api::event_mirrors::LoopRollPadRelease>.unwrap();
-        let _: u16 = LoopRollPadRelease.deck;
-        let _: u8 = LoopRollPadRelease.slot;
     }
     {
         let LoopsChanged = None::<crate::api::event_mirrors::LoopsChanged>.unwrap();
@@ -9539,86 +9109,11 @@ const _: fn() = || {
         let _: String = Notice.message;
     }
     {
-        let PadPress = None::<crate::api::event_mirrors::PadPress>.unwrap();
-        let _: u16 = PadPress.deck;
-        let _: u8 = PadPress.slot;
-        let _: bool = PadPress.shift;
-    }
-    {
-        let PadRelease = None::<crate::api::event_mirrors::PadRelease>.unwrap();
-        let _: u16 = PadRelease.deck;
-        let _: u8 = PadRelease.slot;
-    }
-    {
-        let Pause = None::<crate::api::event_mirrors::Pause>.unwrap();
-        let _: u16 = Pause.deck;
-    }
-    {
-        let Play = None::<crate::api::event_mirrors::Play>.unwrap();
-        let _: u16 = Play.deck;
-    }
-    {
-        let RecallSavedLoop = None::<crate::api::event_mirrors::RecallSavedLoop>.unwrap();
-        let _: u16 = RecallSavedLoop.deck;
-        let _: i32 = RecallSavedLoop.in_ms;
-        let _: i32 = RecallSavedLoop.out_ms;
-    }
-    {
-        let RefreshTrack = None::<crate::api::event_mirrors::RefreshTrack>.unwrap();
-        let _: String = RefreshTrack.track_id;
-    }
-    {
-        let SamplerPadPress = None::<crate::api::event_mirrors::SamplerPadPress>.unwrap();
-        let _: u16 = SamplerPadPress.deck;
-        let _: u8 = SamplerPadPress.slot;
-        let _: bool = SamplerPadPress.shift;
-    }
-    {
-        let SamplerPadRelease = None::<crate::api::event_mirrors::SamplerPadRelease>.unwrap();
-        let _: u16 = SamplerPadRelease.deck;
-        let _: u8 = SamplerPadRelease.slot;
-    }
-    {
         let SamplerSlotInfo = None::<crate::api::event_mirrors::SamplerSlotInfo>.unwrap();
         let _: Option<String> = SamplerSlotInfo.label;
         let _: Option<String> = SamplerSlotInfo.track_id;
         let _: Option<String> = SamplerSlotInfo.path;
         let _: Option<i32> = SamplerSlotInfo.duration_ms;
-    }
-    {
-        let SaveBeatGrid = None::<crate::api::event_mirrors::SaveBeatGrid>.unwrap();
-        let _: String = SaveBeatGrid.track_id;
-        let _: f64 = SaveBeatGrid.bpm;
-        let _: f32 = SaveBeatGrid.first_beat_secs;
-        let _: bool = SaveBeatGrid.replace;
-    }
-    {
-        let SaveDeckHotCue = None::<crate::api::event_mirrors::SaveDeckHotCue>.unwrap();
-        let _: u16 = SaveDeckHotCue.deck;
-        let _: u8 = SaveDeckHotCue.slot;
-    }
-    {
-        let SaveTrackCue = None::<crate::api::event_mirrors::SaveTrackCue>.unwrap();
-        let _: String = SaveTrackCue.track_id;
-        let _: i32 = SaveTrackCue.position_ms;
-    }
-    {
-        let SaveTrackHotCue = None::<crate::api::event_mirrors::SaveTrackHotCue>.unwrap();
-        let _: String = SaveTrackHotCue.track_id;
-        let _: u8 = SaveTrackHotCue.slot;
-        let _: i32 = SaveTrackHotCue.position_ms;
-        let _: Option<i32> = SaveTrackHotCue.loop_length_beats;
-        let _: Option<String> = SaveTrackHotCue.color;
-        let _: Option<String> = SaveTrackHotCue.label;
-    }
-    {
-        let SaveTrackLoop = None::<crate::api::event_mirrors::SaveTrackLoop>.unwrap();
-        let _: String = SaveTrackLoop.track_id;
-        let _: u8 = SaveTrackLoop.slot;
-        let _: i32 = SaveTrackLoop.in_ms;
-        let _: i32 = SaveTrackLoop.out_ms;
-        let _: Option<String> = SaveTrackLoop.label;
-        let _: Option<String> = SaveTrackLoop.color;
     }
     {
         let SavedLoop = None::<crate::api::event_mirrors::SavedLoop>.unwrap();
@@ -9627,253 +9122,6 @@ const _: fn() = || {
         let _: i32 = SavedLoop.out_ms;
         let _: Option<String> = SavedLoop.label;
         let _: Option<String> = SavedLoop.color;
-    }
-    {
-        let Seek = None::<crate::api::event_mirrors::Seek>.unwrap();
-        let _: u16 = Seek.deck;
-        let _: i32 = Seek.position_ms;
-    }
-    {
-        let SetAutoLoop = None::<crate::api::event_mirrors::SetAutoLoop>.unwrap();
-        let _: u16 = SetAutoLoop.deck;
-        let _: f32 = SetAutoLoop.beats;
-    }
-    {
-        let SetChannelFaderCurve = None::<crate::api::event_mirrors::SetChannelFaderCurve>.unwrap();
-        let _: String = SetChannelFaderCurve.id;
-    }
-    {
-        let SetCrossfader = None::<crate::api::event_mirrors::SetCrossfader>.unwrap();
-        let _: f32 = SetCrossfader.position;
-        let _: bool = SetCrossfader.soft_takeover;
-    }
-    {
-        let SetCrossfaderAssign = None::<crate::api::event_mirrors::SetCrossfaderAssign>.unwrap();
-        let _: u16 = SetCrossfaderAssign.deck;
-        let _: crate::api::event_mirrors::CrossfaderAssign = SetCrossfaderAssign.assignment;
-    }
-    {
-        let SetCrossfaderBehavior =
-            None::<crate::api::event_mirrors::SetCrossfaderBehavior>.unwrap();
-        let _: bool = SetCrossfaderBehavior.hamster;
-        let _: bool = SetCrossfaderBehavior.disabled;
-    }
-    {
-        let SetCrossfaderCurve = None::<crate::api::event_mirrors::SetCrossfaderCurve>.unwrap();
-        let _: String = SetCrossfaderCurve.id;
-    }
-    {
-        let SetCrossfaderCurveAmount =
-            None::<crate::api::event_mirrors::SetCrossfaderCurveAmount>.unwrap();
-        let _: String = SetCrossfaderCurveAmount.set;
-        let _: f32 = SetCrossfaderCurveAmount.amount;
-        let _: bool = SetCrossfaderCurveAmount.soft_takeover;
-    }
-    {
-        let SetCueMix = None::<crate::api::event_mirrors::SetCueMix>.unwrap();
-        let _: f32 = SetCueMix.mix;
-        let _: bool = SetCueMix.soft_takeover;
-    }
-    {
-        let SetCuePoint = None::<crate::api::event_mirrors::SetCuePoint>.unwrap();
-        let _: u16 = SetCuePoint.deck;
-    }
-    {
-        let SetCueVolume = None::<crate::api::event_mirrors::SetCueVolume>.unwrap();
-        let _: f32 = SetCueVolume.volume;
-        let _: bool = SetCueVolume.soft_takeover;
-    }
-    {
-        let SetCurveLibrary = None::<crate::api::event_mirrors::SetCurveLibrary>.unwrap();
-        let _: crate::api::event_mirrors::CurveLibrarySpec = SetCurveLibrary.library;
-    }
-    {
-        let SetDeckFxRouted = None::<crate::api::event_mirrors::SetDeckFxRouted>.unwrap();
-        let _: u16 = SetDeckFxRouted.deck;
-        let _: bool = SetDeckFxRouted.routed;
-    }
-    {
-        let SetEq = None::<crate::api::event_mirrors::SetEq>.unwrap();
-        let _: u16 = SetEq.deck;
-        let _: f32 = SetEq.low;
-        let _: f32 = SetEq.mid;
-        let _: f32 = SetEq.high;
-    }
-    {
-        let SetEqBand = None::<crate::api::event_mirrors::SetEqBand>.unwrap();
-        let _: u16 = SetEqBand.deck;
-        let _: crate::api::event_mirrors::EqBand = SetEqBand.band;
-        let _: f32 = SetEqBand.gain;
-        let _: bool = SetEqBand.soft_takeover;
-    }
-    {
-        let SetFaderStartNative = None::<crate::api::event_mirrors::SetFaderStartNative>.unwrap();
-        let _: u16 = SetFaderStartNative.deck;
-        let _: bool = SetFaderStartNative.native;
-    }
-    {
-        let SetFilter = None::<crate::api::event_mirrors::SetFilter>.unwrap();
-        let _: u16 = SetFilter.deck;
-        let _: f32 = SetFilter.filter;
-        let _: bool = SetFilter.soft_takeover;
-    }
-    {
-        let SetFxLevelCurve = None::<crate::api::event_mirrors::SetFxLevelCurve>.unwrap();
-        let _: String = SetFxLevelCurve.id;
-    }
-    {
-        let SetFxUnitParam = None::<crate::api::event_mirrors::SetFxUnitParam>.unwrap();
-        let _: u8 = SetFxUnitParam.slot;
-        let _: u8 = SetFxUnitParam.param;
-        let _: f32 = SetFxUnitParam.value;
-    }
-    {
-        let SetFxUnitSlot = None::<crate::api::event_mirrors::SetFxUnitSlot>.unwrap();
-        let _: u8 = SetFxUnitSlot.slot;
-        let _: crate::api::event_mirrors::FxKind = SetFxUnitSlot.kind;
-    }
-    {
-        let SetFxUnitSlotEnabled = None::<crate::api::event_mirrors::SetFxUnitSlotEnabled>.unwrap();
-        let _: u8 = SetFxUnitSlotEnabled.slot;
-        let _: bool = SetFxUnitSlotEnabled.enabled;
-    }
-    {
-        let SetFxUnitWet = None::<crate::api::event_mirrors::SetFxUnitWet>.unwrap();
-        let _: u8 = SetFxUnitWet.slot;
-        let _: f32 = SetFxUnitWet.wet;
-        let _: bool = SetFxUnitWet.soft_takeover;
-    }
-    {
-        let SetGainTrim = None::<crate::api::event_mirrors::SetGainTrim>.unwrap();
-        let _: u16 = SetGainTrim.deck;
-        let _: f32 = SetGainTrim.gain_trim;
-        let _: bool = SetGainTrim.soft_takeover;
-    }
-    {
-        let SetHeadphoneCue = None::<crate::api::event_mirrors::SetHeadphoneCue>.unwrap();
-        let _: u16 = SetHeadphoneCue.deck;
-        let _: bool = SetHeadphoneCue.enabled;
-    }
-    {
-        let SetJogMode = None::<crate::api::event_mirrors::SetJogMode>.unwrap();
-        let _: u16 = SetJogMode.deck;
-        let _: crate::api::event_mirrors::JogMode = SetJogMode.top;
-        let _: crate::api::event_mirrors::JogMode = SetJogMode.outer;
-    }
-    {
-        let SetKeyLock = None::<crate::api::event_mirrors::SetKeyLock>.unwrap();
-        let _: u16 = SetKeyLock.deck;
-        let _: bool = SetKeyLock.enabled;
-    }
-    {
-        let SetKeyShift = None::<crate::api::event_mirrors::SetKeyShift>.unwrap();
-        let _: u16 = SetKeyShift.deck;
-        let _: f32 = SetKeyShift.semitones;
-    }
-    {
-        let SetKeyShiftPage = None::<crate::api::event_mirrors::SetKeyShiftPage>.unwrap();
-        let _: u16 = SetKeyShiftPage.deck;
-        let _: u8 = SetKeyShiftPage.page;
-    }
-    {
-        let SetKeyboardPage = None::<crate::api::event_mirrors::SetKeyboardPage>.unwrap();
-        let _: u16 = SetKeyboardPage.deck;
-        let _: u8 = SetKeyboardPage.page;
-    }
-    {
-        let SetKeyboardRoot = None::<crate::api::event_mirrors::SetKeyboardRoot>.unwrap();
-        let _: u16 = SetKeyboardRoot.deck;
-        let _: u8 = SetKeyboardRoot.slot;
-    }
-    {
-        let SetMasterCue = None::<crate::api::event_mirrors::SetMasterCue>.unwrap();
-        let _: bool = SetMasterCue.enabled;
-    }
-    {
-        let SetMasterDeck = None::<crate::api::event_mirrors::SetMasterDeck>.unwrap();
-        let _: u16 = SetMasterDeck.deck;
-    }
-    {
-        let SetMasterVolume = None::<crate::api::event_mirrors::SetMasterVolume>.unwrap();
-        let _: f32 = SetMasterVolume.volume;
-        let _: bool = SetMasterVolume.soft_takeover;
-    }
-    {
-        let SetPadMode = None::<crate::api::event_mirrors::SetPadMode>.unwrap();
-        let _: u16 = SetPadMode.deck;
-        let _: crate::api::event_mirrors::PadMode = SetPadMode.mode;
-    }
-    {
-        let SetQuantize = None::<crate::api::event_mirrors::SetQuantize>.unwrap();
-        let _: u16 = SetQuantize.deck;
-        let _: bool = SetQuantize.enabled;
-    }
-    {
-        let SetSlip = None::<crate::api::event_mirrors::SetSlip>.unwrap();
-        let _: u16 = SetSlip.deck;
-        let _: bool = SetSlip.enabled;
-    }
-    {
-        let SetSpeed = None::<crate::api::event_mirrors::SetSpeed>.unwrap();
-        let _: u16 = SetSpeed.deck;
-        let _: f32 = SetSpeed.speed;
-        let _: bool = SetSpeed.soft_takeover;
-    }
-    {
-        let SetStemEqBand = None::<crate::api::event_mirrors::SetStemEqBand>.unwrap();
-        let _: u16 = SetStemEqBand.deck;
-        let _: crate::api::event_mirrors::EqBand = SetStemEqBand.band;
-        let _: f32 = SetStemEqBand.gain;
-        let _: bool = SetStemEqBand.soft_takeover;
-    }
-    {
-        let SetStemEqEnabled = None::<crate::api::event_mirrors::SetStemEqEnabled>.unwrap();
-        let _: u16 = SetStemEqEnabled.deck;
-        let _: bool = SetStemEqEnabled.enabled;
-    }
-    {
-        let SetTempoCurve = None::<crate::api::event_mirrors::SetTempoCurve>.unwrap();
-        let _: u16 = SetTempoCurve.deck;
-        let _: String = SetTempoCurve.id;
-    }
-    {
-        let SetTempoRange = None::<crate::api::event_mirrors::SetTempoRange>.unwrap();
-        let _: u16 = SetTempoRange.deck;
-        let _: f32 = SetTempoRange.tempo_range;
-    }
-    {
-        let SetVolume = None::<crate::api::event_mirrors::SetVolume>.unwrap();
-        let _: u16 = SetVolume.deck;
-        let _: f32 = SetVolume.volume;
-        let _: bool = SetVolume.soft_takeover;
-    }
-    {
-        let ToggleHeadphoneCue = None::<crate::api::event_mirrors::ToggleHeadphoneCue>.unwrap();
-        let _: u16 = ToggleHeadphoneCue.deck;
-    }
-    {
-        let ToggleMasterCue = None::<crate::api::event_mirrors::ToggleMasterCue>.unwrap();
-    }
-    {
-        let TogglePlay = None::<crate::api::event_mirrors::TogglePlay>.unwrap();
-        let _: u16 = TogglePlay.deck;
-    }
-    {
-        let ToggleQuantize = None::<crate::api::event_mirrors::ToggleQuantize>.unwrap();
-        let _: u16 = ToggleQuantize.deck;
-    }
-    {
-        let ToggleSlip = None::<crate::api::event_mirrors::ToggleSlip>.unwrap();
-        let _: u16 = ToggleSlip.deck;
-    }
-    {
-        let ToggleStemEq = None::<crate::api::event_mirrors::ToggleStemEq>.unwrap();
-        let _: u16 = ToggleStemEq.deck;
-    }
-    {
-        let ToggleSync = None::<crate::api::event_mirrors::ToggleSync>.unwrap();
-        let _: u16 = ToggleSync.deck;
-        let _: bool = ToggleSync.beat_sync;
     }
     {
         let TrackAnalyzed = None::<crate::api::event_mirrors::TrackAnalyzed>.unwrap();
@@ -9908,15 +9156,6 @@ const _: fn() = || {
     {
         let TrackUpdated = None::<crate::api::event_mirrors::TrackUpdated>.unwrap();
         let _: crate::api::event_mirrors::TrackSummary = TrackUpdated.track;
-    }
-    {
-        let TriggerHotCue = None::<crate::api::event_mirrors::TriggerHotCue>.unwrap();
-        let _: u16 = TriggerHotCue.deck;
-        let _: i32 = TriggerHotCue.position_ms;
-    }
-    {
-        let Unload = None::<crate::api::event_mirrors::Unload>.unwrap();
-        let _: u16 = Unload.deck;
     }
 };
 
@@ -10161,18 +9400,6 @@ impl SseDecode for crate::api::library::AnalyzeCollectionResult {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::AnalyzeTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_force = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::AnalyzeTrack {
-            track_id: var_trackId,
-            force: var_force,
-        };
-    }
-}
-
 impl SseDecode for crate::api::settings::AppSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10332,34 +9559,6 @@ impl SseDecode for crate::api::settings::AppSettings {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::AssignSampler {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_path = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::AssignSampler {
-            deck: var_deck,
-            slot: var_slot,
-            path: var_path,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::AssignSamplerTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::AssignSamplerTrack {
-            deck: var_deck,
-            slot: var_slot,
-            track_id: var_trackId,
-        };
-    }
-}
-
 impl SseDecode for crate::api::event_mirrors::BeatGrid {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10432,42 +9631,6 @@ impl SseDecode for crate::api::library::BeatGridSegmentData {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::BeatJump {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_beats = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::BeatJump {
-            deck: var_deck,
-            beats: var_beats,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::BeatJumpPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::BeatJumpPadPress {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::BeatJumpPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::BeatJumpPadRelease {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
 impl SseDecode for crate::api::event_mirrors::BeatSegment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10488,26 +9651,6 @@ impl SseDecode for crate::api::event_mirrors::BeatSegment {
             start_beat_index: var_startBeatIndex,
             beats_to_next: var_beatsToNext,
             downbeat_offset_beats: var_downbeatOffsetBeats,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::BeginCueHold {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::BeginCueHold { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::BeginLoopRoll {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_beats = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::BeginLoopRoll {
-            deck: var_deck,
-            beats: var_beats,
         };
     }
 }
@@ -10569,18 +9712,6 @@ impl SseDecode for crate::api::library::CdjExportReport {
             bytes_copied: var_bytesCopied,
             errors: var_errors,
             warnings: var_warnings,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ClearSampler {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ClearSampler {
-            deck: var_deck,
-            slot: var_slot,
         };
     }
 }
@@ -11175,42 +10306,6 @@ impl SseDecode for crate::api::event_mirrors::DeckUpdated {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::DeleteDeckHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::DeleteDeckHotCue {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::DeleteTrackHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::DeleteTrackHotCue {
-            track_id: var_trackId,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::DeleteTrackLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::DeleteTrackLoop {
-            track_id: var_trackId,
-            slot: var_slot,
-        };
-    }
-}
-
 impl SseDecode for crate::api::controller::DetectedController {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11222,22 +10317,6 @@ impl SseDecode for crate::api::controller::DetectedController {
             mapping_name: var_mappingName,
             device_id: var_deviceId,
         };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::EndCueHold {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::EndCueHold { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::EndLoopRoll {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::EndLoopRoll { deck: var_deck };
     }
 }
 
@@ -11312,553 +10391,92 @@ impl SseDecode for crate::api::event_mirrors::Event {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 = <crate::api::event_mirrors::Play>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::Play(var_field0);
-            }
-            1 => {
-                let mut var_field0 = <crate::api::event_mirrors::Pause>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::Pause(var_field0);
-            }
-            2 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::TogglePlay>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::TogglePlay(var_field0);
-            }
-            3 => {
-                let mut var_field0 = <crate::api::event_mirrors::Seek>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::Seek(var_field0);
-            }
-            4 => {
-                let mut var_field0 = <crate::api::event_mirrors::Unload>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::Unload(var_field0);
-            }
-            5 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetVolume>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetVolume(var_field0);
-            }
-            6 => {
-                let mut var_field0 = <crate::api::event_mirrors::SetEq>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetEq(var_field0);
-            }
-            7 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetEqBand>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetEqBand(var_field0);
-            }
-            8 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetStemEqBand>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetStemEqBand(var_field0);
-            }
-            9 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetStemEqEnabled>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetStemEqEnabled(var_field0);
-            }
-            10 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleStemEq>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleStemEq(var_field0);
-            }
-            11 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFilter>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFilter(var_field0);
-            }
-            12 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetGainTrim>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetGainTrim(var_field0);
-            }
-            13 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetHeadphoneCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetHeadphoneCue(var_field0);
-            }
-            14 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleHeadphoneCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleHeadphoneCue(var_field0);
-            }
-            15 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCrossfaderAssign>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCrossfaderAssign(var_field0);
-            }
-            16 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetSpeed>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetSpeed(var_field0);
-            }
-            17 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetTempoRange>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetTempoRange(var_field0);
-            }
-            18 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetTempoCurve>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetTempoCurve(var_field0);
-            }
-            19 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetKeyLock>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetKeyLock(var_field0);
-            }
-            20 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetKeyShift>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetKeyShift(var_field0);
-            }
-            21 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetKeyboardRoot>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetKeyboardRoot(var_field0);
-            }
-            22 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetKeyboardPage>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetKeyboardPage(var_field0);
-            }
-            23 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetKeyShiftPage>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetKeyShiftPage(var_field0);
-            }
-            24 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleSync>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleSync(var_field0);
-            }
-            25 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetMasterDeck>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetMasterDeck(var_field0);
-            }
-            26 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCuePoint>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCuePoint(var_field0);
-            }
-            27 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::BeginCueHold>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::BeginCueHold(var_field0);
-            }
-            28 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::EndCueHold>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::EndCueHold(var_field0);
-            }
-            29 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::FaderStart>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::FaderStart(var_field0);
-            }
-            30 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::FaderStop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::FaderStop(var_field0);
-            }
-            31 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFaderStartNative>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFaderStartNative(var_field0);
-            }
-            32 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetQuantize>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetQuantize(var_field0);
-            }
-            33 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleQuantize>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleQuantize(var_field0);
-            }
-            34 => {
-                let mut var_field0 = <crate::api::event_mirrors::SetSlip>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetSlip(var_field0);
-            }
-            35 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleSlip>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleSlip(var_field0);
-            }
-            36 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetAutoLoop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetAutoLoop(var_field0);
-            }
-            37 => {
-                let mut var_field0 = <crate::api::event_mirrors::LoopIn>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::LoopIn(var_field0);
-            }
-            38 => {
-                let mut var_field0 = <crate::api::event_mirrors::LoopOut>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::LoopOut(var_field0);
-            }
-            39 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ExitLoop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ExitLoop(var_field0);
-            }
-            40 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::RecallSavedLoop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::RecallSavedLoop(var_field0);
-            }
-            41 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::BeginLoopRoll>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::BeginLoopRoll(var_field0);
-            }
-            42 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::EndLoopRoll>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::EndLoopRoll(var_field0);
-            }
-            43 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::BeatJump>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::BeatJump(var_field0);
-            }
-            44 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetPadMode>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetPadMode(var_field0);
-            }
-            45 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::PadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::PadPress(var_field0);
-            }
-            46 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::PadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::PadRelease(var_field0);
-            }
-            47 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::HotCuePadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::HotCuePadPress(var_field0);
-            }
-            48 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::HotCuePadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::HotCuePadRelease(var_field0);
-            }
-            49 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::LoopRollPadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::LoopRollPadPress(var_field0);
-            }
-            50 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::LoopRollPadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::LoopRollPadRelease(var_field0);
-            }
-            51 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::BeatJumpPadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::BeatJumpPadPress(var_field0);
-            }
-            52 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::BeatJumpPadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::BeatJumpPadRelease(var_field0);
-            }
-            53 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SamplerPadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SamplerPadPress(var_field0);
-            }
-            54 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SamplerPadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SamplerPadRelease(var_field0);
-            }
-            55 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::KeyboardPadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::KeyboardPadPress(var_field0);
-            }
-            56 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::KeyboardPadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::KeyboardPadRelease(var_field0);
-            }
-            57 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::KeyShiftPadPress>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::KeyShiftPadPress(var_field0);
-            }
-            58 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::KeyShiftPadRelease>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::KeyShiftPadRelease(var_field0);
-            }
-            59 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::TriggerHotCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::TriggerHotCue(var_field0);
-            }
-            60 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SaveDeckHotCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SaveDeckHotCue(var_field0);
-            }
-            61 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::DeleteDeckHotCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::DeleteDeckHotCue(var_field0);
-            }
-            62 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::AssignSampler>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::AssignSampler(var_field0);
-            }
-            63 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::AssignSamplerTrack>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::AssignSamplerTrack(var_field0);
-            }
-            64 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ClearSampler>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ClearSampler(var_field0);
-            }
-            65 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::JogTouch>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::JogTouch(var_field0);
-            }
-            66 => {
-                let mut var_field0 = <crate::api::event_mirrors::JogTurn>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::JogTurn(var_field0);
-            }
-            67 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetJogMode>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetJogMode(var_field0);
-            }
-            68 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCrossfader>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCrossfader(var_field0);
-            }
-            69 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetMasterVolume>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetMasterVolume(var_field0);
-            }
-            70 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCueVolume>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCueVolume(var_field0);
-            }
-            71 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCueMix>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCueMix(var_field0);
-            }
-            72 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetMasterCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetMasterCue(var_field0);
-            }
-            73 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::ToggleMasterCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::ToggleMasterCue(var_field0);
-            }
-            74 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCurveLibrary>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCurveLibrary(var_field0);
-            }
-            75 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCrossfaderCurve>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCrossfaderCurve(var_field0);
-            }
-            76 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCrossfaderCurveAmount>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCrossfaderCurveAmount(var_field0);
-            }
-            77 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetCrossfaderBehavior>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetCrossfaderBehavior(var_field0);
-            }
-            78 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetChannelFaderCurve>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetChannelFaderCurve(var_field0);
-            }
-            79 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFxUnitSlot>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFxUnitSlot(var_field0);
-            }
-            80 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFxUnitSlotEnabled>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFxUnitSlotEnabled(var_field0);
-            }
-            81 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFxUnitWet>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFxUnitWet(var_field0);
-            }
-            82 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFxLevelCurve>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFxLevelCurve(var_field0);
-            }
-            83 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetFxUnitParam>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetFxUnitParam(var_field0);
-            }
-            84 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SetDeckFxRouted>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SetDeckFxRouted(var_field0);
-            }
-            85 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::DeckUpdated>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::DeckUpdated(var_field0);
             }
-            86 => {
+            1 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::DeckPosition>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::DeckPosition(var_field0);
             }
-            87 => {
+            2 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::DeckLevels>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::DeckLevels(var_field0);
             }
-            88 => {
+            3 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::EngineSnapshot>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::EngineSnapshot(var_field0);
             }
-            89 => {
+            4 => {
                 let mut var_field0 = <crate::api::event_mirrors::Error>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Error(var_field0);
             }
-            90 => {
+            5 => {
                 let mut var_field0 = <crate::api::event_mirrors::Notice>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Notice(var_field0);
             }
-            91 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::AnalyzeTrack>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::AnalyzeTrack(var_field0);
-            }
-            92 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::GenerateStems>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::GenerateStems(var_field0);
-            }
-            93 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::RefreshTrack>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::RefreshTrack(var_field0);
-            }
-            94 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SaveBeatGrid>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SaveBeatGrid(var_field0);
-            }
-            95 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SaveTrackCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SaveTrackCue(var_field0);
-            }
-            96 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SaveTrackHotCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SaveTrackHotCue(var_field0);
-            }
-            97 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::DeleteTrackHotCue>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::DeleteTrackHotCue(var_field0);
-            }
-            98 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::SaveTrackLoop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::SaveTrackLoop(var_field0);
-            }
-            99 => {
-                let mut var_field0 =
-                    <crate::api::event_mirrors::DeleteTrackLoop>::sse_decode(deserializer);
-                return crate::api::event_mirrors::Event::DeleteTrackLoop(var_field0);
-            }
-            100 => {
+            6 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::TrackAnalyzed>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::TrackAnalyzed(var_field0);
             }
-            101 => {
+            7 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::TrackUpdated>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::TrackUpdated(var_field0);
             }
-            102 => {
+            8 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::TrackProgress>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::TrackProgress(var_field0);
             }
-            103 => {
+            9 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::HotCuesChanged>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::HotCuesChanged(var_field0);
             }
-            104 => {
+            10 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::LoopsChanged>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::LoopsChanged(var_field0);
             }
-            105 => {
+            11 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::BeatGridChanged>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::BeatGridChanged(var_field0);
             }
-            106 => {
+            12 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::HistorySessionUpdated>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::HistorySessionUpdated(var_field0);
             }
-            107 => {
+            13 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::Navigate>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Navigate(var_field0);
             }
-            108 => {
+            14 => {
                 let mut var_field0 = <crate::api::event_mirrors::Focus>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Focus(var_field0);
             }
-            109 => {
+            15 => {
                 let mut var_field0 = <crate::api::event_mirrors::Load>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Load(var_field0);
             }
-            110 => {
+            16 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::MappingOffer>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::MappingOffer(var_field0);
             }
-            111 => {
+            17 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::MappingAttached>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::MappingAttached(var_field0);
             }
-            112 => {
+            18 => {
                 let mut var_field0 =
                     <crate::api::event_mirrors::MappingDetached>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::MappingDetached(var_field0);
@@ -11867,14 +10485,6 @@ impl SseDecode for crate::api::event_mirrors::Event {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ExitLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ExitLoop { deck: var_deck };
     }
 }
 
@@ -11889,14 +10499,6 @@ impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_f64::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::FaderStart {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::FaderStart { deck: var_deck };
     }
 }
 
@@ -11923,14 +10525,6 @@ impl SseDecode for crate::api::settings::FaderStartOnZeroSetting {
             2 => crate::api::settings::FaderStartOnZeroSetting::PauseAndCue,
             _ => unreachable!("Invalid variant for FaderStartOnZeroSetting: {}", inner),
         };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::FaderStop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::FaderStop { deck: var_deck };
     }
 }
 
@@ -12009,16 +10603,6 @@ impl SseDecode for crate::api::event_mirrors::FxSlotState {
             enabled: var_enabled,
             wet: var_wet,
             params: var_params,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::GenerateStems {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::GenerateStems {
-            track_id: var_trackId,
         };
     }
 }
@@ -12134,32 +10718,6 @@ impl SseDecode for crate::api::event_mirrors::HotCue {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::HotCuePadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_shift = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::HotCuePadPress {
-            deck: var_deck,
-            slot: var_slot,
-            shift: var_shift,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::HotCuePadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::HotCuePadRelease {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
 impl SseDecode for crate::api::event_mirrors::HotCuesChanged {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12212,30 +10770,6 @@ impl SseDecode for crate::api::settings::JogModeSetting {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::JogTouch {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_touching = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::JogTouch {
-            deck: var_deck,
-            touching: var_touching,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::JogTurn {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_delta = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::JogTurn {
-            deck: var_deck,
-            delta: var_delta,
-        };
-    }
-}
-
 impl SseDecode for crate::api::settings::KeyColorModeSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12257,58 +10791,6 @@ impl SseDecode for crate::api::settings::KeyDisplayModeSetting {
             0 => crate::api::settings::KeyDisplayModeSetting::Musical,
             1 => crate::api::settings::KeyDisplayModeSetting::Camelot,
             _ => unreachable!("Invalid variant for KeyDisplayModeSetting: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::KeyShiftPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_shift = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::KeyShiftPadPress {
-            deck: var_deck,
-            slot: var_slot,
-            shift: var_shift,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::KeyShiftPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::KeyShiftPadRelease {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::KeyboardPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_shift = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::KeyboardPadPress {
-            deck: var_deck,
-            slot: var_slot,
-            shift: var_shift,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::KeyboardPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::KeyboardPadRelease {
-            deck: var_deck,
-            slot: var_slot,
         };
     }
 }
@@ -12968,30 +11450,6 @@ impl SseDecode for crate::api::event_mirrors::Load {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::LoopIn {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::LoopIn {
-            deck: var_deck,
-            position_ms: var_positionMs,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::LoopOut {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::LoopOut {
-            deck: var_deck,
-            position_ms: var_positionMs,
-        };
-    }
-}
-
 impl SseDecode for crate::api::event_mirrors::LoopRegion {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13002,30 +11460,6 @@ impl SseDecode for crate::api::event_mirrors::LoopRegion {
             in_ms: var_inMs,
             out_ms: var_outMs,
             active: var_active,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::LoopRollPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::LoopRollPadPress {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::LoopRollPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::LoopRollPadRelease {
-            deck: var_deck,
-            slot: var_slot,
         };
     }
 }
@@ -13441,48 +11875,6 @@ impl SseDecode for crate::api::event_mirrors::PadMode {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::PadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_shift = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::PadPress {
-            deck: var_deck,
-            slot: var_slot,
-            shift: var_shift,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::PadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::PadRelease {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::Pause {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::Pause { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::Play {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::Play { deck: var_deck };
-    }
-}
-
 impl SseDecode for crate::api::settings::RealtimeStemsBenchmarkProgress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13509,30 +11901,6 @@ impl SseDecode for crate::api::settings::RealtimeStemsCapability {
             hops: var_hops,
             model_sha: var_modelSha,
             allowed: var_allowed,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::RecallSavedLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_inMs = <i32>::sse_decode(deserializer);
-        let mut var_outMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::RecallSavedLoop {
-            deck: var_deck,
-            in_ms: var_inMs,
-            out_ms: var_outMs,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::RefreshTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::RefreshTrack {
-            track_id: var_trackId,
         };
     }
 }
@@ -13628,32 +11996,6 @@ impl SseDecode for crate::api::library::SamplerBankInfo {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::SamplerPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_shift = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SamplerPadPress {
-            deck: var_deck,
-            slot: var_slot,
-            shift: var_shift,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SamplerPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SamplerPadRelease {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
 impl SseDecode for crate::api::library::SamplerPlayMode {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13708,86 +12050,6 @@ impl SseDecode for crate::api::settings::SamplerStripRouteSettingFrb {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::SaveBeatGrid {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_bpm = <f64>::sse_decode(deserializer);
-        let mut var_firstBeatSecs = <f32>::sse_decode(deserializer);
-        let mut var_replace = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SaveBeatGrid {
-            track_id: var_trackId,
-            bpm: var_bpm,
-            first_beat_secs: var_firstBeatSecs,
-            replace: var_replace,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SaveDeckHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SaveDeckHotCue {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SaveTrackCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SaveTrackCue {
-            track_id: var_trackId,
-            position_ms: var_positionMs,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SaveTrackHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        let mut var_loopLengthBeats = <Option<i32>>::sse_decode(deserializer);
-        let mut var_color = <Option<String>>::sse_decode(deserializer);
-        let mut var_label = <Option<String>>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SaveTrackHotCue {
-            track_id: var_trackId,
-            slot: var_slot,
-            position_ms: var_positionMs,
-            loop_length_beats: var_loopLengthBeats,
-            color: var_color,
-            label: var_label,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SaveTrackLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <String>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_inMs = <i32>::sse_decode(deserializer);
-        let mut var_outMs = <i32>::sse_decode(deserializer);
-        let mut var_label = <Option<String>>::sse_decode(deserializer);
-        let mut var_color = <Option<String>>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SaveTrackLoop {
-            track_id: var_trackId,
-            slot: var_slot,
-            in_ms: var_inMs,
-            out_ms: var_outMs,
-            label: var_label,
-            color: var_color,
-        };
-    }
-}
-
 impl SseDecode for crate::api::event_mirrors::SavedLoop {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13806,18 +12068,6 @@ impl SseDecode for crate::api::event_mirrors::SavedLoop {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::Seek {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::Seek {
-            deck: var_deck,
-            position_ms: var_positionMs,
-        };
-    }
-}
-
 impl SseDecode for crate::api::settings::SelectStyleSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13827,504 +12077,6 @@ impl SseDecode for crate::api::settings::SelectStyleSetting {
             1 => crate::api::settings::SelectStyleSetting::Desktop,
             2 => crate::api::settings::SelectStyleSetting::Mobile,
             _ => unreachable!("Invalid variant for SelectStyleSetting: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetAutoLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_beats = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetAutoLoop {
-            deck: var_deck,
-            beats: var_beats,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetChannelFaderCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetChannelFaderCurve { id: var_id };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCrossfader {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_position = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCrossfader {
-            position: var_position,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCrossfaderAssign {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_assignment =
-            <crate::api::event_mirrors::CrossfaderAssign>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCrossfaderAssign {
-            deck: var_deck,
-            assignment: var_assignment,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCrossfaderBehavior {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_hamster = <bool>::sse_decode(deserializer);
-        let mut var_disabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCrossfaderBehavior {
-            hamster: var_hamster,
-            disabled: var_disabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCrossfaderCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCrossfaderCurve { id: var_id };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCrossfaderCurveAmount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_set_ = <String>::sse_decode(deserializer);
-        let mut var_amount = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCrossfaderCurveAmount {
-            set: var_set_,
-            amount: var_amount,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCueMix {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_mix = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCueMix {
-            mix: var_mix,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCuePoint {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCuePoint { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCueVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_volume = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCueVolume {
-            volume: var_volume,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetCurveLibrary {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_library_ =
-            <crate::api::event_mirrors::CurveLibrarySpec>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetCurveLibrary {
-            library: var_library_,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetDeckFxRouted {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_routed = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetDeckFxRouted {
-            deck: var_deck,
-            routed: var_routed,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetEq {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_low = <f32>::sse_decode(deserializer);
-        let mut var_mid = <f32>::sse_decode(deserializer);
-        let mut var_high = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetEq {
-            deck: var_deck,
-            low: var_low,
-            mid: var_mid,
-            high: var_high,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetEqBand {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_band = <crate::api::event_mirrors::EqBand>::sse_decode(deserializer);
-        let mut var_gain = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetEqBand {
-            deck: var_deck,
-            band: var_band,
-            gain: var_gain,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFaderStartNative {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_native = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFaderStartNative {
-            deck: var_deck,
-            native: var_native,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFilter {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_filter = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFilter {
-            deck: var_deck,
-            filter: var_filter,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFxLevelCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFxLevelCurve { id: var_id };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFxUnitParam {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_param = <u8>::sse_decode(deserializer);
-        let mut var_value = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFxUnitParam {
-            slot: var_slot,
-            param: var_param,
-            value: var_value,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFxUnitSlot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_kind = <crate::api::event_mirrors::FxKind>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFxUnitSlot {
-            slot: var_slot,
-            kind: var_kind,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFxUnitSlotEnabled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFxUnitSlotEnabled {
-            slot: var_slot,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetFxUnitWet {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        let mut var_wet = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetFxUnitWet {
-            slot: var_slot,
-            wet: var_wet,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetGainTrim {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_gainTrim = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetGainTrim {
-            deck: var_deck,
-            gain_trim: var_gainTrim,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetHeadphoneCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetHeadphoneCue {
-            deck: var_deck,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetJogMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_top = <crate::api::event_mirrors::JogMode>::sse_decode(deserializer);
-        let mut var_outer = <crate::api::event_mirrors::JogMode>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetJogMode {
-            deck: var_deck,
-            top: var_top,
-            outer: var_outer,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetKeyLock {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetKeyLock {
-            deck: var_deck,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetKeyShift {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_semitones = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetKeyShift {
-            deck: var_deck,
-            semitones: var_semitones,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetKeyShiftPage {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_page = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetKeyShiftPage {
-            deck: var_deck,
-            page: var_page,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetKeyboardPage {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_page = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetKeyboardPage {
-            deck: var_deck,
-            page: var_page,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetKeyboardRoot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_slot = <u8>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetKeyboardRoot {
-            deck: var_deck,
-            slot: var_slot,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetMasterCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetMasterCue {
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetMasterDeck {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetMasterDeck { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetMasterVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_volume = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetMasterVolume {
-            volume: var_volume,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetPadMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_mode = <crate::api::event_mirrors::PadMode>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetPadMode {
-            deck: var_deck,
-            mode: var_mode,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetQuantize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetQuantize {
-            deck: var_deck,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetSlip {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetSlip {
-            deck: var_deck,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetSpeed {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_speed = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetSpeed {
-            deck: var_deck,
-            speed: var_speed,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetStemEqBand {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_band = <crate::api::event_mirrors::EqBand>::sse_decode(deserializer);
-        let mut var_gain = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetStemEqBand {
-            deck: var_deck,
-            band: var_band,
-            gain: var_gain,
-            soft_takeover: var_softTakeover,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetStemEqEnabled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_enabled = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetStemEqEnabled {
-            deck: var_deck,
-            enabled: var_enabled,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetTempoCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_id = <String>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetTempoCurve {
-            deck: var_deck,
-            id: var_id,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetTempoRange {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_tempoRange = <f32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetTempoRange {
-            deck: var_deck,
-            tempo_range: var_tempoRange,
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::SetVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_volume = <f32>::sse_decode(deserializer);
-        let mut var_softTakeover = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::SetVolume {
-            deck: var_deck,
-            volume: var_volume,
-            soft_takeover: var_softTakeover,
         };
     }
 }
@@ -14367,65 +12119,6 @@ impl SseDecode for crate::api::settings::ThemeSetting {
             1 => crate::api::settings::ThemeSetting::Light,
             2 => crate::api::settings::ThemeSetting::Dark,
             _ => unreachable!("Invalid variant for ThemeSetting: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleHeadphoneCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ToggleHeadphoneCue { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleMasterCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        return crate::api::event_mirrors::ToggleMasterCue {};
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::TogglePlay {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::TogglePlay { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleQuantize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ToggleQuantize { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleSlip {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ToggleSlip { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleStemEq {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ToggleStemEq { deck: var_deck };
-    }
-}
-
-impl SseDecode for crate::api::event_mirrors::ToggleSync {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_beatSync = <bool>::sse_decode(deserializer);
-        return crate::api::event_mirrors::ToggleSync {
-            deck: var_deck,
-            beat_sync: var_beatSync,
         };
     }
 }
@@ -14502,18 +12195,6 @@ impl SseDecode for crate::api::event_mirrors::TrackUpdated {
     }
 }
 
-impl SseDecode for crate::api::event_mirrors::TriggerHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        return crate::api::event_mirrors::TriggerHotCue {
-            deck: var_deck,
-            position_ms: var_positionMs,
-        };
-    }
-}
-
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14558,14 +12239,6 @@ impl SseDecode for crate::api::settings::UiLanguageSetting {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
-}
-
-impl SseDecode for crate::api::event_mirrors::Unload {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_deck = <u16>::sse_decode(deserializer);
-        return crate::api::event_mirrors::Unload { deck: var_deck };
-    }
 }
 
 impl SseDecode for usize {
@@ -15497,123 +13170,123 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        146 => wire__crate__api__settings__accent_palette_setting_default_impl(
+        147 => wire__crate__api__settings__accent_palette_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        148 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        149 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        150 => wire__crate__api__settings__bus_channel_mode_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        151 => {
+        152 => {
             wire__crate__api__controller__detect_controllers_impl(port, ptr, rust_vec_len, data_len)
         }
-        152 => wire__crate__api__curve_editor__export_virtualdj_curve_impl(
+        153 => wire__crate__api__curve_editor__export_virtualdj_curve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        153 => wire__crate__api__curve_editor__import_virtualdj_curve_impl(
+        154 => wire__crate__api__curve_editor__import_virtualdj_curve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        155 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        155 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        156 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        156 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        157 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        157 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
+        158 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        158 => wire__crate__api__settings__library_row_density_setting_default_impl(
+        159 => wire__crate__api__settings__library_row_density_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        159 => wire__crate__api__library__library_track_summary_default_impl(
+        160 => wire__crate__api__library__library_track_summary_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        160 => {
+        161 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        161 => {
+        162 => {
             wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len)
         }
-        162 => wire__crate__api__settings__mixer_meters_setting_default_impl(
+        163 => wire__crate__api__settings__mixer_meters_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        163 => wire__crate__api__library__mixxx_default_database_path_impl(
+        164 => wire__crate__api__library__mixxx_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => {
+        165 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        165 => wire__crate__api__library__rekordbox_default_database_path_impl(
+        166 => wire__crate__api__library__rekordbox_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        166 => wire__crate__api__library__rekordbox_import_preview_impl(
+        167 => wire__crate__api__library__rekordbox_import_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        167 => wire__crate__api__settings__select_style_setting_default_impl(
+        168 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        168 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
-        169 => wire__crate__api__settings__theme_setting_default_impl(
+        169 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
+        170 => wire__crate__api__settings__theme_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        170 => wire__crate__api__settings__ui_language_setting_default_impl(
+        171 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        171 => wire__crate__api__settings__waveform_position_setting_default_impl(
+        172 => wire__crate__api__settings__waveform_position_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -15631,8 +13304,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        147 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
-        150 => {
+        148 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        151 => {
             wire__crate__api__settings__crossfader_preset_options_impl(ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -15829,27 +13502,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::AnalyzeCollectionRes
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::AnalyzeTrack> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.force.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::AnalyzeTrack>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::AnalyzeTrack>>
-    for crate::api::event_mirrors::AnalyzeTrack
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::AnalyzeTrack> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -15939,50 +13591,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::AppSettings>
 {
     fn into_into_dart(self) -> crate::api::settings::AppSettings {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::AssignSampler> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.path.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::AssignSampler>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::AssignSampler>>
-    for crate::api::event_mirrors::AssignSampler
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::AssignSampler> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::AssignSamplerTrack> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.track_id.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::AssignSamplerTrack>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::AssignSamplerTrack>>
-    for crate::api::event_mirrors::AssignSamplerTrack
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::AssignSamplerTrack> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -16081,69 +13689,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::BeatGridSegmentData>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatJump> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.beats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::BeatJump>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatJump>>
-    for crate::api::event_mirrors::BeatJump
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatJump> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatJumpPadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::BeatJumpPadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatJumpPadPress>>
-    for crate::api::event_mirrors::BeatJumpPadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatJumpPadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatJumpPadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::BeatJumpPadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatJumpPadRelease>>
-    for crate::api::event_mirrors::BeatJumpPadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatJumpPadRelease> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatSegment> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -16167,44 +13712,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Bea
     for crate::api::event_mirrors::BeatSegment
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatSegment> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeginCueHold> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::BeginCueHold>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeginCueHold>>
-    for crate::api::event_mirrors::BeginCueHold
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeginCueHold> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeginLoopRoll> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.beats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::BeginLoopRoll>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeginLoopRoll>>
-    for crate::api::event_mirrors::BeginLoopRoll
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeginLoopRoll> {
         self.into()
     }
 }
@@ -16278,27 +13785,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::CdjExportReport>
 {
     fn into_into_dart(self) -> crate::api::library::CdjExportReport {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ClearSampler> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ClearSampler>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ClearSampler>>
-    for crate::api::event_mirrors::ClearSampler
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ClearSampler> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -16972,69 +14458,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Dec
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::DeleteDeckHotCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::DeleteDeckHotCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::DeleteDeckHotCue>>
-    for crate::api::event_mirrors::DeleteDeckHotCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteDeckHotCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue>>
-    for crate::api::event_mirrors::DeleteTrackHotCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop>>
-    for crate::api::event_mirrors::DeleteTrackLoop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::controller::DetectedController {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -17054,40 +14477,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::controller::DetectedControlle
 {
     fn into_into_dart(self) -> crate::api::controller::DetectedController {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::EndCueHold> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::EndCueHold>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::EndCueHold>>
-    for crate::api::event_mirrors::EndCueHold
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::EndCueHold> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::EndLoopRoll> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::EndLoopRoll>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::EndLoopRoll>>
-    for crate::api::event_mirrors::EndLoopRoll
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::EndLoopRoll> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -17184,344 +14573,62 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Err
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Event> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::api::event_mirrors::Event::Play(field0) => {
+            crate::api::event_mirrors::Event::DeckUpdated(field0) => {
                 [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::Pause(field0) => {
+            crate::api::event_mirrors::Event::DeckPosition(field0) => {
                 [1.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::TogglePlay(field0) => {
+            crate::api::event_mirrors::Event::DeckLevels(field0) => {
                 [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::Seek(field0) => {
+            crate::api::event_mirrors::Event::EngineSnapshot(field0) => {
                 [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::Unload(field0) => {
+            crate::api::event_mirrors::Event::Error(field0) => {
                 [4.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetVolume(field0) => {
+            crate::api::event_mirrors::Event::Notice(field0) => {
                 [5.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetEq(field0) => {
+            crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
                 [6.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetEqBand(field0) => {
+            crate::api::event_mirrors::Event::TrackUpdated(field0) => {
                 [7.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetStemEqBand(field0) => {
+            crate::api::event_mirrors::Event::TrackProgress(field0) => {
                 [8.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetStemEqEnabled(field0) => {
+            crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
                 [9.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::ToggleStemEq(field0) => {
+            crate::api::event_mirrors::Event::LoopsChanged(field0) => {
                 [10.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetFilter(field0) => {
+            crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
                 [11.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetGainTrim(field0) => {
+            crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
                 [12.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetHeadphoneCue(field0) => {
+            crate::api::event_mirrors::Event::Navigate(field0) => {
                 [13.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::ToggleHeadphoneCue(field0) => {
+            crate::api::event_mirrors::Event::Focus(field0) => {
                 [14.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetCrossfaderAssign(field0) => {
+            crate::api::event_mirrors::Event::Load(field0) => {
                 [15.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetSpeed(field0) => {
+            crate::api::event_mirrors::Event::MappingOffer(field0) => {
                 [16.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetTempoRange(field0) => {
+            crate::api::event_mirrors::Event::MappingAttached(field0) => {
                 [17.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::event_mirrors::Event::SetTempoCurve(field0) => {
-                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetKeyLock(field0) => {
-                [19.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetKeyShift(field0) => {
-                [20.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetKeyboardRoot(field0) => {
-                [21.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetKeyboardPage(field0) => {
-                [22.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetKeyShiftPage(field0) => {
-                [23.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ToggleSync(field0) => {
-                [24.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetMasterDeck(field0) => {
-                [25.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCuePoint(field0) => {
-                [26.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeginCueHold(field0) => {
-                [27.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::EndCueHold(field0) => {
-                [28.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::FaderStart(field0) => {
-                [29.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::FaderStop(field0) => {
-                [30.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFaderStartNative(field0) => {
-                [31.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetQuantize(field0) => {
-                [32.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ToggleQuantize(field0) => {
-                [33.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetSlip(field0) => {
-                [34.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ToggleSlip(field0) => {
-                [35.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetAutoLoop(field0) => {
-                [36.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::LoopIn(field0) => {
-                [37.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::LoopOut(field0) => {
-                [38.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ExitLoop(field0) => {
-                [39.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::RecallSavedLoop(field0) => {
-                [40.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeginLoopRoll(field0) => {
-                [41.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::EndLoopRoll(field0) => {
-                [42.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeatJump(field0) => {
-                [43.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetPadMode(field0) => {
-                [44.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::PadPress(field0) => {
-                [45.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::PadRelease(field0) => {
-                [46.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::HotCuePadPress(field0) => {
-                [47.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::HotCuePadRelease(field0) => {
-                [48.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::LoopRollPadPress(field0) => {
-                [49.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::LoopRollPadRelease(field0) => {
-                [50.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeatJumpPadPress(field0) => {
-                [51.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeatJumpPadRelease(field0) => {
-                [52.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SamplerPadPress(field0) => {
-                [53.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SamplerPadRelease(field0) => {
-                [54.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::KeyboardPadPress(field0) => {
-                [55.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::KeyboardPadRelease(field0) => {
-                [56.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::KeyShiftPadPress(field0) => {
-                [57.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::KeyShiftPadRelease(field0) => {
-                [58.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::TriggerHotCue(field0) => {
-                [59.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SaveDeckHotCue(field0) => {
-                [60.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeleteDeckHotCue(field0) => {
-                [61.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::AssignSampler(field0) => {
-                [62.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::AssignSamplerTrack(field0) => {
-                [63.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ClearSampler(field0) => {
-                [64.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::JogTouch(field0) => {
-                [65.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::JogTurn(field0) => {
-                [66.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetJogMode(field0) => {
-                [67.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCrossfader(field0) => {
-                [68.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetMasterVolume(field0) => {
-                [69.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCueVolume(field0) => {
-                [70.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCueMix(field0) => {
-                [71.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetMasterCue(field0) => {
-                [72.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::ToggleMasterCue(field0) => {
-                [73.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCurveLibrary(field0) => {
-                [74.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderCurve(field0) => {
-                [75.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderCurveAmount(field0) => {
-                [76.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderBehavior(field0) => {
-                [77.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetChannelFaderCurve(field0) => {
-                [78.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFxUnitSlot(field0) => {
-                [79.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFxUnitSlotEnabled(field0) => {
-                [80.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFxUnitWet(field0) => {
-                [81.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFxLevelCurve(field0) => {
-                [82.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetFxUnitParam(field0) => {
-                [83.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SetDeckFxRouted(field0) => {
-                [84.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeckUpdated(field0) => {
-                [85.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeckPosition(field0) => {
-                [86.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeckLevels(field0) => {
-                [87.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::EngineSnapshot(field0) => {
-                [88.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::Error(field0) => {
-                [89.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::Notice(field0) => {
-                [90.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
-                [91.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::GenerateStems(field0) => {
-                [92.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::RefreshTrack(field0) => {
-                [93.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
-                [94.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SaveTrackCue(field0) => {
-                [95.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
-                [96.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
-                [97.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
-                [98.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
-                [99.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
-                [100.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::TrackUpdated(field0) => {
-                [101.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::TrackProgress(field0) => {
-                [102.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
-                [103.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::LoopsChanged(field0) => {
-                [104.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
-                [105.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
-                [106.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::Navigate(field0) => {
-                [107.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::Focus(field0) => {
-                [108.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::Load(field0) => {
-                [109.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::MappingOffer(field0) => {
-                [110.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::event_mirrors::Event::MappingAttached(field0) => {
-                [111.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
             crate::api::event_mirrors::Event::MappingDetached(field0) => {
-                [112.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -17537,40 +14644,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Eve
     for crate::api::event_mirrors::Event
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Event> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ExitLoop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ExitLoop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ExitLoop>>
-    for crate::api::event_mirrors::ExitLoop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ExitLoop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::FaderStart> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::FaderStart>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::FaderStart>>
-    for crate::api::event_mirrors::FaderStart
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::FaderStart> {
         self.into()
     }
 }
@@ -17616,23 +14689,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::FaderStartOnZeroSet
 {
     fn into_into_dart(self) -> crate::api::settings::FaderStartOnZeroSetting {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::FaderStop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::FaderStop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::FaderStop>>
-    for crate::api::event_mirrors::FaderStop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::FaderStop> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -17760,23 +14816,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::FxS
     for crate::api::event_mirrors::FxSlotState
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::FxSlotState> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::GenerateStems> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.track_id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::GenerateStems>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::GenerateStems>>
-    for crate::api::event_mirrors::GenerateStems
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::GenerateStems> {
         self.into()
     }
 }
@@ -17926,49 +14965,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Hot
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::HotCuePadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.shift.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::HotCuePadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::HotCuePadPress>>
-    for crate::api::event_mirrors::HotCuePadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HotCuePadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::HotCuePadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::HotCuePadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::HotCuePadRelease>>
-    for crate::api::event_mirrors::HotCuePadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HotCuePadRelease> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::HotCuesChanged> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -18034,48 +15030,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::JogModeSetting>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::JogTouch> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.touching.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::JogTouch>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::JogTouch>>
-    for crate::api::event_mirrors::JogTouch
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::JogTouch> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::JogTurn> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.delta.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::JogTurn>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::JogTurn>>
-    for crate::api::event_mirrors::JogTurn
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::JogTurn> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyColorModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -18116,92 +15070,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyDisplayModeSetti
 {
     fn into_into_dart(self) -> crate::api::settings::KeyDisplayModeSetting {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::KeyShiftPadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.shift.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::KeyShiftPadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::KeyShiftPadPress>>
-    for crate::api::event_mirrors::KeyShiftPadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::KeyShiftPadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::KeyShiftPadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::KeyShiftPadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::KeyShiftPadRelease>>
-    for crate::api::event_mirrors::KeyShiftPadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::KeyShiftPadRelease> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::KeyboardPadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.shift.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::KeyboardPadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::KeyboardPadPress>>
-    for crate::api::event_mirrors::KeyboardPadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::KeyboardPadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::KeyboardPadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::KeyboardPadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::KeyboardPadRelease>>
-    for crate::api::event_mirrors::KeyboardPadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::KeyboardPadRelease> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -18408,48 +15276,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Loa
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopIn> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::LoopIn>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::LoopIn>>
-    for crate::api::event_mirrors::LoopIn
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopIn> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopOut> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::LoopOut>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::LoopOut>>
-    for crate::api::event_mirrors::LoopOut
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopOut> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopRegion> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -18468,48 +15294,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Loo
     for crate::api::event_mirrors::LoopRegion
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopRegion> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopRollPadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::LoopRollPadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::LoopRollPadPress>>
-    for crate::api::event_mirrors::LoopRollPadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopRollPadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopRollPadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::LoopRollPadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::LoopRollPadRelease>>
-    for crate::api::event_mirrors::LoopRollPadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopRollPadRelease> {
         self.into()
     }
 }
@@ -18761,83 +15545,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Pad
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::PadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.shift.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::PadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::PadPress>>
-    for crate::api::event_mirrors::PadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::PadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::PadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::PadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::PadRelease>>
-    for crate::api::event_mirrors::PadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::PadRelease> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Pause> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::Pause>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Pause>>
-    for crate::api::event_mirrors::Pause
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Pause> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Play> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::Play>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Play>>
-    for crate::api::event_mirrors::Play
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Play> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::RealtimeStemsBenchmarkProgress {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -18880,45 +15587,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::RealtimeStemsCapabi
 {
     fn into_into_dart(self) -> crate::api::settings::RealtimeStemsCapability {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::RecallSavedLoop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.in_ms.into_into_dart().into_dart(),
-            self.0.out_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::RecallSavedLoop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::RecallSavedLoop>>
-    for crate::api::event_mirrors::RecallSavedLoop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::RecallSavedLoop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::RefreshTrack> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.track_id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::RefreshTrack>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::RefreshTrack>>
-    for crate::api::event_mirrors::RefreshTrack
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::RefreshTrack> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -19042,49 +15710,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::SamplerBankInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SamplerPadPress> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.shift.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SamplerPadPress>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SamplerPadPress>>
-    for crate::api::event_mirrors::SamplerPadPress
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SamplerPadPress> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SamplerPadRelease> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SamplerPadRelease>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SamplerPadRelease>>
-    for crate::api::event_mirrors::SamplerPadRelease
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SamplerPadRelease> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::SamplerPlayMode {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -19173,121 +15798,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SamplerStripRouteSe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveBeatGrid> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.bpm.into_into_dart().into_dart(),
-            self.0.first_beat_secs.into_into_dart().into_dart(),
-            self.0.replace.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SaveBeatGrid>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveBeatGrid>>
-    for crate::api::event_mirrors::SaveBeatGrid
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveBeatGrid> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveDeckHotCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SaveDeckHotCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveDeckHotCue>>
-    for crate::api::event_mirrors::SaveDeckHotCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveDeckHotCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveTrackCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SaveTrackCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveTrackCue>>
-    for crate::api::event_mirrors::SaveTrackCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveTrackCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-            self.0.loop_length_beats.into_into_dart().into_dart(),
-            self.0.color.into_into_dart().into_dart(),
-            self.0.label.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue>>
-    for crate::api::event_mirrors::SaveTrackHotCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveTrackLoop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.track_id.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.in_ms.into_into_dart().into_dart(),
-            self.0.out_ms.into_into_dart().into_dart(),
-            self.0.label.into_into_dart().into_dart(),
-            self.0.color.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SaveTrackLoop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveTrackLoop>>
-    for crate::api::event_mirrors::SaveTrackLoop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveTrackLoop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SavedLoop> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -19312,27 +15822,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Sav
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Seek> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::Seek>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Seek>>
-    for crate::api::event_mirrors::Seek
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Seek> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::SelectStyleSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -19352,859 +15841,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SelectStyleSetting>
 {
     fn into_into_dart(self) -> crate::api::settings::SelectStyleSetting {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetAutoLoop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.beats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetAutoLoop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetAutoLoop>>
-    for crate::api::event_mirrors::SetAutoLoop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetAutoLoop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetChannelFaderCurve> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetChannelFaderCurve>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetChannelFaderCurve>>
-    for crate::api::event_mirrors::SetChannelFaderCurve
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetChannelFaderCurve> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCrossfader> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.position.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfader>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCrossfader>>
-    for crate::api::event_mirrors::SetCrossfader
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCrossfader> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCrossfaderAssign> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.assignment.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderAssign>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCrossfaderAssign>>
-    for crate::api::event_mirrors::SetCrossfaderAssign
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCrossfaderAssign> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderBehavior>
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.hamster.into_into_dart().into_dart(),
-            self.0.disabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderBehavior>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCrossfaderBehavior>>
-    for crate::api::event_mirrors::SetCrossfaderBehavior
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCrossfaderBehavior> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurve> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurve>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurve>>
-    for crate::api::event_mirrors::SetCrossfaderCurve
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurve> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurveAmount>
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.set.into_into_dart().into_dart(),
-            self.0.amount.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurveAmount>
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurveAmount>,
-    > for crate::api::event_mirrors::SetCrossfaderCurveAmount
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCrossfaderCurveAmount> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCueMix> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.mix.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCueMix>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCueMix>>
-    for crate::api::event_mirrors::SetCueMix
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCueMix> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCuePoint> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCuePoint>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCuePoint>>
-    for crate::api::event_mirrors::SetCuePoint
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCuePoint> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCueVolume> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.volume.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCueVolume>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCueVolume>>
-    for crate::api::event_mirrors::SetCueVolume
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCueVolume> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetCurveLibrary> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.library.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetCurveLibrary>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetCurveLibrary>>
-    for crate::api::event_mirrors::SetCurveLibrary
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetCurveLibrary> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetDeckFxRouted> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.routed.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetDeckFxRouted>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetDeckFxRouted>>
-    for crate::api::event_mirrors::SetDeckFxRouted
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetDeckFxRouted> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetEq> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.low.into_into_dart().into_dart(),
-            self.0.mid.into_into_dart().into_dart(),
-            self.0.high.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetEq>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetEq>>
-    for crate::api::event_mirrors::SetEq
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetEq> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetEqBand> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.band.into_into_dart().into_dart(),
-            self.0.gain.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetEqBand>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetEqBand>>
-    for crate::api::event_mirrors::SetEqBand
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetEqBand> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFaderStartNative> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.native.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFaderStartNative>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFaderStartNative>>
-    for crate::api::event_mirrors::SetFaderStartNative
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFaderStartNative> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFilter> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.filter.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFilter>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFilter>>
-    for crate::api::event_mirrors::SetFilter
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFilter> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFxLevelCurve> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFxLevelCurve>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFxLevelCurve>>
-    for crate::api::event_mirrors::SetFxLevelCurve
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFxLevelCurve> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFxUnitParam> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.param.into_into_dart().into_dart(),
-            self.0.value.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFxUnitParam>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFxUnitParam>>
-    for crate::api::event_mirrors::SetFxUnitParam
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFxUnitParam> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFxUnitSlot> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.kind.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFxUnitSlot>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFxUnitSlot>>
-    for crate::api::event_mirrors::SetFxUnitSlot
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFxUnitSlot> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFxUnitSlotEnabled> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFxUnitSlotEnabled>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFxUnitSlotEnabled>>
-    for crate::api::event_mirrors::SetFxUnitSlotEnabled
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFxUnitSlotEnabled> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetFxUnitWet> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.slot.into_into_dart().into_dart(),
-            self.0.wet.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetFxUnitWet>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetFxUnitWet>>
-    for crate::api::event_mirrors::SetFxUnitWet
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetFxUnitWet> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetGainTrim> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.gain_trim.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetGainTrim>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetGainTrim>>
-    for crate::api::event_mirrors::SetGainTrim
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetGainTrim> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetHeadphoneCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetHeadphoneCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetHeadphoneCue>>
-    for crate::api::event_mirrors::SetHeadphoneCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetHeadphoneCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetJogMode> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.top.into_into_dart().into_dart(),
-            self.0.outer.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetJogMode>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetJogMode>>
-    for crate::api::event_mirrors::SetJogMode
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetJogMode> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetKeyLock> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetKeyLock>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetKeyLock>>
-    for crate::api::event_mirrors::SetKeyLock
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetKeyLock> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetKeyShift> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.semitones.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetKeyShift>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetKeyShift>>
-    for crate::api::event_mirrors::SetKeyShift
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetKeyShift> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetKeyShiftPage> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.page.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetKeyShiftPage>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetKeyShiftPage>>
-    for crate::api::event_mirrors::SetKeyShiftPage
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetKeyShiftPage> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetKeyboardPage> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.page.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetKeyboardPage>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetKeyboardPage>>
-    for crate::api::event_mirrors::SetKeyboardPage
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetKeyboardPage> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetKeyboardRoot> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.slot.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetKeyboardRoot>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetKeyboardRoot>>
-    for crate::api::event_mirrors::SetKeyboardRoot
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetKeyboardRoot> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetMasterCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.enabled.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetMasterCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetMasterCue>>
-    for crate::api::event_mirrors::SetMasterCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetMasterCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetMasterDeck> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetMasterDeck>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetMasterDeck>>
-    for crate::api::event_mirrors::SetMasterDeck
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetMasterDeck> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetMasterVolume> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.volume.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetMasterVolume>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetMasterVolume>>
-    for crate::api::event_mirrors::SetMasterVolume
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetMasterVolume> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetPadMode> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.mode.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetPadMode>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetPadMode>>
-    for crate::api::event_mirrors::SetPadMode
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetPadMode> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetQuantize> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetQuantize>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetQuantize>>
-    for crate::api::event_mirrors::SetQuantize
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetQuantize> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetSlip> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetSlip>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetSlip>>
-    for crate::api::event_mirrors::SetSlip
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetSlip> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetSpeed> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.speed.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetSpeed>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetSpeed>>
-    for crate::api::event_mirrors::SetSpeed
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetSpeed> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetStemEqBand> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.band.into_into_dart().into_dart(),
-            self.0.gain.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetStemEqBand>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetStemEqBand>>
-    for crate::api::event_mirrors::SetStemEqBand
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetStemEqBand> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetStemEqEnabled> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.enabled.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetStemEqEnabled>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetStemEqEnabled>>
-    for crate::api::event_mirrors::SetStemEqEnabled
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetStemEqEnabled> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetTempoCurve> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.id.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetTempoCurve>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetTempoCurve>>
-    for crate::api::event_mirrors::SetTempoCurve
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetTempoCurve> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetTempoRange> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.tempo_range.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetTempoRange>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetTempoRange>>
-    for crate::api::event_mirrors::SetTempoRange
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetTempoRange> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SetVolume> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.volume.into_into_dart().into_dart(),
-            self.0.soft_takeover.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::SetVolume>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SetVolume>>
-    for crate::api::event_mirrors::SetVolume
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SetVolume> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -20272,129 +15908,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::ThemeSetting>
 {
     fn into_into_dart(self) -> crate::api::settings::ThemeSetting {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleHeadphoneCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleHeadphoneCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleHeadphoneCue>>
-    for crate::api::event_mirrors::ToggleHeadphoneCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleHeadphoneCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleMasterCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        Vec::<u8>::new().into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleMasterCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleMasterCue>>
-    for crate::api::event_mirrors::ToggleMasterCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleMasterCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TogglePlay> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::TogglePlay>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TogglePlay>>
-    for crate::api::event_mirrors::TogglePlay
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TogglePlay> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleQuantize> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleQuantize>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleQuantize>>
-    for crate::api::event_mirrors::ToggleQuantize
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleQuantize> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleSlip> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleSlip>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleSlip>>
-    for crate::api::event_mirrors::ToggleSlip
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleSlip> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleStemEq> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleStemEq>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleStemEq>>
-    for crate::api::event_mirrors::ToggleStemEq
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleStemEq> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::ToggleSync> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.beat_sync.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::ToggleSync>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::ToggleSync>>
-    for crate::api::event_mirrors::ToggleSync
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ToggleSync> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -20490,27 +16003,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Tra
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TriggerHotCue> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.deck.into_into_dart().into_dart(),
-            self.0.position_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::TriggerHotCue>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TriggerHotCue>>
-    for crate::api::event_mirrors::TriggerHotCue
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TriggerHotCue> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::UiLanguageSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -20530,23 +16022,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::UiLanguageSetting>
 {
     fn into_into_dart(self) -> crate::api::settings::UiLanguageSetting {
         self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Unload> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.deck.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::event_mirrors::Unload>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Unload>>
-    for crate::api::event_mirrors::Unload
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Unload> {
-        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -20860,14 +16335,6 @@ impl SseEncode for crate::api::library::AnalyzeCollectionResult {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::AnalyzeTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <bool>::sse_encode(self.force, serializer);
-    }
-}
-
 impl SseEncode for crate::api::settings::AppSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20978,24 +16445,6 @@ impl SseEncode for crate::api::settings::AppSettings {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::AssignSampler {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <String>::sse_encode(self.path, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::AssignSamplerTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <String>::sse_encode(self.track_id, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::BeatGrid {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21039,30 +16488,6 @@ impl SseEncode for crate::api::library::BeatGridSegmentData {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::BeatJump {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.beats, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::BeatJumpPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::BeatJumpPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::BeatSegment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21074,21 +16499,6 @@ impl SseEncode for crate::api::event_mirrors::BeatSegment {
         <i64>::sse_encode(self.start_beat_index, serializer);
         <Option<i64>>::sse_encode(self.beats_to_next, serializer);
         <u8>::sse_encode(self.downbeat_offset_beats, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::BeginCueHold {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::BeginLoopRoll {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.beats, serializer);
     }
 }
 
@@ -21137,14 +16547,6 @@ impl SseEncode for crate::api::library::CdjExportReport {
         <u64>::sse_encode(self.bytes_copied, serializer);
         <Vec<String>>::sse_encode(self.errors, serializer);
         <Vec<String>>::sse_encode(self.warnings, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ClearSampler {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
     }
 }
 
@@ -21526,50 +16928,12 @@ impl SseEncode for crate::api::event_mirrors::DeckUpdated {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::DeleteDeckHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::DeleteTrackHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::DeleteTrackLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
 impl SseEncode for crate::api::controller::DetectedController {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.port_name, serializer);
         <Option<String>>::sse_encode(self.mapping_name, serializer);
         <Option<String>>::sse_encode(self.device_id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::EndCueHold {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::EndLoopRoll {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
     }
 }
 
@@ -21629,471 +16993,86 @@ impl SseEncode for crate::api::event_mirrors::Event {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::event_mirrors::Event::Play(field0) => {
-                <i32>::sse_encode(0, serializer);
-                <crate::api::event_mirrors::Play>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::Pause(field0) => {
-                <i32>::sse_encode(1, serializer);
-                <crate::api::event_mirrors::Pause>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::TogglePlay(field0) => {
-                <i32>::sse_encode(2, serializer);
-                <crate::api::event_mirrors::TogglePlay>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::Seek(field0) => {
-                <i32>::sse_encode(3, serializer);
-                <crate::api::event_mirrors::Seek>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::Unload(field0) => {
-                <i32>::sse_encode(4, serializer);
-                <crate::api::event_mirrors::Unload>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetVolume(field0) => {
-                <i32>::sse_encode(5, serializer);
-                <crate::api::event_mirrors::SetVolume>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetEq(field0) => {
-                <i32>::sse_encode(6, serializer);
-                <crate::api::event_mirrors::SetEq>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetEqBand(field0) => {
-                <i32>::sse_encode(7, serializer);
-                <crate::api::event_mirrors::SetEqBand>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetStemEqBand(field0) => {
-                <i32>::sse_encode(8, serializer);
-                <crate::api::event_mirrors::SetStemEqBand>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetStemEqEnabled(field0) => {
-                <i32>::sse_encode(9, serializer);
-                <crate::api::event_mirrors::SetStemEqEnabled>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleStemEq(field0) => {
-                <i32>::sse_encode(10, serializer);
-                <crate::api::event_mirrors::ToggleStemEq>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFilter(field0) => {
-                <i32>::sse_encode(11, serializer);
-                <crate::api::event_mirrors::SetFilter>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetGainTrim(field0) => {
-                <i32>::sse_encode(12, serializer);
-                <crate::api::event_mirrors::SetGainTrim>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetHeadphoneCue(field0) => {
-                <i32>::sse_encode(13, serializer);
-                <crate::api::event_mirrors::SetHeadphoneCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleHeadphoneCue(field0) => {
-                <i32>::sse_encode(14, serializer);
-                <crate::api::event_mirrors::ToggleHeadphoneCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderAssign(field0) => {
-                <i32>::sse_encode(15, serializer);
-                <crate::api::event_mirrors::SetCrossfaderAssign>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetSpeed(field0) => {
-                <i32>::sse_encode(16, serializer);
-                <crate::api::event_mirrors::SetSpeed>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetTempoRange(field0) => {
-                <i32>::sse_encode(17, serializer);
-                <crate::api::event_mirrors::SetTempoRange>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetTempoCurve(field0) => {
-                <i32>::sse_encode(18, serializer);
-                <crate::api::event_mirrors::SetTempoCurve>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetKeyLock(field0) => {
-                <i32>::sse_encode(19, serializer);
-                <crate::api::event_mirrors::SetKeyLock>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetKeyShift(field0) => {
-                <i32>::sse_encode(20, serializer);
-                <crate::api::event_mirrors::SetKeyShift>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetKeyboardRoot(field0) => {
-                <i32>::sse_encode(21, serializer);
-                <crate::api::event_mirrors::SetKeyboardRoot>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetKeyboardPage(field0) => {
-                <i32>::sse_encode(22, serializer);
-                <crate::api::event_mirrors::SetKeyboardPage>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetKeyShiftPage(field0) => {
-                <i32>::sse_encode(23, serializer);
-                <crate::api::event_mirrors::SetKeyShiftPage>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleSync(field0) => {
-                <i32>::sse_encode(24, serializer);
-                <crate::api::event_mirrors::ToggleSync>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetMasterDeck(field0) => {
-                <i32>::sse_encode(25, serializer);
-                <crate::api::event_mirrors::SetMasterDeck>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCuePoint(field0) => {
-                <i32>::sse_encode(26, serializer);
-                <crate::api::event_mirrors::SetCuePoint>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::BeginCueHold(field0) => {
-                <i32>::sse_encode(27, serializer);
-                <crate::api::event_mirrors::BeginCueHold>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::EndCueHold(field0) => {
-                <i32>::sse_encode(28, serializer);
-                <crate::api::event_mirrors::EndCueHold>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::FaderStart(field0) => {
-                <i32>::sse_encode(29, serializer);
-                <crate::api::event_mirrors::FaderStart>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::FaderStop(field0) => {
-                <i32>::sse_encode(30, serializer);
-                <crate::api::event_mirrors::FaderStop>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFaderStartNative(field0) => {
-                <i32>::sse_encode(31, serializer);
-                <crate::api::event_mirrors::SetFaderStartNative>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetQuantize(field0) => {
-                <i32>::sse_encode(32, serializer);
-                <crate::api::event_mirrors::SetQuantize>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleQuantize(field0) => {
-                <i32>::sse_encode(33, serializer);
-                <crate::api::event_mirrors::ToggleQuantize>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetSlip(field0) => {
-                <i32>::sse_encode(34, serializer);
-                <crate::api::event_mirrors::SetSlip>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleSlip(field0) => {
-                <i32>::sse_encode(35, serializer);
-                <crate::api::event_mirrors::ToggleSlip>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetAutoLoop(field0) => {
-                <i32>::sse_encode(36, serializer);
-                <crate::api::event_mirrors::SetAutoLoop>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::LoopIn(field0) => {
-                <i32>::sse_encode(37, serializer);
-                <crate::api::event_mirrors::LoopIn>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::LoopOut(field0) => {
-                <i32>::sse_encode(38, serializer);
-                <crate::api::event_mirrors::LoopOut>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ExitLoop(field0) => {
-                <i32>::sse_encode(39, serializer);
-                <crate::api::event_mirrors::ExitLoop>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::RecallSavedLoop(field0) => {
-                <i32>::sse_encode(40, serializer);
-                <crate::api::event_mirrors::RecallSavedLoop>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::BeginLoopRoll(field0) => {
-                <i32>::sse_encode(41, serializer);
-                <crate::api::event_mirrors::BeginLoopRoll>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::EndLoopRoll(field0) => {
-                <i32>::sse_encode(42, serializer);
-                <crate::api::event_mirrors::EndLoopRoll>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::BeatJump(field0) => {
-                <i32>::sse_encode(43, serializer);
-                <crate::api::event_mirrors::BeatJump>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetPadMode(field0) => {
-                <i32>::sse_encode(44, serializer);
-                <crate::api::event_mirrors::SetPadMode>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::PadPress(field0) => {
-                <i32>::sse_encode(45, serializer);
-                <crate::api::event_mirrors::PadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::PadRelease(field0) => {
-                <i32>::sse_encode(46, serializer);
-                <crate::api::event_mirrors::PadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::HotCuePadPress(field0) => {
-                <i32>::sse_encode(47, serializer);
-                <crate::api::event_mirrors::HotCuePadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::HotCuePadRelease(field0) => {
-                <i32>::sse_encode(48, serializer);
-                <crate::api::event_mirrors::HotCuePadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::LoopRollPadPress(field0) => {
-                <i32>::sse_encode(49, serializer);
-                <crate::api::event_mirrors::LoopRollPadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::LoopRollPadRelease(field0) => {
-                <i32>::sse_encode(50, serializer);
-                <crate::api::event_mirrors::LoopRollPadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::BeatJumpPadPress(field0) => {
-                <i32>::sse_encode(51, serializer);
-                <crate::api::event_mirrors::BeatJumpPadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::BeatJumpPadRelease(field0) => {
-                <i32>::sse_encode(52, serializer);
-                <crate::api::event_mirrors::BeatJumpPadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SamplerPadPress(field0) => {
-                <i32>::sse_encode(53, serializer);
-                <crate::api::event_mirrors::SamplerPadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SamplerPadRelease(field0) => {
-                <i32>::sse_encode(54, serializer);
-                <crate::api::event_mirrors::SamplerPadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::KeyboardPadPress(field0) => {
-                <i32>::sse_encode(55, serializer);
-                <crate::api::event_mirrors::KeyboardPadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::KeyboardPadRelease(field0) => {
-                <i32>::sse_encode(56, serializer);
-                <crate::api::event_mirrors::KeyboardPadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::KeyShiftPadPress(field0) => {
-                <i32>::sse_encode(57, serializer);
-                <crate::api::event_mirrors::KeyShiftPadPress>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::KeyShiftPadRelease(field0) => {
-                <i32>::sse_encode(58, serializer);
-                <crate::api::event_mirrors::KeyShiftPadRelease>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::TriggerHotCue(field0) => {
-                <i32>::sse_encode(59, serializer);
-                <crate::api::event_mirrors::TriggerHotCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SaveDeckHotCue(field0) => {
-                <i32>::sse_encode(60, serializer);
-                <crate::api::event_mirrors::SaveDeckHotCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::DeleteDeckHotCue(field0) => {
-                <i32>::sse_encode(61, serializer);
-                <crate::api::event_mirrors::DeleteDeckHotCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::AssignSampler(field0) => {
-                <i32>::sse_encode(62, serializer);
-                <crate::api::event_mirrors::AssignSampler>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::AssignSamplerTrack(field0) => {
-                <i32>::sse_encode(63, serializer);
-                <crate::api::event_mirrors::AssignSamplerTrack>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ClearSampler(field0) => {
-                <i32>::sse_encode(64, serializer);
-                <crate::api::event_mirrors::ClearSampler>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::JogTouch(field0) => {
-                <i32>::sse_encode(65, serializer);
-                <crate::api::event_mirrors::JogTouch>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::JogTurn(field0) => {
-                <i32>::sse_encode(66, serializer);
-                <crate::api::event_mirrors::JogTurn>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetJogMode(field0) => {
-                <i32>::sse_encode(67, serializer);
-                <crate::api::event_mirrors::SetJogMode>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCrossfader(field0) => {
-                <i32>::sse_encode(68, serializer);
-                <crate::api::event_mirrors::SetCrossfader>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetMasterVolume(field0) => {
-                <i32>::sse_encode(69, serializer);
-                <crate::api::event_mirrors::SetMasterVolume>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCueVolume(field0) => {
-                <i32>::sse_encode(70, serializer);
-                <crate::api::event_mirrors::SetCueVolume>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCueMix(field0) => {
-                <i32>::sse_encode(71, serializer);
-                <crate::api::event_mirrors::SetCueMix>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetMasterCue(field0) => {
-                <i32>::sse_encode(72, serializer);
-                <crate::api::event_mirrors::SetMasterCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::ToggleMasterCue(field0) => {
-                <i32>::sse_encode(73, serializer);
-                <crate::api::event_mirrors::ToggleMasterCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCurveLibrary(field0) => {
-                <i32>::sse_encode(74, serializer);
-                <crate::api::event_mirrors::SetCurveLibrary>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderCurve(field0) => {
-                <i32>::sse_encode(75, serializer);
-                <crate::api::event_mirrors::SetCrossfaderCurve>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderCurveAmount(field0) => {
-                <i32>::sse_encode(76, serializer);
-                <crate::api::event_mirrors::SetCrossfaderCurveAmount>::sse_encode(
-                    field0, serializer,
-                );
-            }
-            crate::api::event_mirrors::Event::SetCrossfaderBehavior(field0) => {
-                <i32>::sse_encode(77, serializer);
-                <crate::api::event_mirrors::SetCrossfaderBehavior>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetChannelFaderCurve(field0) => {
-                <i32>::sse_encode(78, serializer);
-                <crate::api::event_mirrors::SetChannelFaderCurve>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFxUnitSlot(field0) => {
-                <i32>::sse_encode(79, serializer);
-                <crate::api::event_mirrors::SetFxUnitSlot>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFxUnitSlotEnabled(field0) => {
-                <i32>::sse_encode(80, serializer);
-                <crate::api::event_mirrors::SetFxUnitSlotEnabled>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFxUnitWet(field0) => {
-                <i32>::sse_encode(81, serializer);
-                <crate::api::event_mirrors::SetFxUnitWet>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFxLevelCurve(field0) => {
-                <i32>::sse_encode(82, serializer);
-                <crate::api::event_mirrors::SetFxLevelCurve>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetFxUnitParam(field0) => {
-                <i32>::sse_encode(83, serializer);
-                <crate::api::event_mirrors::SetFxUnitParam>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SetDeckFxRouted(field0) => {
-                <i32>::sse_encode(84, serializer);
-                <crate::api::event_mirrors::SetDeckFxRouted>::sse_encode(field0, serializer);
-            }
             crate::api::event_mirrors::Event::DeckUpdated(field0) => {
-                <i32>::sse_encode(85, serializer);
+                <i32>::sse_encode(0, serializer);
                 <crate::api::event_mirrors::DeckUpdated>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::DeckPosition(field0) => {
-                <i32>::sse_encode(86, serializer);
+                <i32>::sse_encode(1, serializer);
                 <crate::api::event_mirrors::DeckPosition>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::DeckLevels(field0) => {
-                <i32>::sse_encode(87, serializer);
+                <i32>::sse_encode(2, serializer);
                 <crate::api::event_mirrors::DeckLevels>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::EngineSnapshot(field0) => {
-                <i32>::sse_encode(88, serializer);
+                <i32>::sse_encode(3, serializer);
                 <crate::api::event_mirrors::EngineSnapshot>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::Error(field0) => {
-                <i32>::sse_encode(89, serializer);
+                <i32>::sse_encode(4, serializer);
                 <crate::api::event_mirrors::Error>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::Notice(field0) => {
-                <i32>::sse_encode(90, serializer);
+                <i32>::sse_encode(5, serializer);
                 <crate::api::event_mirrors::Notice>::sse_encode(field0, serializer);
             }
-            crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
-                <i32>::sse_encode(91, serializer);
-                <crate::api::event_mirrors::AnalyzeTrack>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::GenerateStems(field0) => {
-                <i32>::sse_encode(92, serializer);
-                <crate::api::event_mirrors::GenerateStems>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::RefreshTrack(field0) => {
-                <i32>::sse_encode(93, serializer);
-                <crate::api::event_mirrors::RefreshTrack>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
-                <i32>::sse_encode(94, serializer);
-                <crate::api::event_mirrors::SaveBeatGrid>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SaveTrackCue(field0) => {
-                <i32>::sse_encode(95, serializer);
-                <crate::api::event_mirrors::SaveTrackCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
-                <i32>::sse_encode(96, serializer);
-                <crate::api::event_mirrors::SaveTrackHotCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
-                <i32>::sse_encode(97, serializer);
-                <crate::api::event_mirrors::DeleteTrackHotCue>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
-                <i32>::sse_encode(98, serializer);
-                <crate::api::event_mirrors::SaveTrackLoop>::sse_encode(field0, serializer);
-            }
-            crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
-                <i32>::sse_encode(99, serializer);
-                <crate::api::event_mirrors::DeleteTrackLoop>::sse_encode(field0, serializer);
-            }
             crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
-                <i32>::sse_encode(100, serializer);
+                <i32>::sse_encode(6, serializer);
                 <crate::api::event_mirrors::TrackAnalyzed>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::TrackUpdated(field0) => {
-                <i32>::sse_encode(101, serializer);
+                <i32>::sse_encode(7, serializer);
                 <crate::api::event_mirrors::TrackUpdated>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::TrackProgress(field0) => {
-                <i32>::sse_encode(102, serializer);
+                <i32>::sse_encode(8, serializer);
                 <crate::api::event_mirrors::TrackProgress>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
-                <i32>::sse_encode(103, serializer);
+                <i32>::sse_encode(9, serializer);
                 <crate::api::event_mirrors::HotCuesChanged>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::LoopsChanged(field0) => {
-                <i32>::sse_encode(104, serializer);
+                <i32>::sse_encode(10, serializer);
                 <crate::api::event_mirrors::LoopsChanged>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
-                <i32>::sse_encode(105, serializer);
+                <i32>::sse_encode(11, serializer);
                 <crate::api::event_mirrors::BeatGridChanged>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
-                <i32>::sse_encode(106, serializer);
+                <i32>::sse_encode(12, serializer);
                 <crate::api::event_mirrors::HistorySessionUpdated>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::Navigate(field0) => {
-                <i32>::sse_encode(107, serializer);
+                <i32>::sse_encode(13, serializer);
                 <crate::api::event_mirrors::Navigate>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::Focus(field0) => {
-                <i32>::sse_encode(108, serializer);
+                <i32>::sse_encode(14, serializer);
                 <crate::api::event_mirrors::Focus>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::Load(field0) => {
-                <i32>::sse_encode(109, serializer);
+                <i32>::sse_encode(15, serializer);
                 <crate::api::event_mirrors::Load>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::MappingOffer(field0) => {
-                <i32>::sse_encode(110, serializer);
+                <i32>::sse_encode(16, serializer);
                 <crate::api::event_mirrors::MappingOffer>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::MappingAttached(field0) => {
-                <i32>::sse_encode(111, serializer);
+                <i32>::sse_encode(17, serializer);
                 <crate::api::event_mirrors::MappingAttached>::sse_encode(field0, serializer);
             }
             crate::api::event_mirrors::Event::MappingDetached(field0) => {
-                <i32>::sse_encode(112, serializer);
+                <i32>::sse_encode(18, serializer);
                 <crate::api::event_mirrors::MappingDetached>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ExitLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
     }
 }
 
@@ -22108,13 +17087,6 @@ impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::FaderStart {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
     }
 }
 
@@ -22149,13 +17121,6 @@ impl SseEncode for crate::api::settings::FaderStartOnZeroSetting {
             },
             serializer,
         );
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::FaderStop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
     }
 }
 
@@ -22217,13 +17182,6 @@ impl SseEncode for crate::api::event_mirrors::FxSlotState {
         <bool>::sse_encode(self.enabled, serializer);
         <f32>::sse_encode(self.wet, serializer);
         <Vec<f32>>::sse_encode(self.params, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::GenerateStems {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
     }
 }
 
@@ -22303,23 +17261,6 @@ impl SseEncode for crate::api::event_mirrors::HotCue {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::HotCuePadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.shift, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::HotCuePadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::HotCuesChanged {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22376,22 +17317,6 @@ impl SseEncode for crate::api::settings::JogModeSetting {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::JogTouch {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.touching, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::JogTurn {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.delta, serializer);
-    }
-}
-
 impl SseEncode for crate::api::settings::KeyColorModeSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22422,40 +17347,6 @@ impl SseEncode for crate::api::settings::KeyDisplayModeSetting {
             },
             serializer,
         );
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::KeyShiftPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.shift, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::KeyShiftPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::KeyboardPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.shift, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::KeyboardPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
     }
 }
 
@@ -22971,44 +17862,12 @@ impl SseEncode for crate::api::event_mirrors::Load {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::LoopIn {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::LoopOut {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::LoopRegion {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.in_ms, serializer);
         <i32>::sse_encode(self.out_ms, serializer);
         <bool>::sse_encode(self.active, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::LoopRollPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::LoopRollPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
     }
 }
 
@@ -23338,37 +18197,6 @@ impl SseEncode for crate::api::event_mirrors::PadMode {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::PadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.shift, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::PadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::Pause {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::Play {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
 impl SseEncode for crate::api::settings::RealtimeStemsBenchmarkProgress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -23385,22 +18213,6 @@ impl SseEncode for crate::api::settings::RealtimeStemsCapability {
         <u32>::sse_encode(self.hops, serializer);
         <String>::sse_encode(self.model_sha, serializer);
         <bool>::sse_encode(self.allowed, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::RecallSavedLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.in_ms, serializer);
-        <i32>::sse_encode(self.out_ms, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::RefreshTrack {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
     }
 }
 
@@ -23456,23 +18268,6 @@ impl SseEncode for crate::api::library::SamplerBankInfo {
         <String>::sse_encode(self.name, serializer);
         <Option<crate::api::library::SamplerPlayMode>>::sse_encode(self.play_mode, serializer);
         <i32>::sse_encode(self.sort_index, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SamplerPadPress {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.shift, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SamplerPadRelease {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
     }
 }
 
@@ -23536,56 +18331,6 @@ impl SseEncode for crate::api::settings::SamplerStripRouteSettingFrb {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::SaveBeatGrid {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <f64>::sse_encode(self.bpm, serializer);
-        <f32>::sse_encode(self.first_beat_secs, serializer);
-        <bool>::sse_encode(self.replace, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SaveDeckHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SaveTrackCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SaveTrackHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
-        <Option<i32>>::sse_encode(self.loop_length_beats, serializer);
-        <Option<String>>::sse_encode(self.color, serializer);
-        <Option<String>>::sse_encode(self.label, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SaveTrackLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.track_id, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-        <i32>::sse_encode(self.in_ms, serializer);
-        <i32>::sse_encode(self.out_ms, serializer);
-        <Option<String>>::sse_encode(self.label, serializer);
-        <Option<String>>::sse_encode(self.color, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::SavedLoop {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -23594,14 +18339,6 @@ impl SseEncode for crate::api::event_mirrors::SavedLoop {
         <i32>::sse_encode(self.out_ms, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Option<String>>::sse_encode(self.color, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::Seek {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
     }
 }
 
@@ -23619,341 +18356,6 @@ impl SseEncode for crate::api::settings::SelectStyleSetting {
             },
             serializer,
         );
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetAutoLoop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.beats, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetChannelFaderCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCrossfader {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f32>::sse_encode(self.position, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCrossfaderAssign {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <crate::api::event_mirrors::CrossfaderAssign>::sse_encode(self.assignment, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCrossfaderBehavior {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.hamster, serializer);
-        <bool>::sse_encode(self.disabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCrossfaderCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCrossfaderCurveAmount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.set, serializer);
-        <f32>::sse_encode(self.amount, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCueMix {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f32>::sse_encode(self.mix, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCuePoint {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCueVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f32>::sse_encode(self.volume, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetCurveLibrary {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::event_mirrors::CurveLibrarySpec>::sse_encode(self.library, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetDeckFxRouted {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.routed, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetEq {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.low, serializer);
-        <f32>::sse_encode(self.mid, serializer);
-        <f32>::sse_encode(self.high, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetEqBand {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <crate::api::event_mirrors::EqBand>::sse_encode(self.band, serializer);
-        <f32>::sse_encode(self.gain, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFaderStartNative {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.native, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFilter {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.filter, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFxLevelCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFxUnitParam {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u8>::sse_encode(self.slot, serializer);
-        <u8>::sse_encode(self.param, serializer);
-        <f32>::sse_encode(self.value, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFxUnitSlot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u8>::sse_encode(self.slot, serializer);
-        <crate::api::event_mirrors::FxKind>::sse_encode(self.kind, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFxUnitSlotEnabled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u8>::sse_encode(self.slot, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetFxUnitWet {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u8>::sse_encode(self.slot, serializer);
-        <f32>::sse_encode(self.wet, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetGainTrim {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.gain_trim, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetHeadphoneCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetJogMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <crate::api::event_mirrors::JogMode>::sse_encode(self.top, serializer);
-        <crate::api::event_mirrors::JogMode>::sse_encode(self.outer, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetKeyLock {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetKeyShift {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.semitones, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetKeyShiftPage {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.page, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetKeyboardPage {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.page, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetKeyboardRoot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <u8>::sse_encode(self.slot, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetMasterCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetMasterDeck {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetMasterVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f32>::sse_encode(self.volume, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetPadMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <crate::api::event_mirrors::PadMode>::sse_encode(self.mode, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetQuantize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetSlip {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetSpeed {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.speed, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetStemEqBand {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <crate::api::event_mirrors::EqBand>::sse_encode(self.band, serializer);
-        <f32>::sse_encode(self.gain, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetStemEqEnabled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.enabled, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetTempoCurve {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <String>::sse_encode(self.id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetTempoRange {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.tempo_range, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::SetVolume {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <f32>::sse_encode(self.volume, serializer);
-        <bool>::sse_encode(self.soft_takeover, serializer);
     }
 }
 
@@ -24001,54 +18403,6 @@ impl SseEncode for crate::api::settings::ThemeSetting {
     }
 }
 
-impl SseEncode for crate::api::event_mirrors::ToggleHeadphoneCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ToggleMasterCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
-}
-
-impl SseEncode for crate::api::event_mirrors::TogglePlay {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ToggleQuantize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ToggleSlip {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ToggleStemEq {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::ToggleSync {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <bool>::sse_encode(self.beat_sync, serializer);
-    }
-}
-
 impl SseEncode for crate::api::event_mirrors::TrackAnalyzed {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24092,14 +18446,6 @@ impl SseEncode for crate::api::event_mirrors::TrackUpdated {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::event_mirrors::TrackSummary>::sse_encode(self.track, serializer);
-    }
-}
-
-impl SseEncode for crate::api::event_mirrors::TriggerHotCue {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
     }
 }
 
@@ -24151,13 +18497,6 @@ impl SseEncode for crate::api::settings::UiLanguageSetting {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
-}
-
-impl SseEncode for crate::api::event_mirrors::Unload {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u16>::sse_encode(self.deck, serializer);
-    }
 }
 
 impl SseEncode for usize {

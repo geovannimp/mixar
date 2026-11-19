@@ -9,7 +9,7 @@ use std::time::Duration;
 #[test]
 fn publish_ui_nav_evt_reaches_subscriber() {
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
         .publish_evt(Event::Navigate(Navigate { delta: 1 }))
         .unwrap();
@@ -17,5 +17,5 @@ fn publish_ui_nav_evt_reaches_subscriber() {
         .recv_timeout(Duration::from_secs(1))
         .expect("evt bus alive")
         .expect("Navigate evt");
-    assert_eq!(event, Event::Navigate(Navigate { delta: 1 }));
+    assert_eq!(event.as_ref(), &Event::Navigate(Navigate { delta: 1 }));
 }

@@ -8,60 +8,51 @@ generates a real Dart class (a freezed sealed class for the `Event` enum).
 
 Mirrors must match the original field for field. Codegen fails loudly on drift,
 so a stale mirror is a build error rather than a silent divergence — but the
-friendly loop is to re-run this script after editing the event table:
+friendly loop is to re-run this script after editing the schema:
 
     python3 crates/host-flutter/scripts/gen-event-mirrors.py
 
-Source of truth: the `bus_events!` rows in `crates/bus-api/src/events.rs` and
-the data types in `crates/bus-api/src/payload.rs`.
+`--check` compares the generated text with the file on disk without writing it,
+so CI can fail on a stale mirror without a diff.
+
+Source of truth: the payload structs in `crates/bus-api/src/messages.rs`, the
+`Event` enum in `crates/bus-api/src/events.rs`, and the data types in
+`crates/bus-api/src/payload.rs` / `library.rs`.
+
+The Flutter surface is the event direction only: `Command`, `CommandTarget`,
+`EventTopic`, `Arc`, the bus and its reports never cross FRB, because Dart drives
+the engine through typed host methods rather than by building commands.
 """
 
+from __future__ import annotations
+
 import re
+import sys
 from pathlib import Path
 
 CRATES = Path(__file__).resolve().parents[2]
+MESSAGES = CRATES / "bus-api/src/messages.rs"
 EVENTS = CRATES / "bus-api/src/events.rs"
 PAYLOAD = CRATES / "bus-api/src/payload.rs"
 LIBRARY = CRATES / "bus-api/src/library.rs"
 OUT = CRATES / "host-flutter/src/api/event_mirrors.rs"
 
-ROW = re.compile(
-    r"^\s{4}(?P<name>[A-Z][A-Za-z]*):\s+(?:Update|Create|Delta|Toggle|Signal),",
-    re.M,
-)
+# Payload enums that cross FRB as mirrors, with their variants read from source.
+PAYLOAD_ENUMS = [
+    "EqBand",
+    "FxKind",
+    "JogMode",
+    "PadMode",
+    "SyncMode",
+    "CurveSegmentKind",
+]
 
-
-def event_rows(text: str) -> list[tuple[str, list[tuple[str, str]]]]:
-    """`[(Name, [(field, type), …]), …]` from the `bus_events!` table."""
-    rows = []
-    starts = list(
-        re.finditer(
-            r"^\s{4}([A-Z][A-Za-z]*):\s+(?:Update|Create|Delta|Toggle|Signal),",
-            text,
-            re.M,
-        )
-    )
-    for match in starts:
-        # A row ends at its `;`; the table's own `impl` blocks follow the last one.
-        end = text.index(";", match.end())
-        row = text[match.end() : end]
-        # The field block is the row's last braces: entity/part expressions can
-        # contain their own (`match deck { … }`).
-        open_brace = row.rindex("{")
-        close_brace = row.index("}", open_brace)
-        fields = []
-        for field in row[open_brace + 1 : close_brace].split(","):
-            field = " ".join(field.split())
-            if not field:
-                continue
-            ident, ty = field.split(":", 1)
-            fields.append((ident.strip(), ty.strip()))
-        rows.append((match.group(1), fields))
-    return rows
+TUPLE_VARIANT = re.compile(r"^\s*(?P<name>[A-Z]\w*)\((?P<payload>[A-Z]\w*)\),$")
+ALLOWED_NON_VARIANT = ("///",)
 
 
 def payload_structs(text: str) -> list[tuple[str, list[tuple[str, str]]]]:
-    """Every `pub struct` in `payload.rs` with its public fields."""
+    """Every `pub struct` in `messages.rs` with its public fields."""
     out = []
     for match in re.finditer(r"pub struct (\w+)\s*\{([^}]*)\}", text):
         name = match.group(1)
@@ -77,21 +68,74 @@ def payload_structs(text: str) -> list[tuple[str, list[tuple[str, str]]]]:
     return out
 
 
+def event_variants(text: str) -> list[tuple[str, str]]:
+    """`[(Name, Payload), …]` from `pub enum Event`.
+
+    Tuple variants only, no attributes we cannot mirror. Anything else in the
+    body is a schema the mirror cannot represent, so it is an error rather than
+    a silent skip.
+    """
+    match = re.search(r"pub enum Event \{(?P<body>.*?)\n\}", text, re.S)
+    if not match:
+        raise SystemExit(f"enum Event not found in {EVENTS.name}")
+    body = match.group("body")
+    if not body.strip():
+        raise SystemExit("enum Event is empty")
+    variants = []
+    for line in body.splitlines():
+        if not line.strip() or line.strip().startswith(ALLOWED_NON_VARIANT):
+            continue
+        found = TUPLE_VARIANT.match(line)
+        if not found:
+            raise SystemExit(f"unsupported declaration in enum Event: {line.strip()!r}")
+        variants.append((found.group("name"), found.group("payload")))
+    if not variants:
+        raise SystemExit("enum Event has no tuple variants")
+    return variants
+
+
 def enum_variants(text: str, name: str) -> list[str]:
     match = re.search(rf"pub enum {name} \{{(.*?)\n\}}", text, re.S)
     if not match:
-        raise SystemExit(f"enum {name} not found in payload.rs")
+        raise SystemExit(f"enum {name} not found in {PAYLOAD.name}")
     return re.findall(r"^\s{4}([A-Z]\w*),", match.group(1), re.M)
 
 
-def main() -> None:
-    events_src = EVENTS.read_text()
-    payload_src = PAYLOAD.read_text()
+def mirror(name: str, fields: list[tuple[str, str]]) -> list[str]:
+    lines = [f"#[flutter_rust_bridge::frb(mirror({name}))]"]
+    if fields:
+        lines.append(f"pub struct _{name} {{")
+        lines.extend(f"    pub {ident}: {ty}," for ident, ty in fields)
+        lines.append("}")
+    else:
+        lines.append(f"pub struct _{name} {{}}")
+    return lines
 
-    payloads = payload_structs(payload_src) + payload_structs(LIBRARY.read_text())
-    rows = event_rows(events_src)
-    if not rows:
-        raise SystemExit("no event rows parsed; the table format changed")
+
+def generate() -> str:
+    payload_src = PAYLOAD.read_text()
+    # Shared data types first (payload/library), then every bus message: a field
+    # whose type is not mirrored makes its own mirror opaque, so the data types a
+    # message refers to must be mirrors too.
+    payloads = (
+        payload_structs(payload_src)
+        + payload_structs(LIBRARY.read_text())
+        + payload_structs(MESSAGES.read_text())
+    )
+    variants = event_variants(EVENTS.read_text())
+    if not payloads:
+        raise SystemExit(f"no payload structs parsed from {MESSAGES.name}")
+
+    structs = {name: fields for name, fields in payloads}
+    seen: dict[str, str] = {}
+    for name, payload in variants:
+        if name != payload:
+            raise SystemExit(f"event {name} wraps {payload}: name and payload differ")
+        if payload not in structs:
+            raise SystemExit(f"event {name} wraps unknown payload {payload}")
+        if name in seen:
+            raise SystemExit(f"event {name} is mirrored twice")
+        seen[name] = payload
 
     lines = [
         "//! Generated by `scripts/gen-event-mirrors.py` — do not edit by hand.",
@@ -107,30 +151,13 @@ def main() -> None:
 
     # Data types first: the event mirror refers to them.
     for name, fields in payloads:
-        lines.append(f"#[flutter_rust_bridge::frb(mirror({name}))]")
-        if fields:
-            lines.append(f"pub struct _{name} {{")
-            for ident, ty in fields:
-                lines.append(f"    pub {ident}: {ty},")
-            lines.append("}")
-        else:
-            lines.append(f"pub struct _{name} {{}}")
+        lines.extend(mirror(name, fields))
         lines.append("")
 
-    for enum_name in [
-        "EqBand",
-        "FxKind",
-        "JogMode",
-        "PadMode",
-        "SyncMode",
-        "CurveSegmentKind",
-    ]:
-        variants = enum_variants(payload_src, enum_name)
-        lines.append(
-            f"#[flutter_rust_bridge::frb(mirror({enum_name}))]"
-        )
+    for enum_name in PAYLOAD_ENUMS:
+        lines.append(f"#[flutter_rust_bridge::frb(mirror({enum_name}))]")
         lines.append(f"pub enum _{enum_name} {{")
-        lines.extend(f"    {variant}," for variant in variants)
+        lines.extend(f"    {variant}," for variant in enum_variants(payload_src, enum_name))
         lines.append("}")
         lines.append("")
 
@@ -140,34 +167,37 @@ def main() -> None:
     lines.append("}")
     lines.append("")
 
-    for name, fields in rows:
-        lines.append(f"#[flutter_rust_bridge::frb(mirror({name}))]")
-        if fields:
-            lines.append(f"pub struct _{name} {{")
-            for ident, ty in fields:
-                lines.append(f"    pub {ident}: {ty},")
-            lines.append("}")
-        else:
-            lines.append(f"pub struct _{name} {{}}")
-        lines.append("")
-
     lines.append("#[flutter_rust_bridge::frb(mirror(Event))]")
     lines.append("pub enum _Event {")
-    for name, _ in rows:
-        lines.append(f"    {name}({name}),")
+    lines.extend(f"    {name}({payload})," for name, payload in variants)
     lines.append("}")
     lines.append("")
+    return "\n".join(lines)
 
-    lines.append("#[flutter_rust_bridge::frb(mirror(Topic))]")
-    lines.append("pub enum _Topic {")
-    for name, _ in rows:
-        lines.append(f"    {name},")
-    lines.append("}")
-    lines.append("")
 
-    OUT.write_text("\n".join(lines))
-    print(f"wrote {OUT.relative_to(CRATES)} — {len(rows)} events, {len(payloads)} payload types")
+def display(path: Path) -> str:
+    """A stable name for logs, even for a path outside the repository."""
+    try:
+        return str(path.relative_to(CRATES))
+    except ValueError:
+        return str(path)
+
+
+def main(argv: list[str]) -> int:
+    check = "--check" in argv[1:]
+    text = generate()
+    variant_count = len(event_variants(EVENTS.read_text()))
+    if check:
+        current = OUT.read_text() if OUT.exists() else ""
+        if current != text:
+            print(f"{display(OUT)} is stale; run gen-event-mirrors.py", file=sys.stderr)
+            return 1
+        print(f"{display(OUT)} is up to date — {variant_count} events")
+        return 0
+    OUT.write_text(text)
+    print(f"wrote {display(OUT)} — {variant_count} events")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main(sys.argv))

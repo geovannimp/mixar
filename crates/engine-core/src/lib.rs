@@ -36,7 +36,7 @@ pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{CrossfaderCurveBehavior, ResolvedCrossfaderCurve};
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
-pub use bus::{new_event_bus, CMD_CAPACITY, EVT_CAPACITY};
+pub use bus::new_event_bus;
 pub use channel_fader_curve::{
     linear_channel_fader_curve, resolve_channel_fader_curve, ChannelFaderCurveSelection,
     ResolvedChannelFaderCurve, CHANNEL_FADER_CHANNELS,
