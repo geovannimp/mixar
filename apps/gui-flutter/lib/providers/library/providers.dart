@@ -164,6 +164,13 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
   /// Membership set for O(1) patch vs structural decisions.
   Set<String> _trackIds = {};
 
+  /// Collection whose rows are in [state].
+  ///
+  /// A rebuild after a collection switch keeps the previous rows visible while
+  /// the new load is in flight, so [moveVisible] checks this id rather than
+  /// trusting the active collection alone.
+  String? _loadedCollectionId;
+
   void _setTrackIds(List<LibraryTrackSummary> tracks) {
     _trackIds = {for (final t in tracks) t.id};
   }
@@ -181,11 +188,13 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     _clearPendingBurst();
     final id = ref.watch(activeCollectionIdProvider);
     if (id == null) {
+      _loadedCollectionId = null;
       _setTrackIds(const []);
       return const [];
     }
     final transport = await ref.watch(libraryTransportProvider.future);
     final tracks = await transport.listCollectionEntries(collectionId: id);
+    _loadedCollectionId = id;
     _setTrackIds(tracks);
     return tracks;
   }
@@ -210,7 +219,10 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
   }) async {
     final collectionId = ref.read(activeCollectionIdProvider);
     final current = state.asData?.value;
-    if (collectionId == null || current == null) {
+    if (collectionId == null ||
+        current == null ||
+        _loadedCollectionId != collectionId) {
+      // The list still belongs to the collection switched away from.
       return;
     }
     final membership = _collectionEntryIds(current);

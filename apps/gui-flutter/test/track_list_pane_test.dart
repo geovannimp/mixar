@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -2336,6 +2338,74 @@ void main() {
       reason: 'the visible order must match what was persisted',
     );
   });
+
+  test(
+    'reorder is ignored while the rows still belong to another collection',
+    () async {
+      const first = LibraryCollectionSummary(
+        id: 'p1',
+        name: 'First',
+        kind: 'playlist',
+        sortable: true,
+        trackCount: 2,
+      );
+      const second = LibraryCollectionSummary(
+        id: 'p2',
+        name: 'Second',
+        kind: 'playlist',
+        sortable: true,
+        trackCount: 1,
+      );
+      final firstEntries = [
+        playlistEntry('a', 'Alpha'),
+        playlistEntry('b', 'Bravo'),
+      ];
+      final secondLoad = Completer<List<LibraryTrackSummary>>();
+      final transport =
+          FakeLibraryTransport(
+              collections: const [first, second],
+              entries: firstEntries,
+            )
+            ..listCollectionEntriesHandler = (collectionId) =>
+                collectionId == 'p2'
+                ? secondLoad.future
+                : Future.value(firstEntries);
+      final container = ProviderContainer(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [first, second]),
+          libraryTransportProvider.overrideWith((ref) async => transport),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(collectionsProvider.future);
+      await container.read(collectionTracksProvider.future);
+
+      container.read(selectedCollectionIdProvider.notifier).set('p2');
+      await pumpEventQueue();
+      // The previous collection's rows are still painted while p2 loads.
+      expect(
+        container.read(collectionTracksProvider).value?.first.entryId,
+        'entry-a',
+      );
+
+      await container
+          .read(collectionTracksProvider.notifier)
+          .moveVisible(visible: firstEntries, oldIndex: 0, newIndex: 1);
+
+      expect(
+        transport.updateCollectionEntriesCalls,
+        isEmpty,
+        reason: 'a stale list must not write the collection now selected',
+      );
+
+      secondLoad.complete([playlistEntry('c', 'Charlie')]);
+      await container.read(collectionTracksProvider.future);
+      expect(
+        container.read(collectionTracksProvider).value?.single.entryId,
+        'entry-c',
+      );
+    },
+  );
 
   testWidgets('dragging the grip moves the row and writes the new order', (
     tester,
