@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::HotCuePadPress;
 use bus_api::SaveDeckHotCue;
@@ -20,10 +21,11 @@ use library_core::AudioSource;
 use library_core::FileAudioSource;
 use library_core::Library;
 use library_core::TrackMetadata;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-fn recv_hot_cues(sub: &mut Subscriber<Event>, track_id: &str) -> Vec<bus_api::HotCue> {
+fn recv_hot_cues(sub: &mut Subscriber<Arc<Event>>, track_id: &str) -> Vec<bus_api::HotCue> {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -35,7 +37,7 @@ fn recv_hot_cues(sub: &mut Subscriber<Event>, track_id: &str) -> Vec<bus_api::Ho
             Err(error) => panic!("library evt bus: {error}"),
         };
         // The subscription is unfiltered, so match this track explicitly.
-        if let Event::HotCuesChanged(changed) = event {
+        if let Event::HotCuesChanged(changed) = Arc::unwrap_or_clone(event) {
             if changed.track_id == track_id {
                 return changed.hot_cues;
             }
@@ -76,24 +78,29 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
         tracks[0].id().clone()
     };
 
-    session
-        .with_engine(|engine| {
-            engine.load_track(
-                0,
-                AudioSource::File(FileAudioSource::new(
-                    track_id.clone(),
-                    wav.clone(),
-                    TrackMetadata {
-                        bpm: Some(120.0),
-                        ..Default::default()
-                    },
-                )),
-            )?;
-            engine.seek_deck(0, 620)?;
-            engine.save_deck_hot_cue(0, 0)?;
-            Ok(())
-        })
-        .expect("save without worker");
+    let save = session.with_engine(|engine| {
+        engine.load_track(
+            0,
+            AudioSource::File(FileAudioSource::new(
+                track_id.clone(),
+                wav.clone(),
+                TrackMetadata {
+                    bpm: Some(120.0),
+                    ..Default::default()
+                },
+            )),
+        )?;
+        engine.seek_deck(0, 620)?;
+        engine.save_deck_hot_cue(0, 0)
+    });
+    let error = save.expect_err("no library owner: the save must not be silently queued");
+    // The refused command comes back with its payload, so the test can assert on
+    // the typed reason instead of on message text.
+    let refusal = error
+        .downcast_ref::<event_bus::CommandPublishError<Command>>()
+        .unwrap_or_else(|| panic!("the refusal keeps its type: {error}"));
+    assert_eq!(refusal.reason, event_bus::BusError::NoCommandHandler);
+    assert!(matches!(refusal.command, Command::SaveTrackHotCue(_)));
 
     // Let the control thread tick (subscribed to library evt) with nothing to apply.
     std::thread::sleep(Duration::from_millis(80));
@@ -158,10 +165,10 @@ fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
         })
         .expect("load");
 
-    let mut rx = library_session.subscribe_evt().unwrap();
+    let mut rx = library_session.subscribe_evt("test").unwrap();
 
     session
-        .publish_cmd(Event::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 1 }))
+        .publish_cmd(Command::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 1 }))
         .expect("save");
 
     let hot_cues = recv_hot_cues(&mut rx, track_id.as_str());
@@ -218,11 +225,11 @@ fn hot_cue_pad_press_saves_then_triggers() {
         })
         .expect("load");
 
-    let mut rx = library_session.subscribe_evt().unwrap();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut rx = library_session.subscribe_evt("test").unwrap();
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+        .publish_cmd(Command::HotCuePadPress(HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: false,
@@ -268,7 +275,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
     }
 
     session
-        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+        .publish_cmd(Command::HotCuePadPress(HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: false,
@@ -283,7 +290,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
     assert!(update.playing);
 
     session
-        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+        .publish_cmd(Command::HotCuePadPress(HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: true,
@@ -343,9 +350,9 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         })
         .expect("load");
 
-    let mut rx = library_session.subscribe_evt().unwrap();
+    let mut rx = library_session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 0 }))
+        .publish_cmd(Command::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 0 }))
         .expect("save");
     let _ = recv_hot_cues(&mut rx, track_id.as_str());
     drop(session);
@@ -384,9 +391,9 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         })
         .expect("hydrated");
 
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
-        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+        .publish_cmd(Command::HotCuePadPress(HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: false,

@@ -8,6 +8,7 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
+use bus_api::Command;
 use bus_api::{Event, FxKind, FxSlotState, PadMode};
 use controller::{DeckFeedback, MappingSession, MidiOut, BLINK_HALF_PERIOD};
 
@@ -34,7 +35,7 @@ impl MidiOut for CaptureMidi {
 struct NullBus;
 
 impl controller::ActionPublish for NullBus {
-    fn publish_cmd(&mut self, _event: Event) {}
+    fn publish_cmd(&mut self, _command: Command) {}
     fn publish_evt(&mut self, _event: Event) {}
 }
 

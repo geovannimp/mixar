@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::SetMasterDeck;
 use bus_api::SetSpeed;
 use bus_api::SetTempoRange;
@@ -36,10 +36,10 @@ fn null_session_with_synced_decks() -> EngineSession {
 #[test]
 fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     let session = null_session_with_synced_decks();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::ToggleSync(ToggleSync {
+        .publish_cmd(Command::ToggleSync(ToggleSync {
             deck: 1,
             beat_sync: false,
         }))
@@ -61,10 +61,10 @@ fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
 #[test]
 fn master_speed_change_updates_synced_slave() {
     let session = null_session_with_synced_decks();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::ToggleSync(ToggleSync {
+        .publish_cmd(Command::ToggleSync(ToggleSync {
             deck: 1,
             beat_sync: false,
         }))
@@ -72,7 +72,7 @@ fn master_speed_change_updates_synced_slave() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::SetSpeed(SetSpeed {
+        .publish_cmd(Command::SetSpeed(SetSpeed {
             deck: 0,
             // Slower than unity: norm 0.8 with the default ±6% → ratio
             // 1 + (0.5 − 0.8)·0.12 = 0.964.
@@ -98,10 +98,10 @@ fn master_speed_change_updates_synced_slave() {
 #[test]
 fn tempo_sync_stays_locked_across_tempo_range_changes() {
     let session = null_session_with_synced_decks();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::ToggleSync(ToggleSync {
+        .publish_cmd(Command::ToggleSync(ToggleSync {
             deck: 1,
             beat_sync: false,
         }))
@@ -112,7 +112,7 @@ fn tempo_sync_stays_locked_across_tempo_range_changes() {
     // needed to mirror the master.
     for range in [0.06_f32, 0.10, 0.25] {
         session
-            .publish_cmd(Event::SetTempoRange(SetTempoRange {
+            .publish_cmd(Command::SetTempoRange(SetTempoRange {
                 deck: 1,
                 tempo_range: range,
             }))
@@ -127,7 +127,7 @@ fn tempo_sync_stays_locked_across_tempo_range_changes() {
 
     // The master's span does change its effective tempo; the slave follows it.
     session
-        .publish_cmd(Event::SetSpeed(SetSpeed {
+        .publish_cmd(Command::SetSpeed(SetSpeed {
             deck: 0,
             speed: 0.0,
             soft_takeover: false,
@@ -142,7 +142,7 @@ fn tempo_sync_stays_locked_across_tempo_range_changes() {
     );
 
     session
-        .publish_cmd(Event::SetTempoRange(SetTempoRange {
+        .publish_cmd(Command::SetTempoRange(SetTempoRange {
             deck: 0,
             tempo_range: 0.10,
         }))
@@ -159,10 +159,10 @@ fn tempo_sync_stays_locked_across_tempo_range_changes() {
 #[test]
 fn set_master_deck_publishes_status_with_master_deck() {
     let session = null_session_with_synced_decks();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetMasterDeck(SetMasterDeck { deck: 1 }))
+        .publish_cmd(Command::SetMasterDeck(SetMasterDeck { deck: 1 }))
         .expect("master");
 
     let snapshot = recv_snapshot(&mut evt);

@@ -1,6 +1,7 @@
 //! LibrarySession deck performance cmds → per-track change evts.
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::SaveBeatGrid;
 use bus_api::SaveTrackHotCue;
@@ -54,9 +55,9 @@ fn save_hot_cue_cmd_emits_hot_cues_changed_for_track() {
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = import_one_track(&session, dir.path());
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveTrackHotCue(SaveTrackHotCue {
+        .publish_cmd(Command::SaveTrackHotCue(SaveTrackHotCue {
             track_id: track_id.clone(),
             slot: 3,
             position_ms: 12_500,
@@ -70,7 +71,7 @@ fn save_hot_cue_cmd_emits_hot_cues_changed_for_track() {
         .recv_timeout(Duration::from_secs(5))
         .expect("evt bus alive")
         .expect("HotCuesChanged evt");
-    match event {
+    match event.as_ref() {
         Event::HotCuesChanged(changed) => {
             assert_eq!(changed.track_id, track_id);
             assert_eq!(changed.hot_cues.len(), 1);
@@ -90,9 +91,9 @@ fn save_loop_cmd_emits_loops_changed_for_track() {
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = import_one_track(&session, dir.path());
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+        .publish_cmd(Command::SaveTrackLoop(SaveTrackLoop {
             track_id: track_id.clone(),
             slot: 1,
             in_ms: 1000,
@@ -106,7 +107,7 @@ fn save_loop_cmd_emits_loops_changed_for_track() {
         .recv_timeout(Duration::from_secs(5))
         .expect("evt bus alive")
         .expect("LoopsChanged evt");
-    match event {
+    match event.as_ref() {
         Event::LoopsChanged(changed) => {
             assert_eq!(changed.track_id, track_id);
             assert_eq!(changed.loops.len(), 1);
@@ -127,9 +128,9 @@ fn save_beat_grid_cmd_emits_beat_grid_changed_for_track() {
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = import_one_track(&session, dir.path());
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveBeatGrid(SaveBeatGrid {
+        .publish_cmd(Command::SaveBeatGrid(SaveBeatGrid {
             track_id: track_id.clone(),
             bpm: 128.0,
             first_beat_secs: 0.5,
@@ -141,7 +142,7 @@ fn save_beat_grid_cmd_emits_beat_grid_changed_for_track() {
         .recv_timeout(Duration::from_secs(5))
         .expect("evt bus alive")
         .expect("BeatGridChanged evt");
-    match event {
+    match event.as_ref() {
         Event::BeatGridChanged(changed) => {
             assert_eq!(changed.track_id, track_id);
             let segment = changed.beat_grid.segments.first().expect("segment");
@@ -161,9 +162,9 @@ fn auto_loop_cmd_allocates_and_emits_loops_changed() {
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = import_one_track(&session, dir.path());
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+        .publish_cmd(Command::SaveTrackLoop(SaveTrackLoop {
             track_id: track_id.clone(),
             slot: AUTO_LOOP_SLOT,
             in_ms: 1000,
@@ -177,7 +178,7 @@ fn auto_loop_cmd_allocates_and_emits_loops_changed() {
         .recv_timeout(Duration::from_secs(5))
         .expect("evt bus alive")
         .expect("LoopsChanged evt");
-    match event {
+    match event.as_ref() {
         Event::LoopsChanged(changed) => {
             assert_eq!(changed.track_id, track_id);
             assert_eq!(changed.loops.len(), 1);
@@ -197,11 +198,11 @@ fn auto_loop_cmd_updates_overlapping_auto_loop() {
 
     let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = import_one_track(&session, dir.path());
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
 
     for out_ms in [3000, 5000] {
         session
-            .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+            .publish_cmd(Command::SaveTrackLoop(SaveTrackLoop {
                 track_id: track_id.clone(),
                 slot: AUTO_LOOP_SLOT,
                 in_ms: 1000,
@@ -214,7 +215,7 @@ fn auto_loop_cmd_updates_overlapping_auto_loop() {
             .recv_timeout(Duration::from_secs(5))
             .expect("evt bus alive")
             .expect("LoopsChanged evt");
-        match event {
+        match event.as_ref() {
             Event::LoopsChanged(changed) => {
                 assert_eq!(changed.loops.len(), 1);
                 assert_eq!(changed.loops[0].slot, 0);
@@ -248,9 +249,9 @@ fn auto_loop_cmd_does_not_touch_imported_loop() {
             .unwrap();
     }
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+        .publish_cmd(Command::SaveTrackLoop(SaveTrackLoop {
             track_id: track_id.clone(),
             slot: AUTO_LOOP_SLOT,
             in_ms: 1000,
@@ -264,7 +265,7 @@ fn auto_loop_cmd_does_not_touch_imported_loop() {
         .recv_timeout(Duration::from_secs(5))
         .expect("evt bus alive")
         .expect("LoopsChanged evt");
-    match event {
+    match event.as_ref() {
         Event::LoopsChanged(changed) => {
             assert_eq!(changed.loops.len(), 2);
             let imported = changed.loops.iter().find(|loop_| loop_.slot == 0).unwrap();

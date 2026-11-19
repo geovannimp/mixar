@@ -1,8 +1,8 @@
 use crate::sync::snap_ms;
 use anyhow::Result;
 use bus_api::BeatGrid;
+use bus_api::Command;
 use bus_api::DeleteTrackHotCue;
-use bus_api::Event;
 use bus_api::HotCue;
 use bus_api::SaveTrackCue;
 use bus_api::SaveTrackHotCue;
@@ -29,7 +29,7 @@ impl Engine {
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let position_ms = snap_ms(position_ms, bpm, first_beat_ms, quantize);
         // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
-        self.publish_library_cmd(Event::SaveTrackHotCue(SaveTrackHotCue {
+        self.publish_library_cmd(Command::SaveTrackHotCue(SaveTrackHotCue {
             track_id: track_id.as_str().to_string(),
             slot,
             position_ms,
@@ -57,7 +57,7 @@ impl Engine {
         if self.library_cmd.is_none() {
             return Ok(());
         }
-        self.publish_library_cmd(Event::SaveTrackCue(SaveTrackCue {
+        self.publish_library_cmd(Command::SaveTrackCue(SaveTrackCue {
             track_id: track_id.as_str().to_string(),
             position_ms: cue_ms,
         }))
@@ -77,7 +77,7 @@ impl Engine {
             .and_then(|c| c.track_id.clone())
             .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
         // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
-        self.publish_library_cmd(Event::DeleteTrackHotCue(DeleteTrackHotCue {
+        self.publish_library_cmd(Command::DeleteTrackHotCue(DeleteTrackHotCue {
             track_id: track_id.as_str().to_string(),
             slot,
         }))?;
@@ -97,7 +97,7 @@ impl Engine {
         if self.library_cmd.is_none() {
             return Ok(());
         }
-        self.publish_library_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+        self.publish_library_cmd(Command::SaveTrackLoop(SaveTrackLoop {
             track_id: track_id.as_str().to_string(),
             slot: AUTO_LOOP_SLOT,
             in_ms,
@@ -203,12 +203,13 @@ impl Engine {
         changed
     }
 
-    fn publish_library_cmd(&self, event: Event) -> Result<()> {
+    fn publish_library_cmd(&self, command: Command) -> Result<()> {
         let bus = self.library_cmd.as_ref().ok_or_else(|| {
             anyhow::anyhow!("Engine has no library cmd bus for deck performance persistence")
         })?;
-        bus.publish_cmd(event)
-            .map_err(|e| anyhow::anyhow!("library cmd publish: {e}"))?;
+        // Keep the typed refusal (and the unsent command) instead of formatting
+        // it away: a caller can inspect the reason and retry with the payload.
+        bus.publish_cmd(command).map_err(anyhow::Error::new)?;
         Ok(())
     }
 }

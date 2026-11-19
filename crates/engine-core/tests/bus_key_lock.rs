@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::SetKeyLock;
 use common::recv_updated;
 use common::short_tone_fixture;
@@ -42,10 +42,10 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_key_lock_publishes_enabled_flag() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetKeyLock(SetKeyLock {
+        .publish_cmd(Command::SetKeyLock(SetKeyLock {
             deck: 0,
             enabled: true,
         }))
@@ -56,7 +56,7 @@ fn set_key_lock_publishes_enabled_flag() {
     assert!(update.key_lock);
 
     session
-        .publish_cmd(Event::SetKeyLock(SetKeyLock {
+        .publish_cmd(Command::SetKeyLock(SetKeyLock {
             deck: 0,
             enabled: false,
         }))

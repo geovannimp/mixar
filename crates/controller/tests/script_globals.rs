@@ -3,12 +3,13 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::collections::HashSet;
 
+use bus_api::Command;
 use controller::script::{ScriptHost, ScriptRuntime};
 use controller::{ActionPublish, MidiOut};
 
 struct CaptureBus;
 impl ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_cmd(&mut self, _command: Command) {}
     fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 

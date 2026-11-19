@@ -4,10 +4,20 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Typed event bus with per-subscriber merge policies for Mixar"
+description = "Owned typed command/event lanes with lossless fan-out for Mixar"
 
 [dependencies]
-omnibus = "0.1"
+crossbeam-channel = "0.5.17"
+
+[dev-dependencies]
+# Benchmark baseline only: the transport this crate replaced. Never a
+# production dependency.
+criterion.workspace = true
+omnibus = "=0.1.0"
+
+[[bench]]
+name = "fanout"
+harness = false
 
 [lints]
 workspace = true

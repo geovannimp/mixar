@@ -15,6 +15,7 @@ use crate::error::{LoadError, RuntimeError};
 use crate::map_file::MapFile;
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::{FxSlotState, PadMode};
 
@@ -361,6 +362,8 @@ pub struct ControllerEngine {
     /// Snapshot of unmatched mapped ports — no MIDI I/O to read.
     pending_offers_cache: Vec<Event>,
     events: VecDeque<Event>,
+    /// Commands the controller itself decided to send (never egress events).
+    commands: VecDeque<Command>,
     midi_tx: Sender<(String, Vec<u8>)>,
     midi_rx: Receiver<(String, Vec<u8>)>,
     /// Enumeration-only midir clients (never `connect`ed). Lazy so seed/open works without ALSA.
@@ -402,6 +405,7 @@ impl ControllerEngine {
             suppressed_ports: HashSet::new(),
             pending_offers_cache: Vec::new(),
             events: VecDeque::new(),
+            commands: VecDeque::new(),
             midi_tx,
             midi_rx,
             enum_in: None,
@@ -739,6 +743,11 @@ impl ControllerEngine {
         self.events.drain(..).collect()
     }
 
+    /// Commands this engine decided to send; the host publishes them on the cmd lane.
+    pub fn take_commands(&mut self) -> Vec<Command> {
+        self.commands.drain(..).collect()
+    }
+
     /// Cached unmatched mapped ports — no MIDI I/O (safe for FE hydrate).
     pub fn pending_offers(&self) -> Vec<Event> {
         self.pending_offers_cache.clone()
@@ -891,8 +900,8 @@ impl ControllerEngine {
                 port_name,
             }));
         for deck in native_fader_decks {
-            self.events
-                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+            self.commands
+                .push_back(Command::SetFaderStartNative(bus_api::SetFaderStartNative {
                     deck,
                     native: true,
                 }));
@@ -959,8 +968,8 @@ impl ControllerEngine {
                 .map(|a| a.native_fader_decks.as_slice()),
         );
         for deck in released {
-            self.events
-                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+            self.commands
+                .push_back(Command::SetFaderStartNative(bus_api::SetFaderStartNative {
                     deck,
                     native: false,
                 }));
@@ -1193,7 +1202,7 @@ impl ControllerEngine {
 struct NullPublish;
 
 impl ActionPublish for NullPublish {
-    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_cmd(&mut self, _command: bus_api::Command) {}
     fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 

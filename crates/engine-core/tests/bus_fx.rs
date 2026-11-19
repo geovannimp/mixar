@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::DeckUpdated;
 use bus_api::Event;
 use bus_api::FxKind;
@@ -51,20 +52,20 @@ fn expect_error_contains(evt: &mut TestReceiver, needle: &str) {
     );
 }
 
-fn publish(session: &EngineSession, event: Event) {
+fn publish(session: &EngineSession, event: Command) {
     session.publish_cmd(event).expect("publish");
 }
 
 #[test]
 fn set_fx_unit_slot_publishes_the_kind_for_every_deck() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Reverb differs from the slot's loaded default (Echo), so this proves the
     // command reached the unit instead of restating the initial state.
     publish(
         &session,
-        Event::SetFxUnitSlot(SetFxUnitSlot {
+        Command::SetFxUnitSlot(SetFxUnitSlot {
             slot: 0,
             kind: FxKind::Reverb,
         }),
@@ -87,13 +88,13 @@ fn set_fx_unit_slot_publishes_the_kind_for_every_deck() {
 #[test]
 fn fresh_unit_carries_echo_unarmed() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // A deck-scoped command republishes that deck without touching the FX config,
     // which is the state the bar renders before its first interaction.
     publish(
         &session,
-        Event::SetDeckFxRouted(SetDeckFxRouted {
+        Command::SetDeckFxRouted(SetDeckFxRouted {
             deck: 0,
             routed: false,
         }),
@@ -111,11 +112,11 @@ fn fresh_unit_carries_echo_unarmed() {
 #[test]
 fn set_fx_unit_wet_and_param_reach_every_deck() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetFxUnitSlot(SetFxUnitSlot {
+        Command::SetFxUnitSlot(SetFxUnitSlot {
             slot: 1,
             kind: FxKind::Reverb,
         }),
@@ -125,7 +126,7 @@ fn set_fx_unit_wet_and_param_reach_every_deck() {
 
     publish(
         &session,
-        Event::SetFxUnitWet(SetFxUnitWet {
+        Command::SetFxUnitWet(SetFxUnitWet {
             slot: 1,
             wet: 0.75,
             soft_takeover: false,
@@ -136,7 +137,7 @@ fn set_fx_unit_wet_and_param_reach_every_deck() {
 
     publish(
         &session,
-        Event::SetFxUnitParam(SetFxUnitParam {
+        Command::SetFxUnitParam(SetFxUnitParam {
             slot: 1,
             param: 0,
             value: 0.9,
@@ -158,11 +159,11 @@ fn set_fx_unit_wet_and_param_reach_every_deck() {
 #[test]
 fn set_deck_fx_routed_publishes_deck_only() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetDeckFxRouted(SetDeckFxRouted {
+        Command::SetDeckFxRouted(SetDeckFxRouted {
             deck: 1,
             routed: true,
         }),
@@ -176,7 +177,7 @@ fn set_deck_fx_routed_publishes_deck_only() {
     // Deck 0 keeps its own routing state.
     publish(
         &session,
-        Event::SetDeckFxRouted(SetDeckFxRouted {
+        Command::SetDeckFxRouted(SetDeckFxRouted {
             deck: 0,
             routed: false,
         }),
@@ -188,12 +189,12 @@ fn set_deck_fx_routed_publishes_deck_only() {
 #[test]
 fn set_fx_unit_param_rejects_out_of_range() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Slot 0's effect exposes two knobs, so index 2 is out of range.
     publish(
         &session,
-        Event::SetFxUnitParam(SetFxUnitParam {
+        Command::SetFxUnitParam(SetFxUnitParam {
             slot: 0,
             param: 2,
             value: 0.5,
@@ -206,11 +207,11 @@ fn set_fx_unit_param_rejects_out_of_range() {
 #[test]
 fn set_fx_unit_slot_rejects_out_of_range_slot() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
+        Command::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
             slot: 3,
             enabled: true,
         }),
@@ -225,7 +226,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     use std::time::Instant;
 
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     let wet = |session: &EngineSession| {
         session
             .with_engine(|engine| Ok(engine.fx_unit_wet(0)))
@@ -236,7 +237,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     // Never-seen latch: the first soft-takeover value is adopted (controller dumps).
     publish(
         &session,
-        Event::SetFxUnitWet(SetFxUnitWet {
+        Command::SetFxUnitWet(SetFxUnitWet {
             slot: 0,
             wet: 0.9,
             soft_takeover: true,
@@ -253,7 +254,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     // A host hard set clears the latch and moves the unit.
     publish(
         &session,
-        Event::SetFxUnitWet(SetFxUnitWet {
+        Command::SetFxUnitWet(SetFxUnitWet {
             slot: 0,
             wet: 0.0,
             soft_takeover: false,
@@ -266,7 +267,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     // A far-away knob move is swallowed: no DeckUpdated and no state change.
     publish(
         &session,
-        Event::SetFxUnitWet(SetFxUnitWet {
+        Command::SetFxUnitWet(SetFxUnitWet {
             slot: 0,
             wet: 0.9,
             soft_takeover: true,
@@ -276,7 +277,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     while Instant::now() < deadline {
         if let Some(event) = evt.recv_timeout(Duration::from_millis(50)).expect("recv") {
             assert!(
-                !matches!(event, Event::DeckUpdated(_)),
+                !matches!(event.as_ref(), Event::DeckUpdated(_)),
                 "blocked wet must stay silent"
             );
         }
@@ -290,7 +291,7 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     // Within the catch threshold the knob takes over and latches.
     publish(
         &session,
-        Event::SetFxUnitWet(SetFxUnitWet {
+        Command::SetFxUnitWet(SetFxUnitWet {
             slot: 0,
             wet: 0.02,
             soft_takeover: true,
@@ -303,11 +304,11 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
 #[test]
 fn set_fx_level_curve_reports_unknown_ids_and_keeps_linear() {
     let session = null_session();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetFxLevelCurve(SetFxLevelCurve {
+        Command::SetFxLevelCurve(SetFxLevelCurve {
             id: "missing".into(),
         }),
     );

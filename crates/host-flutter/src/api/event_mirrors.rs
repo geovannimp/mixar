@@ -245,60 +245,6 @@ pub struct _SavedLoop {
     pub color: Option<String>,
 }
 
-#[flutter_rust_bridge::frb(mirror(EqBand))]
-pub enum _EqBand {
-    Low,
-    Mid,
-    High,
-}
-
-#[flutter_rust_bridge::frb(mirror(FxKind))]
-pub enum _FxKind {
-    Off,
-    Echo,
-    Reverb,
-}
-
-#[flutter_rust_bridge::frb(mirror(JogMode))]
-pub enum _JogMode {
-    Vinyl,
-    PitchBend,
-    Ignore,
-}
-
-#[flutter_rust_bridge::frb(mirror(PadMode))]
-pub enum _PadMode {
-    HotCue,
-    LoopRoll,
-    BeatJump,
-    Sampler,
-    Stems,
-    Keyboard,
-    KeyShift,
-}
-
-#[flutter_rust_bridge::frb(mirror(SyncMode))]
-pub enum _SyncMode {
-    Off,
-    Tempo,
-    Beat,
-}
-
-#[flutter_rust_bridge::frb(mirror(CurveSegmentKind))]
-pub enum _CurveSegmentKind {
-    Linear,
-    Exponential,
-    Logarithmic,
-    CubicBezier,
-}
-
-#[flutter_rust_bridge::frb(mirror(CrossfaderAssign))]
-pub enum _CrossfaderAssign {
-    A,
-    Thru,
-    B,
-}
-
 #[flutter_rust_bridge::frb(mirror(Play))]
 pub struct _Play {
     pub deck: u16,
@@ -486,9 +432,6 @@ pub struct _FaderStop {
 #[flutter_rust_bridge::frb(mirror(SetFaderStartNative))]
 pub struct _SetFaderStartNative {
     pub deck: u16,
-    /// True while a controller mapping owns this deck's native fader-start
-    /// events, suppressing the software volume-threshold trigger. False restores
-    /// software threshold handling; it does not enable or disable the feature.
     pub native: bool,
 }
 
@@ -1036,108 +979,68 @@ pub struct _MappingDetached {
     pub port_name: String,
 }
 
+#[flutter_rust_bridge::frb(mirror(EqBand))]
+pub enum _EqBand {
+    Low,
+    Mid,
+    High,
+}
+
+#[flutter_rust_bridge::frb(mirror(FxKind))]
+pub enum _FxKind {
+    Off,
+    Echo,
+    Reverb,
+}
+
+#[flutter_rust_bridge::frb(mirror(JogMode))]
+pub enum _JogMode {
+    Vinyl,
+    PitchBend,
+    Ignore,
+}
+
+#[flutter_rust_bridge::frb(mirror(PadMode))]
+pub enum _PadMode {
+    HotCue,
+    LoopRoll,
+    BeatJump,
+    Sampler,
+    Stems,
+    Keyboard,
+    KeyShift,
+}
+
+#[flutter_rust_bridge::frb(mirror(SyncMode))]
+pub enum _SyncMode {
+    Off,
+    Tempo,
+    Beat,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveSegmentKind))]
+pub enum _CurveSegmentKind {
+    Linear,
+    Exponential,
+    Logarithmic,
+    CubicBezier,
+}
+
+#[flutter_rust_bridge::frb(mirror(CrossfaderAssign))]
+pub enum _CrossfaderAssign {
+    A,
+    Thru,
+    B,
+}
+
 #[flutter_rust_bridge::frb(mirror(Event))]
 pub enum _Event {
-    Play(Play),
-    Pause(Pause),
-    TogglePlay(TogglePlay),
-    Seek(Seek),
-    Unload(Unload),
-    SetVolume(SetVolume),
-    SetEq(SetEq),
-    SetEqBand(SetEqBand),
-    SetStemEqBand(SetStemEqBand),
-    SetStemEqEnabled(SetStemEqEnabled),
-    ToggleStemEq(ToggleStemEq),
-    SetFilter(SetFilter),
-    SetGainTrim(SetGainTrim),
-    SetHeadphoneCue(SetHeadphoneCue),
-    ToggleHeadphoneCue(ToggleHeadphoneCue),
-    SetCrossfaderAssign(SetCrossfaderAssign),
-    SetSpeed(SetSpeed),
-    SetTempoRange(SetTempoRange),
-    SetTempoCurve(SetTempoCurve),
-    SetKeyLock(SetKeyLock),
-    SetKeyShift(SetKeyShift),
-    SetKeyboardRoot(SetKeyboardRoot),
-    SetKeyboardPage(SetKeyboardPage),
-    SetKeyShiftPage(SetKeyShiftPage),
-    ToggleSync(ToggleSync),
-    SetMasterDeck(SetMasterDeck),
-    SetCuePoint(SetCuePoint),
-    BeginCueHold(BeginCueHold),
-    EndCueHold(EndCueHold),
-    FaderStart(FaderStart),
-    FaderStop(FaderStop),
-    SetFaderStartNative(SetFaderStartNative),
-    SetQuantize(SetQuantize),
-    ToggleQuantize(ToggleQuantize),
-    SetSlip(SetSlip),
-    ToggleSlip(ToggleSlip),
-    SetAutoLoop(SetAutoLoop),
-    LoopIn(LoopIn),
-    LoopOut(LoopOut),
-    ExitLoop(ExitLoop),
-    RecallSavedLoop(RecallSavedLoop),
-    BeginLoopRoll(BeginLoopRoll),
-    EndLoopRoll(EndLoopRoll),
-    BeatJump(BeatJump),
-    SetPadMode(SetPadMode),
-    PadPress(PadPress),
-    PadRelease(PadRelease),
-    HotCuePadPress(HotCuePadPress),
-    HotCuePadRelease(HotCuePadRelease),
-    LoopRollPadPress(LoopRollPadPress),
-    LoopRollPadRelease(LoopRollPadRelease),
-    BeatJumpPadPress(BeatJumpPadPress),
-    BeatJumpPadRelease(BeatJumpPadRelease),
-    SamplerPadPress(SamplerPadPress),
-    SamplerPadRelease(SamplerPadRelease),
-    KeyboardPadPress(KeyboardPadPress),
-    KeyboardPadRelease(KeyboardPadRelease),
-    KeyShiftPadPress(KeyShiftPadPress),
-    KeyShiftPadRelease(KeyShiftPadRelease),
-    TriggerHotCue(TriggerHotCue),
-    SaveDeckHotCue(SaveDeckHotCue),
-    DeleteDeckHotCue(DeleteDeckHotCue),
-    AssignSampler(AssignSampler),
-    AssignSamplerTrack(AssignSamplerTrack),
-    ClearSampler(ClearSampler),
-    JogTouch(JogTouch),
-    JogTurn(JogTurn),
-    SetJogMode(SetJogMode),
-    SetCrossfader(SetCrossfader),
-    SetMasterVolume(SetMasterVolume),
-    SetCueVolume(SetCueVolume),
-    SetCueMix(SetCueMix),
-    SetMasterCue(SetMasterCue),
-    ToggleMasterCue(ToggleMasterCue),
-    SetCurveLibrary(SetCurveLibrary),
-    SetCrossfaderCurve(SetCrossfaderCurve),
-    SetCrossfaderCurveAmount(SetCrossfaderCurveAmount),
-    SetCrossfaderBehavior(SetCrossfaderBehavior),
-    SetChannelFaderCurve(SetChannelFaderCurve),
-    SetFxUnitSlot(SetFxUnitSlot),
-    SetFxUnitSlotEnabled(SetFxUnitSlotEnabled),
-    SetFxUnitWet(SetFxUnitWet),
-    SetFxLevelCurve(SetFxLevelCurve),
-    SetFxUnitParam(SetFxUnitParam),
-    SetDeckFxRouted(SetDeckFxRouted),
     DeckUpdated(DeckUpdated),
     DeckPosition(DeckPosition),
     DeckLevels(DeckLevels),
     EngineSnapshot(EngineSnapshot),
     Error(Error),
     Notice(Notice),
-    AnalyzeTrack(AnalyzeTrack),
-    GenerateStems(GenerateStems),
-    RefreshTrack(RefreshTrack),
-    SaveBeatGrid(SaveBeatGrid),
-    SaveTrackCue(SaveTrackCue),
-    SaveTrackHotCue(SaveTrackHotCue),
-    DeleteTrackHotCue(DeleteTrackHotCue),
-    SaveTrackLoop(SaveTrackLoop),
-    DeleteTrackLoop(DeleteTrackLoop),
     TrackAnalyzed(TrackAnalyzed),
     TrackUpdated(TrackUpdated),
     TrackProgress(TrackProgress),
@@ -1151,121 +1054,4 @@ pub enum _Event {
     MappingOffer(MappingOffer),
     MappingAttached(MappingAttached),
     MappingDetached(MappingDetached),
-}
-
-#[flutter_rust_bridge::frb(mirror(Topic))]
-pub enum _Topic {
-    Play,
-    Pause,
-    TogglePlay,
-    Seek,
-    Unload,
-    SetVolume,
-    SetEq,
-    SetEqBand,
-    SetStemEqBand,
-    SetStemEqEnabled,
-    ToggleStemEq,
-    SetFilter,
-    SetGainTrim,
-    SetHeadphoneCue,
-    ToggleHeadphoneCue,
-    SetCrossfaderAssign,
-    SetSpeed,
-    SetTempoRange,
-    SetTempoCurve,
-    SetKeyLock,
-    SetKeyShift,
-    SetKeyboardRoot,
-    SetKeyboardPage,
-    SetKeyShiftPage,
-    ToggleSync,
-    SetMasterDeck,
-    SetCuePoint,
-    BeginCueHold,
-    EndCueHold,
-    FaderStart,
-    FaderStop,
-    SetFaderStartNative,
-    SetQuantize,
-    ToggleQuantize,
-    SetSlip,
-    ToggleSlip,
-    SetAutoLoop,
-    LoopIn,
-    LoopOut,
-    ExitLoop,
-    RecallSavedLoop,
-    BeginLoopRoll,
-    EndLoopRoll,
-    BeatJump,
-    SetPadMode,
-    PadPress,
-    PadRelease,
-    HotCuePadPress,
-    HotCuePadRelease,
-    LoopRollPadPress,
-    LoopRollPadRelease,
-    BeatJumpPadPress,
-    BeatJumpPadRelease,
-    SamplerPadPress,
-    SamplerPadRelease,
-    KeyboardPadPress,
-    KeyboardPadRelease,
-    KeyShiftPadPress,
-    KeyShiftPadRelease,
-    TriggerHotCue,
-    SaveDeckHotCue,
-    DeleteDeckHotCue,
-    AssignSampler,
-    AssignSamplerTrack,
-    ClearSampler,
-    JogTouch,
-    JogTurn,
-    SetJogMode,
-    SetCrossfader,
-    SetMasterVolume,
-    SetCueVolume,
-    SetCueMix,
-    SetMasterCue,
-    ToggleMasterCue,
-    SetCurveLibrary,
-    SetCrossfaderCurve,
-    SetCrossfaderCurveAmount,
-    SetCrossfaderBehavior,
-    SetChannelFaderCurve,
-    SetFxUnitSlot,
-    SetFxUnitSlotEnabled,
-    SetFxUnitWet,
-    SetFxLevelCurve,
-    SetFxUnitParam,
-    SetDeckFxRouted,
-    DeckUpdated,
-    DeckPosition,
-    DeckLevels,
-    EngineSnapshot,
-    Error,
-    Notice,
-    AnalyzeTrack,
-    GenerateStems,
-    RefreshTrack,
-    SaveBeatGrid,
-    SaveTrackCue,
-    SaveTrackHotCue,
-    DeleteTrackHotCue,
-    SaveTrackLoop,
-    DeleteTrackLoop,
-    TrackAnalyzed,
-    TrackUpdated,
-    TrackProgress,
-    HotCuesChanged,
-    LoopsChanged,
-    BeatGridChanged,
-    HistorySessionUpdated,
-    Navigate,
-    Focus,
-    Load,
-    MappingOffer,
-    MappingAttached,
-    MappingDetached,
 }

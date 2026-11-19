@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::SetSpeed;
 use bus_api::SetTempoCurve;
@@ -46,10 +47,10 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_tempo_range_keeps_speed_and_publishes_fraction() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetSpeed(SetSpeed {
+        .publish_cmd(Command::SetSpeed(SetSpeed {
             deck: 0,
             speed: 0.25,
             soft_takeover: false,
@@ -58,7 +59,7 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::SetTempoRange(SetTempoRange {
+        .publish_cmd(Command::SetTempoRange(SetTempoRange {
             deck: 0,
             tempo_range: 0.123,
         }))
@@ -77,10 +78,10 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
 #[test]
 fn set_tempo_curve_publishes_a_deck_update_and_notice_on_unknown() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetTempoCurve(SetTempoCurve {
+        .publish_cmd(Command::SetTempoCurve(SetTempoCurve {
             deck: 0,
             id: "linear".into(),
         }))
@@ -89,7 +90,7 @@ fn set_tempo_curve_publishes_a_deck_update_and_notice_on_unknown() {
     assert_eq!(update.deck, 0);
 
     session
-        .publish_cmd(Event::SetTempoCurve(SetTempoCurve {
+        .publish_cmd(Command::SetTempoCurve(SetTempoCurve {
             deck: 0,
             id: "missing".into(),
         }))
@@ -110,11 +111,11 @@ fn set_tempo_curve_publishes_a_deck_update_and_notice_on_unknown() {
 #[test]
 fn set_tempo_range_rejects_non_positive_and_non_finite() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     for bad in [0.0_f32, -0.06, f32::NAN, f32::INFINITY] {
         session
-            .publish_cmd(Event::SetTempoRange(SetTempoRange {
+            .publish_cmd(Command::SetTempoRange(SetTempoRange {
                 deck: 0,
                 tempo_range: bad,
             }))

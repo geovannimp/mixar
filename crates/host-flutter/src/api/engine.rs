@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use bus_api::BeatJumpPadPress;
 use bus_api::BeatJumpPadRelease;
 use bus_api::BeginCueHold;
+use bus_api::Command;
 pub use bus_api::CrossfaderAssign;
 use bus_api::DeckSnapshot;
 use bus_api::DeckUpdated;
@@ -211,7 +212,7 @@ pub struct EngineTransport {
     #[allow(dead_code)]
     worker: EngineWorker,
     engine: Arc<Mutex<Option<Engine>>>,
-    bus: EventBus<Event>,
+    bus: EventBus<Command, Event>,
     library: Arc<Mutex<LibraryManager>>,
     library_cmd_bus: library::LibraryBus,
     /// Ephemeral sampler pad chrome, stamped onto `DeckUpdated` by [`crate::api::bus`].
@@ -270,7 +271,7 @@ impl EngineTransport {
     /// `testing::start_engine` seam calls this, so the Dart bridge never
     /// exposes a backend selector.
     pub(crate) fn start_with(
-        bus: EventBus<Event>,
+        bus: EventBus<Command, Event>,
         chrome: DeckChrome,
         library_transport: &LibraryTransport,
         config: EngineConfig,
@@ -477,17 +478,17 @@ impl EngineTransport {
 
     /// Play a deck (cmd bus).
     pub fn play(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::Play(Play { deck: deck_id }))
+        self.publish_cmd(Command::Play(Play { deck: deck_id }))
     }
 
     /// Pause a deck (cmd bus).
     pub fn pause(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::Pause(Pause { deck: deck_id }))
+        self.publish_cmd(Command::Pause(Pause { deck: deck_id }))
     }
 
     /// Seek a deck to `position_ms` (cmd bus).
     pub fn seek(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_cmd(Event::Seek(Seek {
+        self.publish_cmd(Command::Seek(Seek {
             deck: deck_id,
             position_ms,
         }))
@@ -495,7 +496,7 @@ impl EngineTransport {
 
     /// Channel fader `0..1`.
     pub fn set_volume(&self, deck_id: u16, volume: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetVolume(SetVolume {
+        self.publish_cmd(Command::SetVolume(SetVolume {
             deck: deck_id,
             volume,
             soft_takeover: false,
@@ -504,7 +505,7 @@ impl EngineTransport {
 
     /// Single EQ band as `0..1` (center `0.5` = 0 dB).
     pub fn set_eq_band(&self, deck_id: u16, band: EqBand, gain: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetEqBand(SetEqBand {
+        self.publish_cmd(Command::SetEqBand(SetEqBand {
             deck: deck_id,
             band,
             gain,
@@ -514,7 +515,7 @@ impl EngineTransport {
 
     /// Filter knob `0..1`.
     pub fn set_filter(&self, deck_id: u16, filter: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetFilter(SetFilter {
+        self.publish_cmd(Command::SetFilter(SetFilter {
             deck: deck_id,
             filter,
             soft_takeover: false,
@@ -523,12 +524,12 @@ impl EngineTransport {
 
     /// FX unit slot `0..=2` effect selection; `off` clears the slot.
     pub fn set_fx_unit_slot(&self, slot: u8, kind: FxKind) -> Result<(), String> {
-        self.publish_cmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot, kind }))
+        self.publish_cmd(Command::SetFxUnitSlot(SetFxUnitSlot { slot, kind }))
     }
 
     /// FX unit slot on/off (wet/dry and knobs are kept).
     pub fn set_fx_unit_slot_enabled(&self, slot: u8, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
+        self.publish_cmd(Command::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
             slot,
             enabled,
         }))
@@ -536,7 +537,7 @@ impl EngineTransport {
 
     /// FX unit slot wet/dry `0..1`.
     pub fn set_fx_unit_wet(&self, slot: u8, wet: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetFxUnitWet(SetFxUnitWet {
+        self.publish_cmd(Command::SetFxUnitWet(SetFxUnitWet {
             slot,
             wet,
             soft_takeover: false,
@@ -545,12 +546,16 @@ impl EngineTransport {
 
     /// FX unit slot knob `param` `0..=2`, normalized `0..1`.
     pub fn set_fx_unit_param(&self, slot: u8, param: u8, value: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetFxUnitParam(SetFxUnitParam { slot, param, value }))
+        self.publish_cmd(Command::SetFxUnitParam(SetFxUnitParam {
+            slot,
+            param,
+            value,
+        }))
     }
 
     /// Route deck `deck_id` through the shared FX unit.
     pub fn set_deck_fx_routed(&self, deck_id: u16, routed: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetDeckFxRouted(SetDeckFxRouted {
+        self.publish_cmd(Command::SetDeckFxRouted(SetDeckFxRouted {
             deck: deck_id,
             routed,
         }))
@@ -558,7 +563,7 @@ impl EngineTransport {
 
     /// Gain trim knob `0..1`.
     pub fn set_gain_trim(&self, deck_id: u16, gain_trim: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetGainTrim(SetGainTrim {
+        self.publish_cmd(Command::SetGainTrim(SetGainTrim {
             deck: deck_id,
             gain_trim,
             soft_takeover: false,
@@ -567,7 +572,7 @@ impl EngineTransport {
 
     /// Per-deck headphone cue (PFL).
     pub fn set_headphone_cue(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetHeadphoneCue(SetHeadphoneCue {
+        self.publish_cmd(Command::SetHeadphoneCue(SetHeadphoneCue {
             deck: deck_id,
             enabled,
         }))
@@ -575,7 +580,7 @@ impl EngineTransport {
 
     /// Crossfader `0..1` (A … B).
     pub fn set_crossfader(&self, position: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetCrossfader(SetCrossfader {
+        self.publish_cmd(Command::SetCrossfader(SetCrossfader {
             position,
             soft_takeover: false,
         }))
@@ -587,7 +592,7 @@ impl EngineTransport {
         deck_id: u16,
         assignment: CrossfaderAssign,
     ) -> Result<(), String> {
-        self.publish_cmd(Event::SetCrossfaderAssign(SetCrossfaderAssign {
+        self.publish_cmd(Command::SetCrossfaderAssign(SetCrossfaderAssign {
             deck: deck_id,
             assignment,
         }))
@@ -595,7 +600,7 @@ impl EngineTransport {
 
     /// Select a crossfader preset, custom group, or curve set by canonical id.
     pub fn set_crossfader_curve(&self, id: String) -> Result<(), String> {
-        self.publish_cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve { id }))
+        self.publish_cmd(Command::SetCrossfaderCurve(SetCrossfaderCurve { id }))
     }
 
     /// Sweep the curve set `set` to morph `amount` (`0..1`).
@@ -605,16 +610,18 @@ impl EngineTransport {
         amount: f32,
         soft_takeover: bool,
     ) -> Result<(), String> {
-        self.publish_cmd(Event::SetCrossfaderCurveAmount(SetCrossfaderCurveAmount {
-            set,
-            amount,
-            soft_takeover,
-        }))
+        self.publish_cmd(Command::SetCrossfaderCurveAmount(
+            SetCrossfaderCurveAmount {
+                set,
+                amount,
+                soft_takeover,
+            },
+        ))
     }
 
     /// Set the hamster (A/B swap) and curve-bypass flags together.
     pub fn set_crossfader_behavior(&self, hamster: bool, disabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+        self.publish_cmd(Command::SetCrossfaderBehavior(SetCrossfaderBehavior {
             hamster,
             disabled,
         }))
@@ -622,12 +629,12 @@ impl EngineTransport {
 
     /// Replace the custom curve library (duplicate ids reject the update).
     pub fn set_curve_library(&self, library: bus_api::CurveLibrarySpec) -> Result<(), String> {
-        self.publish_cmd(Event::SetCurveLibrary(SetCurveLibrary { library }))
+        self.publish_cmd(Command::SetCurveLibrary(SetCurveLibrary { library }))
     }
 
     /// Master bus volume `0..1`.
     pub fn set_master_volume(&self, volume: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetMasterVolume(SetMasterVolume {
+        self.publish_cmd(Command::SetMasterVolume(SetMasterVolume {
             volume,
             soft_takeover: false,
         }))
@@ -635,7 +642,7 @@ impl EngineTransport {
 
     /// Cue/headphone bus volume `0..1`.
     pub fn set_cue_volume(&self, volume: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetCueVolume(SetCueVolume {
+        self.publish_cmd(Command::SetCueVolume(SetCueVolume {
             volume,
             soft_takeover: false,
         }))
@@ -643,7 +650,7 @@ impl EngineTransport {
 
     /// Cue/master headphone mix `0..1`.
     pub fn set_cue_mix(&self, mix: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetCueMix(SetCueMix {
+        self.publish_cmd(Command::SetCueMix(SetCueMix {
             mix,
             soft_takeover: false,
         }))
@@ -651,12 +658,12 @@ impl EngineTransport {
 
     /// Master cue (headphones hear master).
     pub fn set_master_cue(&self, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetMasterCue(SetMasterCue { enabled }))
+        self.publish_cmd(Command::SetMasterCue(SetMasterCue { enabled }))
     }
 
     /// Tempo fader position `0..1`.
     pub fn set_speed(&self, deck_id: u16, speed: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetSpeed(SetSpeed {
+        self.publish_cmd(Command::SetSpeed(SetSpeed {
             deck: deck_id,
             speed,
             soft_takeover: false,
@@ -665,7 +672,7 @@ impl EngineTransport {
 
     /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
     pub fn set_tempo_range(&self, deck_id: u16, tempo_range: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetTempoRange(SetTempoRange {
+        self.publish_cmd(Command::SetTempoRange(SetTempoRange {
             deck: deck_id,
             tempo_range,
         }))
@@ -673,7 +680,7 @@ impl EngineTransport {
 
     /// Key lock / master tempo (time-stretch; pitch held).
     pub fn set_key_lock(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetKeyLock(SetKeyLock {
+        self.publish_cmd(Command::SetKeyLock(SetKeyLock {
             deck: deck_id,
             enabled,
         }))
@@ -681,7 +688,7 @@ impl EngineTransport {
 
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub fn set_key_shift(&self, deck_id: u16, semitones: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetKeyShift(SetKeyShift {
+        self.publish_cmd(Command::SetKeyShift(SetKeyShift {
             deck: deck_id,
             semitones,
         }))
@@ -689,7 +696,7 @@ impl EngineTransport {
 
     /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
     pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::SetKeyboardRoot(SetKeyboardRoot {
+        self.publish_cmd(Command::SetKeyboardRoot(SetKeyboardRoot {
             deck: deck_id,
             slot,
         }))
@@ -697,7 +704,7 @@ impl EngineTransport {
 
     /// Select the Keyboard pad semitone page (1..=4).
     pub fn set_keyboard_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
-        self.publish_cmd(Event::SetKeyboardPage(SetKeyboardPage {
+        self.publish_cmd(Command::SetKeyboardPage(SetKeyboardPage {
             deck: deck_id,
             page,
         }))
@@ -705,21 +712,21 @@ impl EngineTransport {
 
     /// Select the Key Shift pad semitone page (1..=5).
     pub fn set_key_shift_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
-        self.publish_cmd(Event::SetKeyShiftPage(SetKeyShiftPage {
+        self.publish_cmd(Command::SetKeyShiftPage(SetKeyShiftPage {
             deck: deck_id,
             page,
         }))
     }
 
     pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
-        self.publish_cmd(Event::JogTouch(JogTouch {
+        self.publish_cmd(Command::JogTouch(JogTouch {
             deck: deck_id,
             touching,
         }))
     }
 
     pub fn jog_turn(&self, deck_id: u16, delta: i32) -> Result<(), String> {
-        self.publish_cmd(Event::JogTurn(JogTurn {
+        self.publish_cmd(Command::JogTurn(JogTurn {
             deck: deck_id,
             delta,
         }))
@@ -731,7 +738,7 @@ impl EngineTransport {
         top: JogModeSetting,
         outer: JogModeSetting,
     ) -> Result<(), String> {
-        self.publish_cmd(Event::SetJogMode(SetJogMode {
+        self.publish_cmd(Command::SetJogMode(SetJogMode {
             deck: deck_id,
             top: top.into(),
             outer: outer.into(),
@@ -739,26 +746,26 @@ impl EngineTransport {
     }
 
     pub fn set_cue_point(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::SetCuePoint(SetCuePoint { deck: deck_id }))
+        self.publish_cmd(Command::SetCuePoint(SetCuePoint { deck: deck_id }))
     }
 
     pub fn begin_cue_hold(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::BeginCueHold(BeginCueHold { deck: deck_id }))
+        self.publish_cmd(Command::BeginCueHold(BeginCueHold { deck: deck_id }))
     }
 
     pub fn end_cue_hold(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::EndCueHold(EndCueHold { deck: deck_id }))
+        self.publish_cmd(Command::EndCueHold(EndCueHold { deck: deck_id }))
     }
 
     pub fn set_quantize(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetQuantize(SetQuantize {
+        self.publish_cmd(Command::SetQuantize(SetQuantize {
             deck: deck_id,
             enabled,
         }))
     }
 
     pub fn set_slip(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetSlip(SetSlip {
+        self.publish_cmd(Command::SetSlip(SetSlip {
             deck: deck_id,
             enabled,
         }))
@@ -766,7 +773,7 @@ impl EngineTransport {
 
     /// Route this deck's EQ knobs to the stem EQ (deck header toggle).
     pub fn set_stem_eq_enabled(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
+        self.publish_cmd(Command::SetStemEqEnabled(SetStemEqEnabled {
             deck: deck_id,
             enabled,
         }))
@@ -804,36 +811,36 @@ impl EngineTransport {
         }
         // Drop the producer + its ring before the deck unload closes coverage.
         self.stop_live_producer(deck_id);
-        self.publish_cmd(Event::Unload(Unload { deck: deck_id }))
+        self.publish_cmd(Command::Unload(Unload { deck: deck_id }))
     }
 
     pub fn set_auto_loop(&self, deck_id: u16, beats: f32) -> Result<(), String> {
-        self.publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+        self.publish_cmd(Command::SetAutoLoop(SetAutoLoop {
             deck: deck_id,
             beats,
         }))
     }
 
     pub fn loop_in(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_cmd(Event::LoopIn(LoopIn {
+        self.publish_cmd(Command::LoopIn(LoopIn {
             deck: deck_id,
             position_ms,
         }))
     }
 
     pub fn loop_out(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_cmd(Event::LoopOut(LoopOut {
+        self.publish_cmd(Command::LoopOut(LoopOut {
             deck: deck_id,
             position_ms,
         }))
     }
 
     pub fn exit_loop(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::ExitLoop(ExitLoop { deck: deck_id }))
+        self.publish_cmd(Command::ExitLoop(ExitLoop { deck: deck_id }))
     }
 
     pub fn recall_saved_loop(&self, deck_id: u16, in_ms: i32, out_ms: i32) -> Result<(), String> {
-        self.publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+        self.publish_cmd(Command::RecallSavedLoop(RecallSavedLoop {
             deck: deck_id,
             in_ms,
             out_ms,
@@ -841,19 +848,19 @@ impl EngineTransport {
     }
 
     pub fn toggle_sync(&self, deck_id: u16, beat_sync: bool) -> Result<(), String> {
-        self.publish_cmd(Event::ToggleSync(ToggleSync {
+        self.publish_cmd(Command::ToggleSync(ToggleSync {
             deck: deck_id,
             beat_sync,
         }))
     }
 
     pub fn set_master_deck(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_cmd(Event::SetMasterDeck(SetMasterDeck { deck: deck_id }))
+        self.publish_cmd(Command::SetMasterDeck(SetMasterDeck { deck: deck_id }))
     }
 
     /// Per-deck pad mode.
     pub fn set_pad_mode(&self, deck_id: u16, mode: PadMode) -> Result<(), String> {
-        self.publish_cmd(Event::SetPadMode(SetPadMode {
+        self.publish_cmd(Command::SetPadMode(SetPadMode {
             deck: deck_id,
             mode,
         }))
@@ -861,7 +868,7 @@ impl EngineTransport {
 
     /// Stems / generic pad press (engine dispatches by current `pad_mode`).
     pub fn pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_cmd(Event::PadPress(PadPress {
+        self.publish_cmd(Command::PadPress(PadPress {
             deck: deck_id,
             slot,
             shift,
@@ -869,14 +876,14 @@ impl EngineTransport {
     }
 
     pub fn pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::PadRelease(PadRelease {
+        self.publish_cmd(Command::PadRelease(PadRelease {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn hot_cue_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+        self.publish_cmd(Command::HotCuePadPress(HotCuePadPress {
             deck: deck_id,
             slot,
             shift,
@@ -884,35 +891,35 @@ impl EngineTransport {
     }
 
     pub fn hot_cue_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::HotCuePadRelease(HotCuePadRelease {
+        self.publish_cmd(Command::HotCuePadRelease(HotCuePadRelease {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn loop_roll_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::LoopRollPadPress(LoopRollPadPress {
+        self.publish_cmd(Command::LoopRollPadPress(LoopRollPadPress {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn loop_roll_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+        self.publish_cmd(Command::LoopRollPadRelease(LoopRollPadRelease {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn beat_jump_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::BeatJumpPadPress(BeatJumpPadPress {
+        self.publish_cmd(Command::BeatJumpPadPress(BeatJumpPadPress {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn beat_jump_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::BeatJumpPadRelease(BeatJumpPadRelease {
+        self.publish_cmd(Command::BeatJumpPadRelease(BeatJumpPadRelease {
             deck: deck_id,
             slot,
         }))
@@ -920,7 +927,7 @@ impl EngineTransport {
 
     /// Keyboard pad press; `shift` plays the upper octave / accent.
     pub fn keyboard_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_cmd(Event::KeyboardPadPress(KeyboardPadPress {
+        self.publish_cmd(Command::KeyboardPadPress(KeyboardPadPress {
             deck: deck_id,
             slot,
             shift,
@@ -928,7 +935,7 @@ impl EngineTransport {
     }
 
     pub fn keyboard_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::KeyboardPadRelease(KeyboardPadRelease {
+        self.publish_cmd(Command::KeyboardPadRelease(KeyboardPadRelease {
             deck: deck_id,
             slot,
         }))
@@ -936,7 +943,7 @@ impl EngineTransport {
 
     /// Key Shift pad press; `shift` resets the deck to `0.0` semitones.
     pub fn key_shift_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_cmd(Event::KeyShiftPadPress(KeyShiftPadPress {
+        self.publish_cmd(Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: deck_id,
             slot,
             shift,
@@ -944,14 +951,14 @@ impl EngineTransport {
     }
 
     pub fn key_shift_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::KeyShiftPadRelease(KeyShiftPadRelease {
+        self.publish_cmd(Command::KeyShiftPadRelease(KeyShiftPadRelease {
             deck: deck_id,
             slot,
         }))
     }
 
     pub fn sampler_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+        self.publish_cmd(Command::SamplerPadPress(SamplerPadPress {
             deck: deck_id,
             slot,
             shift,
@@ -959,7 +966,7 @@ impl EngineTransport {
     }
 
     pub fn sampler_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+        self.publish_cmd(Command::SamplerPadRelease(SamplerPadRelease {
             deck: deck_id,
             slot,
         }))
@@ -1360,7 +1367,10 @@ impl EngineTransport {
     fn publish_deck_updated(&self, deck_id: u16, snap: DeckSnapshot) -> Result<(), String> {
         let mut update = DeckUpdated::from(snap);
         update.deck = deck_id;
-        self.bus.publish_evt(Event::DeckUpdated(update)).bridge()
+        self.bus
+            .publish_evt(Event::DeckUpdated(update))
+            .map(|_report| ())
+            .bridge()
     }
 
     /// Publish an empty, stopped snapshot for every deck the new profile dropped.
@@ -1396,13 +1406,15 @@ impl EngineTransport {
         blank.saved_loops.clear();
         for deck_id in deck_count..previous_deck_count {
             blank.id = deck_id as u16;
-            let _ = self.publish_deck_updated(blank.id, blank.clone());
+            if let Err(err) = self.publish_deck_updated(blank.id, blank.clone()) {
+                tracing::error!(error = %err, "event bus publication failed");
+            }
         }
     }
 
     /// Publish one command on the shared bus.
-    fn publish_cmd(&self, event: Event) -> Result<(), String> {
-        self.bus.publish_cmd(event).bridge()
+    fn publish_cmd(&self, command: Command) -> Result<(), String> {
+        self.bus.publish_cmd(command).bridge()
     }
 
     /// Hydrate every deck and the mixer from one snapshot.
@@ -1412,10 +1424,14 @@ impl EngineTransport {
             .lock()
             .ok()
             .and_then(|g| g.as_ref().and_then(Engine::engine_status_snapshot));
-        if let Some(status) = status {
-            let _ = self
-                .bus
-                .publish_evt(Event::EngineSnapshot(EngineSnapshot { status }));
+        let Some(status) = status else {
+            return;
+        };
+        if let Err(err) = self
+            .bus
+            .publish_evt(Event::EngineSnapshot(EngineSnapshot { status }))
+        {
+            tracing::error!(error = %err, "event bus publication failed");
         }
     }
 }
@@ -1448,18 +1464,18 @@ mod tests {
         }
     }
 
-    fn evt_subscriber(bus: &BusTransport) -> event_bus::Subscriber<Event> {
-        bus.bus().subscribe_evt().unwrap()
+    fn evt_subscriber(bus: &BusTransport) -> event_bus::Subscriber<Arc<Event>> {
+        bus.bus().subscribe_evt("test").unwrap()
     }
 
-    fn recv_status(rx: &mut event_bus::Subscriber<Event>) -> bus_api::EngineStatus {
+    fn recv_status(rx: &mut event_bus::Subscriber<Arc<Event>>) -> bus_api::EngineStatus {
         loop {
             let event = rx
                 .recv_timeout(Duration::from_secs(5))
                 .expect("evt bus")
                 .expect("evt");
-            if let Event::EngineSnapshot(snapshot) = event {
-                return snapshot.status;
+            if let Event::EngineSnapshot(snapshot) = event.as_ref() {
+                return snapshot.status.clone();
             }
         }
     }
@@ -1499,7 +1515,7 @@ mod tests {
                     .recv_timeout(Duration::from_secs(5))
                     .expect("evt bus")
                     .expect("evt");
-                if let Event::DeckUpdated(update) = event {
+                if let Event::DeckUpdated(update) = Arc::unwrap_or_clone(event) {
                     if update.deck == retired {
                         break update;
                     }

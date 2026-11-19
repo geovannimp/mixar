@@ -1,6 +1,7 @@
 use super::*;
 #[cfg(feature = "analysis")]
 use crate::analysis::{compute_file_analysis, preferred_loudness_lufs};
+use bus_api::Command;
 use std::io::Write;
 
 pub(crate) fn write_minimal_wav(path: &Path) {
@@ -1771,9 +1772,9 @@ fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
         lib.import_file_path(&wav).unwrap().id().clone()
     };
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::SaveBeatGrid(SaveBeatGrid {
+        .publish_cmd(Command::SaveBeatGrid(SaveBeatGrid {
             track_id: track_id.as_str().to_string(),
             bpm: 124.0,
             first_beat_secs: 0.25,
@@ -1785,13 +1786,15 @@ fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
     let mut seen = false;
     while Instant::now() < deadline && !seen {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(Event::BeatGridChanged(event))) => {
+            Ok(Some(event)) => {
                 // The subscription is unfiltered, so match the track explicitly.
-                if event.track_id == track_id.as_str() {
-                    seen = true;
+                if let Event::BeatGridChanged(changed) = event.as_ref() {
+                    if changed.track_id == track_id.as_str() {
+                        seen = true;
+                    }
                 }
             }
-            Ok(Some(_)) | Ok(None) => continue,
+            Ok(None) => continue,
             Err(_) => break,
         }
     }

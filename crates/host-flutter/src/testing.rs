@@ -8,6 +8,7 @@ use crate::api::engine::EngineTransport;
 use crate::api::library::LibraryTransport;
 use bus_api::Event;
 use event_bus::Subscriber;
+use std::sync::Arc;
 
 /// Start an [`EngineTransport`] with an explicit engine config.
 ///
@@ -22,9 +23,19 @@ pub fn start_engine(
     EngineTransport::start_with(bus.bus(), bus.deck_chrome(), library_transport, config)
 }
 
+/// Publish one command on the shared bus.
+///
+/// Tests use this to assert on the refusal path (no owner registered) without
+/// going through a domain transport.
+pub fn publish_cmd(bus: &BusTransport, command: bus_api::Command) -> Result<(), String> {
+    bus.bus()
+        .publish_cmd(command)
+        .map_err(|error| error.to_string())
+}
+
 /// Subscribe to every bus event, for integration tests that assert on egress.
-pub fn subscribe_evt(bus: &BusTransport) -> Result<Subscriber<Event>, String> {
-    bus.subscribe_evt()
+pub fn subscribe_evt(bus: &BusTransport) -> Result<Subscriber<Arc<Event>>, String> {
+    bus.subscribe_evt("test")
 }
 
 /// In-memory library on a private bus (tests that never cross domains).

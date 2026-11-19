@@ -4,7 +4,7 @@
 mod common;
 
 use bus_api::AssignSampler;
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::PadMode;
 use bus_api::SamplerPadPress;
 use bus_api::SamplerPadRelease;
@@ -60,10 +60,10 @@ fn assign_sampler_path_via_bus_assigns_slot() {
     session.with_engine(|engine| engine.start()).expect("start");
 
     let path = short_tone_fixture().to_string_lossy().into_owned();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::AssignSampler(AssignSampler {
+        .publish_cmd(Command::AssignSampler(AssignSampler {
             deck: 0,
             slot: 1,
             path,
@@ -83,10 +83,10 @@ fn assign_sampler_path_via_bus_assigns_slot() {
 #[test]
 fn trigger_and_end_sampler_roundtrip() {
     let session = null_session_with_sample();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+        .publish_cmd(Command::SamplerPadPress(SamplerPadPress {
             deck: 0,
             slot: 0,
             shift: false,
@@ -100,7 +100,7 @@ fn trigger_and_end_sampler_roundtrip() {
     assert_eq!(update.pad_mode, PadMode::Sampler);
 
     session
-        .publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+        .publish_cmd(Command::SamplerPadRelease(SamplerPadRelease {
             deck: 0,
             slot: 0,
         }))
@@ -125,24 +125,24 @@ fn sampler_pad_press_release_without_sampler_mode() {
         })
         .expect("assign");
 
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+        .publish_cmd(Command::SamplerPadPress(SamplerPadPress {
             deck: 0,
             slot: 0,
             shift: false,
         }))
         .expect("press");
     let update = recv_updated(&mut evt);
-    // `Event::SamplerPadPress` is dispatched straight to
+    // `Command::SamplerPadPress` is dispatched straight to
     // `Engine::sampler_pad_press` in `control.rs`; it does not go through the
     // `pad_mode` router, so this asserts only that the sampler command leaves the
     // deck's pad mode untouched (it starts, and stays, on the HotCue default).
     assert_eq!(update.pad_mode, PadMode::HotCue);
 
     session
-        .publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+        .publish_cmd(Command::SamplerPadRelease(SamplerPadRelease {
             deck: 0,
             slot: 0,
         }))
@@ -151,7 +151,7 @@ fn sampler_pad_press_release_without_sampler_mode() {
     assert_eq!(update.pad_mode, PadMode::HotCue);
 
     session
-        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+        .publish_cmd(Command::SamplerPadPress(SamplerPadPress {
             deck: 0,
             slot: 0,
             shift: true,
@@ -160,7 +160,7 @@ fn sampler_pad_press_release_without_sampler_mode() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+        .publish_cmd(Command::SamplerPadPress(SamplerPadPress {
             deck: 0,
             slot: 0,
             shift: false,

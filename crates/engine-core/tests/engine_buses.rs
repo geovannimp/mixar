@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::Event;
 use bus_api::Play;
 use common::recv_error;
@@ -24,7 +25,7 @@ fn engine_publish_evt_without_session() {
     let mut engine = Engine::new(null_config()).unwrap();
     let bus = new_event_bus();
     engine.set_buses(bus.clone());
-    let mut rx = engine.subscribe_evt_all().unwrap();
+    let mut rx = engine.subscribe_evt_all("test").unwrap();
     engine
         .publish_evt(Event::Error(bus_api::Error {
             message: "missing".into(),
@@ -44,8 +45,8 @@ fn spawn_worker_play_empty_deck_emits_error() {
     let engine = Arc::new(Mutex::new(Some(engine)));
     let _worker = spawn_engine_worker(Arc::clone(&engine)).unwrap();
 
-    let mut rx = bus.subscribe_evt().unwrap();
-    bus.publish_cmd(Event::Play(Play { deck: 0 })).unwrap();
+    let mut rx = bus.subscribe_evt("test").unwrap();
+    bus.publish_cmd(Command::Play(Play { deck: 0 })).unwrap();
 
     // `recv_error` owns the deadline/poll/disconnect handling; the previous hand
     // rolled loop used `remaining.max(1ms)` and `.expect("Error evt")`, which

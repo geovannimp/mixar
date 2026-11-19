@@ -1,16 +1,17 @@
-use crate::entity::EventKey;
-use crate::policy::Policy;
+//! The contract of a message that travels on one lane.
+
 use std::hash::Hash;
 
-/// Contract of the closed event enum that travels on the bus.
+/// A message that a [`crate::EventBus`] can route.
 ///
-/// A single enum cannot carry one `TOPIC`/`POLICY` constant per variant, so the
-/// enum delegates each question to the payload it wraps.
-pub trait BusMessage: Clone + Send + Sync + 'static {
+/// One lane routes by [`Message::topic`]: commands by owner, events by topic
+/// (so an observer can select the events it handles). There
+/// is deliberately no `Clone` bound — a command moves into its owner's queue
+/// without being copied, and an event is shared through `Arc` instead.
+pub trait Message: Send + 'static {
+    /// Lane discriminator: the command owner, or the event topic.
     type Topic: Copy + Eq + Hash + Send + Sync + 'static;
+
+    /// The discriminator this message routes on.
     fn topic(&self) -> Self::Topic;
-    fn policy(&self) -> Policy;
-    fn key(&self) -> Option<EventKey<Self::Topic>>;
-    /// `Update`/`Delta` only: fold `later` into `self` according to policy.
-    fn merge(&mut self, later: &Self);
 }

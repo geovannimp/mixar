@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bus_api::Event;
@@ -32,15 +33,19 @@ fn analyze_and_wait(
     track_id: &str,
     timeout: Duration,
 ) -> bus_api::TrackSummary {
-    let mut rx = transport.bus().subscribe_evt().unwrap();
+    let mut rx = transport.bus().subscribe_evt("test").unwrap();
     transport.analyze_track(track_id.to_string(), true).unwrap();
 
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         match rx.recv_timeout(Duration::from_millis(100)) {
             // Analysis also emits `TrackProgress` first; only the final summary matters.
-            Ok(Some(Event::TrackAnalyzed(TrackAnalyzed { track }))) => return track,
-            Ok(Some(_)) | Ok(None) => continue,
+            Ok(Some(event)) => {
+                if let Event::TrackAnalyzed(TrackAnalyzed { track }) = Arc::unwrap_or_clone(event) {
+                    return track;
+                }
+            }
+            Ok(None) => continue,
             Err(err) => panic!("library evt bus closed: {err}"),
         }
     }

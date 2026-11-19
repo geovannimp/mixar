@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::SetKeyShift;
 use bus_api::SetKeyShiftPage;
 use bus_api::SetKeyboardPage;
@@ -47,10 +47,10 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_key_shift_pages_and_root_publish_fields() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetKeyShift(SetKeyShift {
+        .publish_cmd(Command::SetKeyShift(SetKeyShift {
             deck: 0,
             semitones: 2.0,
         }))
@@ -59,7 +59,10 @@ fn set_key_shift_pages_and_root_publish_fields() {
     assert!((update.key_shift - 2.0).abs() < 1e-6);
 
     session
-        .publish_cmd(Event::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 4 }))
+        .publish_cmd(Command::SetKeyboardPage(SetKeyboardPage {
+            deck: 0,
+            page: 4,
+        }))
         .unwrap();
     let update = recv_updated(&mut evt);
     assert_eq!(update.keyboard_page, 4);
@@ -67,14 +70,20 @@ fn set_key_shift_pages_and_root_publish_fields() {
     assert_eq!(update.key_shift_page, DEFAULT_PITCH_PAGE);
 
     session
-        .publish_cmd(Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }))
+        .publish_cmd(Command::SetKeyShiftPage(SetKeyShiftPage {
+            deck: 0,
+            page: 1,
+        }))
         .unwrap();
     let update = recv_updated(&mut evt);
     assert_eq!(update.keyboard_page, 4);
     assert_eq!(update.key_shift_page, 1);
 
     session
-        .publish_cmd(Event::SetKeyboardRoot(SetKeyboardRoot { deck: 0, slot: 3 }))
+        .publish_cmd(Command::SetKeyboardRoot(SetKeyboardRoot {
+            deck: 0,
+            slot: 3,
+        }))
         .unwrap();
     let update = recv_updated(&mut evt);
     assert_eq!(update.keyboard_root_hot_cue, 3);

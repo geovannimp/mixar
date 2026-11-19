@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::JogTouch;
 use bus_api::JogTurn;
 use common::recv_position;
@@ -22,7 +22,7 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
         ..Default::default()
     })
     .expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
         .with_engine(|engine| {
             engine.start()?;
@@ -36,7 +36,7 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
         .expect("load");
 
     session
-        .publish_cmd(Event::JogTouch(JogTouch {
+        .publish_cmd(Command::JogTouch(JogTouch {
             deck: 0,
             touching: true,
         }))
@@ -48,7 +48,7 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
     // Scratch ticks are Silent (no DeckUpdated). UI must still get Position while
     // touched — otherwise waveform/time only jump on jog-touch release.
     session
-        .publish_cmd(Event::JogTurn(JogTurn { deck: 0, delta: 90 }))
+        .publish_cmd(Command::JogTurn(JogTurn { deck: 0, delta: 90 }))
         .expect("turn");
 
     let position = recv_position(&mut evt);

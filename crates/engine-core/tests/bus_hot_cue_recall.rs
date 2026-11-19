@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::RecallSavedLoop;
 use bus_api::TriggerHotCue;
 use common::recv_updated;
@@ -30,10 +30,10 @@ fn null_session_loaded() -> EngineSession {
 #[test]
 fn trigger_hot_cue_seeks_and_plays() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::TriggerHotCue(TriggerHotCue {
+        .publish_cmd(Command::TriggerHotCue(TriggerHotCue {
             deck: 0,
             position_ms: 500,
         }))
@@ -48,10 +48,10 @@ fn trigger_hot_cue_seeks_and_plays() {
 #[test]
 fn recall_saved_loop_activates_and_plays() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+        .publish_cmd(Command::RecallSavedLoop(RecallSavedLoop {
             deck: 0,
             in_ms: 0,
             out_ms: 1000,
@@ -72,10 +72,10 @@ fn recall_saved_loop_keeps_position_before_out() {
     session
         .with_engine(|engine| engine.seek_deck(0, 500))
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+        .publish_cmd(Command::RecallSavedLoop(RecallSavedLoop {
             deck: 0,
             in_ms: 0,
             out_ms: 1000,
@@ -94,10 +94,10 @@ fn recall_saved_loop_past_out_seeks_to_in() {
     session
         .with_engine(|engine| engine.seek_deck(0, 1500))
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+        .publish_cmd(Command::RecallSavedLoop(RecallSavedLoop {
             deck: 0,
             in_ms: 0,
             out_ms: 1000,

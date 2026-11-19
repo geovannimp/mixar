@@ -7,6 +7,7 @@
 use crate::bus::{LibraryBus, LibraryBuses};
 use crate::worker::{spawn_library_worker, LibraryWorker};
 use crate::{LibraryConfig, LibraryManager, Result};
+use bus_api::Command;
 use bus_api::Event;
 use event_bus::Subscriber;
 use library_core::AnalysisDurationMode;
@@ -65,13 +66,18 @@ impl LibrarySession {
     }
 
     /// Subscribe to all egress events (host bridge / test ack sync).
-    pub fn subscribe_evt(&self) -> Result<Subscriber<Event>> {
-        self.buses.subscribe_evt()
+    pub fn subscribe_evt(&self, label: &'static str) -> Result<Subscriber<Arc<Event>>> {
+        self.buses.subscribe_evt(label)
     }
 
-    /// Fire-and-forget publish of a command on the shared typed bus.
-    pub fn publish_cmd(&self, event: Event) -> Result<()> {
-        self.buses.publish_cmd(event)
+    /// Move one command to its owning worker on the shared typed bus.
+    ///
+    /// A refused command comes back in the error rather than disappearing.
+    pub fn publish_cmd(
+        &self,
+        command: Command,
+    ) -> std::result::Result<(), event_bus::CommandPublishError<Command>> {
+        self.buses.publish_cmd(command)
     }
 
     /// Fire-and-forget publish of an egress event on the shared typed bus.

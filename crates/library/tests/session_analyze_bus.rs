@@ -4,6 +4,7 @@
 #![cfg(feature = "analysis")]
 
 use bus_api::AnalyzeTrack;
+use bus_api::Command;
 use bus_api::Event;
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
 use library_core::Library;
@@ -61,9 +62,9 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
         tracks[0].id().as_str().to_string()
     };
 
-    let mut rx = session.subscribe_evt().unwrap();
+    let mut rx = session.subscribe_evt("test").unwrap();
     session
-        .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack {
+        .publish_cmd(Command::AnalyzeTrack(AnalyzeTrack {
             track_id: track_id.clone(),
             force: false,
         }))
@@ -76,8 +77,8 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
             .recv_timeout(remaining)
             .expect("evt bus alive")
             .expect("TrackAnalyzed evt");
-        match event {
-            Event::TrackAnalyzed(analyzed) => break analyzed,
+        match event.as_ref() {
+            Event::TrackAnalyzed(analyzed) => break analyzed.clone(),
             Event::TrackProgress(_) => {}
             other => panic!("unexpected evt before TrackAnalyzed: {other:?}"),
         }

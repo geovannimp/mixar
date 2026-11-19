@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::Pause;
 use bus_api::Play;
 use common::recv_updated;
@@ -20,7 +20,7 @@ fn pause_preserves_playback_position() {
         ..Default::default()
     })
     .expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     session
         .with_engine(|engine| {
             engine.start()?;
@@ -34,14 +34,14 @@ fn pause_preserves_playback_position() {
         .expect("load");
 
     session
-        .publish_cmd(Event::Play(Play { deck: 0 }))
+        .publish_cmd(Command::Play(Play { deck: 0 }))
         .expect("play");
     let _ = recv_updated(&mut evt);
 
     // Let the null backend advance a bit.
     thread::sleep(Duration::from_millis(80));
     session
-        .publish_cmd(Event::Pause(Pause { deck: 0 }))
+        .publish_cmd(Command::Pause(Pause { deck: 0 }))
         .expect("pause");
     let update = recv_updated(&mut evt);
     assert!(!update.playing);

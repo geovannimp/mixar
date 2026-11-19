@@ -36,10 +36,11 @@ use bus_api::Event;
 use engine_core::EngineSession;
 use event_bus::Subscriber;
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
+use std::sync::Arc;
 
 /// Receiver type returned by `EngineSession::subscribe_evt_all` and
 /// `Engine::subscribe_evt_all`.
-pub type TestReceiver = Subscriber<Event>;
+pub type TestReceiver = Subscriber<Arc<Event>>;
 
 /// Default deadline for [`recv_evt`].
 pub const RECV_TIMEOUT: Duration = Duration::from_secs(5);
@@ -61,7 +62,9 @@ pub fn recv_evt(sub: &mut TestReceiver, mut pred: impl FnMut(&Event) -> bool) ->
             Ok(None) => {}
             Ok(Some(event)) => {
                 if pred(&event) {
-                    return event;
+                    // Tests compare owned payloads; the Arc only exists for the
+                    // fan-out, so hand the last reference back as a value.
+                    return Arc::unwrap_or_clone(event);
                 }
             }
             Err(error) => panic!("evt bus disconnected while waiting for an evt: {error}"),

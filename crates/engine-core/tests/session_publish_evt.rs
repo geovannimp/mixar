@@ -17,7 +17,7 @@ fn publish_evt_delivers_host_enriched_notice() {
         ..Default::default()
     })
     .expect("session");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
         .publish_evt(Event::Notice(Notice {

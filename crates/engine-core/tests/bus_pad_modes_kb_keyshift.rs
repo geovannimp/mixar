@@ -3,8 +3,8 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Command;
 use bus_api::DeckUpdated;
-use bus_api::Event;
 use bus_api::KeyShiftPadPress;
 use bus_api::KeyboardPadPress;
 use bus_api::KeyboardPadRelease;
@@ -145,7 +145,7 @@ fn library_session_with_root_hot_cue() -> (EngineSession, LibrarySession, tempfi
     (session, library_session, dir)
 }
 
-fn publish(session: &EngineSession, event: Event) {
+fn publish(session: &EngineSession, event: Command) {
     session.publish_cmd(event).expect("publish");
 }
 
@@ -294,10 +294,10 @@ fn keyboard_and_key_shift_page_tables_match_rekordbox() {
 #[test]
 fn key_shift_default_page_slots_and_page_actions() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::KeyShift,
         }),
@@ -307,7 +307,7 @@ fn key_shift_default_page_slots_and_page_actions() {
     // Default page 2: slot 1 → +1, slot 7 → +7.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 1,
             shift: false,
@@ -316,7 +316,7 @@ fn key_shift_default_page_slots_and_page_actions() {
     assert!((key_shift_of(&recv_updated(&mut evt)) - 1.0).abs() < 1e-6);
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 7,
             shift: false,
@@ -327,12 +327,12 @@ fn key_shift_default_page_slots_and_page_actions() {
     // Page 3 slot 0 → -8.
     publish(
         &session,
-        Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 3 }),
+        Command::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 3 }),
     );
     assert_eq!(key_shift_page_of(&recv_updated(&mut evt)), 3);
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 0,
             shift: false,
@@ -343,12 +343,12 @@ fn key_shift_default_page_slots_and_page_actions() {
     // Page 5: slot 0 → Reset, slot 1 → Down.
     publish(
         &session,
-        Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 5 }),
+        Command::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 5 }),
     );
     assert_eq!(key_shift_page_of(&recv_updated(&mut evt)), 5);
     publish(
         &session,
-        Event::SetKeyShift(SetKeyShift {
+        Command::SetKeyShift(SetKeyShift {
             deck: 0,
             semitones: 7.0,
         }),
@@ -356,7 +356,7 @@ fn key_shift_default_page_slots_and_page_actions() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 0,
             shift: false,
@@ -365,7 +365,7 @@ fn key_shift_default_page_slots_and_page_actions() {
     assert!(key_shift_of(&recv_updated(&mut evt)).abs() < 1e-6);
     publish(
         &session,
-        Event::SetKeyShift(SetKeyShift {
+        Command::SetKeyShift(SetKeyShift {
             deck: 0,
             semitones: 7.0,
         }),
@@ -373,7 +373,7 @@ fn key_shift_default_page_slots_and_page_actions() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 1,
             shift: false,
@@ -385,12 +385,12 @@ fn key_shift_default_page_slots_and_page_actions() {
 #[test]
 fn key_shift_shift_bank_switches_page() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Default page 2 → slot 6 = next = 3.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 6,
             shift: true,
@@ -400,7 +400,7 @@ fn key_shift_shift_bank_switches_page() {
     // slot 7 = prev = 2.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 7,
             shift: true,
@@ -410,7 +410,7 @@ fn key_shift_shift_bank_switches_page() {
     // Other shift-bank slots are no-ops.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 0,
             shift: true,
@@ -420,12 +420,12 @@ fn key_shift_shift_bank_switches_page() {
     // Wrapping from page 1: prev → 5.
     publish(
         &session,
-        Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }),
+        Command::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }),
     );
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 7,
             shift: true,
@@ -436,7 +436,7 @@ fn key_shift_shift_bank_switches_page() {
     // The Key Shift shift-bank page switch wraps at 5 (not 4): 5 → 1.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 6,
             shift: true,
@@ -448,11 +448,11 @@ fn key_shift_shift_bank_switches_page() {
 #[test]
 fn keyboard_and_key_shift_pages_are_independent() {
     let session = null_session_with_loaded_deck();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 3 }),
+        Command::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 3 }),
     );
     let update = recv_updated(&mut evt);
     assert_eq!(keyboard_page_of(&update), 3);
@@ -460,7 +460,7 @@ fn keyboard_and_key_shift_pages_are_independent() {
 
     publish(
         &session,
-        Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }),
+        Command::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }),
     );
     let update = recv_updated(&mut evt);
     assert_eq!(keyboard_page_of(&update), 3);
@@ -469,7 +469,7 @@ fn keyboard_and_key_shift_pages_are_independent() {
     // A Key Shift shift-bank page switch advances only the Key Shift page.
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 6,
             shift: true,
@@ -482,7 +482,7 @@ fn keyboard_and_key_shift_pages_are_independent() {
     // A Keyboard shift-bank page switch advances only the Keyboard page.
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard,
         }),
@@ -490,7 +490,7 @@ fn keyboard_and_key_shift_pages_are_independent() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 6,
             shift: true,
@@ -503,7 +503,7 @@ fn keyboard_and_key_shift_pages_are_independent() {
     // The Keyboard shift-bank page switch wraps at 4 (not 5).
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 6,
             shift: true,
@@ -517,12 +517,12 @@ fn keyboard_and_key_shift_pages_are_independent() {
 #[test]
 fn keyboard_pad_seeks_to_root_and_restores() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Latch Key Shift +2 (page 2, slot 2).
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 2,
             shift: false,
@@ -531,7 +531,7 @@ fn keyboard_pad_seeks_to_root_and_restores() {
     assert!((key_shift_of(&recv_updated(&mut evt)) - 2.0).abs() < 1e-6);
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard,
         }),
@@ -541,7 +541,7 @@ fn keyboard_pad_seeks_to_root_and_restores() {
     // Default page 2, slot 4 → +4 semitones; seeks to the root hot cue (1000 ms).
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 4,
             shift: false,
@@ -560,7 +560,7 @@ fn keyboard_pad_seeks_to_root_and_restores() {
         .expect("seek away");
     publish(
         &session,
-        Event::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 4 }),
+        Command::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 4 }),
     );
     assert!((key_shift_of(&recv_updated(&mut evt)) - 2.0).abs() < 1e-6);
     assert!(
@@ -573,11 +573,11 @@ fn keyboard_pad_seeks_to_root_and_restores() {
 #[test]
 fn keyboard_shift_bank_deletes_root_hot_cue() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 0,
             shift: true,
@@ -600,11 +600,11 @@ fn keyboard_shift_bank_deletes_root_hot_cue() {
 #[test]
 fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard,
         }),
@@ -616,7 +616,7 @@ fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
     for (slot, expected) in [(2u8, 2.0f32), (3, 3.0)] {
         publish(
             &session,
-            Event::KeyboardPadPress(KeyboardPadPress {
+            Command::KeyboardPadPress(KeyboardPadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -633,7 +633,7 @@ fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
     // pressed with; only newly pressed pads see the new page.
     publish(
         &session,
-        Event::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 1 }),
+        Command::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 1 }),
     );
     let page = keyboard_page_of(&recv_updated(&mut evt));
     assert_eq!(page, 1);
@@ -641,7 +641,7 @@ fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
     // Releasing the top pad falls back to slot 2's captured +2, not page 1's +10.
     publish(
         &session,
-        Event::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 3 }),
+        Command::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 3 }),
     );
     assert!(
         (key_shift_of(&recv_updated(&mut evt)) - 2.0).abs() < 1e-6,
@@ -652,11 +652,11 @@ fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
 #[test]
 fn mode_switch_clears_held_keyboard_state() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard,
         }),
@@ -664,7 +664,7 @@ fn mode_switch_clears_held_keyboard_state() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 4,
             shift: false,
@@ -676,7 +676,7 @@ fn mode_switch_clears_held_keyboard_state() {
     // shift (0, nothing latched) restored rather than left at the pad's +4.
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::HotCue,
         }),
@@ -684,7 +684,7 @@ fn mode_switch_clears_held_keyboard_state() {
     let _ = recv_updated(&mut evt);
     publish(
         &session,
-        Event::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 4 }),
+        Command::KeyboardPadRelease(KeyboardPadRelease { deck: 0, slot: 4 }),
     );
     let snap = session
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
@@ -699,12 +699,12 @@ fn mode_switch_clears_held_keyboard_state() {
 #[test]
 fn mode_switch_restores_latched_key_shift() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Latch Key Shift +2 (default page 2, slot 2).
     publish(
         &session,
-        Event::KeyShiftPadPress(KeyShiftPadPress {
+        Command::KeyShiftPadPress(KeyShiftPadPress {
             deck: 0,
             slot: 2,
             shift: false,
@@ -713,7 +713,7 @@ fn mode_switch_restores_latched_key_shift() {
     assert!((key_shift_of(&recv_updated(&mut evt)) - 2.0).abs() < 1e-6);
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::Keyboard,
         }),
@@ -723,7 +723,7 @@ fn mode_switch_restores_latched_key_shift() {
     // Hold a Keyboard pad (+4) on top of the latch.
     publish(
         &session,
-        Event::KeyboardPadPress(KeyboardPadPress {
+        Command::KeyboardPadPress(KeyboardPadPress {
             deck: 0,
             slot: 4,
             shift: false,
@@ -734,7 +734,7 @@ fn mode_switch_restores_latched_key_shift() {
     // Switching mode mid-hold must restore the latched +2, not 0 and not +4.
     publish(
         &session,
-        Event::SetPadMode(SetPadMode {
+        Command::SetPadMode(SetPadMode {
             deck: 0,
             mode: PadMode::HotCue,
         }),

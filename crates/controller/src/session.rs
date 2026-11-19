@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use bus_api::key_shift_page_action;
 use bus_api::keyboard_page_action;
 use bus_api::BeginCueHold;
+use bus_api::Command;
 use bus_api::EndCueHold;
 use bus_api::Event;
 use bus_api::ExitLoop;
@@ -91,18 +92,14 @@ pub struct ScriptBindingFailure {
 }
 
 /// Publish target handed to every mapping edge.
+///
+/// Commands and events are separate types, so an edge cannot publish an egress
+/// event as if a worker executed it.
 pub trait ActionPublish {
-    /// Command bus: something the engine or library worker must act on.
-    fn publish_cmd(&mut self, event: Event);
-    /// Egress bus: UI-originated events the host re-broadcasts (navigate/focus/load).
+    /// Command lane: something the engine or library worker must act on.
+    fn publish_cmd(&mut self, command: Command);
+    /// Event lane: what the host re-broadcasts (navigate/focus/load, notices).
     fn publish_evt(&mut self, event: Event);
-}
-
-/// Compatibility alias for engine-only hosts/tests.
-pub trait BusPublish: ActionPublish {
-    fn publish(&mut self, event: Event) {
-        self.publish_cmd(event);
-    }
 }
 
 pub trait MidiOut {
@@ -741,9 +738,11 @@ impl MappingSession {
             self.cc_last.insert(key.to_string(), Instant::now());
         }
         match routed {
-            RoutedAction::Cmd(event) => self.publish_cmds(std::slice::from_ref(&event), bus, midi),
+            RoutedAction::Cmd(command) => {
+                self.publish_cmds(std::slice::from_ref(&command), bus, midi)
+            }
             // Exclusive groups (e.g. CH SELECT) publish every cmd in order.
-            RoutedAction::Cmds(events) => self.publish_cmds(&events, bus, midi),
+            RoutedAction::Cmds(commands) => self.publish_cmds(&commands, bus, midi),
             RoutedAction::Evt(event) => bus.publish_evt(event),
         }
         (true, None)
@@ -755,105 +754,105 @@ impl MappingSession {
     /// mirror-then-publish order (and the clones it needs) is defined once.
     fn publish_cmds(
         &mut self,
-        events: &[Event],
+        commands: &[Command],
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) {
-        for event in events {
-            self.mirror_engine_cmd(event, midi);
-            bus.publish_cmd(event.clone());
+        for command in commands {
+            self.mirror_engine_cmd(command, midi);
+            bus.publish_cmd(command.clone());
         }
     }
 
     /// Mirror a routed engine cmd into the local snapshot, then refresh the
     /// affected section's LEDs. The engine stays the source of truth; its
     /// `DeckUpdated` / `EngineSnapshot` mirror corrects any drift.
-    fn mirror_engine_cmd(&mut self, event: &Event, midi: &mut impl MidiOut) {
-        match event {
-            Event::SetPadMode(SetPadMode { deck, mode }) => {
+    fn mirror_engine_cmd(&mut self, command: &Command, midi: &mut impl MidiOut) {
+        match command {
+            Command::SetPadMode(SetPadMode { deck, mode }) => {
                 self.snapshot.pad_mode[deck_slot(*deck)] = *mode;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetKeyShift(SetKeyShift { deck, semitones }) => {
+            Command::SetKeyShift(SetKeyShift { deck, semitones }) => {
                 self.snapshot.key_shift[deck_slot(*deck)] = *semitones;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetKeyboardPage(SetKeyboardPage { deck, page }) => {
+            Command::SetKeyboardPage(SetKeyboardPage { deck, page }) => {
                 self.snapshot.keyboard_page[deck_slot(*deck)] =
                     (*page).clamp(1, KEYBOARD_PAGE_COUNT);
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetKeyShiftPage(SetKeyShiftPage { deck, page }) => {
+            Command::SetKeyShiftPage(SetKeyShiftPage { deck, page }) => {
                 self.snapshot.key_shift_page[deck_slot(*deck)] =
                     (*page).clamp(1, KEY_SHIFT_PAGE_COUNT);
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetKeyboardRoot(SetKeyboardRoot { deck, slot }) => {
+            Command::SetKeyboardRoot(SetKeyboardRoot { deck, slot }) => {
                 self.snapshot.keyboard_root_hot_cue[deck_slot(*deck)] = *slot;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetHeadphoneCue(SetHeadphoneCue { deck, enabled }) => {
+            Command::SetHeadphoneCue(SetHeadphoneCue { deck, enabled }) => {
                 self.snapshot.headphone_cue[deck_slot(*deck)] = *enabled;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::ToggleHeadphoneCue(ToggleHeadphoneCue { deck }) => {
+            Command::ToggleHeadphoneCue(ToggleHeadphoneCue { deck }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.headphone_cue[i] = !self.snapshot.headphone_cue[i];
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::ToggleSync(ToggleSync { deck, .. }) => {
+            Command::ToggleSync(ToggleSync { deck, .. }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.sync[i] = !self.snapshot.sync[i];
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::ToggleQuantize(ToggleQuantize { deck }) => {
+            Command::ToggleQuantize(ToggleQuantize { deck }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.quantize[i] = !self.snapshot.quantize[i];
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::SetStemEqEnabled(SetStemEqEnabled { deck, enabled }) => {
+            Command::SetStemEqEnabled(SetStemEqEnabled { deck, enabled }) => {
                 self.snapshot.stem_eq_enabled[deck_slot(*deck)] = *enabled;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::ToggleStemEq(ToggleStemEq { deck }) => {
+            Command::ToggleStemEq(ToggleStemEq { deck }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.stem_eq_enabled[i] = !self.snapshot.stem_eq_enabled[i];
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::BeginCueHold(BeginCueHold { deck }) => {
+            Command::BeginCueHold(BeginCueHold { deck }) => {
                 self.snapshot.cue_hold[deck_slot(*deck)] = true;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::EndCueHold(EndCueHold { deck }) => {
+            Command::EndCueHold(EndCueHold { deck }) => {
                 self.snapshot.cue_hold[deck_slot(*deck)] = false;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::Play(Play { deck }) | Event::TriggerHotCue(TriggerHotCue { deck, .. }) => {
+            Command::Play(Play { deck }) | Command::TriggerHotCue(TriggerHotCue { deck, .. }) => {
                 self.set_playing_deck(*deck, true);
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::Pause(Pause { deck }) => {
+            Command::Pause(Pause { deck }) => {
                 self.set_playing_deck(*deck, false);
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::LoopIn(LoopIn { deck, .. }) => {
+            Command::LoopIn(LoopIn { deck, .. }) => {
                 self.snapshot.loop_in_set[deck_slot(*deck)] = true;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::LoopOut(LoopOut { deck, .. }) => {
+            Command::LoopOut(LoopOut { deck, .. }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.loop_active[i] = true;
                 self.snapshot.loop_in_set[i] = true;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
-            Event::ExitLoop(ExitLoop { deck }) => {
+            Command::ExitLoop(ExitLoop { deck }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.loop_active[i] = false;
                 self.snapshot.loop_in_set[i] = false;
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
             // A filled hot cue starts playback; an empty one saves the cue.
-            Event::HotCuePadPress(HotCuePadPress {
+            Command::HotCuePadPress(HotCuePadPress {
                 deck,
                 slot,
                 shift: false,
@@ -869,44 +868,44 @@ impl MappingSession {
                 }
             }
             // State-only: no LED signal reads the tempo range, so no refresh.
-            Event::SetTempoRange(SetTempoRange { deck, tempo_range }) => {
+            Command::SetTempoRange(SetTempoRange { deck, tempo_range }) => {
                 self.snapshot.tempo_range[deck_slot(*deck)] = *tempo_range;
             }
             // State-only: no LED signal reads the tempo curve.
-            Event::SetTempoCurve(_) => {}
+            Command::SetTempoCurve(_) => {}
             // Mixer strip: the master section always re-resolves (an FX or cue
             // lamp may have moved).
-            Event::SetCrossfader(_)
-            | Event::SetMasterVolume(_)
-            | Event::SetCueVolume(_)
-            | Event::SetCueMix(_) => self.refresh_leds(crate::device::SECTION_MASTER, midi),
-            Event::ToggleMasterCue(ToggleMasterCue {}) => {
+            Command::SetCrossfader(_)
+            | Command::SetMasterVolume(_)
+            | Command::SetCueVolume(_)
+            | Command::SetCueMix(_) => self.refresh_leds(crate::device::SECTION_MASTER, midi),
+            Command::ToggleMasterCue(ToggleMasterCue {}) => {
                 self.snapshot.master_cue = !self.snapshot.master_cue;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
-            Event::SetMasterCue(SetMasterCue { enabled }) => {
+            Command::SetMasterCue(SetMasterCue { enabled }) => {
                 self.snapshot.master_cue = *enabled;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
             // Optimistic: `crossfader_curve_<id>` lamps follow the press before
             // the engine echoes `EngineStatus`.
-            Event::SetCrossfaderCurve(SetCrossfaderCurve { id }) => {
+            Command::SetCrossfaderCurve(SetCrossfaderCurve { id }) => {
                 self.snapshot.crossfader_curve.clone_from(id);
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
-            Event::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled }) => {
+            Command::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled }) => {
                 self.snapshot.crossfader_hamster = *hamster;
                 self.snapshot.crossfader_disabled = *disabled;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
-            Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled { enabled, .. }) => {
+            Command::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled { enabled, .. }) => {
                 self.snapshot.fx.enabled = *enabled;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
             // Selecting an effect reloads its knobs, but `FxSlot::set_kind`
             // keeps the slot's armed flag, so the mirror must keep it too
             // (clearing it would darken the lamps until the engine echo).
-            Event::SetFxUnitSlot(SetFxUnitSlot { kind: next, .. }) => {
+            Command::SetFxUnitSlot(SetFxUnitSlot { kind: next, .. }) => {
                 if self.snapshot.fx.kind != *next {
                     self.snapshot.fx.kind = *next;
                     self.snapshot.fx.params = FxSlotState::boot().params;
@@ -914,13 +913,13 @@ impl MappingSession {
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
             // Tracked so rapid BEAT presses step from the pending division.
-            Event::SetFxUnitParam(SetFxUnitParam { param, value, .. }) => {
+            Command::SetFxUnitParam(SetFxUnitParam { param, value, .. }) => {
                 if let Some(slot) = self.snapshot.fx.params.get_mut(*param as usize) {
                     *slot = *value;
                 }
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
-            Event::SetFxUnitWet(SetFxUnitWet { wet, .. }) => {
+            Command::SetFxUnitWet(SetFxUnitWet { wet, .. }) => {
                 self.snapshot.fx.wet = *wet;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
@@ -1175,12 +1174,12 @@ mod tests {
     use std::path::Path;
 
     struct CaptureBus {
-        cmds: Vec<Event>,
+        cmds: Vec<Command>,
     }
 
     impl ActionPublish for CaptureBus {
-        fn publish_cmd(&mut self, event: Event) {
-            self.cmds.push(event);
+        fn publish_cmd(&mut self, command: Command) {
+            self.cmds.push(command);
         }
         fn publish_evt(&mut self, _event: Event) {}
     }
@@ -1209,7 +1208,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x14, 0], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1);
         match &bus.cmds[0] {
-            Event::SetSpeed(bus_api::SetSpeed {
+            Command::SetSpeed(bus_api::SetSpeed {
                 deck: 0,
                 speed,
                 soft_takeover: false,
@@ -1224,7 +1223,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::SetSpeed(bus_api::SetSpeed {
+            Command::SetSpeed(bus_api::SetSpeed {
                 deck: 0,
                 speed,
                 soft_takeover: false,
@@ -1257,7 +1256,7 @@ mod tests {
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::SetVolume(bus_api::SetVolume {
+            Command::SetVolume(bus_api::SetVolume {
                 deck: 0,
                 volume,
                 soft_takeover: true,
@@ -1277,7 +1276,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1);
         match &bus.cmds[0] {
-            Event::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 1),
+            Command::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 1),
             other => panic!("expected JogTurn, got {other:?}"),
         }
 
@@ -1290,7 +1289,7 @@ mod tests {
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 4),
+            Command::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 4),
             other => panic!("expected JogTurn sum, got {other:?}"),
         }
     }

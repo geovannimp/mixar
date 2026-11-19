@@ -5,6 +5,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use bus_api::Command;
 use tracing_subscriber::fmt::MakeWriter;
 
 /// In-memory log sink; mirrors the harness used by `src/engine.rs` tests.
@@ -46,7 +47,7 @@ fn with_capture(f: impl FnOnce()) -> String {
 
 struct CaptureBus;
 impl controller::ActionPublish for CaptureBus {
-    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_cmd(&mut self, _command: Command) {}
     fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 

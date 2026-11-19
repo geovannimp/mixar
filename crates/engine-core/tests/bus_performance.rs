@@ -6,7 +6,7 @@ mod common;
 use bus_api::BeatGrid;
 use bus_api::BeatJump;
 use bus_api::BeatSegment;
-use bus_api::Event;
+use bus_api::Command;
 use bus_api::ExitLoop;
 use bus_api::LoopIn;
 use bus_api::LoopOut;
@@ -36,15 +36,15 @@ use library_core::TrackMetadata;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-fn loop_in_cmd(position_ms: i32) -> Event {
-    Event::LoopIn(LoopIn {
+fn loop_in_cmd(position_ms: i32) -> Command {
+    Command::LoopIn(LoopIn {
         deck: 0,
         position_ms,
     })
 }
 
-fn loop_out_cmd(position_ms: i32) -> Event {
-    Event::LoopOut(LoopOut {
+fn loop_out_cmd(position_ms: i32) -> Command {
+    Command::LoopOut(LoopOut {
         deck: 0,
         position_ms,
     })
@@ -69,10 +69,10 @@ fn null_session_loaded() -> EngineSession {
 #[test]
 fn set_auto_loop_publishes_active_loop() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+        .publish_cmd(Command::SetAutoLoop(SetAutoLoop {
             deck: 0,
             beats: 4.0,
         }))
@@ -87,10 +87,10 @@ fn set_auto_loop_publishes_active_loop() {
 #[test]
 fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -99,7 +99,7 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
 
     // Fixture is 250 ms; 120 BPM → 500 ms/beat. 100 ms snaps down to 0.
     session
-        .publish_cmd(Event::Seek(Seek {
+        .publish_cmd(Command::Seek(Seek {
             deck: 0,
             position_ms: 100,
         }))
@@ -107,7 +107,7 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+        .publish_cmd(Command::SetAutoLoop(SetAutoLoop {
             deck: 0,
             beats: 1.0,
         }))
@@ -121,10 +121,10 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
 #[test]
 fn set_quantize_and_cue_point_roundtrip() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -133,7 +133,7 @@ fn set_quantize_and_cue_point_roundtrip() {
     assert!(!q.quantize);
 
     session
-        .publish_cmd(Event::SetCuePoint(SetCuePoint { deck: 0 }))
+        .publish_cmd(Command::SetCuePoint(SetCuePoint { deck: 0 }))
         .expect("cue");
     let cue = recv_updated(&mut evt);
     assert!(cue.cue_point_ms.is_some());
@@ -144,7 +144,7 @@ fn set_quantize_and_cue_point_roundtrip() {
     assert!(loop_in.pending_loop_in_ms.is_some());
 
     session
-        .publish_cmd(Event::BeatJump(BeatJump {
+        .publish_cmd(Command::BeatJump(BeatJump {
             deck: 0,
             beats: 1.0,
         }))
@@ -159,10 +159,10 @@ fn set_quantize_and_cue_point_roundtrip() {
 #[test]
 fn loop_in_preserves_exact_position_when_quantize_off() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -178,7 +178,7 @@ fn loop_in_preserves_exact_position_when_quantize_off() {
 #[test]
 fn loop_in_snaps_when_quantize_on() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // 120 BPM → 500 ms/beat; 200 ms → nearest beat 0 (fixture is 250 ms).
     session.publish_cmd(loop_in_cmd(200)).expect("loop in");
@@ -254,7 +254,7 @@ fn loop_in_snaps_to_first_beat_phase_when_quantize_on() {
         })
         .expect("load");
 
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Hydrated phase 100 ms; 200 → nearest beat 100 (not 0).
     session.publish_cmd(loop_in_cmd(200)).expect("loop in");
@@ -296,7 +296,7 @@ fn loop_out_snaps_to_grid_phase_when_quantize_on() {
         })
         .expect("load");
 
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session.publish_cmd(loop_in_cmd(200)).expect("loop in");
     let _ = recv_updated(&mut evt);
@@ -312,7 +312,7 @@ fn loop_out_snaps_to_grid_phase_when_quantize_on() {
 #[test]
 fn beat_grid_changed_updates_quantize_phase() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     // Phase 0 initially: 200 → 0.
     session.publish_cmd(loop_in_cmd(200)).expect("loop in");
@@ -340,10 +340,10 @@ fn beat_grid_changed_updates_quantize_phase() {
 #[test]
 fn loop_out_completes_pending_and_activates() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -365,7 +365,7 @@ fn loop_out_completes_pending_and_activates() {
 #[test]
 fn loop_out_without_pending_or_active_errors() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
         .publish_cmd(loop_out_cmd(1000))
@@ -381,13 +381,13 @@ fn loop_out_without_pending_or_active_errors() {
 #[test]
 fn exit_loop_clears_pending() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session.publish_cmd(loop_in_cmd(40)).expect("loop in");
     let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(Event::ExitLoop(ExitLoop { deck: 0 }))
+        .publish_cmd(Command::ExitLoop(ExitLoop { deck: 0 }))
         .expect("exit");
     let exit = recv_updated(&mut evt);
     assert!(exit.active_loop.is_none());
@@ -397,14 +397,14 @@ fn exit_loop_clears_pending() {
 #[test]
 fn pending_loop_in_survives_quantize_toggle() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session.publish_cmd(loop_in_cmd(200)).expect("loop in");
     let pending = recv_updated(&mut evt);
     assert_eq!(pending.pending_loop_in_ms, Some(0));
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -428,10 +428,10 @@ fn loop_out_uses_quantize_at_out_time_not_in_time() {
             Ok(())
         })
         .expect("load");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -443,7 +443,7 @@ fn loop_out_uses_quantize_at_out_time_not_in_time() {
     assert_eq!(pending.pending_loop_in_ms, Some(50));
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: true,
         }))
@@ -480,7 +480,7 @@ fn loop_in_without_bpm_publishes_error_when_quantize_on() {
             Ok(())
         })
         .expect("load");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session.publish_cmd(loop_in_cmd(100)).expect("loop in");
     let error = recv_error(&mut evt);
@@ -512,10 +512,10 @@ fn loop_in_without_bpm_ok_when_quantize_off() {
             Ok(())
         })
         .expect("load");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -530,10 +530,10 @@ fn loop_in_without_bpm_ok_when_quantize_off() {
 #[test]
 fn loop_in_clamps_position_to_media_range() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::SetQuantize(SetQuantize {
+        .publish_cmd(Command::SetQuantize(SetQuantize {
             deck: 0,
             enabled: false,
         }))
@@ -580,10 +580,10 @@ fn auto_loop_rejects_zero_and_non_finite_bpm_metadata() {
                 Ok(())
             })
             .expect("load");
-        let mut evt = session.subscribe_evt_all().expect("sub");
+        let mut evt = session.subscribe_evt_all("test").expect("sub");
 
         session
-            .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+            .publish_cmd(Command::SetAutoLoop(SetAutoLoop {
                 deck: 0,
                 beats: 4.0,
             }))
@@ -602,10 +602,10 @@ fn auto_loop_rejects_zero_and_non_finite_bpm_metadata() {
 #[test]
 fn unload_clears_duration() {
     let session = null_session_loaded();
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::Unload(Unload { deck: 0 }))
+        .publish_cmd(Command::Unload(Unload { deck: 0 }))
         .expect("unload");
     let update = recv_updated(&mut evt);
     assert!(update.duration_ms.is_none());
@@ -653,17 +653,17 @@ fn quantized_play_phase_matches_the_deck_already_playing() {
             Ok(())
         })
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 0 }))
+        .publish_cmd(Command::TogglePlay(TogglePlay { deck: 0 }))
         .expect("play deck A");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 0);
 
     // Mixxx-style quantized launch: 120 BPM → +100 ms puts deck B 150 ms past
     // its beat, matching deck A.
     session
-        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .publish_cmd(Command::TogglePlay(TogglePlay { deck: 1 }))
         .expect("play deck B");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
 
@@ -683,10 +683,10 @@ fn quantized_play_is_a_noop_when_no_other_deck_is_playing() {
             Ok(())
         })
         .expect("seek");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .publish_cmd(Command::TogglePlay(TogglePlay { deck: 1 }))
         .expect("play deck B");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
 
@@ -708,10 +708,10 @@ fn quantize_keeps_stored_loops_on_the_acting_decks_own_grid() {
             Ok(())
         })
         .expect("grid");
-    let mut evt = session.subscribe_evt_all().expect("sub");
+    let mut evt = session.subscribe_evt_all("test").expect("sub");
 
     session
-        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .publish_cmd(Command::TogglePlay(TogglePlay { deck: 1 }))
         .expect("play deck B");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
 
