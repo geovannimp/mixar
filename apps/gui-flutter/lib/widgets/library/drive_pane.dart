@@ -1,10 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
-import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
@@ -27,31 +25,6 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
   void _openPath(String path) {
     setState(() => _pickerOpen = false);
     ref.read(driveCurrentPathProvider.notifier).set(path);
-  }
-
-  Future<void> _createCollection(String folderPath) async {
-    final result = await showCreateCollectionDialog(
-      context,
-      input: CreateCollectionInput(initialFolderPath: folderPath),
-    );
-    if (result == null || !mounted) {
-      return;
-    }
-    final collection = await createCollection(ref, result);
-    if (!mounted || collection == null) {
-      return;
-    }
-    selectCreatedCollection(ref, collection);
-  }
-
-  /// The action is only offered for folders that do not back a collection
-  /// yet: one folder backs at most one collection.
-  Widget? _createCollectionButton(String path) {
-    final collected = ref.watch(collectedFolderPathsProvider);
-    if (collected.contains(normalizeFolderPath(path))) {
-      return null;
-    }
-    return _CreateCollectionButton(onPress: () => _createCollection(path));
   }
 
   @override
@@ -150,7 +123,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                     }
                     final currentName = selectedVolume?.path == dir.path
                         ? (selectedVolume?.name ?? dir.path)
-                        : dir.path.split(RegExp(r'[/\\]')).last;
+                        : folderDisplayName(dir.path);
                     final parentOpenable = driveParentInVolume(
                       dir.parent,
                       selectedVolume,
@@ -174,7 +147,6 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               // the user never pressed.
                               ? () => pressPath(dir.parent!)
                               : null,
-                          trailing: _createCollectionButton(dir.path),
                         ),
                         if (dir.directories.isEmpty)
                           Padding(
@@ -194,7 +166,6 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               indented: true,
                               focused: focusedPath == d.path,
                               onPress: () => pressPath(d.path),
-                              trailing: _createCollectionButton(d.path),
                             ),
                       ],
                     );
@@ -374,29 +345,6 @@ class _VolumeList extends StatelessWidget {
             onPress: () => onSelect(v.path),
           ),
       ],
-    );
-  }
-}
-
-class _CreateCollectionButton extends StatelessWidget {
-  const new({required this.onPress});
-
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    return MTappable.child(
-      semanticsLabel: 'Create collection',
-      onPress: onPress,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          LucideIcons.folderPlus,
-          size: 14,
-          color: colors.mutedForeground,
-        ),
-      ),
     );
   }
 }

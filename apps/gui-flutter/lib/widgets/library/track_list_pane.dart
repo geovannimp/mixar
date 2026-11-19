@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/collection_actions.dart';
+import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/library_row_fields.dart';
@@ -29,8 +31,13 @@ import 'package:gui_flutter/widgets/library/track_list_view.dart';
 import 'package:gui_flutter/widgets/library/track_status_pills.dart';
 import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Progress bar thickness, and the gap that keeps stacked per-job bars apart.
 /// The vertical stride is their sum, so changing one stays consistent.
@@ -52,6 +59,17 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     final selectedId = ref.watch(activeCollectionIdProvider);
     final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
     final drivePath = ref.watch(driveCurrentPathProvider);
+    // Only read the volume while browsing a drive: in the collections tab the
+    // volume list is not needed and would hit the filesystem for nothing.
+    final driveVolume = drive ? ref.watch(driveActiveVolumeProvider) : null;
+    // The empty state names the folder the way the sidebar does: a volume root
+    // by the volume name, anything below it by its last path segment.
+    String? driveFolderName;
+    if (drivePath != null) {
+      driveFolderName = driveVolume != null && driveVolume.path == drivePath
+          ? driveVolume.name
+          : folderDisplayName(drivePath);
+    }
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final density = ref.watch(libraryRowDensityProvider);
     // Watched (not read): `trackRowInLibrary` reads this to derive each row's
@@ -84,6 +102,11 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
             if (!drive) ...[
               const SizedBox(width: 4),
               const _ActiveCollectionActions(),
+            ] else if (drivePath != null) ...[
+              // The drive tab's equivalent: actions on the folder being
+              // browsed, in the same place the collection menu sits.
+              const SizedBox(width: 4),
+              _DriveFolderActions(path: drivePath),
             ],
           ],
         ),
@@ -123,7 +146,9 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                           fields: rowFields,
                         ),
                   emptyBuilder: (context) => LibraryListMessage(
-                    drive ? 'No audio files in this folder' : 'No tracks',
+                    drive && driveFolderName != null
+                        ? 'No audio files in “$driveFolderName”'
+                        : 'No tracks',
                     color: theme.colors.mutedForeground,
                   ),
                   errorBuilder: (context, e) => LibraryListMessage(
@@ -194,6 +219,48 @@ class _ActiveCollectionActions extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     return CollectionActionsMenu(collection: active);
+  }
+}
+
+/// Topbar folder actions for the folder the drive pane is browsing, mirroring
+/// [_ActiveCollectionActions] in the collections tab. The action is only
+/// offered for folders that do not back a collection yet: one folder backs at
+/// most one, and an empty menu would say nothing.
+class _DriveFolderActions extends ConsumerWidget {
+  const new({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final collected = ref.watch(collectedFolderPathsProvider);
+    if (collected.contains(normalizeFolderPath(path))) {
+      return const SizedBox.shrink();
+    }
+    return MixarMenuAnchor(
+      dialogTitle: 'Folder actions',
+      menuBuilder: (menuContext, controller) => MixarMenuBody(
+        groups: [
+          MixarMenuGroup(
+            children: [
+              MixarMenuItem(
+                title: const Text('Create collection'),
+                onPress: () {
+                  controller.hide();
+                  unawaited(createCollectionFromFolder(context, ref, path));
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      childBuilder: (context, controller) => AppButton.icon(
+        variant: .ghost,
+        semanticsLabel: 'Folder actions',
+        onPress: controller.toggle,
+        child: const Icon(LucideIcons.ellipsisVertical),
+      ),
+    );
   }
 }
 

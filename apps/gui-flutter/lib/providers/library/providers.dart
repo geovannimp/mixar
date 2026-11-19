@@ -36,7 +36,7 @@ final collectionsProvider = FutureProvider<List<LibraryCollectionSummary>>((
 
 /// Folder paths that already back a collection.
 ///
-/// One folder backs at most one collection, so the drive pane hides the
+/// One folder backs at most one collection, so the drive topbar hides the
 /// “Create collection” action for these paths instead of asking the library
 /// to add a duplicate.
 final collectedFolderPathsProvider = Provider<Set<String>>((ref) {

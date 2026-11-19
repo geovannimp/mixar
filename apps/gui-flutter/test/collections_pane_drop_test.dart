@@ -165,6 +165,15 @@ void main() {
     );
   });
 
+  testWidgets('rows carry no folder button', (tester) async {
+    await pumpPane(tester);
+
+    // Browsing the folder from Drive lives in the collection actions menu, so
+    // the rows are just rows.
+    expect(find.byIcon(LucideIcons.folderOpen), findsNothing);
+    expect(find.bySemanticsLabel('Browse Folder A in Drive'), findsNothing);
+  });
+
   testWidgets('a folder row takes no drop and adds nothing', (tester) async {
     final pane = await pumpPane(tester);
 
