@@ -89,10 +89,22 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
       releaseIfOwned(previous);
       return null;
     }
+    // Clamp against the deck's duration before choosing a density: the host
+    // clamps the same way, and the requested span may run past the track.
+    final endMs = (window.originMs + window.spanMs).clamp(0, durationMs);
+    // Keep the detail density of the nominal three-visible-span range instead
+    // of always asking for the widest texture: an expanding crop must not thin
+    // out the buckets already painted.
+    final buckets = l1BucketCount(
+      startMs: window.originMs,
+      endMs: endMs,
+      visibleMs: window.visibleMs,
+      width: kMaxPeakTextureWidth / 3,
+    ).clamp(16, kMaxPeakTextureWidth);
     final key = (
       window.originMs,
       window.spanMs,
-      kMaxPeakTextureWidth,
+      buckets,
       ref.watch(libraryAnalysisEpochProvider),
     );
     // `_requesting` keeps the first paint from firing a second fetch, while the
@@ -108,6 +120,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
           durationMs,
           window.originMs,
           window.spanMs,
+          buckets,
           gen,
         ).whenComplete(() {
           if (isCurrent(gen)) {
@@ -143,13 +156,14 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
     int durationMs,
     int originMs,
     int spanMs,
+    int buckets,
     int gen,
   ) async {
     final endMs = (originMs + spanMs).clamp(0, durationMs);
     if (endMs <= originMs) {
       return;
     }
-    final WaveformPeaksTexture texture;
+    final WaveformStrip strip;
     try {
       final lib = await ref.read(libraryTransportProvider.future);
       if (!ref.mounted || !isCurrent(gen)) {
@@ -159,16 +173,29 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
         trackId: trackId,
         startMs: originMs,
         endMs: endMs,
-        buckets: kMaxPeakTextureWidth,
+        buckets: buckets,
       );
       if (!ref.mounted || !isCurrent(gen)) {
         return;
       }
       final peaks = decodeRgbPeaks(packed.rgb);
-      if (peaks.isEmpty) {
+      // The host clamps against decoded PCM, which may differ from the deck
+      // metadata; an inverted response has nothing to paint.
+      if (peaks.isEmpty || packed.endMs <= packed.startMs) {
         return;
       }
-      texture = await encodeWaveformTexture(peaks);
+      final texture = await encodeWaveformTexture(peaks);
+      strip = WaveformStrip(
+        // Publish the bounds the host actually analyzed, not the request: the
+        // peaks must not be stretched over time the track does not have.
+        originMs: packed.startMs,
+        spanMs: packed.endMs - packed.startMs,
+        // A widening crop asks for more buckets, so the texture no longer
+        // always fills the GPU limit.
+        widthPx: texture.count,
+        heightPx: kWaveformStripHeight.round(),
+        texture: texture,
+      );
     } on Object catch (error) {
       // A failed fetch leaves the previous window in place; the lane's hot path
       // must not toast.
@@ -176,20 +203,10 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
       return;
     }
     if (!ref.mounted || !isCurrent(gen)) {
-      texture.dispose();
+      strip.dispose();
       return;
     }
-    publish(
-      WaveformStrip(
-        originMs: originMs,
-        // The track may be shorter than the requested window; publishing the
-        // requested span would stretch the peaks over time the track lacks.
-        spanMs: endMs - originMs,
-        widthPx: kMaxPeakTextureWidth,
-        heightPx: kWaveformStripHeight.round(),
-        texture: texture,
-      ),
-    );
+    publish(strip);
   }
 }
 

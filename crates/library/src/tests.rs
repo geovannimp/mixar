@@ -87,12 +87,42 @@ fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sampl
     file.write_all(&pcm).unwrap();
 }
 
+/// Mono 16-bit PCM 1 kHz tone: amplitude 0.9 for the first second, 0.1 after
+/// (plus a little tail so window ends never clamp against the duration).
+fn write_stepped_wav(path: &Path, sample_rate: u32, frames: usize) {
+    let mut pcm = Vec::with_capacity(frames * 2);
+    for index in 0..frames {
+        let time = index as f32 / sample_rate as f32;
+        let amplitude = if time < 1.0 { 0.9 } else { 0.1 };
+        let sample = (amplitude
+            * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin()
+            * i16::MAX as f32) as i16;
+        pcm.extend_from_slice(&sample.to_le_bytes());
+    }
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
+    file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
+    file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
+}
+
 #[test]
 fn import_and_get_track_round_trip() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track.wav");
     write_minimal_wav(&wav);
-
     let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let track = lib.import_file_path(&wav).unwrap();
 
@@ -254,6 +284,65 @@ fn compute_waveform_window_from_decode_cache() {
     assert_eq!(end_ms, 500);
     assert_eq!(peaks.len(), 64);
     assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
+}
+
+/// Mirror of the UI's L1 expansion: a later crop that starts mid-track must
+/// leave the buckets covering the same source frames untouched, and the
+/// track-wide reference must be computed once and cached with the decode.
+#[test]
+fn compute_waveform_window_shares_one_track_reference() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("stepped.wav");
+    write_stepped_wav(&wav, 48_000, 48_000 * 3 + 2_400);
+
+    let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+    let track_id = {
+        let lib = library.lock().unwrap();
+        lib.import_file_path(&wav).unwrap().id().clone()
+    };
+    LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+
+    let cached_peak = |library: &Mutex<LibraryManager>| {
+        let lib = library.lock().unwrap();
+        let mut cache = lib.decode_cache.lock().unwrap();
+        cache
+            .get_for_waveform(&track_id)
+            .and_then(|entry| entry.waveform_peak.get().copied())
+    };
+
+    let (first, start, end) =
+        LibraryManager::compute_waveform_window(&library, &track_id, 0, 2_000, 2_000).unwrap();
+    assert_eq!((start, end), (0, 2_000));
+    assert_eq!(first.len(), 2_000);
+    let reference = cached_peak(&library).expect("first request initializes the reference");
+    assert!(reference > 0.0);
+
+    let (second, start, end) =
+        LibraryManager::compute_waveform_window(&library, &track_id, 1_000, 3_000, 2_000).unwrap();
+    assert_eq!((start, end), (1_000, 3_000));
+    assert_eq!(second.len(), 2_000);
+
+    // 48 frames per bucket in both crops, so the second crop's buckets are the
+    // first crop's shifted by 1000.
+    for index in 0..1_000 {
+        let a = first[1_000 + index];
+        let b = second[index];
+        assert!(
+            (a.low - b.low).abs() <= 1e-6
+                && (a.mid - b.mid).abs() <= 1e-6
+                && (a.high - b.high).abs() <= 1e-6,
+            "shared bucket {index} moved: {a:?} vs {b:?}"
+        );
+    }
+    assert_eq!(
+        audio_core::peaks_to_rgb_bytes(&first[1_000..], audio_core::WaveformChannelMode::Mono),
+        audio_core::peaks_to_rgb_bytes(&second[..1_000], audio_core::WaveformChannelMode::Mono),
+        "packed detail bytes must not move between crops"
+    );
+
+    // Repeated requests reuse the cached scalar instead of recomputing it.
+    let _ = LibraryManager::compute_waveform_window(&library, &track_id, 500, 1_500, 512).unwrap();
+    assert_eq!(cached_peak(&library), Some(reference));
 }
 
 #[test]

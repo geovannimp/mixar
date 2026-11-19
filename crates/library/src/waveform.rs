@@ -363,10 +363,12 @@ impl LibraryManager {
         let cached = {
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
-            cache.get(id)
+            cache.get_for_waveform(id)
         };
 
-        let audio = if let Some(cached) = cached {
+        // The entry, not just its PCM: it carries the track-wide waveform
+        // reference, so every crop/zoom of this decode shares one scalar.
+        let entry = if let Some(cached) = cached {
             cached
         } else {
             let source = {
@@ -383,12 +385,14 @@ impl LibraryManager {
             })?);
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
-            if let Some(existing) = cache.get(id) {
-                existing
-            } else {
-                cache.insert(id.clone(), loaded)
+            match cache.get_for_waveform(id) {
+                // A racing decode won: share its entry (and its reference cell)
+                // instead of wrapping the winning PCM in a second one.
+                Some(existing) => existing,
+                None => cache.insert_for_waveform(id.clone(), loaded),
             }
         };
+        let audio = entry.audio.clone();
 
         let duration_ms = {
             let channels = usize::from(audio.channels.max(1));
@@ -401,12 +405,23 @@ impl LibraryManager {
         };
         let start_ms = start_ms.max(0).min(duration_ms.max(0));
         let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
+        // Both global locks are out of scope here, so the one-time whole-track
+        // pass cannot block other library work; concurrent requests for this
+        // entry just wait on its own cell.
+        let normalization_peak = if end_ms > start_ms {
+            *entry
+                .waveform_peak
+                .get_or_init(|| audio_core::spectral_normalization_peak(entry.audio.as_ref()))
+        } else {
+            0.0
+        };
         let peaks = audio_core::compute_spectral_window(
             audio.as_ref(),
             audio_core::ms_to_secs(start_ms),
             audio_core::ms_to_secs(end_ms),
             buckets,
             &audio_core::WaveformAnalysisConfig::default(),
+            normalization_peak,
         );
         Ok((peaks, start_ms, end_ms))
     }
