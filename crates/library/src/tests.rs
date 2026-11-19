@@ -22,16 +22,10 @@ pub(crate) fn write_minimal_wav(path: &Path) {
     file.write_all(&[0u8; 16]).unwrap();
 }
 
-/// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
-pub(crate) fn write_analysis_wav(path: &Path) {
-    let sample_rate = 48_000u32;
-    let duration_secs = 3u32;
-    let sample_count = (sample_rate * duration_secs) as usize;
-    let mut pcm = Vec::with_capacity(sample_count * 2);
-    for index in 0..sample_count {
-        let time = index as f32 / sample_rate as f32;
-        let sample =
-            (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
+/// Mono 16-bit PCM WAV from integer frames: one writer for every test signal.
+fn write_mono_wav(path: &Path, sample_rate: u32, samples: &[i16]) {
+    let mut pcm = Vec::with_capacity(samples.len() * 2);
+    for sample in samples {
         pcm.extend_from_slice(&sample.to_le_bytes());
     }
     let data_size = pcm.len() as u32;
@@ -51,6 +45,18 @@ pub(crate) fn write_analysis_wav(path: &Path) {
     file.write_all(b"data").unwrap();
     file.write_all(&data_size.to_le_bytes()).unwrap();
     file.write_all(&pcm).unwrap();
+}
+
+/// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
+pub(crate) fn write_analysis_wav(path: &Path) {
+    let sample_rate = 48_000u32;
+    let samples: Vec<i16> = (0..(sample_rate * 3) as usize)
+        .map(|index| {
+            let time = index as f32 / sample_rate as f32;
+            (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16
+        })
+        .collect();
+    write_mono_wav(path, sample_rate, &samples);
 }
 
 /// Mono 16-bit PCM: `silence_ms` of digital silence, then a 0.5-amplitude
@@ -58,64 +64,29 @@ pub(crate) fn write_analysis_wav(path: &Path) {
 #[cfg(feature = "analysis")]
 fn write_silence_then_tone_wav(path: &Path, silence_ms: u32, tone_ms: u32, sample_rate: u32) {
     let frames = |ms: u32| (u64::from(sample_rate) * u64::from(ms) / 1000) as usize;
-    let mut pcm = Vec::with_capacity((frames(silence_ms) + frames(tone_ms)) * 2);
-    for _ in 0..frames(silence_ms) {
-        pcm.extend_from_slice(&0i16.to_le_bytes());
-    }
-    for index in 0..frames(tone_ms) {
+    let mut samples = vec![0i16; frames(silence_ms)];
+    samples.extend((0..frames(tone_ms)).map(|index| {
         let time = index as f32 / sample_rate as f32;
-        let sample =
-            (0.5 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
-        pcm.extend_from_slice(&sample.to_le_bytes());
-    }
-    let data_size = pcm.len() as u32;
-    let file_size = 36 + data_size;
-    let byte_rate = sample_rate * 2;
-    let mut file = std::fs::File::create(path).unwrap();
-    file.write_all(b"RIFF").unwrap();
-    file.write_all(&file_size.to_le_bytes()).unwrap();
-    file.write_all(b"WAVEfmt ").unwrap();
-    file.write_all(&16u32.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
-    file.write_all(&sample_rate.to_le_bytes()).unwrap();
-    file.write_all(&byte_rate.to_le_bytes()).unwrap();
-    file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
-    file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
-    file.write_all(b"data").unwrap();
-    file.write_all(&data_size.to_le_bytes()).unwrap();
-    file.write_all(&pcm).unwrap();
+        (0.5 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16
+    }));
+    write_mono_wav(path, sample_rate, &samples);
 }
 
 /// Mono 16-bit PCM 1 kHz tone: amplitude 0.9 for the first second, 0.1 after
 /// (plus a little tail so window ends never clamp against the duration).
+///
+/// The library path has to decode a real file, so this mirrors the audio-core
+/// test helper's signal in a WAV instead of sharing its `Vec<f32>` builder.
 fn write_stepped_wav(path: &Path, sample_rate: u32, frames: usize) {
-    let mut pcm = Vec::with_capacity(frames * 2);
-    for index in 0..frames {
-        let time = index as f32 / sample_rate as f32;
-        let amplitude = if time < 1.0 { 0.9 } else { 0.1 };
-        let sample = (amplitude
-            * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin()
-            * i16::MAX as f32) as i16;
-        pcm.extend_from_slice(&sample.to_le_bytes());
-    }
-    let data_size = pcm.len() as u32;
-    let file_size = 36 + data_size;
-    let byte_rate = sample_rate * 2;
-    let mut file = std::fs::File::create(path).unwrap();
-    file.write_all(b"RIFF").unwrap();
-    file.write_all(&file_size.to_le_bytes()).unwrap();
-    file.write_all(b"WAVEfmt ").unwrap();
-    file.write_all(&16u32.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
-    file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
-    file.write_all(&sample_rate.to_le_bytes()).unwrap();
-    file.write_all(&byte_rate.to_le_bytes()).unwrap();
-    file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
-    file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
-    file.write_all(b"data").unwrap();
-    file.write_all(&data_size.to_le_bytes()).unwrap();
-    file.write_all(&pcm).unwrap();
+    let samples: Vec<i16> = (0..frames)
+        .map(|index| {
+            let time = index as f32 / sample_rate as f32;
+            let amplitude = if time < 1.0 { 0.9 } else { 0.1 };
+            (amplitude * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin() * i16::MAX as f32)
+                as i16
+        })
+        .collect();
+    write_mono_wav(path, sample_rate, &samples);
 }
 
 #[test]

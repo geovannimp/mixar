@@ -398,14 +398,23 @@ mod tests {
         }
     }
 
-    /// 1 kHz mono tone, quiet until `loud_from` seconds, then loud.
-    fn stepped_tone(sample_rate: u32, seconds: f32, loud_from: f32) -> Vec<f32> {
+    /// 1 kHz mono tone: `before` amplitude until `step_secs`, `after` past it.
+    ///
+    /// One helper for every stepped signal in these tests, so the two levels
+    /// and the step time are the only things a case chooses.
+    fn stepped_tone(
+        sample_rate: u32,
+        seconds: f32,
+        step_secs: f32,
+        before: f32,
+        after: f32,
+    ) -> Vec<f32> {
         let frames = (f64::from(sample_rate) * f64::from(seconds)).round() as usize;
         let sr = sample_rate as f32;
         (0..frames)
             .map(|i| {
                 let time = i as f32 / sr;
-                let amplitude = if time >= loud_from { 0.9 } else { 0.1 };
+                let amplitude = if time >= step_secs { after } else { before };
                 amplitude * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin()
             })
             .collect()
@@ -438,7 +447,7 @@ mod tests {
 
     #[test]
     fn expanding_window_keeps_visible_detail_identical() {
-        let audio = mono_audio(stepped_tone(48_000, 60.0, 40.0), 48_000);
+        let audio = mono_audio(stepped_tone(48_000, 60.0, 40.0, 0.1, 0.9), 48_000);
         let reference = spectral_normalization_peak(&audio);
         assert!(reference > 0.0, "a loud tail must give a reference");
 
@@ -474,7 +483,7 @@ mod tests {
     #[test]
     fn window_reference_comes_from_the_whole_track() {
         // The loud part starts at 50 s, so neither crop below contains it.
-        let audio = mono_audio(stepped_tone(48_000, 60.0, 50.0), 48_000);
+        let audio = mono_audio(stepped_tone(48_000, 60.0, 50.0, 0.1, 0.9), 48_000);
         let reference = spectral_normalization_peak(&audio);
 
         // 24 s at 48 kHz over 2048 buckets is 562.5 frames, ceiling-divided to
@@ -496,15 +505,9 @@ mod tests {
     #[test]
     fn shifted_overlap_matches_byte_for_byte() {
         let sample_rate = 48_000;
-        let frames = sample_rate as usize * 3;
-        let samples: Vec<f32> = (0..frames)
-            .map(|index| {
-                let time = index as f32 / sample_rate as f32;
-                let amplitude = if time < 1.0 { 0.9 } else { 0.1 };
-                amplitude * (2.0 * std::f32::consts::PI * 1_000.0 * time).sin()
-            })
-            .collect();
-        let audio = mono_audio(samples, sample_rate);
+        // Loud for the first second, quiet after: the shared passage the two
+        // crops below overlap is entirely in the quiet tail.
+        let audio = mono_audio(stepped_tone(sample_rate, 3.0, 1.0, 0.9, 0.1), sample_rate);
         let reference = spectral_normalization_peak(&audio);
 
         // 2 s at 48 kHz is exactly 96 000 frames: 48 frames per bucket, so the
@@ -592,7 +595,7 @@ mod tests {
 
     #[test]
     fn full_track_envelope_still_normalizes_to_one() {
-        let audio = mono_audio(stepped_tone(48_000, 3.0, 2.0), 48_000);
+        let audio = mono_audio(stepped_tone(48_000, 3.0, 2.0, 0.1, 0.9), 48_000);
         let peaks = compute_full_track_envelope(&audio, 512, &WaveformAnalysisConfig::default());
         let max = peaks.iter().map(band_max).fold(0.0f32, f32::max);
         assert!((max - 1.0).abs() < 1e-6, "max={max}");

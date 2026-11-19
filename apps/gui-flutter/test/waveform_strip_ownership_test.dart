@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_window.dart';
@@ -126,23 +125,19 @@ Future<ProviderContainer> _pumpStrip(
   return ProviderScope.containerOf(tester.element(find.byType(SizedBox)));
 }
 
-/// Polls until a published strip satisfies [matches] (any non-null strip by
-/// default), or gives up.
-Future<WaveformStrip?> _awaitWindowStrip(
-  WidgetTester tester,
-  ProviderContainer container, {
-  bool Function(WaveformStrip strip)? matches,
-}) async {
-  WaveformStrip? found;
-  // Encoding the peak texture awaits real engine futures, which only advance
-  // outside the widget test's fake clock. Poll inside one real-time window so a
-  // loaded parallel test run does not exhaust a per-iteration budget.
+/// Polls [until] on the real clock until it returns non-null, then pumps.
+///
+/// Encoding a peak texture awaits real engine futures, which only advance
+/// outside the widget test's fake clock. Poll inside one real-time window so a
+/// loaded parallel test run does not exhaust a per-iteration budget.
+Future<T?> _poll<T>(WidgetTester tester, T? Function() until) async {
+  T? found;
   await tester.runAsync(() async {
     for (var attempt = 0; attempt < 400; attempt++) {
-      final strip = container.read(waveformStripProvider(_key));
-      if (strip != null && (matches == null || matches(strip))) {
-        found = strip;
-        break;
+      final value = until();
+      if (value != null) {
+        found = value;
+        return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 2));
     }
@@ -151,20 +146,29 @@ Future<WaveformStrip?> _awaitWindowStrip(
   return found;
 }
 
+/// Waits for a published strip satisfying [matches] (any non-null by default).
+Future<WaveformStrip?> _awaitWindowStrip(
+  WidgetTester tester,
+  ProviderContainer container, {
+  bool Function(WaveformStrip strip)? matches,
+}) => _poll(tester, () {
+  final strip = container.read(waveformStripProvider(_key));
+  if (strip == null || (matches != null && !matches(strip))) {
+    return null;
+  }
+  return strip;
+});
+
 /// Waits until the transport has seen [count] window requests.
 Future<void> _awaitRequests(
   WidgetTester tester,
   _WaveformTransport transport,
   int count,
 ) async {
-  await tester.runAsync(() async {
-    for (var attempt = 0; attempt < 400; attempt++) {
-      if (transport.windowRequests.length >= count) {
-        return;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-    }
-  });
+  await _poll(
+    tester,
+    () => transport.windowRequests.length >= count ? count : null,
+  );
 }
 
 /// Lets an in-flight response settle inside the real-time window.
