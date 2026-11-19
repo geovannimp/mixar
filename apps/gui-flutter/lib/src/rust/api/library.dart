@@ -276,6 +276,17 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Returns how many on-disk files were deleted under the stems root.
   Future<int> syncStemCache();
 
+  /// Replace the order of a sortable playlist's entries.
+  ///
+  /// `entry_ids` must list the playlist's whole membership exactly once, in
+  /// the wanted order. A non-sortable playlist or a stale/incomplete id set
+  /// errors in the core, so the stored order can never drift from the rows
+  /// the user sees.
+  Future<void> updateCollectionEntries({
+    required String collectionId,
+    required List<String> entryIds,
+  });
+
   /// Save the user-editable metadata of a track (library DB only).
   ///
   /// The generated Dart side takes these as named arguments; this layer
@@ -645,12 +656,16 @@ class LibraryCollectionSummary {
   final String? path;
   final int trackCount;
 
+  /// Playlist keeps a manual order (`false` for folders and unordered crates).
+  final bool? sortable;
+
   const LibraryCollectionSummary({
     required this.id,
     required this.name,
     required this.kind,
     this.path,
     required this.trackCount,
+    this.sortable,
   });
 
   @override
@@ -659,7 +674,8 @@ class LibraryCollectionSummary {
       name.hashCode ^
       kind.hashCode ^
       path.hashCode ^
-      trackCount.hashCode;
+      trackCount.hashCode ^
+      sortable.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -670,7 +686,8 @@ class LibraryCollectionSummary {
           name == other.name &&
           kind == other.kind &&
           path == other.path &&
-          trackCount == other.trackCount;
+          trackCount == other.trackCount &&
+          sortable == other.sortable;
 }
 
 /// Closed colour label crossing the FRB boundary.

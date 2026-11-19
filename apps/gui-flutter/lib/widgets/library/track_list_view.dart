@@ -14,6 +14,7 @@ import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
 import 'package:gui_flutter/widgets/library/library_list_surface.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/library/track_reorder_handle.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
@@ -44,6 +45,7 @@ class TrackListView<T> extends ConsumerStatefulWidget {
     this.dimmedOf,
     this.onVisibleRange,
     this.errorBuilder,
+    this.onReorder,
     super.key,
   });
 
@@ -100,6 +102,10 @@ class TrackListView<T> extends ConsumerStatefulWidget {
 
   /// Error state; defaults to a destructive message.
   final Widget Function(BuildContext context, Object error)? errorBuilder;
+
+  /// Called when a row is dropped at a new position. Non-null turns the list
+  /// into a reorderable one with a grip on every row.
+  final Future<void> Function(int oldIndex, int newIndex)? onReorder;
 
   @override
   ConsumerState<TrackListView<T>> createState() => _TrackListViewState<T>();
@@ -392,6 +398,67 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
   }
 
+  /// The list itself: a plain fixed-extent list, or the reorderable variant
+  /// when the caller owns a manual order. Both paths share one row builder so
+  /// selection, drag-to-deck and menu behaviour cannot drift between them.
+  Widget _buildList(List<T> items, LibraryRowDensity density) {
+    Widget buildRow(BuildContext context, int index) {
+      final item = items[index];
+      return TrackListRow(
+        key: ValueKey(widget.idOf(item)),
+        index: index,
+        reorderHandle: widget.onReorder == null
+            ? null
+            : TrackReorderHandle(index: index),
+        payloadOf: (ref) => widget.payloadOf(ref, item),
+        menuBuilder: (context, ref, dismiss) =>
+            _menuBody(context, ref, item, dismiss),
+        contentBuilder: (context, ref, actionsSlot) =>
+            widget.rowBuilder(context, ref, index, item, density, actionsSlot),
+        overlay: widget.overlayBuilder?.call(item),
+        dimmedOf: widget.dimmedOf == null
+            ? null
+            : (ref) => widget.dimmedOf!(ref, item),
+        onSelect: () {
+          // Clicking a row also grants the list keyboard focus, so the arrow
+          // keys keep working after a press.
+          _focusNode.requestFocus();
+          ref
+              .read(libraryFocusZoneProvider.notifier)
+              .set(LibraryFocusZone.trackList);
+          _select(index);
+        },
+      );
+    }
+
+    final onReorder = widget.onReorder;
+    if (onReorder == null) {
+      return ListView.builder(
+        controller: _scroll,
+        itemExtent: density.height,
+        padding: EdgeInsets.zero,
+        itemCount: items.length,
+        itemBuilder: buildRow,
+      );
+    }
+    // The widgets-layer list, not Material's `ReorderableListView`: the app's
+    // Material bridge is material_ui, and the Flutter list insists on
+    // Flutter's own `MaterialLocalizations`. This one owns the scrollable
+    // itself, so the existing controller and fixed item extent still apply.
+    return ReorderableList(
+      controller: _scroll,
+      itemExtent: density.height,
+      padding: EdgeInsets.zero,
+      // Rows already paint their own card fill; a raised proxy would draw a
+      // second surface over it.
+      proxyDecorator: (child, index, animation) => child,
+      onReorderItem: (oldIndex, newIndex) =>
+          unawaited(onReorder(oldIndex, newIndex)),
+      itemCount: items.length,
+      itemBuilder: buildRow,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -484,45 +551,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
                   // arrow keys.
                   child: NotificationListener<ScrollMetricsNotification>(
                     onNotification: _onScrollMetricsNotification,
-                    child: ListView.builder(
-                      controller: _scroll,
-                      itemExtent: density.height,
-                      padding: EdgeInsets.zero,
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return TrackListRow(
-                          key: ValueKey(widget.idOf(item)),
-                          index: index,
-                          payloadOf: (ref) => widget.payloadOf(ref, item),
-                          menuBuilder: (context, ref, dismiss) =>
-                              _menuBody(context, ref, item, dismiss),
-                          contentBuilder: (context, ref, actionsSlot) =>
-                              widget.rowBuilder(
-                                context,
-                                ref,
-                                index,
-                                item,
-                                density,
-                                actionsSlot,
-                              ),
-                          overlay: widget.overlayBuilder?.call(item),
-                          dimmedOf: widget.dimmedOf == null
-                              ? null
-                              : (ref) => widget.dimmedOf!(ref, item),
-                          onSelect: () {
-                            // Clicking a row also grants the list keyboard
-                            // focus, so the arrow keys keep working after a
-                            // press.
-                            _focusNode.requestFocus();
-                            ref
-                                .read(libraryFocusZoneProvider.notifier)
-                                .set(LibraryFocusZone.trackList);
-                            _select(index);
-                          },
-                        );
-                      },
-                    ),
+                    child: _buildList(items, density),
                   ),
                 ),
               ),

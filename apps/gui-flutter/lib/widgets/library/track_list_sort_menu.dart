@@ -20,6 +20,42 @@ class TrackListSortMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final (field, ascending) = ref.watch(librarySortProvider);
+    final sortable = ref.watch(activeCollectionSortableProvider);
+    final manual = ref.watch(playlistManualOrderProvider);
+
+    Widget sortItem({
+      required String label,
+      required bool active,
+      required VoidCallback onPress,
+      IconData? icon,
+    }) {
+      return MixarMenuItem(
+        // `title`, not `child`: `child` skips the row padding.
+        title: Row(
+          children: [
+            Expanded(
+              // One line per row: a wrapped label doubles the row height and
+              // breaks the menu's rhythm.
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active
+                      ? theme.colors.primary
+                      : theme.colors.foreground,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (active && icon != null)
+              Icon(icon, size: 14, color: theme.colors.primary),
+          ],
+        ),
+        onPress: onPress,
+      );
+    }
+
     return MixarMenuAnchor(
       dialogTitle: 'Sort tracks',
       // Field labels are short, but keep headroom so an arrow + accent row
@@ -27,41 +63,30 @@ class TrackListSortMenu extends ConsumerWidget {
       minWidth: 160,
       menuBuilder: (context, handle) => MixarMenuBody(
         groups: [
+          if (sortable)
+            MixarMenuGroup(
+              children: [
+                sortItem(
+                  label: 'Manual order',
+                  active: manual,
+                  icon: LucideIcons.check,
+                  onPress: () {
+                    handle.hide();
+                    ref
+                        .read(playlistManualOrderProvider.notifier)
+                        .setManual(manual: true);
+                  },
+                ),
+              ],
+            ),
           MixarMenuGroup(
             children: [
               for (final option in LibrarySortField.values)
-                MixarMenuItem(
-                  // `title`, not `child`: `child` skips the row padding.
-                  title: Row(
-                    children: [
-                      Expanded(
-                        // One line per row: a wrapped label doubles the row
-                        // height and breaks the menu's rhythm.
-                        child: Text(
-                          option.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: option == field
-                                ? theme.colors.primary
-                                : theme.colors.foreground,
-                            fontWeight: option == field
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                      if (option == field)
-                        Icon(
-                          // Points the way the list reads: A→Z / low→high is ↓.
-                          ascending
-                              ? LucideIcons.arrowDown
-                              : LucideIcons.arrowUp,
-                          size: 14,
-                          color: theme.colors.primary,
-                        ),
-                    ],
-                  ),
+                sortItem(
+                  label: option.label,
+                  active: !manual && option == field,
+                  // Points the way the list reads: A→Z / low→high is ↓.
+                  icon: ascending ? LucideIcons.arrowDown : LucideIcons.arrowUp,
                   onPress: () {
                     handle.hide();
                     ref.read(librarySortProvider.notifier).select(option);
@@ -93,7 +118,9 @@ class TrackListSortMenu extends ConsumerWidget {
             children: [
               Flexible(
                 child: Text(
-                  field.label,
+                  // The toolbar button is width-capped, so it keeps the short
+                  // form; the menu spells out "Manual order".
+                  manual ? 'Manual' : field.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.typography.body.xs.copyWith(
@@ -103,7 +130,13 @@ class TrackListSortMenu extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               Icon(
-                ascending ? LucideIcons.arrowDown : LucideIcons.arrowUp,
+                // Manual order has no direction to point: the grip says the
+                // order is the playlist's own.
+                manual
+                    ? LucideIcons.gripVertical
+                    : ascending
+                    ? LucideIcons.arrowDown
+                    : LucideIcons.arrowUp,
                 size: 12,
               ),
             ],

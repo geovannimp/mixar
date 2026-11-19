@@ -37,6 +37,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Progress bar thickness, and the gap that keeps stacked per-job bars apart.
@@ -53,6 +54,35 @@ class TrackListPane extends ConsumerStatefulWidget {
 }
 
 class _TrackListPaneState extends ConsumerState<TrackListPane> {
+  /// Persist a drop in the sortable playlist's manual order.
+  ///
+  /// The visible list is the filtered one, so a move under an active filter
+  /// still maps onto the playlist's full membership.
+  Future<void> _reorder(int oldIndex, int newIndex) async {
+    final visible = ref.read(filteredTracksProvider).asData?.value;
+    if (visible == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(collectionTracksProvider.notifier)
+          .moveVisible(
+            visible: visible,
+            oldIndex: oldIndex,
+            newIndex: newIndex,
+          );
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      showMixarToast(
+        context: context,
+        title: Text('Could not reorder tracks: $error'),
+        variant: MixarToastVariant.destructive,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -72,6 +102,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     }
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final density = ref.watch(libraryRowDensityProvider);
+    final canReorder = ref.watch(collectionReorderProvider);
     // Watched (not read): `trackRowInLibrary` reads this to derive each row's
     // payload source and menu enablement, and a drive resolution completing
     // must rebuild the rows — the dependency the old hoisted watch provided.
@@ -123,7 +154,11 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                 )
               : TrackListView<LibraryTrackSummary>(
                   items: tracksAsync,
-                  idOf: (track) => track.id,
+                  // Entry ids, not track ids: a sortable playlist may list the
+                  // same track twice, and the reorderable list requires one
+                  // unique key per row. Folder rows fall back to the track id.
+                  idOf: (track) => track.entryId ?? track.id,
+                  onReorder: !drive && canReorder ? _reorder : null,
                   payloadOf: _payloadOf,
                   rowBuilder: (context, ref, index, track, density, slot) =>
                       density.isCompact
