@@ -122,8 +122,7 @@ void main() {
   Finder previewLights() => find.byWidgetPredicate(
     (widget) =>
         widget is Semantics &&
-        widget.properties.label ==
-            'macOS title-bar layout preview',
+        widget.properties.label == 'macOS title-bar layout preview',
   );
 
   /// Drops the tree so window listeners let go before the mocks are cleared.
