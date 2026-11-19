@@ -19,6 +19,8 @@ ninja = "1.13.2"
 # dart pub global binaries (e.g. dashmonx from flutter postinstall)
 [env]
 _.path = ["~/.pub-cache/bin"]
+# Single source of truth for kache's shims path; cargokit reads this variable.
+KACHE_SHIMS_DIR = "${HOME}/.local/lib/kache/shims"
 
 # One-time per machine (Unix): compiler shims plus cache settings. The shims
 # only create links in kache's own directory; they do not touch global Cargo
@@ -29,7 +31,7 @@ _.path = ["~/.pub-cache/bin"]
 description = "Install kache compiler shims and tune the local cache"
 run = """
 if command -v kache >/dev/null 2>&1; then
-  kache init --shims --force
+  kache init --shims "$KACHE_SHIMS_DIR" --force
   if [ -z "${CI:-}" ]; then
     kache config set cache.explain_miss true --global
     kache config set cache.local_max_size 50GiB --global

@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 import 'android_environment.dart';
 import 'cargo.dart';
 import 'environment.dart';
+import 'kache_shims.dart';
 import 'options.dart';
 import 'rustup.dart';
 import 'target.dart';
@@ -163,18 +164,16 @@ class RustBuilder {
       );
     }
     final manifestPath = path.join(environment.manifestDir, 'Cargo.toml');
-    final buildEnvironment = await _buildEnvironment();
-    final shimsDir = _kacheShimsDir();
-    if (shimsDir != null) {
-      // C/C++ compiled by build scripts (Opus, SQLCipher, OpenSSL) inherits
-      // this PATH, so kache's compiler shims cache those objects between
-      // worktrees. Kept off the ambient PATH: Flutter's build hooks resolve
-      // `clang` there and then look for the toolchain next to the shim.
-      buildEnvironment['PATH'] = [
-        shimsDir,
-        Platform.environment['PATH'] ?? '',
-      ].join(Platform.isWindows ? ';' : ':');
-    }
+    final shimsDir = resolveKacheShimsDir(
+      environment: Platform.environment,
+      isWindows: Platform.isWindows,
+    );
+    final buildEnvironment = withKacheShims(
+      environment: await _buildEnvironment(),
+      parentEnvironment: Platform.environment,
+      shimsDir: shimsDir,
+      isWindows: Platform.isWindows,
+    );
     // Do not route this through `kache cargo` to enable new-target seeding:
     // with cargokit's target dir (outside the workspace) it places build-script
     // side effects such as ORT's libwebgpu_dawn.so in crates/target instead,
@@ -211,26 +210,6 @@ class RustBuilder {
       target.rust,
       environment.configuration.rustName,
     );
-  }
-
-  /// kache's compiler shims, created by `mise run kache-setup`.
-  ///
-  /// Injected only into the Cargo build's environment; see the call in
-  /// [build].
-  String? _kacheShimsDir() {
-    if (Platform.isWindows) {
-      return null;
-    }
-    final configured = Platform.environment['KACHE_SHIMS_DIR'];
-    final home = Platform.environment['HOME'];
-    final dir = configured ??
-        (home == null
-            ? null
-            : path.join(home, '.local', 'lib', 'kache', 'shims'));
-    if (dir == null || !Directory(dir).existsSync()) {
-      return null;
-    }
-    return dir;
   }
 
   Future<Map<String, String>> _buildEnvironment() async {
