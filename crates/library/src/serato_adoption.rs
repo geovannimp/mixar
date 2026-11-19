@@ -416,8 +416,8 @@ pub(crate) fn apply_payload_in_tx(
         if label.is_some() || rgb.is_some() {
             tracks::ActiveModel {
                 id: Set(id.as_str().to_string()),
-                color_label: Set(label.map(|label| label.as_str().to_string())),
-                color_rgb: Set(rgb.map(|rgb| rgb as i32)),
+                color_label: Set(label.map(|value| value.as_str().to_string())),
+                color_rgb: Set(rgb.map(|value| value as i32)),
                 ..Default::default()
             }
             .update(conn)

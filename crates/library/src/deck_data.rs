@@ -603,16 +603,15 @@ impl LibraryManager {
         let mut normalized = normalized;
         if colour_changed {
             self.ensure_serato_adopted(track_id)?;
-            // The editor payload carries the BPM/key the user saw *before*
-            // adoption. An unchanged field must follow the adopted value
-            // instead of writing the pre-adoption snapshot back over it.
+            // The editor payload carries the BPM the user saw *before*
+            // adoption. An unchanged BPM must follow the adopted value (the
+            // imported grid mirror) instead of writing the stale snapshot back
+            // over it. The key needs no rebase: adoption never writes a key on
+            // an existing row, and an explicit notation change (e.g. `8A` for
+            // `Am`) is the value the user asked for.
             if let Some(after) = self.get_track(track_id)? {
-                let after = after.metadata();
                 if same_bpm(normalized.bpm, before.metadata().bpm) {
-                    normalized.bpm = after.bpm;
-                }
-                if normalized.key == before.metadata().key {
-                    normalized.key = after.key.clone();
+                    normalized.bpm = after.metadata().bpm;
                 }
             }
         }
@@ -629,8 +628,8 @@ impl LibraryManager {
 fn same_bpm(incoming: Option<f64>, before: Option<f64>) -> bool {
     match (incoming, before) {
         (None, None) => true,
-        (Some(incoming), Some(before)) => {
-            incoming == before || (incoming.is_nan() && before.is_nan())
+        (Some(new_bpm), Some(old_bpm)) => {
+            new_bpm == old_bpm || (new_bpm.is_nan() && old_bpm.is_nan())
         }
         _ => false,
     }

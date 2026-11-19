@@ -104,6 +104,19 @@ fn assert_marked(lib: &LibraryManager, id: &TrackId) -> SeratoAdoptionState {
     state
 }
 
+/// Run one off-mutex entry point and hand the manager back.
+///
+/// Off-mutex APIs take `&Mutex<LibraryManager>`; the wrap/call/`into_inner`
+/// triple belongs here so a missed `into_inner` cannot poison later assertions.
+fn with_off_mutex<T>(
+    lib: LibraryManager,
+    f: impl FnOnce(&Mutex<LibraryManager>) -> T,
+) -> (LibraryManager, T) {
+    let library = Mutex::new(lib);
+    let value = f(&library);
+    (library.into_inner().unwrap(), value)
+}
+
 /// `Serato Markers2` logical payload, base64-wrapped exactly as Serato writes it.
 fn markers2_payload(records: &[(&[u8], &[u8])]) -> Vec<u8> {
     use base64::Engine as _;
@@ -296,10 +309,9 @@ fn off_mutex_import_and_refresh_adopt() {
 
     let lib = library();
     let id = seed_unmarked(&lib, &wav);
-    let library = Mutex::new(lib);
-
-    LibraryManager::refresh_file_off_mutex(&library, &wav).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::refresh_file_off_mutex(library, &wav).unwrap();
+    });
     assert_file_cues_imported(&lib, &id);
 }
 
@@ -326,9 +338,9 @@ fn folder_and_playlist_sync_adopt() {
         .add_collection(&crate::NewCollection::playlist("Set", false))
         .unwrap();
     lib.add_collection_entry(&playlist.id, &id, None).unwrap();
-    let library = Mutex::new(lib);
-    LibraryManager::sync_collection_off_mutex(&library, Some(&playlist.id)).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::sync_collection_off_mutex(library, Some(&playlist.id)).unwrap();
+    });
     assert_file_cues_imported(&lib, &id);
 }
 
@@ -342,9 +354,9 @@ fn deck_load_adopts_even_when_analysis_is_not_needed() {
     let id = seed_unmarked(&lib, &wav);
     #[cfg(feature = "analysis")]
     seed_analysis_cache(&lib, &id);
-    let library = Mutex::new(lib);
-    LibraryManager::prepare_track_for_playback(&library, &id).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_track_for_playback(library, &id).unwrap();
+    });
     assert_file_cues_imported(&lib, &id);
 }
 
@@ -356,10 +368,10 @@ fn file_path_deck_load_adopts() {
 
     let lib = library();
     let id = seed_unmarked(&lib, &wav);
-    let library = Mutex::new(lib);
-    let prepared = LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
+    let (lib, prepared) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap()
+    });
     assert_eq!(prepared.track_id, id);
-    let lib = library.into_inner().unwrap();
     assert_file_cues_imported(&lib, &id);
 }
 
@@ -379,14 +391,14 @@ fn direct_and_off_mutex_analysis_adopt() {
     assert_file_cues_imported(&lib, &direct_id);
 
     let off_id = seed_unmarked(&lib, &off_mutex);
-    let library = Mutex::new(lib);
-    LibraryManager::analyze_track_off_mutex(
-        &library,
-        &off_id,
-        crate::AnalyzeTrackOptions::default(),
-    )
-    .unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::analyze_track_off_mutex(
+            library,
+            &off_id,
+            crate::AnalyzeTrackOptions::default(),
+        )
+        .unwrap();
+    });
     assert_file_cues_imported(&lib, &off_id);
 }
 
@@ -611,9 +623,9 @@ fn adopted_state_is_never_resurrected() {
         assert!(list_loops(&lib.db, &id).unwrap().is_empty());
 
         // Deck load.
-        let library = Mutex::new(lib);
-        LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-        let lib = library.into_inner().unwrap();
+        let (lib, ()) = with_off_mutex(lib, |library| {
+            LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+        });
         assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
 
         // Forced analysis.
@@ -628,9 +640,9 @@ fn adopted_state_is_never_resurrected() {
     let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
     assert_eq!(state(&lib, &id), marker);
     assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
-    let library = Mutex::new(lib);
-    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+    });
     assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
     assert_eq!(state(&lib, &id), marker);
 }
@@ -656,9 +668,9 @@ fn mik_fallback_never_resurrects_cleared_cues() {
 
         clear_everything(&lib, &id);
         lib.refresh_file_source(&wav).unwrap();
-        let library = Mutex::new(lib);
-        LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-        let lib = library.into_inner().unwrap();
+        let (lib, ()) = with_off_mutex(lib, |library| {
+            LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+        });
         assert!(
             list_hot_cues(&lib.db, &id).unwrap().is_empty(),
             "MIK cues must not come back ({write_back:?})"
@@ -691,9 +703,9 @@ fn first_colour_clear_clears_the_whole_pair() {
     let lib = library();
     let id = seed_unmarked(&lib, &wav);
     // Load adopts the file colour, which the deck/UI then shows.
-    let library = Mutex::new(lib);
-    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+    });
     let adopted = lib.get_track(&id).unwrap().unwrap();
     assert_eq!(adopted.metadata().color_label, Some(ColorLabel::Red));
     assert_eq!(adopted.metadata().color_rgb, Some(0xFF_0000));
@@ -712,9 +724,9 @@ fn first_colour_clear_clears_the_whole_pair() {
 
     // Rescan and load cannot bring it back.
     lib.refresh_file_source(&wav).unwrap();
-    let library = Mutex::new(lib);
-    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+    });
     assert_eq!(
         lib.get_track(&id).unwrap().unwrap().metadata().color_rgb,
         None
@@ -1073,23 +1085,22 @@ fn a_deferred_read_is_attempted_once_per_entry_and_retried_later() {
     let id = seed_unmarked(&lib, &wav);
     std::fs::rename(&wav, &hidden).unwrap();
 
-    let library = Mutex::new(lib);
-    start_counting();
-    let result = LibraryManager::prepare_track_for_playback(&library, &id);
-    let attempts = stop_counting();
+    let (lib, (result, attempts)) = with_off_mutex(lib, |library| {
+        start_counting();
+        let result = LibraryManager::prepare_track_for_playback(library, &id);
+        (result, stop_counting())
+    });
     assert!(
         result.is_err(),
         "a missing file cannot prepare for playback"
     );
     assert_eq!(attempts, 1, "one adoption attempt per load entry");
-    {
-        let lib = library.lock().unwrap();
-        assert_eq!(state(&lib, &id).imported_at, None);
-    }
+    assert_eq!(state(&lib, &id).imported_at, None);
 
     std::fs::rename(&hidden, &wav).unwrap();
-    LibraryManager::prepare_track_for_playback(&library, &id).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_track_for_playback(library, &id).unwrap();
+    });
     assert_marked(&lib, &id);
     assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
 }
@@ -1103,16 +1114,20 @@ fn analysis_adopts_from_its_own_read_without_a_retry() {
 
     let lib = library();
     let id = seed_unmarked(&lib, &wav);
-    let library = Mutex::new(lib);
-    start_counting();
-    LibraryManager::analyze_track_off_mutex(&library, &id, crate::AnalyzeTrackOptions::default())
+    let (lib, attempts) = with_off_mutex(lib, |library| {
+        start_counting();
+        LibraryManager::analyze_track_off_mutex(
+            library,
+            &id,
+            crate::AnalyzeTrackOptions::default(),
+        )
         .unwrap();
-    let attempts = stop_counting();
+        stop_counting()
+    });
     assert_eq!(
         attempts, 0,
         "discovery's payload is reused; persistence must not re-read under the lock"
     );
-    let lib = library.into_inner().unwrap();
     assert_marked(&lib, &id);
     assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
 }
@@ -1145,15 +1160,23 @@ fn a_database_failure_rolls_back_every_mapped_row() {
 }
 
 fn install_marker_failure(lib: &LibraryManager) {
+    use sea_orm::{ColumnTrait, EntityName};
+
+    // The table and column names come from the entity, so a rename surfaces here
+    // instead of leaving this trigger silently unable to fire (a false pass).
+    let table = tracks::Entity.table_name();
+    let (_, imported_at) = tracks::Column::SeratoImportedAt.as_column_ref();
+    let (_, adopted_kinds) = tracks::Column::SeratoAdoptedKinds.as_column_ref();
     let guard = lib.db.conn().unwrap();
     guard
         .as_connection()
         .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "CREATE TRIGGER fail_adoption BEFORE UPDATE OF serato_imported_at ON tracks \
-             WHEN NEW.serato_adopted_kinds IS NOT NULL \
-             BEGIN SELECT RAISE(ABORT, 'injected adoption failure'); END;"
-                .to_string(),
+            format!(
+                "CREATE TRIGGER fail_adoption BEFORE UPDATE OF {imported_at} ON {table} \
+                 WHEN NEW.{adopted_kinds} IS NOT NULL \
+                 BEGIN SELECT RAISE(ABORT, 'injected adoption failure'); END;"
+            ),
         ))
         .unwrap();
 }
@@ -1241,9 +1264,9 @@ fn adoption_and_deck_edits_never_touch_audio_bytes() {
     assert_eq!(sha(&std::fs::read(&wav).unwrap()), before, "adoption");
 
     lib.refresh_file_source(&wav).unwrap();
-    let library = Mutex::new(lib);
-    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
-    let lib = library.into_inner().unwrap();
+    let (lib, ()) = with_off_mutex(lib, |library| {
+        LibraryManager::prepare_file_path_for_playback(library, &wav).unwrap();
+    });
     assert_eq!(sha(&std::fs::read(&wav).unwrap()), before, "rescan + load");
 
     lib.save_track_hot_cue(&id, 0, 1_234, None, None, Some("cue".into()))
