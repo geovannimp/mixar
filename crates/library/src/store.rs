@@ -65,9 +65,9 @@ fn apply_metadata_columns(
     active.artist = Set(metadata.artist.clone());
     active.album = Set(metadata.album.clone());
     active.genre = Set(metadata.genre.clone());
-    let valid_bpm = metadata.bpm.filter(|bpm| valid_bpm(*bpm));
-    active.bpm = Set(valid_bpm);
-    active.bpm_source = Set(valid_bpm.map(|_| origin.source().to_string()));
+    let bpm = metadata.bpm.filter(|value| valid_bpm(*value));
+    active.bpm = Set(bpm);
+    active.bpm_source = Set(bpm.map(|_| origin.source().to_string()));
     let key = present_key(metadata);
     active.key = Set(key.map(str::to_string));
     active.key_source = Set(key.map(|_| origin.source().to_string()));

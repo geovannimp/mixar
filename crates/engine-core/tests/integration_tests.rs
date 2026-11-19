@@ -167,6 +167,12 @@ fn test_engine_load_track_from_library_attaches_native_stems() -> Result<()> {
     Ok(())
 }
 
+/// `auto` must resolve to a real backend or fail; it never falls back to `null`.
+///
+/// The previous assertion accepted a `null` fallback that `create_backend` has
+/// never provided, so it failed on every build without `backend-cpal`. Assert
+/// the documented contract instead: the headless build reports that no real
+/// backend is available, and a CPAL build resolves to `cpal`.
 #[test]
 fn test_engine_with_auto_backend_requires_real_audio() -> Result<()> {
     if !cfg!(feature = "backend-cpal") {
@@ -178,7 +184,7 @@ fn test_engine_with_auto_backend_requires_real_audio() -> Result<()> {
             .contains("no real audio backend available"));
         return Ok(());
     }
-    //
+
     // Deliberately does not `start()`/`stop()`: whether a real device accepts
     // this exact buffer size is a property of the runner's audio stack (the
     // previous version of this test passed on CI and failed on any machine with

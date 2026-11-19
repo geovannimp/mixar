@@ -43,6 +43,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+/// Audit table owned by the library. `library::db::TRACK_ANALYSIS_TABLE` is
+/// crate-private, so this fixture keeps one local copy instead of repeating
+/// the name in each statement.
+const TRACK_ANALYSIS: &str = "track_analysis";
+
 fn loop_in_cmd(position_ms: i32) -> Command {
     Command::LoopIn(LoopIn {
         deck: 0,
@@ -279,10 +284,12 @@ fn canonical_track_facts_drive_deck_and_export_without_analysis_audit_rows() {
         1
     );
     db.execute(
-        "INSERT INTO track_analysis
+        &format!(
+            "INSERT INTO {TRACK_ANALYSIS}
          (track_id, backend, backend_version, analyzed_at, bpm, sample_rate,
           duration_analyzed_ms, loudness_lufs)
-         VALUES (?1, 'fixture', '1', '1', 117.0, 48000, 2000, -23.0)",
+         VALUES (?1, 'fixture', '1', '1', 117.0, 48000, 2000, -23.0)"
+        ),
         track_param,
     )
     .unwrap();
@@ -345,7 +352,7 @@ fn canonical_track_facts_drive_deck_and_export_without_analysis_audit_rows() {
     session.with_engine(|engine| engine.unload_deck(0)).unwrap();
     assert_eq!(
         db.execute(
-            "DELETE FROM track_analysis WHERE track_id = ?1",
+            &format!("DELETE FROM {TRACK_ANALYSIS} WHERE track_id = ?1"),
             track_param
         )
         .unwrap(),
@@ -356,7 +363,7 @@ fn canonical_track_facts_drive_deck_and_export_without_analysis_audit_rows() {
     // Reload must not have silently re-analyzed the keyless track.
     let raw_count: i64 = db
         .query_row(
-            "SELECT COUNT(*) FROM track_analysis WHERE track_id = ?1",
+            &format!("SELECT COUNT(*) FROM {TRACK_ANALYSIS} WHERE track_id = ?1"),
             track_param,
             |row| row.get(0),
         )

@@ -18,7 +18,7 @@ pub(crate) const MIGRATION: Migration = Migration {
 };
 
 fn migration_error(err: impl std::fmt::Display) -> MigrationError {
-    MigrationError::new(VERSION, err.to_string())
+    super::migration_error(VERSION, err)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -374,11 +374,13 @@ mod tests {
     ) {
         execute(
             conn,
-            r#"INSERT INTO track_analysis
+            format!(
+                r#"INSERT INTO {TRACK_ANALYSIS_TABLE}
                (track_id, backend, backend_version, analyzed_at, bpm, bpm_confidence, "key",
                 key_confidence, key_clarity, grid_stability, sample_rate, duration_analyzed_ms,
                 loudness_lufs, beat_grid_json)
-               VALUES (?, ?, 'old-backend', ?, ?, 0.81, 'F#m', 0.82, 0.83, 0.84, ?, 9000, -14.25, ?)"#,
+               VALUES (?, ?, 'old-backend', ?, ?, 0.81, 'F#m', 0.82, 0.83, 0.84, ?, 9000, -14.25, ?)"#
+            ),
             [
                 id.into(),
                 backend.into(),
@@ -427,10 +429,11 @@ mod tests {
     fn seed_old_file(conn: &DatabaseConnection, first_backfill_applied: bool) {
         // Replace the fresh audit table with the original track_id primary key
         // layout (including the original FK and all detector columns).
-        execute(conn, "DROP TABLE track_analysis", []);
+        execute(conn, format!("DROP TABLE {TRACK_ANALYSIS_TABLE}"), []);
         execute(
             conn,
-            r#"CREATE TABLE track_analysis (
+            format!(
+                r#"CREATE TABLE {TRACK_ANALYSIS_TABLE} (
                 track_id TEXT NOT NULL PRIMARY KEY,
                 backend TEXT NOT NULL,
                 backend_version TEXT NOT NULL,
@@ -447,7 +450,8 @@ mod tests {
                 beat_grid_json TEXT,
                 FOREIGN KEY (track_id) REFERENCES tracks(id)
                     ON DELETE CASCADE ON UPDATE CASCADE
-            )"#,
+            )"#
+            ),
             [],
         );
         execute(conn, format!("DELETE FROM {SEAQL_MIGRATIONS_TABLE}"), []);
@@ -868,7 +872,7 @@ mod tests {
         seed_raw(conn, "latest", SOURCE_ANALYSIS, 117.0, 48_000, FAMILY_JSON);
         execute(
             conn,
-            "UPDATE track_analysis SET analyzed_at = '2099-01-01T00:00:00Z'",
+            format!("UPDATE {TRACK_ANALYSIS_TABLE} SET analyzed_at = '2099-01-01T00:00:00Z'"),
             [],
         );
         seed_raw(

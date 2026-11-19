@@ -18,7 +18,7 @@ pub(super) fn usable_bpm(bpm: f64) -> bool {
 }
 
 fn migration_error(err: impl std::fmt::Display) -> MigrationError {
-    MigrationError::new(VERSION, err.to_string())
+    super::migration_error(VERSION, err)
 }
 
 pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
@@ -81,7 +81,7 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
         let covered_to_ms = (duration_analyzed_ms > 0
             && track_duration_ms.is_none_or(|duration| duration_analyzed_ms < duration))
         .then(|| i64::from(duration_analyzed_ms));
-        let (grid, bpm_source) = if backend == SOURCE_MANUAL {
+        let (grid, grid_bpm_source) = if backend == SOURCE_MANUAL {
             (
                 beat_grid::from_legacy_json(
                     &json,
@@ -110,7 +110,7 @@ pub(crate) fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
                     conn,
                     &track_id.as_str().into(),
                     &grid,
-                    bpm_source,
+                    grid_bpm_source,
                 )
                 .map_err(migration_error)?;
             }

@@ -149,6 +149,14 @@ pub(crate) fn run_schema_compatibility_migrations(
     run_migrations(conn, SCHEMA_COMPATIBILITY_MIGRATIONS)
 }
 
+/// Map any error into a migration failure tagged with `version`.
+pub(super) fn migration_error(
+    version: &'static str,
+    err: impl std::fmt::Display,
+) -> MigrationError {
+    MigrationError::new(version, err.to_string())
+}
+
 /// Run one migration statement, naming `version` when it fails.
 pub(super) fn execute(
     conn: &DatabaseConnection,
