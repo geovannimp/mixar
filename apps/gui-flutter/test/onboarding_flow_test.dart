@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/utils/app_assets.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/onboarding/onboarding_providers.dart';
@@ -17,8 +20,12 @@ import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'support/fake_settings_transport.dart';
 import 'support/mixar_material_app.dart';
@@ -41,11 +48,88 @@ const _ddj = DetectedController(
   deviceId: _ddjDeviceId,
 );
 
+const _windowManagerChannel = MethodChannel('window_manager');
+
 void main() {
   // Application builds DesktopChrome, which touches window_manager when the
   // host looks like a desktop. Widget tests have no window manager.
-  setUp(() => debugOverrideDesktopWindow = false);
-  tearDown(() => debugOverrideDesktopWindow = null);
+  setUp(() {
+    debugOverrideDesktopWindow = false;
+    debugOverrideMacOSChromePreview = false;
+  });
+  tearDown(() {
+    debugOverrideDesktopWindow = null;
+    debugOverrideMacOSChromePreview = null;
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  /// Runs [body] as a [platform] host with the desktop-window and macOS
+  /// preview overrides set, restoring all three before the framework's
+  /// end-of-test invariant check — that check runs before `addTearDown`.
+  Future<void> withHost(
+    TargetPlatform platform, {
+    required bool desktop,
+    required Future<void> Function() body,
+    bool macOSPreview = false,
+  }) async {
+    debugOverrideDesktopWindow = desktop;
+    debugOverrideMacOSChromePreview = macOSPreview;
+    debugDefaultTargetPlatformOverride = platform;
+    try {
+      await body();
+    } finally {
+      debugOverrideDesktopWindow = false;
+      debugOverrideMacOSChromePreview = false;
+      debugDefaultTargetPlatformOverride = null;
+    }
+  }
+
+  /// Answers window_manager on a desktop host and records what the top bar
+  /// asked it, so a test can prove the app's own buttons were never built.
+  List<String> recordWindowCalls() {
+    final calls = <String>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          ..setMockMethodCallHandler(_windowManagerChannel, (call) async {
+            calls.add(call.method);
+            // The window's buttons read these two; the rest is unused.
+            return switch (call.method) {
+              'isMaximized' || 'isMinimized' => false,
+              _ => null,
+            };
+          });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(_windowManagerChannel, null),
+    );
+    return calls;
+  }
+
+  /// The wordmark in the setup header — the bar's leading content, so its x
+  /// measures the corner the window controls own.
+  Finder topBarLogo() => find.descendant(
+    of: find.byType(MacOSTitleBarChrome),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName == kMixarLogoAsset,
+    ),
+  );
+
+  double logoLeft(WidgetTester tester) => tester.getTopLeft(topBarLogo()).dx;
+
+  /// The preview's reference lights, if any were painted.
+  Finder previewLights() => find.byWidgetPredicate(
+    (widget) =>
+        widget is Semantics &&
+        widget.properties.label == 'macOS title-bar layout preview',
+  );
+
+  /// Drops the tree so window listeners let go before the mocks are cleared.
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  }
 
   /// A desktop window, not the 800x600 test default: the steps are designed
   /// for the real minimum window and the narrow form would hide the columns.
@@ -125,6 +209,19 @@ void main() {
     addTearDown(container.dispose);
     onContainer?.call(container);
     await pumpSetupPage(tester, container);
+  }
+
+  /// Pumps the setup page and returns the wordmark's x — the baseline every
+  /// host case measures its own leading inset against.
+  ///
+  /// Called once off-desktop for the baseline and again inside each host, so
+  /// the fixture and the measurement cannot drift apart.
+  Future<double> pumpSetupBaseline(WidgetTester tester) async {
+    await pumpSetup(
+      tester,
+      settings: FakeSettingsTransport(defaultAppSettings()),
+    );
+    return logoLeft(tester);
   }
 
   /// Boot the real app tree on top of a stored settings file.
@@ -533,5 +630,139 @@ void main() {
     // Settings → UI → Show setup again flips the flag and re-opens the wizard;
     // a draft left here would preview itself over the settings it is editing.
     expect(container.read(onboardingDraftProvider), isNull);
+  });
+
+  testWidgets('macOS leaves the setup corner to its traffic lights', (
+    tester,
+  ) async {
+    final calls = recordWindowCalls();
+
+    // Baseline: not a desktop window, so nothing sits before the wordmark.
+    final baseline = await pumpSetupBaseline(tester);
+
+    await withHost(
+      TargetPlatform.macOS,
+      desktop: true,
+      body: () async {
+        await pumpSetupBaseline(tester);
+
+        expect(
+          logoLeft(tester),
+          baseline + kMacOSWindowControlsInset,
+          reason: 'the wordmark clears the system buttons by the same inset',
+        );
+        expect(find.byType(WindowTitleBarControls), findsNothing);
+        expect(find.byType(WindowCaptionButton), findsNothing);
+        expect(
+          previewLights(),
+          findsNothing,
+          reason: 'a Mac draws real controls, never the preview markers',
+        );
+        for (final label in ['Close', 'Minimize', 'Zoom']) {
+          expect(
+            find.byWidgetPredicate(
+              (widget) => widget is MTappable && widget.semanticsLabel == label,
+            ),
+            findsOneWidget,
+            reason: 'the setup header owns the $label light',
+          );
+        }
+        expect(
+          tester.getSize(find.byType(MacOSTitleBarChrome)).height,
+          64,
+          reason: 'the top bar keeps its height',
+        );
+        expect(
+          find.byType(DragToMoveArea),
+          findsNWidgets(2),
+          reason: 'the wordmark and the empty middle still move the window',
+        );
+        expect(
+          find.byKey(kOnboardingSkipKey),
+          findsOneWidget,
+          reason: 'Skip stays reachable beside the reserved corner',
+        );
+        expect(tester.takeException(), isNull);
+        expect(
+          calls,
+          isNot(contains('isMaximized')),
+          reason: 'no app buttons were built, so nothing asked the window',
+        );
+
+        await unmount(tester);
+      },
+    );
+  });
+
+  for (final platform in [TargetPlatform.windows, TargetPlatform.linux]) {
+    testWidgets('a ${platform.name} setup keeps the app buttons', (
+      tester,
+    ) async {
+      final calls = recordWindowCalls();
+
+      await pumpSetup(
+        tester,
+        settings: FakeSettingsTransport(defaultAppSettings()),
+      );
+      final baseline = logoLeft(tester);
+
+      await withHost(
+        platform,
+        desktop: true,
+        body: () async {
+          await pumpSetup(
+            tester,
+            settings: FakeSettingsTransport(defaultAppSettings()),
+          );
+
+          expect(
+            logoLeft(tester),
+            baseline,
+            reason: 'no system buttons there, so nothing is reserved',
+          );
+          expect(find.byType(WindowTitleBarControls), findsOneWidget);
+          expect(find.byType(WindowCaptionButton), findsNWidgets(3));
+          expect(previewLights(), findsNothing);
+          expect(tester.getSize(find.byType(MacOSTitleBarChrome)).height, 64);
+          expect(find.byType(DragToMoveArea), findsNWidgets(2));
+          expect(calls, contains('isMaximized'));
+          expect(tester.takeException(), isNull);
+
+          await unmount(tester);
+        },
+      );
+    });
+  }
+
+  testWidgets('the Linux preview draws the setup reference lights', (
+    tester,
+  ) async {
+    final calls = recordWindowCalls();
+
+    final baseline = await pumpSetupBaseline(tester);
+
+    await withHost(
+      TargetPlatform.linux,
+      desktop: true,
+      macOSPreview: true,
+      body: () async {
+        await pumpSetupBaseline(tester);
+
+        expect(logoLeft(tester), baseline + kMacOSWindowControlsInset);
+        expect(find.byType(WindowTitleBarControls), findsNothing);
+        expect(find.byType(WindowCaptionButton), findsNothing);
+        expect(previewLights(), findsOneWidget);
+        expect(tester.getSize(find.byType(MacOSTitleBarChrome)).height, 64);
+        expect(
+          find.byKey(kOnboardingSkipKey),
+          findsOneWidget,
+          reason: 'Skip stays reachable beside the reserved corner',
+        );
+        expect(tester.takeException(), isNull);
+        expect(calls, isNot(contains('isMaximized')));
+
+        await unmount(tester);
+      },
+    );
   });
 }

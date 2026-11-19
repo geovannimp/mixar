@@ -25,6 +25,7 @@ import 'package:gui_flutter/widgets/onboarding/onboarding_welcome_step.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
@@ -431,41 +432,48 @@ class _TopBar extends StatelessWidget {
     Widget maybeDrag(Widget child) =>
         desktop ? DragToMoveArea(child: child) : child;
 
-    return SizedBox(
-      height: 64,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: [
-            maybeDrag(
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Center(
-                  child: Semantics(
-                    label: appTitle,
-                    image: true,
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        theme.colors.foreground,
-                        BlendMode.srcIn,
+    return MacOSTitleBarChrome(
+      child: SizedBox(
+        height: 64,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              // The macOS layout keeps its traffic lights in the leading
+              // corner; the row starts to their right instead of under them.
+              if (usesMacOSTitleBarLayout)
+                const SizedBox(width: kMacOSWindowControlsInset),
+              maybeDrag(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: Semantics(
+                      label: appTitle,
+                      image: true,
+                      child: ColorFiltered(
+                        colorFilter: ColorFilter.mode(
+                          theme.colors.foreground,
+                          BlendMode.srcIn,
+                        ),
+                        child: Image.asset(kMixarLogoAsset, height: 14),
                       ),
-                      child: Image.asset(kMixarLogoAsset, height: 14),
                     ),
                   ),
                 ),
               ),
-            ),
-            Expanded(child: maybeDrag(const SizedBox.expand())),
-            if (!busy && showSkip)
-              _SkipAction(
-                key: kOnboardingSkipKey,
-                label: l10n.onboardingSkip,
-                onPress: onSkip,
-              )
-            else
-              const SizedBox(height: 28, width: 84),
-            if (desktop) const WindowTitleBarControls(),
-          ],
+              Expanded(child: maybeDrag(const SizedBox.expand())),
+              if (!busy && showSkip)
+                _SkipAction(
+                  key: kOnboardingSkipKey,
+                  label: l10n.onboardingSkip,
+                  onPress: onSkip,
+                )
+              else
+                const SizedBox(height: 28, width: 84),
+              if (desktop && !usesMacOSTitleBarLayout)
+                const WindowTitleBarControls(),
+            ],
+          ),
         ),
       ),
     );

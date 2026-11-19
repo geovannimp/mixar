@@ -35,7 +35,28 @@ npm run app:linux
 # or: moon run gui-flutter:dev-linux
 ```
 
-Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
+Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize). macOS additionally hides AppKit's own buttons (`windowButtonVisibility: false` in `main.dart`): both headers draw the red/yellow/green cluster themselves — close, minimise, zoom — centred in an 80 px leading zone, so nothing overlaps the wordmark and the trailing edge carries no second set of buttons. The cluster follows macOS's cues: it greys out while the window is unfocused and shows its ✕/−/+ glyphs while the pointer is over it.
+
+### macOS title-bar preview (Linux)
+
+The macOS headers own their traffic lights, so checking that layout needs a
+Mac — or the preview, which paints the same cluster on Linux as reference
+graphics. Start a debug session with it on:
+
+```sh
+MIXAR_PREVIEW_MACOS_CHROME=true npm run app:linux
+# same thing, spelled out:
+mise exec -- flutter run -d linux --no-enable-impeller --dart-define=MIXAR_PREVIEW_MACOS_CHROME=true
+```
+
+It switches both headers to the macOS layout: the three lights centred in the
+80 px zone, the menu/wordmark shifted right by it, and no min/max/close buttons
+on the trailing edge; onboarding gets the same treatment. The lights are live
+there too — the same widget is the window's close/minimise/zoom on a Mac, so
+they behave identically on Linux. The flag is compiled out of profile/release
+builds. Stop and relaunch to switch it off: the switch is read at startup, so
+hot reload does not toggle it. On Linux this proves the Flutter layout and the
+button wiring, not AppKit behavior.
 
 ### Android
 
