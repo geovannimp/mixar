@@ -19,3 +19,26 @@ ninja = "1.13.2"
 # dart pub global binaries (e.g. dashmonx from flutter postinstall)
 [env]
 _.path = ["~/.pub-cache/bin"]
+
+# One-time per machine (Unix): compiler shims plus cache settings. The shims
+# only create links in kache's own directory; they do not touch global Cargo
+# config or install services (that is what plain `kache init` would do).
+# Cargokit puts this directory on PATH for the cargo build only: a global PATH
+# entry makes Flutter's build hooks resolve `clang` to the shim and fail.
+[tasks.kache-setup]
+description = "Install kache compiler shims and tune the local cache"
+run = """
+if command -v kache >/dev/null 2>&1; then
+  kache init --shims --force
+  if [ -z "${CI:-}" ]; then
+    kache config set cache.explain_miss true --global
+    kache config set cache.local_max_size 50GiB --global
+  fi
+fi
+"""
+run_windows = "echo kache-setup skipped on Windows"
+
+# `mise install` runs the task above. Failures only warn, so a machine without
+# kache (or a Windows host) still completes the install.
+[hooks]
+postinstall = { task = "kache-setup" }
