@@ -24,6 +24,28 @@ Future<void> withPlatform(
 
 const _windowManagerChannel = MethodChannel('window_manager');
 
+/// Runs [body] as a [platform] host, with the desktop-window and macOS chrome
+/// preview overrides forced to [desktop] and [preview].
+///
+/// Restores all three before the framework's end-of-test invariant check.
+Future<void> withHost(
+  TargetPlatform platform, {
+  required bool desktop,
+  required bool? preview,
+  required Future<void> Function() body,
+}) async {
+  debugDefaultTargetPlatformOverride = platform;
+  debugOverrideDesktopWindow = desktop;
+  debugOverrideMacOSChromePreview = preview;
+  try {
+    await body();
+  } finally {
+    debugDefaultTargetPlatformOverride = null;
+    debugOverrideDesktopWindow = null;
+    debugOverrideMacOSChromePreview = null;
+  }
+}
+
 /// The window frame's stroke, if the chrome painted one.
 Finder get _windowFrame => find.byWidgetPredicate(
   (widget) =>
@@ -159,5 +181,85 @@ void main() {
         expect(_windowFrame, findsNothing);
       },
     );
+  });
+
+  group('macOS title-bar layout', () {
+    test('a desktop macOS host leaves the corner to its own buttons', () async {
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: true,
+        preview: null,
+        body: () async {
+          expect(usesMacOSTitleBarLayout, isTrue);
+          expect(
+            isMacOSChromePreview,
+            isFalse,
+            reason: 'AppKit draws the real lights; no reference graphics',
+          );
+          expect(kMacOSWindowControlsInset, 80);
+        },
+      );
+    });
+
+    test('the layout is a desktop-window rule', () async {
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: false,
+        preview: null,
+        body: () async {
+          expect(usesMacOSTitleBarLayout, isFalse);
+        },
+      );
+    });
+
+    for (final platform in [TargetPlatform.windows, TargetPlatform.linux]) {
+      test('a ${platform.name} host draws its own window buttons', () async {
+        await withHost(
+          platform,
+          desktop: true,
+          preview: false,
+          body: () async {
+            expect(usesMacOSTitleBarLayout, isFalse);
+            expect(isMacOSChromePreview, isFalse);
+          },
+        );
+      });
+    }
+
+    test('the preview is opt-in, and only for a Linux debug run', () async {
+      await withHost(
+        TargetPlatform.linux,
+        desktop: true,
+        preview: true,
+        body: () async {
+          expect(isMacOSChromePreview, isTrue);
+          expect(usesMacOSTitleBarLayout, isTrue);
+        },
+      );
+      // Same flag on a host that is not Linux changes nothing.
+      for (final platform in [
+        TargetPlatform.windows,
+        TargetPlatform.macOS,
+        TargetPlatform.android,
+      ]) {
+        await withHost(
+          platform,
+          desktop: true,
+          preview: true,
+          body: () async {
+            expect(
+              isMacOSChromePreview,
+              isFalse,
+              reason: 'the preview only stands in for a Linux debug run',
+            );
+            expect(
+              usesMacOSTitleBarLayout,
+              platform == TargetPlatform.macOS,
+              reason: 'a Mac keeps its native layout either way',
+            );
+          },
+        );
+      }
+    });
   });
 }

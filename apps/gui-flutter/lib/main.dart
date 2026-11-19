@@ -66,6 +66,11 @@ Future<void> main() async {
 
   if (isDesktopWindow) {
     await windowManager.ensureInitialized();
+    // macOS: the header draws close/minimise/zoom itself (MacOSTitleBarChrome),
+    // so AppKit's lights would overlap the wordmark and duplicate the app's
+    // controls on the trailing edge.
+    final macOSChrome =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     final options = WindowOptions(
       size: const Size(1280, 800),
       minimumSize: const Size(1024, 768),
@@ -78,9 +83,16 @@ Future<void> main() async {
       // Hide OS title bar; in-app header provides drag + controls.
       // https://pub.dev/packages/window_manager
       titleBarStyle: TitleBarStyle.hidden,
+      // Only the macOS layout owns its controls; other hosts keep the native
+      // buttons and draw their own in the header, as before.
+      windowButtonVisibility: !macOSChrome,
     );
     await windowManager.waitUntilReadyToShow(options, () async {
-      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      // Repeat the flag: setTitleBarStyle re-shows the buttons by default.
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: !macOSChrome,
+      );
       await windowManager.setBackgroundColor(Colors.transparent);
       await windowManager.show();
       await windowManager.focus();

@@ -11,6 +11,7 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
+import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -66,85 +67,92 @@ class AppHeader extends ConsumerWidget {
       ),
       child: ColoredBox(
         color: theme.colors.card,
-        child: SizedBox(
-          height: kAppHeaderHeight,
-          child: Row(
-            children: [
-              // The menu button carries the wordmark: one control in the
-              // window-manager corner, the way an app menu reads.
-              AppTooltip(
-                tip: 'Menu',
-                child: SizedBox(
-                  height: kAppHeaderHeight,
-                  child: AppButton(
-                    variant: .ghost,
-                    size: .sm,
-                    mainAxisSize: .min,
-                    semanticsLabel: 'Menu',
-                    onPress: () {
-                      // The pages drawer opens above the library drawer, and
-                      // the library route only pops itself while it is current
-                      // — so close it first, not from the tab change below.
-                      ref.read(libraryDrawerOpenProvider.notifier).set(false);
-                      unawaited(
-                        showAppNavDrawer(
-                          context,
-                          title: appTitle,
-                          current: tab,
-                          onSelect: onTabChanged,
-                        ),
-                      );
-                    },
-                    child: Row(
+        child: MacOSTitleBarChrome(
+          child: SizedBox(
+            height: kAppHeaderHeight,
+            child: Row(
+              children: [
+                // The macOS layout owns the leading corner: the traffic
+                // lights live there and the trailing edge draws no buttons.
+                if (usesMacOSTitleBarLayout)
+                  const SizedBox(width: kMacOSWindowControlsInset),
+                // The menu button carries the wordmark: one control in the
+                // window-manager corner, the way an app menu reads.
+                AppTooltip(
+                  tip: 'Menu',
+                  child: SizedBox(
+                    height: kAppHeaderHeight,
+                    child: AppButton(
+                      variant: .ghost,
+                      size: .sm,
                       mainAxisSize: .min,
-                      children: [
-                        const Icon(LucideIcons.menu),
-                        const SizedBox(width: 8),
-                        ColorFiltered(
-                          colorFilter: ColorFilter.mode(
-                            theme.colors.foreground,
-                            BlendMode.srcIn,
+                      semanticsLabel: 'Menu',
+                      onPress: () {
+                        // The pages drawer opens above the library drawer,
+                        // and the library route only pops itself while it is
+                        // current — so close it first, before the tab change.
+                        ref.read(libraryDrawerOpenProvider.notifier).set(false);
+                        unawaited(
+                          showAppNavDrawer(
+                            context,
+                            title: appTitle,
+                            current: tab,
+                            onSelect: onTabChanged,
                           ),
-                          child: Image.asset(
-                            kMixarLogoAsset,
-                            height: 12,
-                            semanticLabel: appTitle,
+                        );
+                      },
+                      child: Row(
+                        mainAxisSize: .min,
+                        children: [
+                          const Icon(LucideIcons.menu),
+                          const SizedBox(width: 8),
+                          ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              theme.colors.foreground,
+                              BlendMode.srcIn,
+                            ),
+                            child: Image.asset(
+                              kMixarLogoAsset,
+                              height: 12,
+                              semanticLabel: appTitle,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: _maybeDrag(
-                  desktop: desktop,
-                  child: const SizedBox.expand(),
-                ),
-              ),
-              // Only when the library lives in a drawer, and only on the
-              // mixer: the docked mode has nothing to toggle.
-              if (drawerAvailable && tab == ShellTab.mixer)
-                SizedBox(
-                  height: kAppHeaderHeight,
-                  child: AppButton(
-                    variant: .ghost,
-                    size: .sm,
-                    mainAxisSize: .min,
-                    onPress: () =>
-                        ref.read(libraryDrawerOpenProvider.notifier).toggle(),
-                    child: const Row(
-                      mainAxisSize: .min,
-                      children: [
-                        Icon(LucideIcons.libraryBig),
-                        SizedBox(width: 6),
-                        Text('Library'),
-                      ],
-                    ),
+                Expanded(
+                  child: _maybeDrag(
+                    desktop: desktop,
+                    child: const SizedBox.expand(),
                   ),
                 ),
-              if (desktop) const WindowTitleBarControls(),
-            ],
+                // Only when the library lives in a drawer, and only on the
+                // mixer: the docked mode has nothing to toggle.
+                if (drawerAvailable && tab == ShellTab.mixer)
+                  SizedBox(
+                    height: kAppHeaderHeight,
+                    child: AppButton(
+                      variant: .ghost,
+                      size: .sm,
+                      mainAxisSize: .min,
+                      onPress: () =>
+                          ref.read(libraryDrawerOpenProvider.notifier).toggle(),
+                      child: const Row(
+                        mainAxisSize: .min,
+                        children: [
+                          Icon(LucideIcons.libraryBig),
+                          SizedBox(width: 6),
+                          Text('Library'),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (desktop && !usesMacOSTitleBarLayout)
+                  const WindowTitleBarControls(),
+              ],
+            ),
           ),
         ),
       ),
