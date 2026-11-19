@@ -21,7 +21,8 @@ pub use stem_mp4::{
     OPUS_SAMPLE_RATE,
 };
 pub use tag_write::{
-    write_track_tags, FieldWrite, TagContainer, TagField, TagWriteReport, TrackTags,
+    write_track_payload, write_track_tags, FieldWrite, PayloadWriteReport, TagContainer, TagField,
+    TagWriteReport, TrackTags,
 };
 pub use tags::{
     encode_artwork_thumbnail, read_file_artwork, read_file_artwork_probe,

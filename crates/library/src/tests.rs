@@ -1827,7 +1827,7 @@ fn persist_file_analysis_defers_tag_write_back_to_its_caller() {
 
     // Executing the plan (callers do this after dropping the lock) writes it.
     let plan = plan.expect("write-back on should produce a plan");
-    assert!(plan.execute().is_some());
+    assert!(plan.execute_with_library(&lib).is_some());
     assert_eq!(
         crate::tags::read_tags(&wav).unwrap().bpm,
         Some(bpm.round()),

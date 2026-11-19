@@ -99,7 +99,7 @@ impl LibraryManager {
         };
         // File I/O for tag write-back runs after the manager lock is released.
         if let Some(plan) = plan {
-            plan.execute();
+            plan.execute_off_mutex(library);
         }
         Ok(())
     }
@@ -144,7 +144,7 @@ impl LibraryManager {
             };
             // File I/O for tag write-back runs after the manager lock is released.
             if let Some(plan) = plan {
-                plan.execute();
+                plan.execute_off_mutex(library);
             }
             Ok(source)
         }

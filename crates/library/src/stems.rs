@@ -763,7 +763,7 @@ pub(crate) fn prepare_native_stem_for_playback(
         };
         // File I/O for tag write-back runs after the manager lock is released.
         if let Some(plan) = plan {
-            plan.execute();
+            plan.execute_off_mutex(library);
         }
         source = {
             let lib = LibraryManager::lock_library(library)?;

@@ -6,9 +6,11 @@ use std::sync::{Arc, Mutex};
 
 use codec::{
     read_file_artwork_thumbnail, read_file_tags, read_replaygain_track_gain_db as codec_replaygain,
-    FileTags, TagWriteReport, TrackTags,
+    FileTags, PayloadWriteReport, TagWriteReport, TrackTags,
 };
-use library_core::{path_label, TagWriteBack, TrackMetadata};
+use library_core::{path_label, Library, TrackId, TrackMetadata};
+
+use crate::LibraryManager;
 
 /// Longest edge of the artwork thumbnails this crate hands to the UI, in pixels.
 ///
@@ -54,38 +56,177 @@ pub(crate) fn read_file_metadata(
     Ok((track_metadata_from_file_tags(path, read.tags), vendor))
 }
 
-/// Deferred write-back of app-managed tags for one analyzed file.
+/// Deferred write-back of app-managed tags and adopted Serato data for one file.
 ///
-/// Planned while the library lock is held (cheap: copies a path and two values)
-/// and executed by the caller *after* releasing it. The write reads the file and
-/// may rewrite it wholesale, which must not sit behind the manager mutex where a
-/// queued UI read would wait on it.
+/// Planned while the library lock is held (cheap: a track id, its expected path
+/// and one flag) and executed by the caller *after* releasing it. The write
+/// reads the file and may rewrite it wholesale, which must not sit behind the
+/// manager mutex where a queued UI read would wait on it.
 ///
 /// Holding that mutex used to serialize these writes implicitly; `gate` restores
-/// the guarantee now that they run outside it, so two analysis paths reaching the
-/// same file at once (deck-load pre-analysis and a queued `AnalyzeTrack`, say)
-/// still write one at a time.
+/// the guarantee now that they run outside it, so two paths reaching the same
+/// file at once (deck-load pre-analysis and a queued `AnalyzeTrack`, say) still
+/// write one at a time.
+///
+/// The plan deliberately carries no cue/loop/tag snapshot: it re-reads the
+/// committed row when it runs, so an old plan that waited behind a newer one
+/// writes the latest state instead of overwriting it with stale values.
 pub(crate) struct TagWritePlan {
-    path: PathBuf,
-    tags: TrackTags,
+    id: TrackId,
+    /// The file the plan was made for; a moved row cancels the write instead of
+    /// mirroring data into a different file.
+    expected_path: PathBuf,
+    /// Whether the ordinary BPM/key/… fields belong to this trigger.
+    include_track_tags: bool,
     gate: Arc<Mutex<()>>,
 }
 
 impl TagWritePlan {
-    /// Plan for `path`, or `None` when the user has not opted in.
-    pub(crate) fn new(
-        mode: TagWriteBack,
-        path: PathBuf,
-        tags: TrackTags,
-        gate: Arc<Mutex<()>>,
-    ) -> Option<Self> {
-        mode.is_on().then_some(Self { path, tags, gate })
+    /// Plan for `id`, or `None` when the user has not opted in, the track is not
+    /// a file, or the row is gone.
+    pub(crate) fn for_track(
+        lib: &LibraryManager,
+        id: &TrackId,
+        include_track_tags: bool,
+    ) -> library_core::Result<Option<Self>> {
+        if !lib.config().tag_write_back.is_on() {
+            return Ok(None);
+        }
+        let Some(source) = lib.get_track(id)? else {
+            return Ok(None);
+        };
+        let Some(file) = source.file() else {
+            return Ok(None);
+        };
+        Ok(Some(Self {
+            id: id.clone(),
+            expected_path: file.path().to_path_buf(),
+            include_track_tags,
+            gate: lib.tag_write_gate(),
+        }))
     }
 
-    /// Run the write. Best-effort — failures are logged, never propagated.
-    pub(crate) fn execute(self) -> Option<TagWriteReport> {
+    /// Run the write while another thread owns the manager lock.
+    ///
+    /// Acquires the gate first, then *tries* the manager: the synchronous
+    /// analysis compatibility path can own the manager while it waits for this
+    /// gate, so blocking on the manager while holding the gate would deadlock.
+    /// On contention the gate is released before waiting, and the whole attempt
+    /// is retried with freshly read state.
+    pub(crate) fn execute_off_mutex(
+        self,
+        library: &Mutex<LibraryManager>,
+    ) -> Option<PayloadWriteReport> {
+        loop {
+            let gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
+            match library.try_lock() {
+                Ok(lib) => {
+                    let prepared = self.prepare(&lib);
+                    drop(lib);
+                    let (path, tags, serato) = prepared?;
+                    // Everything below runs with only the gate held: no DB
+                    // guard may span the file I/O.
+                    return write_back_payload(&path, &tags, serato.as_ref());
+                }
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    drop(gate);
+                    let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+                    drop(lib);
+                }
+                Err(std::sync::TryLockError::Poisoned(_)) => {
+                    tracing::warn!(
+                        track_id = %self.id,
+                        "tag write-back skipped: library lock poisoned"
+                    );
+                    return None;
+                }
+            }
+        }
+    }
+
+    /// Run the write when the caller already owns the manager.
+    ///
+    /// This is the explicitly synchronous analysis compatibility path: its
+    /// caller owns the manager for the whole call, so there is no lock to
+    /// release and the gate can be taken directly.
+    pub(crate) fn execute_with_library(
+        self,
+        library: &LibraryManager,
+    ) -> Option<PayloadWriteReport> {
         let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
-        write_back_track_tags(&self.path, &self.tags)
+        let (path, tags, serato) = self.prepare(library)?;
+        write_back_payload(&path, &tags, serato.as_ref())
+    }
+
+    /// Read the state this plan must write, now that it actually runs.
+    fn prepare(
+        &self,
+        lib: &LibraryManager,
+    ) -> Option<(
+        PathBuf,
+        TrackTags,
+        Option<codec::serato::SeratoWriteSnapshot>,
+    )> {
+        // The user may have turned write-back off while this plan waited.
+        if !lib.config().tag_write_back.is_on() {
+            return None;
+        }
+        let source = match lib.get_track(&self.id) {
+            Ok(Some(source)) => source,
+            Ok(None) => return None,
+            Err(err) => {
+                tracing::warn!(track_id = %self.id, error = %err, "tag write-back skipped");
+                return None;
+            }
+        };
+        let file = source.file()?;
+        if file.path() != self.expected_path {
+            tracing::warn!(
+                track_id = %self.id,
+                expected = %path_label(&self.expected_path),
+                actual = %path_label(file.path()),
+                "tag write-back skipped: the track moved"
+            );
+            return None;
+        }
+        let path = file.path().to_path_buf();
+        let serato = match crate::serato_write::snapshot(lib, &self.id) {
+            Ok(snapshot) => snapshot,
+            Err(err) => {
+                // A refused projection (out-of-range position, inverted loop, …)
+                // skips the vendor write and keeps the DB row; it never truncates.
+                tracing::warn!(
+                    track_id = %self.id,
+                    error = %err,
+                    "tag write-back skipped"
+                );
+                return None;
+            }
+        };
+        let tags = if self.include_track_tags {
+            app_managed_tags(source.metadata())
+        } else {
+            TrackTags::default()
+        };
+        Some((path, tags, serato))
+    }
+}
+
+/// Best-effort plan construction.
+///
+/// A planning failure (a DB read error, a poisoned lock) is logged and skips the
+/// file mirror; it never fails the DB edit that already succeeded.
+pub(crate) fn plan_for_track(
+    lib: &LibraryManager,
+    id: &TrackId,
+    include_track_tags: bool,
+) -> Option<TagWritePlan> {
+    match TagWritePlan::for_track(lib, id, include_track_tags) {
+        Ok(plan) => plan,
+        Err(err) => {
+            tracing::warn!(track_id = %id, error = %err, "tag write-back plan skipped");
+            None
+        }
     }
 }
 
@@ -94,13 +235,24 @@ impl TagWritePlan {
 /// Best-effort: a file we cannot write is logged and skipped, never fatal — the
 /// library row is already persisted and `library.db` stays authoritative. Runs on
 /// the analysis / beat-grid paths only, never on the realtime audio path.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn write_back_track_tags(path: &Path, tags: &TrackTags) -> Option<TagWriteReport> {
-    match codec::write_track_tags(path, tags) {
+    write_back_payload(path, tags, None).map(|report| report.track)
+}
+
+/// Mirror ordinary tags and any adopted Serato frames in one atomic write.
+pub(crate) fn write_back_payload(
+    path: &Path,
+    tags: &TrackTags,
+    serato: Option<&codec::serato::SeratoWriteSnapshot>,
+) -> Option<PayloadWriteReport> {
+    match codec::write_track_payload(path, tags, serato) {
         Ok(report) => {
             tracing::debug!(
                 path = %path_label(path),
-                container = report.container.map(|c| c.as_str()).unwrap_or("none"),
-                fields = ?report.fields,
+                container = report.track.container.map(|c| c.as_str()).unwrap_or("none"),
+                fields = ?report.track.fields,
+                serato = ?report.serato,
                 "tag write-back"
             );
             Some(report)

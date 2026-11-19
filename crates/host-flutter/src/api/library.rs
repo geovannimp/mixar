@@ -1326,27 +1326,25 @@ impl LibraryTransport {
         disc_number: Option<u16>,
         color_label: Option<LibraryColorLabel>,
     ) -> Result<(), String> {
-        let lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-        lib.update_track_metadata(
+        let edit = TrackMetadataEdit {
+            title,
+            artist,
+            album,
+            genre,
+            bpm,
+            key,
+            isrc,
+            rating,
+            comment,
+            year,
+            track_number,
+            disc_number,
+            color_label: color_label.map(Into::into),
+        };
+        LibraryManager::update_track_metadata_off_mutex(
+            &self.library,
             &TrackId::new(track_id),
-            TrackMetadataEdit {
-                title,
-                artist,
-                album,
-                genre,
-                bpm,
-                key,
-                isrc,
-                rating,
-                comment,
-                year,
-                track_number,
-                disc_number,
-                color_label: color_label.map(Into::into),
-            },
+            edit,
         )
         .bridge()
     }

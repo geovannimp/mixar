@@ -190,7 +190,7 @@ fn decode_name(bytes: &[u8]) -> Result<Option<String>, Markers2Error> {
 
 /// Decode Serato's base64 variant: whitespace is ignored, padding is optional
 /// and a length of `1 mod 4` gets an `A` appended before padding is restored.
-fn decode_base64(text: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn decode_base64(text: &[u8]) -> Option<Vec<u8>> {
     let mut buf: Vec<u8> = text
         .iter()
         .copied()

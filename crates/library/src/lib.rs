@@ -33,6 +33,7 @@ mod model;
 mod playback;
 mod sampler_data;
 mod serato_adoption;
+mod serato_write;
 mod session;
 mod stems;
 mod store;
@@ -341,14 +342,10 @@ impl LibraryManager {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }
         // A forced analysis grid may have replaced the BPM, so the authoritative
-        // stored row (not the pre-grid value) feeds the source and the tag plan.
+        // stored row (not the pre-grid value) feeds the source. The plan carries
+        // only the row id: it re-reads the committed state when it runs.
         let authoritative = self.get_track(source.id())?.unwrap_or(source);
-        let plan = tags::TagWritePlan::new(
-            self.config.tag_write_back,
-            path,
-            tags::app_managed_tags(authoritative.metadata()),
-            self.tag_write_gate(),
-        );
+        let plan = tags::TagWritePlan::for_track(self, authoritative.id(), true)?;
         Ok((authoritative, plan))
     }
 
