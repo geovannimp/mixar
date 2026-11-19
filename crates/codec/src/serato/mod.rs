@@ -25,7 +25,9 @@ use std::path::Path;
 /// Read the Serato and Mixed In Key metadata of `path`.
 ///
 /// Returns empty data for unsupported containers, files without an ID3 tag, and
-/// unsupported ID3 versions. Structural problems inside a tag set
+/// unsupported ID3 versions; [`SeratoPayload::container`] tells the first case
+/// apart, so an unsupported file is never mistaken for one proven to carry no
+/// vendor frames. Structural problems inside a tag set
 /// [`SeratoPayload::scan_complete`] to `false` instead of failing the read; only
 /// file I/O errors are returned as `Err`.
 pub fn read_file_serato(path: &Path) -> anyhow::Result<SeratoPayload> {
@@ -45,6 +47,10 @@ pub fn read_from_file(file: &mut std::fs::File) -> anyhow::Result<SeratoPayload>
 /// Everything the reader could recover from one file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SeratoPayload {
+    /// Container the tag scan understood, or `None` when the file is not
+    /// MP3/WAV/AIFF. An unsupported container returns no frames, which is not
+    /// evidence that the file carries no vendor metadata.
+    pub container: Option<SeratoContainer>,
     /// `false` when a bound was exceeded, a value was structurally invalid or a
     /// compressed/encrypted GEOB frame had to be skipped.
     pub scan_complete: bool,
@@ -69,6 +75,7 @@ pub struct SeratoPayload {
 impl Default for SeratoPayload {
     fn default() -> Self {
         Self {
+            container: None,
             scan_complete: true,
             frames: Vec::new(),
             cues: Vec::new(),
@@ -90,6 +97,14 @@ pub enum SeratoFrameKind {
     BeatGrid,
     MikCuePoints,
     MikKey,
+}
+
+/// Container this reader can find an ID3 tag in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SeratoContainer {
+    Mp3,
+    Wav,
+    Aiff,
 }
 
 /// Whether a recognized frame could be decoded.
@@ -164,6 +179,7 @@ struct ParsedFrame {
 
 fn build_payload(scan: id3::TagScan) -> SeratoPayload {
     let mut payload = SeratoPayload {
+        container: scan.container,
         scan_complete: scan.scan_complete,
         ..SeratoPayload::default()
     };

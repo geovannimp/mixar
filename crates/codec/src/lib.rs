@@ -14,7 +14,7 @@ pub use paths::{
     is_loadable_audio_path, is_stem_path, is_supported_audio_extension, is_supported_audio_path,
     SUPPORTED_AUDIO_EXTENSIONS,
 };
-pub use serato::{read_file_serato, SeratoPayload};
+pub use serato::{read_file_serato, SeratoContainer, SeratoPayload};
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
 pub use stem_mp4::{
     decode_stem_file, encode_stem_mp4, stem_container_info, StemMuxFormat, StemPcmBundle,

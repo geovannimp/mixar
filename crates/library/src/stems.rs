@@ -742,9 +742,13 @@ pub(crate) fn prepare_native_stem_for_playback(
         let computed = ComputedFileAnalysis {
             metadata,
             // A native `.stem.mp4` is outside the ID3 containers this reader
-            // understands, so only the ordinary tags are available here.
+            // understands, so only the ordinary tags are available here. The
+            // empty payload carries no container, which adoption reports as
+            // "not applicable" instead of marking a zero-kind adoption.
             tag_metadata,
-            embedded_metadata: codec::SeratoPayload::default(),
+            embedded_metadata: crate::serato_adoption::VendorRead::Payload(
+                codec::SeratoPayload::default(),
+            ),
             analysis,
             force: options.force,
         };

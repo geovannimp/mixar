@@ -48,16 +48,32 @@ impl LibraryManager {
     ///
     /// Does not generate waveform peaks. Takes `&Mutex<Self>` so analysis does
     /// not hold the library lock.
-    #[cfg(feature = "analysis")]
+    ///
+    /// Adoption is attempted once here, before the analysis decision, so a track
+    /// loaded through this entry is guarded even when analysis itself is skipped;
+    /// a deferred read is logged and does not block playback.
     pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+        Self::adopt_serato_off_mutex(library, id);
+        Self::ensure_track_analysis_after_adoption(library, id)
+    }
+
+    /// Analysis-only half of [`Self::ensure_track_analysis`], for callers that
+    /// already attempted adoption (deck load prepares both in one pass).
+    #[cfg(feature = "analysis")]
+    pub(crate) fn ensure_track_analysis_after_adoption(
+        library: &Mutex<Self>,
+        id: &TrackId,
+    ) -> Result<()> {
         let (path, cue_threshold_db) = {
             let lib = Self::lock_library(library)?;
             if !lib.needs_playback_analysis(id)? {
                 return Ok(());
             }
-            let path = lib
-                .get_track(id)?
-                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+            let source = lib.get_track(id)?;
+            let Some(source) = source else {
+                return Err(LibraryError::NotFound(id.to_string()));
+            };
+            let path = source
                 .file()
                 .ok_or(LibraryError::Unsupported(
                     "stream track analysis not implemented",
@@ -89,7 +105,10 @@ impl LibraryManager {
     }
 
     #[cfg(not(feature = "analysis"))]
-    pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+    pub(crate) fn ensure_track_analysis_after_adoption(
+        library: &Mutex<Self>,
+        id: &TrackId,
+    ) -> Result<()> {
         let _ = (library, id);
         Ok(())
     }
@@ -178,6 +197,21 @@ impl LibraryManager {
     ) -> Result<PreparedTrackPlayback> {
         let track_id = source.id().clone();
 
+        // Adoption is independent of analysis and of the decode cache, and runs
+        // before the native-stem early return below: a deck load must adopt even
+        // when nothing else would read the file. A deferred read is logged and
+        // does not block playback.
+        Self::adopt_serato_off_mutex(library, &track_id);
+        if source.file().is_some() {
+            // Colour and grid BPM may have just been adopted; consumers hydrate
+            // the deck from what is stored, not from a pre-adoption snapshot.
+            source = {
+                let lib = Self::lock_library(library)?;
+                lib.get_track(&track_id)?
+                    .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
+            };
+        }
+
         #[cfg(feature = "analysis")]
         if let Some(path) = source
             .file()
@@ -188,7 +222,9 @@ impl LibraryManager {
         }
 
         if source.file().is_some() {
-            Self::ensure_track_analysis(library, &track_id)?;
+            // Already adopted above: this pass must not attempt a second reader
+            // call for the same load.
+            Self::ensure_track_analysis_after_adoption(library, &track_id)?;
             source = {
                 let lib = Self::lock_library(library)?;
                 lib.get_track(&track_id)?

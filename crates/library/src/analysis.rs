@@ -55,7 +55,12 @@ pub(crate) fn analysis_to_grid(
     }
 }
 
-/// Persist an analysis grid unless a manual/canonical grid already exists.
+/// Persist an analysis grid unless an owned canonical grid already exists.
+///
+/// An imported grid (`SOURCE_IMPORT`) is never replaced, even by a forced
+/// analysis: adoption would otherwise be undone — and its BPM flattened — the
+/// first time the user re-analyzed the track. Manual and earlier-analysis grids
+/// keep their previous rule, where `force` may replace them.
 pub(crate) fn persist_analysis_grid(
     db: &Db,
     track_id: &TrackId,
@@ -63,8 +68,10 @@ pub(crate) fn persist_analysis_grid(
     analysis: &TrackAnalysis,
     force: bool,
 ) -> Result<()> {
-    if !force && beat_grid::has_track_beat_grid(db, track_id)? {
-        return Ok(());
+    if let Some(existing) = beat_grid::get_track_beat_grid(db, track_id)? {
+        if existing.source == beat_grid::SOURCE_IMPORT || !force {
+            return Ok(());
+        }
     }
     let Some(grid) = analysis_to_grid(metadata, analysis)? else {
         return Ok(());
@@ -216,7 +223,7 @@ pub(crate) struct ComputedFileAnalysis {
     /// standard tag and defeat the Mixed In Key fallback.
     pub(crate) tag_metadata: library_core::TrackMetadata,
     /// Vendor performance metadata read from the same file.
-    pub(crate) embedded_metadata: codec::SeratoPayload,
+    pub(crate) embedded_metadata: crate::serato_adoption::VendorRead,
     pub(crate) analysis: analyzer::TrackAnalysis,
     pub(crate) force: bool,
 }

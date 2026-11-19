@@ -3,13 +3,13 @@
 //! The reader is [`codec::read_file_serato`]; this module decides when its
 //! result becomes library rows and writes everything atomically:
 //!
-//! - **New rows only.** An existing row gets the ordinary metadata refresh (with
-//!   the RGB/label and editor-owned fields preserved) and nothing else. Backfill
-//!   for already-indexed tracks needs an adoption marker this issue does not add,
-//!   and without one a deleted cue would resurrect on every rescan.
-//! - **All or nothing.** The creation check, the track row and every auxiliary
-//!   row share one [`Db::transaction`](crate::db::Db::transaction); a database
-//!   error leaves no new track, cue, loop or grid behind.
+//! - **Once per row.** A new row imports everything the reader recovered and
+//!   gets the adoption marker; an existing row without a marker backfills only
+//!   its vacancies through [`crate::serato_adoption`], and a marked row is never
+//!   re-read. That is what stops a deleted cue from resurrecting on a rescan.
+//! - **All or nothing.** The creation check, the track row, every auxiliary row
+//!   and the adoption marker share one [`Db::transaction`](crate::db::Db::transaction);
+//!   a database error leaves no new track, cue, loop or grid behind.
 //! - **Validated before writing.** Every projected row is range-checked first, so
 //!   an unusable individual record is dropped instead of failing the import
 //!   halfway through the transaction.
@@ -21,32 +21,40 @@ use sea_orm::EntityTrait;
 
 use crate::beat_grid::{self, BeatSegment, CanonicalBeatGrid, SOURCE_IMPORT};
 use crate::entity::TrackEntity;
+use crate::serato_adoption::{self, ApplyOutcome, VendorRead};
 use crate::{deck_data, model, store, tags, unix_secs_string, LibraryManager};
 
 /// Projected rows for a newly discovered track.
-struct ImportPlan {
-    metadata: TrackMetadata,
-    cues: Vec<codec::serato::SeratoCue>,
-    loops: Vec<library_core::LoopImport>,
-    grid: Option<CanonicalBeatGrid>,
+///
+/// Also the single projection adoption (#743) reuses, so discovery and lazy
+/// backfill can never disagree about a cue, a loop, the grid or the colour.
+pub(crate) struct ImportPlan {
+    pub(crate) metadata: TrackMetadata,
+    pub(crate) cues: Vec<codec::serato::SeratoCue>,
+    pub(crate) loops: Vec<library_core::LoopImport>,
+    pub(crate) grid: Option<CanonicalBeatGrid>,
 }
 
 impl LibraryManager {
-    /// Persist a discovered file and, for a new row, its embedded performance
-    /// data. Returns the authoritative stored source and whether it was created.
+    /// Persist a discovered file: ordinary metadata for every row, embedded
+    /// performance data for a new row, and the once-only Serato adoption for a
+    /// row that has not adopted it yet. Returns the authoritative stored source
+    /// and whether it was created.
     ///
-    /// Existing rows only refresh ordinary metadata (plus the user-owned and
+    /// Existing rows refresh ordinary metadata (plus the user-owned and
     /// raw-colour preservation that every refresh needs). One deliberate
     /// exception keeps an imported value instead of erasing it: when the fresh
     /// tags carry no key, the key already on the row survives, because it may
-    /// have come from a vendor frame that existing rows do not re-adopt and a
-    /// missing tag is not evidence of removal. `force` analysis and the editor
-    /// can still change or clear it.
+    /// have come from a vendor frame and a missing tag is not evidence of
+    /// removal. `force` analysis and the editor can still change or clear it.
+    ///
+    /// Adoption itself is never re-run once the row carries its marker, so a
+    /// rescan cannot resurrect a cue the user deleted.
     pub(crate) fn persist_discovered_file(
         &self,
         path: &Path,
         metadata: &TrackMetadata,
-        payload: &codec::SeratoPayload,
+        vendor: &VendorRead,
     ) -> Result<ImportedTrack> {
         store::validate_color_rgb(metadata)?;
         let id = Self::track_id_for(path);
@@ -55,11 +63,14 @@ impl LibraryManager {
             let existing = TrackEntity::find_by_id(id.as_str())
                 .one(conn)
                 .map_err(crate::db::db_err)?;
-            match existing {
+            let created = match existing {
                 None => {
-                    let plan = build_import_plan(metadata, payload);
+                    let plan = match vendor.payload() {
+                        Some(payload) => build_import_plan(metadata, payload),
+                        None => build_import_plan(metadata, &codec::SeratoPayload::default()),
+                    };
                     persist_new_track(conn, &id, path, &plan, &now)?;
-                    Ok(true)
+                    true
                 }
                 Some(row) => {
                     let mut merged = metadata.clone();
@@ -94,9 +105,37 @@ impl LibraryManager {
                     {
                         beat_grid::set_track_bpm_tx(conn, &id, bpm)?;
                     }
-                    Ok(false)
+                    false
+                }
+            };
+
+            // One adoption path for both branches: for a new row it fills
+            // nothing (the import above already wrote every row) and only
+            // records the marker; for an existing unmarked row it backfills the
+            // vacancies. An already adopted row is a no-op.
+            match vendor.payload() {
+                Some(payload) => {
+                    if let ApplyOutcome::Deferred(reason) =
+                        serato_adoption::apply_payload_in_tx(conn, &id, path, payload)?
+                    {
+                        tracing::warn!(
+                            track_id = %id,
+                            error = reason,
+                            "Serato adoption deferred"
+                        );
+                    }
+                }
+                None => {
+                    if let Some(error) = vendor.failure() {
+                        tracing::warn!(
+                            track_id = %id,
+                            error = error,
+                            "Serato adoption deferred"
+                        );
+                    }
                 }
             }
+            Ok(created)
         })?;
 
         // The stored row is authoritative: `tracks.bpm` may have been fixed by a
@@ -146,7 +185,10 @@ fn persist_new_track(
 ///
 /// Everything that cannot be represented is dropped here, before any write, so a
 /// partially importable payload never leaves a half-written track behind.
-fn build_import_plan(metadata: &TrackMetadata, payload: &codec::SeratoPayload) -> ImportPlan {
+pub(crate) fn build_import_plan(
+    metadata: &TrackMetadata,
+    payload: &codec::SeratoPayload,
+) -> ImportPlan {
     let grid = payload.beatgrid.as_ref().and_then(canonical_grid);
     let mut projected = metadata.clone();
 
@@ -221,7 +263,7 @@ pub(crate) fn nonblank_key(metadata: &TrackMetadata) -> Option<String> {
 ///
 /// The single accepted range, shared by the import plan and the writer so one
 /// copy can never drop what the other accepts.
-fn cue_position_ms(position_ms: u32) -> Option<i32> {
+pub(crate) fn cue_position_ms(position_ms: u32) -> Option<i32> {
     i32::try_from(position_ms).ok()
 }
 
@@ -243,7 +285,7 @@ fn loop_import(saved: &codec::serato::SeratoLoop) -> Option<library_core::LoopIm
 }
 
 /// Exact uppercase `#RRGGBB`, the deck's existing cue/loop colour format.
-fn hex_color(rgb: u32) -> String {
+pub(crate) fn hex_color(rgb: u32) -> String {
     format!("#{:06X}", rgb & 0x00FF_FFFF)
 }
 

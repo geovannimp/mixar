@@ -333,6 +333,9 @@ impl LibraryManager {
         first_beat_secs: f32,
         replace: bool,
     ) -> Result<CanonicalBeatGrid> {
+        // A manual grid replaces the stored one, so adoption has to run first:
+        // otherwise the imported grid would come back on the next load.
+        self.ensure_serato_adopted(id)?;
         save_track_beat_grid(&self.db, id, bpm, first_beat_secs, replace)
     }
 

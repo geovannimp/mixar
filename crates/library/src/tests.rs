@@ -3,7 +3,7 @@ use super::*;
 use crate::analysis::{compute_file_analysis, preferred_loudness_lufs};
 use std::io::Write;
 
-fn write_minimal_wav(path: &Path) {
+pub(crate) fn write_minimal_wav(path: &Path) {
     let mut file = std::fs::File::create(path).unwrap();
     let data_size: u32 = 16;
     let file_size: u32 = 36 + data_size;
@@ -23,7 +23,7 @@ fn write_minimal_wav(path: &Path) {
 }
 
 /// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
-fn write_analysis_wav(path: &Path) {
+pub(crate) fn write_analysis_wav(path: &Path) {
     let sample_rate = 48_000u32;
     let duration_secs = 3u32;
     let sample_count = (sample_rate * duration_secs) as usize;
@@ -2143,7 +2143,7 @@ fn needs_playback_analysis_waits_for_the_cue() {
 // Serato / Mixed In Key embedded metadata (#742)
 // ---------------------------------------------------------------------------
 
-fn serato_fixture(relative: &str) -> Vec<u8> {
+pub(crate) fn serato_fixture(relative: &str) -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../codec/src/serato/fixtures")
         .join(relative);
@@ -2168,7 +2168,7 @@ fn id3_frame(id: &[u8; 4], data: &[u8]) -> Vec<u8> {
     out
 }
 
-fn geob_frame(description: &str, object: &[u8]) -> Vec<u8> {
+pub(crate) fn geob_frame(description: &str, object: &[u8]) -> Vec<u8> {
     let mut data = vec![0u8];
     data.extend_from_slice(b"application/octet-stream");
     data.push(0);
@@ -2179,7 +2179,7 @@ fn geob_frame(description: &str, object: &[u8]) -> Vec<u8> {
     id3_frame(b"GEOB", &data)
 }
 
-fn id3_tag(frames: &[Vec<u8>]) -> Vec<u8> {
+pub(crate) fn id3_tag(frames: &[Vec<u8>]) -> Vec<u8> {
     let body: Vec<u8> = frames.concat();
     let mut out = Vec::new();
     out.extend_from_slice(b"ID3");
@@ -2189,7 +2189,7 @@ fn id3_tag(frames: &[Vec<u8>]) -> Vec<u8> {
     out
 }
 
-fn mik_key_body(key: &str) -> Vec<u8> {
+pub(crate) fn mik_key_body(key: &str) -> Vec<u8> {
     use base64::Engine as _;
     let json = serde_json::json!({"key": key, "source": "mixedinkey", "algorithm": 94});
     base64::engine::general_purpose::STANDARD
@@ -2197,7 +2197,7 @@ fn mik_key_body(key: &str) -> Vec<u8> {
         .into_bytes()
 }
 
-fn tea_leaves_tag() -> Vec<u8> {
+pub(crate) fn tea_leaves_tag() -> Vec<u8> {
     let tag = serato_fixture("tea-leaves.id3");
     assert_eq!(tag.len(), 1464);
     tag
@@ -2231,7 +2231,7 @@ fn sine_pcm_48k(seconds: u32) -> Vec<u8> {
     pcm
 }
 
-fn write_tagged_wav(path: &Path, tag: &[u8]) {
+pub(crate) fn write_tagged_wav(path: &Path, tag: &[u8]) {
     let sample_rate = 48_000u32;
     let pcm = sine_pcm_48k(3);
     let mut fmt = Vec::new();
@@ -2288,11 +2288,11 @@ fn write_tagged_mp3(path: &Path, tag: &[u8]) {
     std::fs::write(path, out).unwrap();
 }
 
-fn serato_track_id(path: &Path) -> TrackId {
+pub(crate) fn serato_track_id(path: &Path) -> TrackId {
     LibraryManager::track_id_for(&crate::normalize_path(path).unwrap())
 }
 
-fn stored_grid(lib: &LibraryManager, id: &TrackId) -> crate::CanonicalBeatGrid {
+pub(crate) fn stored_grid(lib: &LibraryManager, id: &TrackId) -> crate::CanonicalBeatGrid {
     crate::beat_grid::get_track_beat_grid(&lib.db, id)
         .unwrap()
         .expect("stored canonical grid")
@@ -2557,8 +2557,9 @@ fn rescan_never_resurrects_deleted_imported_cues_or_loops() {
         delete_loop(&lib.db, &loops_id, slot).unwrap();
     }
 
-    // Rescan, a second import, and a deck load must not bring them back: backfill
-    // belongs to the adoption issue, not to ordinary discovery.
+    // Rescan, a second import, and a deck load must not bring them back: the
+    // per-file adoption marker (#743) makes the file's embedded data a one-time
+    // backfill, not something discovery re-applies.
     lib.refresh_file_source(&wav).unwrap();
     lib.import_file_path(&wav).unwrap();
     let library = std::sync::Mutex::new(lib);
@@ -2571,35 +2572,39 @@ fn rescan_never_resurrects_deleted_imported_cues_or_loops() {
 }
 
 #[test]
-fn an_existing_row_is_not_backfilled() {
+fn adapter_import_adopts_a_readable_file_once() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("known.wav");
     write_tagged_wav(&wav, &tea_leaves_tag());
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    // Metadata-only adapter import: the documented contract for external
-    // libraries, which must not start probing files or adopting cues.
+    // A metadata-only adapter import still owns the file's vendor state: a
+    // readable supported file is adopted opportunistically (#743), while an
+    // absent or unreadable one stays pending.
     let metadata = crate::tags::read_tags(&wav).unwrap();
     let imported = WritableLibrary::import_track(&mut lib, &wav, &metadata).unwrap();
     assert!(imported.created);
     let id = imported.source.id().clone();
-    assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
+    assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
     assert!(crate::beat_grid::get_track_beat_grid(&lib.db, &id)
         .unwrap()
-        .is_none());
-
-    // A later refresh updates the ordinary metadata but adopts nothing.
-    lib.refresh_file_source(&wav).unwrap();
-    assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
-    assert!(crate::beat_grid::get_track_beat_grid(&lib.db, &id)
-        .unwrap()
-        .is_none());
+        .is_some());
+    let state = lib.serato_adoption_state(&id).unwrap();
+    assert!(state.imported_at.is_some());
     assert_eq!(
-        lib.get_track(&id).unwrap().unwrap().metadata().color_rgb,
-        None
+        state.adopted_kinds,
+        crate::SERATO_KIND_CUES
+            | crate::SERATO_KIND_LOOPS
+            | crate::SERATO_KIND_GRID
+            | crate::SERATO_KIND_COLOUR
     );
 
-    // The reader stays independently callable for the future adoption pass.
+    // A later refresh keeps the rows and the marker unchanged.
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
+    assert_eq!(lib.serato_adoption_state(&id).unwrap(), state);
+
+    // The reader stays independently callable for the writer work in #548.
     let payload = codec::read_file_serato(&wav).unwrap();
     assert_eq!(payload.cues.len(), 8);
 }
@@ -2813,7 +2818,7 @@ fn legacy_databases_gain_the_nullable_colour_column() {
 
 #[test]
 #[cfg(feature = "analysis")]
-fn imported_grid_survives_rescan_playback_and_non_forced_analysis() {
+fn imported_grid_survives_rescan_playback_and_forced_analysis() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("grid.wav");
     write_tagged_wav(
@@ -2848,11 +2853,20 @@ fn imported_grid_survives_rescan_playback_and_non_forced_analysis() {
         vec![71, 16_470, 36_892, 239_980, 244_096, 301_660, 350_927, 424_703]
     );
 
-    // An explicit force keeps today's permission to replace the grid.
+    let imported_bpm = before[0].bpm;
+
+    // An adopted grid is authoritative even for an explicit force: replacing it
+    // would undo adoption and flatten the file's own BPM mirror (#743).
     lib.analyze_file_source(&wav, AnalyzeTrackOptions::force())
         .unwrap();
     let forced = stored_grid(&lib, &id);
-    assert_ne!(forced.segments, before, "forced analysis replaces the grid");
+    assert_eq!(forced.source, crate::SOURCE_IMPORT, "forced keeps it");
+    assert_eq!(forced.segments, before, "forced analysis cannot flatten it");
+    assert_eq!(
+        lib.get_track(&id).unwrap().unwrap().metadata().bpm,
+        Some(imported_bpm),
+        "the imported grid still owns the BPM mirror"
+    );
 }
 
 #[test]

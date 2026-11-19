@@ -221,6 +221,51 @@ pub(crate) fn save_hot_cue_tx(
     Ok(())
 }
 
+/// Insert one imported hot cue on `conn` only when its slot is free.
+///
+/// This is the adoption/import rule: a slot the library already owns — user
+/// made, analyzed or imported earlier — keeps its complete row (position, loop
+/// length, colour and label), and DB-only slots the file never had survive
+/// untouched. A conflict is the success path here.
+pub(crate) fn fill_hot_cue_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    slot_index: u8,
+    position_ms: i32,
+    color: Option<String>,
+    label: Option<String>,
+) -> Result<()> {
+    if slot_index > 15 {
+        return Err(LibraryError::Backend {
+            backend: "deck_data",
+            message: "hot cue slot must be 0..=15".into(),
+        });
+    }
+
+    match TrackHotCueEntity::insert(track_hot_cue::ActiveModel {
+        track_id: Set(track_id.as_str().to_string()),
+        slot_index: Set(i32::from(slot_index)),
+        position_ms: Set(position_ms),
+        loop_length_beats: Set(None),
+        color: Set(color),
+        label: Set(label),
+        updated_at: Set(crate::unix_secs_string()),
+    })
+    .on_conflict(
+        OnConflict::columns([
+            track_hot_cue::Column::TrackId,
+            track_hot_cue::Column::SlotIndex,
+        ])
+        .do_nothing()
+        .to_owned(),
+    )
+    .exec(conn)
+    {
+        Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => Ok(()),
+        Err(err) => Err(db::db_err(err)),
+    }
+}
+
 pub fn delete_hot_cue(db: &Db, track_id: &TrackId, slot_index: u8) -> Result<()> {
     TrackHotCueEntity::delete_many()
         .filter(track_hot_cue::Column::TrackId.eq(track_id.as_str()))
@@ -295,6 +340,50 @@ pub(crate) fn import_loop_tx(
     saved: &LoopImport,
 ) -> Result<()> {
     upsert_loop_tx(conn, track_id, saved, false, false)
+}
+
+/// Insert one imported loop on `conn` only when its slot is free.
+///
+/// Adoption rule: an occupied loop slot keeps its complete row, and the
+/// imported loop is dropped whole rather than merged field by field.
+pub(crate) fn fill_loop_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    saved: &LoopImport,
+) -> Result<()> {
+    if saved.slot > 15 {
+        return Err(LibraryError::Backend {
+            backend: "deck_data",
+            message: "loop slot must be 0..=15".into(),
+        });
+    }
+    if saved.out_ms <= saved.in_ms {
+        return Err(LibraryError::Backend {
+            backend: "deck_data",
+            message: "loop out must be after loop in".into(),
+        });
+    }
+
+    match TrackLoopEntity::insert(track_loop::ActiveModel {
+        track_id: Set(track_id.as_str().to_string()),
+        slot_index: Set(i32::from(saved.slot)),
+        in_ms: Set(saved.in_ms),
+        out_ms: Set(saved.out_ms),
+        label: Set(saved.label.clone()),
+        color: Set(saved.color.clone()),
+        auto_saved: Set(false),
+        updated_at: Set(unix_millis_string()),
+    })
+    .on_conflict(
+        OnConflict::columns([track_loop::Column::TrackId, track_loop::Column::SlotIndex])
+            .do_nothing()
+            .to_owned(),
+    )
+    .exec(conn)
+    {
+        Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => Ok(()),
+        Err(err) => Err(db::db_err(err)),
+    }
 }
 
 /// Least-recently-updated automatic loop, breaking exact timestamp ties by slot.
@@ -497,8 +586,53 @@ impl LibraryManager {
             disc_number: edit.disc_number.filter(|number| *number > 0),
             color_label: edit.color_label,
         };
+
+        // Unknown ids keep the no-op contract: the store already decides that,
+        // and there is nothing to adopt or rebase.
+        let Some(before) = self.get_track(track_id)? else {
+            return self
+                .store()
+                .update_track_metadata(track_id, &normalized, &unix_secs_string());
+        };
+
+        // Only a colour edit needs the guard. The editor writes the colour as
+        // one value, and adopting it after the edit would resurrect what the
+        // user just cleared; adopting before it also makes a first colour
+        // change land on the real file state.
+        let colour_changed = normalized.color_label != before.metadata().color_label;
+        let mut normalized = normalized;
+        if colour_changed {
+            self.ensure_serato_adopted(track_id)?;
+            // The editor payload carries the BPM/key the user saw *before*
+            // adoption. An unchanged field must follow the adopted value
+            // instead of writing the pre-adoption snapshot back over it.
+            if let Some(after) = self.get_track(track_id)? {
+                let after = after.metadata();
+                if same_bpm(normalized.bpm, before.metadata().bpm) {
+                    normalized.bpm = after.bpm;
+                }
+                if normalized.key == before.metadata().key {
+                    normalized.key = after.key.clone();
+                }
+            }
+        }
+
         self.store()
             .update_track_metadata(track_id, &normalized, &unix_secs_string())
+    }
+}
+
+/// Whether two optional BPM values are the same editor value.
+///
+/// Mirrors the store's rule: two missing values and two NaNs are unchanged, so
+/// a rebase only happens for a field the user did not touch.
+fn same_bpm(incoming: Option<f64>, before: Option<f64>) -> bool {
+    match (incoming, before) {
+        (None, None) => true,
+        (Some(incoming), Some(before)) => {
+            incoming == before || (incoming.is_nan() && before.is_nan())
+        }
+        _ => false,
     }
 }
 
@@ -553,6 +687,9 @@ impl LibraryManager {
         color: Option<String>,
         label: Option<String>,
     ) -> Result<()> {
+        // Before the write: a first save must land after adoption, so a later
+        // touch cannot import the file slot this edit is about to replace.
+        self.ensure_serato_adopted(id)?;
         crate::deck_data::save_hot_cue(
             &self.db,
             id,
@@ -565,6 +702,9 @@ impl LibraryManager {
     }
 
     pub fn delete_track_hot_cue(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        // Adoption precedes deletion: otherwise the file's slot would be
+        // imported again the next time the track is loaded.
+        self.ensure_serato_adopted(id)?;
         crate::deck_data::delete_hot_cue(&self.db, id, slot_index)
     }
 
@@ -596,14 +736,17 @@ impl LibraryManager {
         label: Option<String>,
         color: Option<String>,
     ) -> Result<()> {
+        self.ensure_serato_adopted(id)?;
         crate::deck_data::save_loop(&self.db, id, slot_index, in_ms, out_ms, label, color)
     }
 
     pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        self.ensure_serato_adopted(id)?;
         crate::deck_data::delete_loop(&self.db, id, slot_index)
     }
 
     pub fn auto_save_track_loop(&self, id: &TrackId, in_ms: i32, out_ms: i32) -> Result<()> {
+        self.ensure_serato_adopted(id)?;
         crate::deck_data::auto_save_loop(&self.db, id, in_ms, out_ms)
     }
 }

@@ -1201,10 +1201,22 @@ fn containers_without_a_metadata_chunk_have_no_auxiliary_data() {
     let payload = payload_of("plain.wav", &wav);
     assert!(payload.scan_complete);
     assert!(payload.frames.is_empty());
-    assert_eq!(payload, SeratoPayload::default());
+    assert_eq!(
+        payload,
+        SeratoPayload {
+            container: Some(SeratoContainer::Wav),
+            ..SeratoPayload::default()
+        }
+    );
 
     let aiff = aiff_with(b"AIFF", &[(b"SSND", b"\x00\x00\x00\x00\x00\x00\x00\x00")]);
-    assert_eq!(payload_of("plain.aiff", &aiff), SeratoPayload::default());
+    assert_eq!(
+        payload_of("plain.aiff", &aiff),
+        SeratoPayload {
+            container: Some(SeratoContainer::Aiff),
+            ..SeratoPayload::default()
+        }
+    );
 }
 
 #[test]
@@ -1443,6 +1455,7 @@ fn compressed_geob_frames_mark_the_scan_incomplete() {
     assert_eq!(
         payload,
         SeratoPayload {
+            container: Some(SeratoContainer::Mp3),
             scan_complete: false,
             ..SeratoPayload::default()
         }
