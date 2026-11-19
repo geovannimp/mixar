@@ -26,30 +26,32 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
 /// Read ordinary file tags plus the Serato / Mixed In Key metadata.
 ///
 /// The returned metadata is the *plain* tag mapping: embedded performance data
-/// is applied later and only for a newly discovered track, so the same call
-/// serves both discovery paths without ever adopting embedded data into an
-/// existing row. A failure of the auxiliary reader is best-effort — it is logged
-/// and yields an empty payload — because malformed vendor metadata must never
-/// fail an ordinary import. A failure to read the ordinary tags keeps its
-/// current error semantics.
+/// is applied later by the adoption guard, so the same call serves every
+/// discovery path. A failure of the auxiliary reader is best-effort and stays
+/// distinguishable ([`VendorRead::Failed`]) so a failed read never stores an
+/// adoption marker; malformed vendor metadata must never fail an ordinary
+/// import. A failure to read the ordinary tags keeps its current error
+/// semantics.
 pub(crate) fn read_file_metadata(
     path: &Path,
-) -> library_core::Result<(TrackMetadata, codec::SeratoPayload)> {
+) -> library_core::Result<(TrackMetadata, crate::serato_adoption::VendorRead)> {
+    use crate::serato_adoption::VendorRead;
+
     // One open for both readers: a folder sync must not open and scan every
     // file twice.
     let read = codec::read_file_tags_and_serato(path).map_err(|e| io_backend(format!("{e}")))?;
-    let payload = match read.serato {
-        Ok(payload) => payload,
+    let vendor = match read.serato {
+        Ok(payload) => VendorRead::Payload(payload),
         Err(err) => {
             tracing::warn!(
                 path = %path_label(path),
                 error = %err,
                 "vendor metadata read failed; continuing with ordinary tags"
             );
-            codec::SeratoPayload::default()
+            VendorRead::Failed(err.to_string())
         }
     };
-    Ok((track_metadata_from_file_tags(path, read.tags), payload))
+    Ok((track_metadata_from_file_tags(path, read.tags), vendor))
 }
 
 /// Deferred write-back of app-managed tags for one analyzed file.

@@ -41,6 +41,19 @@ pub struct Model {
     /// Set once the editor writes the user-owned metadata columns, making the
     /// row authoritative over stale file tags on later re-analysis.
     pub metadata_edited: Option<bool>,
+    /// Unix-seconds string of the successful Serato / Mixed In Key adoption.
+    ///
+    /// `NULL` means the file's vendor metadata has never been adopted, so a
+    /// later lazy touch may still read it. Deleted and recreated tracks get a
+    /// fresh adoption; an mtime/content change on a surviving row does not
+    /// reset the marker.
+    pub serato_imported_at: Option<String>,
+    /// Bit mask of the Serato kinds adopted by [`serato_imported_at`].
+    ///
+    /// `NULL` means "never adopted". A successful adoption always stores an
+    /// explicit value, including `0` for a readable file that carries no Serato
+    /// frames, so later reloads and rescans cannot resurrect cleared state.
+    pub serato_adopted_kinds: Option<i32>,
     pub last_sampler_bank_id: Option<String>,
     pub added_at: String,
     pub updated_at: String,

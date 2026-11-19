@@ -32,6 +32,7 @@ mod migrations;
 mod model;
 mod playback;
 mod sampler_data;
+mod serato_adoption;
 mod session;
 mod stems;
 mod store;
@@ -76,6 +77,9 @@ pub use sampler_data::{
     get_bank, get_track_last_sampler_bank_id, list_banks, list_slots as list_sampler_slots,
     set_track_last_sampler_bank_id, update_bank, SamplerBankRecord, SamplerPlayMode,
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
+};
+pub use serato_adoption::{
+    SeratoAdoptionState, SERATO_KIND_COLOUR, SERATO_KIND_CUES, SERATO_KIND_GRID, SERATO_KIND_LOOPS,
 };
 pub use session::LibrarySession;
 pub use stems::{

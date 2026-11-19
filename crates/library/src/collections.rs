@@ -133,9 +133,9 @@ impl LibraryManager {
         path: &Path,
     ) -> Result<FileImportOutcome> {
         // File I/O (tags + vendor metadata) runs before the library lock.
-        let (normalized, metadata, payload) = Self::read_discovered(path)?;
+        let (normalized, metadata, vendor) = Self::read_discovered(path)?;
         let lib = Self::lock_library(library)?;
-        let imported = lib.persist_discovered_file(&normalized, &metadata, &payload)?;
+        let imported = lib.persist_discovered_file(&normalized, &metadata, &vendor)?;
         // The creation decision comes from the persistence transaction, never
         // from an earlier unlocked guess.
         Ok(if imported.created {
@@ -146,9 +146,9 @@ impl LibraryManager {
     }
 
     pub(crate) fn refresh_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<()> {
-        let (normalized, metadata, payload) = Self::read_discovered(path)?;
+        let (normalized, metadata, vendor) = Self::read_discovered(path)?;
         let lib = Self::lock_library(library)?;
-        lib.persist_discovered_file(&normalized, &metadata, &payload)?;
+        lib.persist_discovered_file(&normalized, &metadata, &vendor)?;
         Ok(())
     }
 }
@@ -159,7 +159,9 @@ impl LibraryManager {
     /// Shared by the synchronous and off-mutex discovery paths so validation and
     /// the read/persist contract cannot drift between them. All file I/O happens
     /// here, before any caller takes the library lock.
-    fn read_discovered(path: &Path) -> Result<(PathBuf, TrackMetadata, codec::SeratoPayload)> {
+    fn read_discovered(
+        path: &Path,
+    ) -> Result<(PathBuf, TrackMetadata, crate::serato_adoption::VendorRead)> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path_label(&path)));
@@ -167,8 +169,8 @@ impl LibraryManager {
         if !is_audio_file(&path) {
             return Err(LibraryError::UnsupportedFile(path_label(&path)));
         }
-        let (metadata, payload) = tags::read_file_metadata(&path)?;
-        Ok((path, metadata, payload))
+        let (metadata, vendor) = tags::read_file_metadata(&path)?;
+        Ok((path, metadata, vendor))
     }
 
     pub(crate) fn track_id_for(path: &Path) -> TrackId {
@@ -633,10 +635,11 @@ impl LibraryManager {
     }
 
     fn refresh_file_source_with_outcome(&self, path: &Path) -> Result<(AudioSource, bool)> {
-        // Embedded performance data is adopted only for a new row; the helper
-        // also merges the stored RGB/label and editor-owned fields.
-        let (normalized, metadata, payload) = Self::read_discovered(path)?;
-        let imported = self.persist_discovered_file(&normalized, &metadata, &payload)?;
+        // The helper imports embedded data for a new row, adopts it for an
+        // unmarked existing row, and merges the stored RGB/label and
+        // editor-owned fields on every refresh.
+        let (normalized, metadata, vendor) = Self::read_discovered(path)?;
+        let imported = self.persist_discovered_file(&normalized, &metadata, &vendor)?;
         // This boolean means "existed", the opposite of `ImportedTrack::created`.
         Ok((imported.source, !imported.created))
     }
@@ -666,11 +669,30 @@ impl WritableLibrary for LibraryManager {
         let id = Self::track_id_for(&path);
         let created = !self.store().track_exists(&id)?;
         let source = self.upsert_file_source_normalized(&path, metadata)?;
+        // Adapter metadata may already be mapped, but the file's own vendor
+        // state still belongs to the library: adopt a readable supported file
+        // here, and leave an absent or unreadable one pending for the next
+        // touch. This keeps the missing-file import contract.
+        if path.is_file() {
+            if let Err(err) = self.ensure_serato_adopted(&id) {
+                tracing::warn!(
+                    track_id = %id,
+                    error = %err,
+                    "Serato adoption deferred"
+                );
+            }
+        }
+        // Adoption can fill colour and the grid BPM mirror; hand back the row.
+        let source = self.get_track(&id)?.unwrap_or(source);
         Ok(ImportedTrack { source, created })
     }
 
     fn import_hot_cue(&mut self, track_id: &TrackId, cue: &HotCueImport) -> Result<()> {
-        self.save_track_hot_cue(
+        // Not `save_track_hot_cue`: an adapter import is persistence, not a user
+        // deck save, so it must not enter the adoption gate or the public save
+        // contract. Adoption owns its own transaction-scoped inserts.
+        crate::deck_data::save_hot_cue(
+            &self.db,
             track_id,
             cue.slot,
             cue.position_ms,

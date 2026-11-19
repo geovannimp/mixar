@@ -14,7 +14,7 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-use super::SeratoFrameKind;
+use super::{SeratoContainer, SeratoFrameKind};
 
 /// Largest ID3 tag read into memory. Larger tags mark the scan incomplete.
 const MAX_TAG_BYTES: u64 = 16 * 1024 * 1024;
@@ -39,6 +39,10 @@ pub(crate) struct RawGeoBFrame {
 /// Result of scanning one file's tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TagScan {
+    /// Container a tag can live in, or `None` for a container this reader does
+    /// not understand (FLAC, MP4, Ogg, …). Empty frames in such a file are not
+    /// evidence that the file carries no vendor metadata.
+    pub(crate) container: Option<SeratoContainer>,
     pub(crate) frames: Vec<RawGeoBFrame>,
     /// `false` when a bound was exceeded, a value was structurally invalid or a
     /// frame had to be skipped. Callers must not trust absence of a frame then.
@@ -48,6 +52,7 @@ pub(crate) struct TagScan {
 impl TagScan {
     fn no_tag() -> Self {
         Self {
+            container: None,
             frames: Vec::new(),
             scan_complete: true,
         }
@@ -55,9 +60,16 @@ impl TagScan {
 
     fn incomplete() -> Self {
         Self {
+            container: None,
             frames: Vec::new(),
             scan_complete: false,
         }
+    }
+
+    /// Record the container the scan actually walked.
+    fn in_container(mut self, container: SeratoContainer) -> Self {
+        self.container = Some(container);
+        self
     }
 }
 
@@ -76,34 +88,38 @@ pub(crate) fn scan_reader(file: &mut File) -> anyhow::Result<TagScan> {
     let head = &head[..head_len];
 
     if head.len() >= 3 && &head[..3] == b"ID3" {
-        return read_tag_at(file, 0, file_len);
+        return Ok(read_tag_at(file, 0, file_len)?.in_container(SeratoContainer::Mp3));
     }
 
-    let (order, form) = if head.len() >= 12 && &head[..4] == b"RIFF" && &head[8..12] == b"WAVE" {
-        (ByteOrder::Little, 4)
-    } else if head.len() >= 12
-        && &head[..4] == b"FORM"
-        && (&head[8..12] == b"AIFF" || &head[8..12] == b"AIFC")
-    {
-        (ByteOrder::Big, 4)
-    } else {
-        // Unsupported container (FLAC, MP4, Ogg, …): no auxiliary data.
-        return Ok(TagScan::no_tag());
-    };
+    let (order, form, container) =
+        if head.len() >= 12 && &head[..4] == b"RIFF" && &head[8..12] == b"WAVE" {
+            (ByteOrder::Little, 4, SeratoContainer::Wav)
+        } else if head.len() >= 12
+            && &head[..4] == b"FORM"
+            && (&head[8..12] == b"AIFF" || &head[8..12] == b"AIFC")
+        {
+            (ByteOrder::Big, 4, SeratoContainer::Aiff)
+        } else {
+            // Unsupported container (FLAC, MP4, Ogg, …): no auxiliary data, and no
+            // claim that the file has none either.
+            return Ok(TagScan::no_tag());
+        };
 
     let declared = order.read_u32(&head[form..form + 4]) as u64;
     let Some(form_end) = declared.checked_add(8) else {
-        return Ok(TagScan::incomplete());
+        return Ok(TagScan::incomplete().in_container(container));
     };
     if form_end > file_len {
         // The form header claims more data than the file holds.
-        return Ok(TagScan::incomplete());
+        return Ok(TagScan::incomplete().in_container(container));
     }
 
     match find_metadata_chunk(file, 12, form_end, order)? {
-        ChunkSearch::Found { offset, len } => read_tag_at(file, offset, len),
-        ChunkSearch::Absent => Ok(TagScan::no_tag()),
-        ChunkSearch::Malformed => Ok(TagScan::incomplete()),
+        ChunkSearch::Found { offset, len } => {
+            Ok(read_tag_at(file, offset, len)?.in_container(container))
+        }
+        ChunkSearch::Absent => Ok(TagScan::no_tag().in_container(container)),
+        ChunkSearch::Malformed => Ok(TagScan::incomplete().in_container(container)),
     }
 }
 
@@ -343,6 +359,7 @@ fn parse_tag(tag: &[u8]) -> TagScan {
     }
 
     TagScan {
+        container: None,
         frames,
         scan_complete: complete,
     }

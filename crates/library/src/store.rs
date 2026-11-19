@@ -154,6 +154,7 @@ pub(crate) fn upsert_file_track_tx(
         ..Default::default()
     };
     apply_metadata_columns(&mut active, metadata);
+    preserve_stored_colour(conn, id, &mut active)?;
 
     TrackEntity::insert(active)
         .on_conflict(
@@ -163,6 +164,39 @@ pub(crate) fn upsert_file_track_tx(
         )
         .exec(conn)
         .map_err(db::db_err)?;
+    Ok(())
+}
+
+/// Assign the colour already stored on the row, when it must survive a refresh.
+///
+/// The colour is one logical value (label plus exact `0xRRGGBB`), so both
+/// columns are written together or not at all — a retained label can never be
+/// paired with an incoming raw value, or the reverse. Precedence:
+///
+/// - an adopted row, or one the editor owns, keeps its complete colour
+///   including `NULL` (a cleared colour is a decision, not missing data);
+/// - otherwise any stored colour representation is kept, and the incoming one
+///   is used only when the row has none.
+///
+/// Evaluated here, against the row in the same connection, so a caller holding
+/// an older snapshot cannot undo a colour written since it read.
+fn preserve_stored_colour(
+    conn: &DatabaseConnection,
+    id: &TrackId,
+    active: &mut tracks::ActiveModel,
+) -> Result<()> {
+    let Some(row) = TrackEntity::find_by_id(id.as_str())
+        .one(conn)
+        .map_err(db::db_err)?
+    else {
+        return Ok(());
+    };
+    let owned = row.serato_imported_at.is_some() || row.metadata_edited.unwrap_or(false);
+    let stores_colour = row.color_label.is_some() || row.color_rgb.is_some();
+    if owned || stores_colour {
+        active.color_label = Set(row.color_label);
+        active.color_rgb = Set(row.color_rgb);
+    }
     Ok(())
 }
 
@@ -1304,20 +1338,38 @@ mod tests {
         assert_eq!(stored_cleared.metadata().color_label, None);
         assert_eq!(stored_cleared.metadata().color_rgb, None);
 
-        // `None` → `None` cannot express a clear, so an imported colour stays.
+        // An imported colour on a row the editor has not written survives an
+        // unrelated editor save whose label is `None` on both sides.
         let unlabelled_meta = TrackMetadata {
             color_rgb: Some(0x00FF_FFFF),
             ..TrackMetadata::default()
         };
+        let untouched = TrackId::new("/music/colour-unedited.wav");
+        let untouched_path = Path::new("/music/colour-unedited.wav");
         store
-            .upsert_file_track(&id, path, &unlabelled_meta, "5")
+            .upsert_file_track(&untouched, untouched_path, &unlabelled_meta, "5")
             .unwrap();
         store
-            .update_track_metadata(&id, &edit(None, "Renamed again"), "6")
+            .update_track_metadata(&untouched, &edit(None, "Renamed again"), "6")
+            .unwrap();
+        assert_eq!(
+            store
+                .get_track(&untouched)
+                .unwrap()
+                .unwrap()
+                .metadata()
+                .color_rgb,
+            Some(0x00FF_FFFF)
+        );
+
+        // Once the editor owns the row, a refresh cannot bring a colour back
+        // over the clear it wrote (#743).
+        store
+            .upsert_file_track(&id, path, &unlabelled_meta, "7")
             .unwrap();
         assert_eq!(
             store.get_track(&id).unwrap().unwrap().metadata().color_rgb,
-            Some(0x00FF_FFFF)
+            None
         );
     }
 }
