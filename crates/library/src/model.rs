@@ -38,6 +38,10 @@ pub fn track_metadata(model: &tracks::Model) -> TrackMetadata {
         track_number: model.track_number.and_then(non_zero_u16),
         disc_number: model.disc_number.and_then(non_zero_u16),
         color_label: model.color_label.as_deref().and_then(|s| s.parse().ok()),
+        color_rgb: model
+            .color_rgb
+            .and_then(|v| u32::try_from(v).ok())
+            .filter(|v| *v <= 0x00FF_FFFF),
         loudness_lufs: None,
     }
 }
@@ -114,6 +118,35 @@ pub fn collection(model: collections::Model) -> Result<Collection> {
 mod tests {
     use super::*;
     use sea_orm::{ActiveModelTrait, Set};
+
+    #[test]
+    fn track_metadata_maps_only_valid_raw_colours() {
+        let db = crate::db::open_in_memory().unwrap();
+        let conn = db.conn().unwrap();
+
+        for (id, stored, expected) in [
+            ("valid", 0x12_3456i64, Some(0x12_3456u32)),
+            ("white", 0x00FF_FFFF, Some(0x00FF_FFFF)),
+            ("black", 0, Some(0)),
+            ("absent", -1, None),
+            ("too-big", 16_777_216, None),
+            ("negative", -16, None),
+        ] {
+            let row = tracks::ActiveModel {
+                id: Set(id.into()),
+                source_type: Set("file".into()),
+                source_ref: Set(format!("/music/{id}.wav")),
+                // `absent` is written as NULL below, not as -1.
+                color_rgb: Set((id != "absent").then_some(stored as i32)),
+                added_at: Set("now".into()),
+                updated_at: Set("now".into()),
+                ..Default::default()
+            }
+            .insert(conn.as_connection())
+            .unwrap();
+            assert_eq!(track_metadata(&row).color_rgb, expected, "{id}");
+        }
+    }
 
     #[test]
     fn track_metadata_normalizes_user_owned_columns() {

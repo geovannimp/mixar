@@ -75,6 +75,30 @@ pub fn read_file_tags(path: &Path) -> anyhow::Result<FileTags> {
     Ok(file_tags_from_tagged(&tagged))
 }
 
+/// Read tags from an already-open handle.
+///
+/// Discovery passes one handle to this and the vendor reader, so a sync opens
+/// every file once instead of once per reader. Stem files still take their own
+/// path-based probe, since their overrides need the container name.
+pub(crate) fn read_tags_from_file(
+    path: &Path,
+    file: &mut std::fs::File,
+) -> anyhow::Result<FileTags> {
+    crate::rating::install();
+    if is_stem_path(path) {
+        return read_stem_file_tags(path);
+    }
+
+    let probe = Probe::new(file)
+        .guess_file_type()
+        .map_err(|e| anyhow::anyhow!("read tags {}: {e}", path.display()))?;
+    let tagged = probe
+        .read()
+        .map_err(|e| anyhow::anyhow!("read tags {}: {e}", path.display()))?;
+
+    Ok(file_tags_from_tagged(&tagged))
+}
+
 /// Read ReplayGain track gain (dB) when present. Always `None` for `.stem.mp4`.
 pub fn read_replaygain_track_gain_db(path: &Path) -> anyhow::Result<Option<f64>> {
     if is_stem_path(path) {

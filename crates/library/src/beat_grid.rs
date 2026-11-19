@@ -8,12 +8,9 @@
 use std::fmt;
 
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder, Set, Statement,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set};
 
-use crate::db::Db;
+use crate::db::{self, Db};
 use crate::entity::{
     track_beat_grid, track_beat_segment, tracks, TrackBeatGridEntity, TrackBeatSegmentEntity,
     TrackEntity,
@@ -541,14 +538,14 @@ pub(crate) fn write_track_beat_grid(
     grid.validate().map_err(grid_error)?;
     let guard = db.conn()?;
     let conn = guard.as_connection();
-    begin(conn)?;
+    db::begin(conn)?;
     match write_track_beat_grid_tx(conn, track_id, grid) {
         Ok(()) => {
-            commit(conn)?;
+            db::commit(conn)?;
             Ok(())
         }
         Err(err) => {
-            rollback(conn);
+            db::rollback(conn);
             Err(err)
         }
     }
@@ -627,7 +624,15 @@ pub(crate) fn get_track_beat_grid(
     track_id: &TrackId,
 ) -> Result<Option<CanonicalBeatGrid>> {
     let guard = db.conn()?;
-    let conn = guard.as_connection();
+    get_track_beat_grid_tx(guard.as_connection(), track_id)
+}
+
+/// Same read as [`get_track_beat_grid`] on a caller-provided connection, so it
+/// can run inside [`Db::transaction`](crate::db::Db::transaction).
+pub(crate) fn get_track_beat_grid_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+) -> Result<Option<CanonicalBeatGrid>> {
     let Some(header) = TrackBeatGridEntity::find_by_id(track_id.as_str())
         .one(conn)
         .map_err(crate::db::db_err)?
@@ -693,13 +698,22 @@ pub(crate) fn has_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<bool> {
 
 /// Mirror a grid's first BPM onto `tracks.bpm` without rewriting the grid.
 pub(crate) fn set_track_bpm(db: &Db, track_id: &TrackId, bpm: f64) -> Result<()> {
+    set_track_bpm_tx(db.conn()?.as_connection(), track_id, bpm)
+}
+
+/// Same write as [`set_track_bpm`] on a caller-provided connection.
+pub(crate) fn set_track_bpm_tx(
+    conn: &DatabaseConnection,
+    track_id: &TrackId,
+    bpm: f64,
+) -> Result<()> {
     let track = tracks::ActiveModel {
         id: Set(track_id.as_str().to_string()),
         bpm: Set(Some(bpm)),
         ..Default::default()
     };
     TrackEntity::update(track)
-        .exec(db.conn()?.as_connection())
+        .exec(conn)
         .map(|_| ())
         .map_err(crate::db::db_err)
 }
@@ -711,31 +725,6 @@ fn grid_error(err: GridError) -> LibraryError {
     }
 }
 
-fn begin(conn: &DatabaseConnection) -> Result<()> {
-    conn.execute_raw(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        "BEGIN IMMEDIATE".to_string(),
-    ))
-    .map(|_| ())
-    .map_err(crate::db::db_err)
-}
-
-fn commit(conn: &DatabaseConnection) -> Result<()> {
-    conn.execute_raw(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        "COMMIT".to_string(),
-    ))
-    .map(|_| ())
-    .map_err(crate::db::db_err)
-}
-
-fn rollback(conn: &DatabaseConnection) {
-    let _ = conn.execute_raw(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        "ROLLBACK".to_string(),
-    ));
-}
-
 fn beat_time_in_segment(segment: &BeatSegment, offset: i64) -> i64 {
     (segment.start_time_ms as f64 + offset as f64 * 60_000.0 / segment.bpm).round() as i64
 }
@@ -743,6 +732,7 @@ fn beat_time_in_segment(segment: &BeatSegment, offset: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 
     fn seg(
         index: i32,

@@ -23,6 +23,35 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     Ok(track_metadata_from_file_tags(path, tags))
 }
 
+/// Read ordinary file tags plus the Serato / Mixed In Key metadata.
+///
+/// The returned metadata is the *plain* tag mapping: embedded performance data
+/// is applied later and only for a newly discovered track, so the same call
+/// serves both discovery paths without ever adopting embedded data into an
+/// existing row. A failure of the auxiliary reader is best-effort — it is logged
+/// and yields an empty payload — because malformed vendor metadata must never
+/// fail an ordinary import. A failure to read the ordinary tags keeps its
+/// current error semantics.
+pub(crate) fn read_file_metadata(
+    path: &Path,
+) -> library_core::Result<(TrackMetadata, codec::SeratoPayload)> {
+    // One open for both readers: a folder sync must not open and scan every
+    // file twice.
+    let read = codec::read_file_tags_and_serato(path).map_err(|e| io_backend(format!("{e}")))?;
+    let payload = match read.serato {
+        Ok(payload) => payload,
+        Err(err) => {
+            tracing::warn!(
+                path = %path_label(path),
+                error = %err,
+                "vendor metadata read failed; continuing with ordinary tags"
+            );
+            codec::SeratoPayload::default()
+        }
+    };
+    Ok((track_metadata_from_file_tags(path, read.tags), payload))
+}
+
 /// Deferred write-back of app-managed tags for one analyzed file.
 ///
 /// Planned while the library lock is held (cheap: copies a path and two values)
@@ -131,6 +160,13 @@ pub(crate) fn merge_user_metadata(
         metadata.track_number = stored.track_number;
         metadata.disc_number = stored.disc_number;
         metadata.color_label = stored.color_label;
+        // The editor owns the colour as one value: a cleared label clears the
+        // raw colour too. A legacy row that carries only a palette label is
+        // re-persisted with that label's exact swatch, so the pair stays one
+        // value instead of leaving the colour invisible to raw-RGB consumers.
+        metadata.color_rgb = stored
+            .color_rgb
+            .or_else(|| stored.color_label.map(library_core::ColorLabel::rgb));
         return;
     }
     metadata.rating = metadata.rating.or(stored.rating);
@@ -139,7 +175,42 @@ pub(crate) fn merge_user_metadata(
     metadata.year = metadata.year.or(stored.year);
     metadata.track_number = metadata.track_number.or(stored.track_number);
     metadata.disc_number = metadata.disc_number.or(stored.disc_number);
-    metadata.color_label = metadata.color_label.or(stored.color_label);
+    merge_user_colour(metadata, stored);
+}
+
+/// Merge the colour pair (label + exact raw RGB) as a single value.
+///
+/// Raw RGB that is already owned — imported from a vendor tag or stored by an
+/// earlier import — survives a rescan/analysis instead of being erased or
+/// quantized by a stale file `COLOR` label. Only an ordinary file `COLOR` label
+/// seeds a raw colour when none is owned, using that label's exact swatch.
+fn merge_user_colour(metadata: &mut TrackMetadata, stored: &TrackMetadata) {
+    let valid = |rgb: Option<u32>| rgb.filter(|value| *value <= 0x00FF_FFFF);
+    let file_label = metadata.color_label;
+    let stored_rgb = valid(stored.color_rgb);
+    let file_rgb = valid(metadata.color_rgb);
+
+    let (rgb, label) = match (stored_rgb, file_rgb) {
+        // The row owns an exact colour: it wins and its own label is written
+        // back. Deriving the label from the RGB here would drop the label of a
+        // legacy pair whose raw colour no palette contains.
+        (Some(rgb), _) => (
+            Some(rgb),
+            stored
+                .color_label
+                .or_else(|| library_core::ColorLabel::from_rgb(rgb)),
+        ),
+        // A colour carried by the file seeds both halves.
+        (None, Some(rgb)) => (Some(rgb), library_core::ColorLabel::from_rgb(rgb)),
+        // Only a file label: seed the exact swatch it stands for.
+        (None, None) => match file_label {
+            Some(label) => (Some(label.rgb()), Some(label)),
+            None => (None, stored.color_label),
+        },
+    };
+
+    metadata.color_rgb = rgb;
+    metadata.color_label = label;
 }
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.
@@ -296,6 +367,114 @@ mod tests {
         let mut fresh = TrackMetadata::default();
         merge_user_metadata(&mut fresh, &stored, false);
         assert_eq!(fresh, stored);
+    }
+
+    #[test]
+    fn merge_keeps_a_stored_label_next_to_an_arbitrary_colour() {
+        // A legacy pair: a palette label plus a raw colour no palette contains.
+        let stored = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Pink),
+            color_rgb: Some(0x12_3456),
+            ..TrackMetadata::default()
+        };
+        let mut fresh = TrackMetadata::default();
+        merge_user_metadata(&mut fresh, &stored, false);
+        assert_eq!(fresh.color_rgb, Some(0x12_3456), "the owned colour wins");
+        assert_eq!(
+            fresh.color_label,
+            Some(library_core::ColorLabel::Pink),
+            "the stored label is written back, not dropped"
+        );
+    }
+
+    #[test]
+    fn merge_keeps_an_owned_raw_colour_and_treats_it_as_one_value() {
+        // An imported arbitrary colour (Serato white) survives a rescan whose
+        // file tags carry no colour at all.
+        let stored = TrackMetadata {
+            color_rgb: Some(0x00FF_FFFF),
+            ..TrackMetadata::default()
+        };
+        let mut fresh_without_colour = TrackMetadata::default();
+        merge_user_metadata(&mut fresh_without_colour, &stored, false);
+        assert_eq!(fresh_without_colour.color_rgb, Some(0x00FF_FFFF));
+        assert_eq!(fresh_without_colour.color_label, None);
+
+        // A stale file COLOR label does not quantize the owned colour.
+        let mut fresh_stale_label = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Red),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh_stale_label, &stored, false);
+        assert_eq!(fresh_stale_label.color_rgb, Some(0x00FF_FFFF));
+        assert_eq!(
+            fresh_stale_label.color_label, None,
+            "red would contradict white"
+        );
+
+        // A file label seeds raw RGB from its exact swatch when none is owned.
+        let mut fresh_pink_label = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Pink),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh_pink_label, &TrackMetadata::default(), false);
+        assert_eq!(fresh_pink_label.color_rgb, Some(0xFF_0080));
+        assert_eq!(
+            fresh_pink_label.color_label,
+            Some(library_core::ColorLabel::Pink)
+        );
+
+        // The editor owns both halves: a cleared pair stays cleared.
+        let mut editor_cleared = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Pink),
+            color_rgb: Some(0xFF_0080),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut editor_cleared, &TrackMetadata::default(), true);
+        assert_eq!(editor_cleared.color_label, None);
+        assert_eq!(editor_cleared.color_rgb, None);
+    }
+
+    #[test]
+    fn authoritative_merge_keeps_the_colour_pair_consistent() {
+        // A legacy row that carries only a palette label gains that label's
+        // exact swatch, so the single-value invariant holds after re-persisting.
+        let stored_label_only = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Aqua),
+            ..TrackMetadata::default()
+        };
+        let mut fresh = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Red),
+            color_rgb: Some(0xFF_0000),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh, &stored_label_only, true);
+        assert_eq!(fresh.color_label, Some(library_core::ColorLabel::Aqua));
+        assert_eq!(fresh.color_rgb, Some(0x00_FFFF));
+
+        // An arbitrary stored colour is kept verbatim, with no derived label.
+        let stored_arbitrary = TrackMetadata {
+            color_rgb: Some(0x12_3456),
+            ..TrackMetadata::default()
+        };
+        let mut fresh = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Red),
+            color_rgb: Some(0xFF_0000),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh, &stored_arbitrary, true);
+        assert_eq!(fresh.color_label, None);
+        assert_eq!(fresh.color_rgb, Some(0x12_3456));
+
+        // A cleared pair stays cleared.
+        let mut fresh = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Red),
+            color_rgb: Some(0xFF_0000),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh, &TrackMetadata::default(), true);
+        assert_eq!(fresh.color_label, None);
+        assert_eq!(fresh.color_rgb, None);
     }
 
     #[test]

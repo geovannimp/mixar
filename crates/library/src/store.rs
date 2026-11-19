@@ -10,8 +10,9 @@ use sea_orm::sea_query::{Expr, OnConflict, Order};
 #[cfg(test)]
 use sea_orm::Statement;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, SqliteTransactionMode, TransactionOptions,
+    TransactionTrait,
 };
 
 use crate::db::{self, Db};
@@ -51,11 +52,17 @@ fn apply_metadata_columns(active: &mut tracks::ActiveModel, metadata: &TrackMeta
         metadata.track_number,
         metadata.disc_number,
         metadata.color_label,
+        metadata.color_rgb,
     );
 }
 
 /// Assign the fields the track editor owns. Shared by insert/upsert and the
 /// full-replacement edit path so the two can never diverge.
+///
+/// The raw colour is a parameter rather than being derived from `color_label`:
+/// an imported arbitrary colour has no label, and deriving here would quantize
+/// it on every unrelated edit. The argument list is explicit on purpose.
+#[allow(clippy::too_many_arguments)]
 fn apply_user_columns(
     active: &mut tracks::ActiveModel,
     rating: Option<u8>,
@@ -64,6 +71,7 @@ fn apply_user_columns(
     track_number: Option<u16>,
     disc_number: Option<u16>,
     color_label: Option<library_core::ColorLabel>,
+    color_rgb: Option<u32>,
 ) {
     active.rating = Set(rating.map(i32::from));
     active.comment = Set(comment);
@@ -71,6 +79,9 @@ fn apply_user_columns(
     active.track_number = Set(track_number.map(i32::from));
     active.disc_number = Set(disc_number.map(i32::from));
     active.color_label = Set(color_label.map(|c| c.as_str().to_string()));
+    // Always the value the caller computed: deriving it from `color_label` here
+    // would quantize an imported arbitrary colour on an unrelated edit.
+    active.color_rgb = Set(color_rgb.map(|rgb| rgb as i32));
 }
 
 /// Columns refreshed when an existing track is upserted.
@@ -99,9 +110,60 @@ fn metadata_update_columns() -> Vec<tracks::Column> {
         tracks::Column::TrackNumber,
         tracks::Column::DiscNumber,
         tracks::Column::ColorLabel,
+        tracks::Column::ColorRgb,
     ]);
     columns.push(tracks::Column::UpdatedAt);
     columns
+}
+
+/// Reject a raw colour outside the 24-bit `0xRRGGBB` range rather than storing a
+/// truncated value that would display as a different colour.
+pub(crate) fn validate_color_rgb(metadata: &TrackMetadata) -> Result<()> {
+    if metadata.has_valid_color_rgb() {
+        return Ok(());
+    }
+    Err(library_core::LibraryError::Backend {
+        backend: "library",
+        message: format!(
+            "invalid track colour: expected 0xRRGGBB, got {:#010x}",
+            metadata.color_rgb.unwrap_or_default()
+        ),
+    })
+}
+
+/// Insert or refresh a file track on `conn`, for use inside a transaction.
+///
+/// [`Store::upsert_file_track`] is the lock-acquiring wrapper around this.
+pub(crate) fn upsert_file_track_tx(
+    conn: &DatabaseConnection,
+    id: &TrackId,
+    path: &Path,
+    metadata: &TrackMetadata,
+    now: &str,
+) -> Result<()> {
+    validate_color_rgb(metadata)?;
+    let source_ref = path.to_string_lossy().into_owned();
+    let mut active = tracks::ActiveModel {
+        id: Set(id.as_str().to_string()),
+        source_type: Set("file".to_string()),
+        source_ref: Set(source_ref),
+        provider: Set(None),
+        last_sampler_bank_id: Set(None),
+        added_at: Set(now.to_string()),
+        updated_at: Set(now.to_string()),
+        ..Default::default()
+    };
+    apply_metadata_columns(&mut active, metadata);
+
+    TrackEntity::insert(active)
+        .on_conflict(
+            OnConflict::column(tracks::Column::Id)
+                .update_columns(metadata_update_columns())
+                .to_owned(),
+        )
+        .exec(conn)
+        .map_err(db::db_err)?;
+    Ok(())
 }
 
 pub struct Store<'a> {
@@ -120,28 +182,7 @@ impl<'a> Store<'a> {
         metadata: &TrackMetadata,
         now: &str,
     ) -> Result<()> {
-        let source_ref = path.to_string_lossy().into_owned();
-        let mut active = tracks::ActiveModel {
-            id: Set(id.as_str().to_string()),
-            source_type: Set("file".to_string()),
-            source_ref: Set(source_ref),
-            provider: Set(None),
-            last_sampler_bank_id: Set(None),
-            added_at: Set(now.to_string()),
-            updated_at: Set(now.to_string()),
-            ..Default::default()
-        };
-        apply_metadata_columns(&mut active, metadata);
-
-        TrackEntity::insert(active)
-            .on_conflict(
-                OnConflict::column(tracks::Column::Id)
-                    .update_columns(metadata_update_columns())
-                    .to_owned(),
-            )
-            .exec(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(())
+        upsert_file_track_tx(self.db.conn()?.as_connection(), id, path, metadata, now)
     }
 
     #[allow(dead_code)]
@@ -153,6 +194,7 @@ impl<'a> Store<'a> {
         provider: Option<&str>,
         now: &str,
     ) -> Result<()> {
+        validate_color_rgb(metadata)?;
         let mut active = tracks::ActiveModel {
             id: Set(id.as_str().to_string()),
             source_type: Set("stream".to_string()),
@@ -252,6 +294,23 @@ impl<'a> Store<'a> {
                 });
             }
         }
+        // The colour is one value: the raw RGB follows the label. An unchanged
+        // label (including `None` → `None`) keeps the exact stored raw colour,
+        // so an unrelated editor save never quantizes an imported colour; a
+        // different label takes its swatch and clearing a set label clears RGB.
+        let stored_label = row
+            .color_label
+            .as_deref()
+            .and_then(|raw| raw.parse::<library_core::ColorLabel>().ok());
+        let stored_rgb = row
+            .color_rgb
+            .and_then(|value| u32::try_from(value).ok())
+            .filter(|value| *value <= 0x00FF_FFFF);
+        let color_rgb = if edit.color_label == stored_label {
+            stored_rgb
+        } else {
+            edit.color_label.map(library_core::ColorLabel::rgb)
+        };
         let mut active: tracks::ActiveModel = row.into();
         active.title = Set(edit.title.clone());
         active.artist = Set(edit.artist.clone());
@@ -268,6 +327,7 @@ impl<'a> Store<'a> {
             edit.track_number,
             edit.disc_number,
             edit.color_label,
+            color_rgb,
         );
         active.metadata_edited = Set(Some(true));
         active.updated_at = Set(now.to_string());
@@ -1083,6 +1143,181 @@ mod tests {
         assert!(
             format!("{err}").contains("invalid BPM"),
             "unexpected error: {err}"
+        );
+    }
+    /// The four colour values every raw-colour test round-trips.
+    fn sample_raw_colours() -> [(&'static str, Option<u32>); 4] {
+        [
+            ("arbitrary", Some(0x12_3456)),
+            ("black", Some(0)),
+            ("white", Some(0x00FF_FFFF)),
+            ("absent", None),
+        ]
+    }
+
+    fn upsert_raw_colour(store: &Store<'_>, name: &str, rgb: Option<u32>) {
+        let path = format!("/music/{name}.wav");
+        let meta = TrackMetadata {
+            color_rgb: rgb,
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&TrackId::new(path.clone()), Path::new(&path), &meta, "1")
+            .unwrap();
+    }
+
+    #[test]
+    fn raw_colour_round_trips_and_rejects_out_of_range_values() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+
+        for (name, rgb) in sample_raw_colours() {
+            upsert_raw_colour(&store, name, rgb);
+            let stored = store
+                .get_track(&TrackId::new(format!("/music/{name}.wav")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(stored.metadata().color_rgb, rgb, "{name}");
+        }
+
+        // A u32 above 24 bits is rejected, never truncated to a different colour.
+        let bad_path = "/music/bad-colour.wav";
+        let bad = TrackId::new(bad_path);
+        let meta = TrackMetadata {
+            color_rgb: Some(0x0100_0000),
+            ..TrackMetadata::default()
+        };
+        let err = store
+            .upsert_file_track(&bad, Path::new(bad_path), &meta, "1")
+            .expect_err("out-of-range colour must be rejected");
+        assert!(
+            format!("{err}").contains("invalid track colour"),
+            "unexpected error: {err}"
+        );
+        assert!(store.get_track(&bad).unwrap().is_none(), "no phantom row");
+    }
+
+    #[test]
+    fn raw_colour_survives_a_database_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("library.db");
+        {
+            let db = crate::db::open(&db_path).unwrap();
+            let store = Store::new(&db);
+            for (name, rgb) in sample_raw_colours() {
+                upsert_raw_colour(&store, name, rgb);
+            }
+        }
+        let db = crate::db::open(&db_path).unwrap();
+        let store = Store::new(&db);
+        for (name, rgb) in sample_raw_colours() {
+            let stored = store
+                .get_track(&TrackId::new(format!("/music/{name}.wav")))
+                .unwrap()
+                .unwrap();
+            assert_eq!(stored.metadata().color_rgb, rgb, "{name}");
+        }
+    }
+
+    #[test]
+    fn legacy_out_of_range_stored_colour_maps_to_none() {
+        let db = db::open_in_memory().unwrap();
+        {
+            let conn = db.conn().unwrap();
+            for (id, rgb) in [("too-big", 16_777_216i32), ("negative", -1i32)] {
+                tracks::ActiveModel {
+                    id: Set(id.into()),
+                    source_type: Set("file".into()),
+                    source_ref: Set(format!("/music/{id}.wav")),
+                    color_label: Set(Some("pink".into())),
+                    color_rgb: Set(Some(rgb)),
+                    added_at: Set("1".into()),
+                    updated_at: Set("1".into()),
+                    ..Default::default()
+                }
+                .insert(conn.as_connection())
+                .unwrap();
+            }
+        }
+        let store = Store::new(&db);
+        for id in ["too-big", "negative"] {
+            let metadata = store
+                .get_track(&TrackId::new(id))
+                .unwrap()
+                .unwrap()
+                .metadata()
+                .clone();
+            assert_eq!(metadata.color_label, Some(library_core::ColorLabel::Pink));
+            assert_eq!(metadata.color_rgb, None, "{id} must not wrap");
+        }
+    }
+
+    #[test]
+    fn editor_label_changes_move_the_raw_colour() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/colour.wav");
+        let path = Path::new("/music/colour.wav");
+        let meta = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Pink),
+            // An imported arbitrary colour that no palette contains.
+            color_rgb: Some(0x12_3456),
+            ..TrackMetadata::default()
+        };
+        store.upsert_file_track(&id, path, &meta, "1").unwrap();
+
+        let edit = |label: Option<library_core::ColorLabel>, title: &str| TrackMetadataEdit {
+            title: Some(title.into()),
+            color_label: label,
+            ..TrackMetadataEdit::default()
+        };
+
+        // Same label: the exact imported colour survives an unrelated edit.
+        store
+            .update_track_metadata(
+                &id,
+                &edit(Some(library_core::ColorLabel::Pink), "Renamed"),
+                "2",
+            )
+            .unwrap();
+        let stored_same_label = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(stored_same_label.metadata().color_rgb, Some(0x12_3456));
+
+        // A different label takes that label's exact swatch.
+        store
+            .update_track_metadata(
+                &id,
+                &edit(Some(library_core::ColorLabel::Blue), "Renamed"),
+                "3",
+            )
+            .unwrap();
+        assert_eq!(
+            store.get_track(&id).unwrap().unwrap().metadata().color_rgb,
+            Some(0x00_00FF)
+        );
+
+        // Clearing a set label clears the colour.
+        store
+            .update_track_metadata(&id, &edit(None, "Renamed"), "4")
+            .unwrap();
+        let stored_cleared = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(stored_cleared.metadata().color_label, None);
+        assert_eq!(stored_cleared.metadata().color_rgb, None);
+
+        // `None` → `None` cannot express a clear, so an imported colour stays.
+        let unlabelled_meta = TrackMetadata {
+            color_rgb: Some(0x00FF_FFFF),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, path, &unlabelled_meta, "5")
+            .unwrap();
+        store
+            .update_track_metadata(&id, &edit(None, "Renamed again"), "6")
+            .unwrap();
+        assert_eq!(
+            store.get_track(&id).unwrap().unwrap().metadata().color_rgb,
+            Some(0x00FF_FFFF)
         );
     }
 }

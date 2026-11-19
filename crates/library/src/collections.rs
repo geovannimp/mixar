@@ -3,10 +3,8 @@
 use crate::compute_file_analysis;
 use crate::{collect_audio_files, is_audio_file, normalize_path, tags, unix_secs_string};
 use crate::{FileImportOutcome, LibraryManager};
-#[cfg(feature = "analysis")]
-use library_core::AnalyzeTrackOptions;
 use library_core::{
-    path_label, path_under_folder, AudioSource, Collection, CollectionConfig,
+    path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
     FileAudioSource, HotCueImport, ImportedTrack, Library, LibraryError, LoopImport, NewCollection,
     Result, ScanReport, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
@@ -134,41 +132,45 @@ impl LibraryManager {
         library: &Mutex<Self>,
         path: &Path,
     ) -> Result<FileImportOutcome> {
-        let path = normalize_path(path)?;
-        if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path_label(&path)));
-        }
-        if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path_label(&path)));
-        }
-        let metadata = tags::read_tags(&path)?;
-        let id = Self::track_id_for(&path);
+        // File I/O (tags + vendor metadata) runs before the library lock.
+        let (normalized, metadata, payload) = Self::read_discovered(path)?;
         let lib = Self::lock_library(library)?;
-        let existed = lib.get_track(&id)?.is_some();
-        lib.upsert_file_source(&path, &metadata)?;
-        Ok(if existed {
-            FileImportOutcome::Updated
-        } else {
+        let imported = lib.persist_discovered_file(&normalized, &metadata, &payload)?;
+        // The creation decision comes from the persistence transaction, never
+        // from an earlier unlocked guess.
+        Ok(if imported.created {
             FileImportOutcome::Added
+        } else {
+            FileImportOutcome::Updated
         })
     }
 
     pub(crate) fn refresh_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<()> {
-        let path = normalize_path(path)?;
-        if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path_label(&path)));
-        }
-        if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path_label(&path)));
-        }
-        let metadata = tags::read_tags(&path)?;
+        let (normalized, metadata, payload) = Self::read_discovered(path)?;
         let lib = Self::lock_library(library)?;
-        lib.upsert_file_source(&path, &metadata)?;
+        lib.persist_discovered_file(&normalized, &metadata, &payload)?;
         Ok(())
     }
 }
 
 impl LibraryManager {
+    /// Read a discovered file's ordinary tags and vendor metadata.
+    ///
+    /// Shared by the synchronous and off-mutex discovery paths so validation and
+    /// the read/persist contract cannot drift between them. All file I/O happens
+    /// here, before any caller takes the library lock.
+    fn read_discovered(path: &Path) -> Result<(PathBuf, TrackMetadata, codec::SeratoPayload)> {
+        let path = normalize_path(path)?;
+        if !path.is_file() {
+            return Err(LibraryError::PathNotFound(path_label(&path)));
+        }
+        if !is_audio_file(&path) {
+            return Err(LibraryError::UnsupportedFile(path_label(&path)));
+        }
+        let (metadata, payload) = tags::read_file_metadata(&path)?;
+        Ok((path, metadata, payload))
+    }
+
     pub(crate) fn track_id_for(path: &Path) -> TrackId {
         TrackId::new(path.to_string_lossy())
     }
@@ -631,24 +633,12 @@ impl LibraryManager {
     }
 
     fn refresh_file_source_with_outcome(&self, path: &Path) -> Result<(AudioSource, bool)> {
-        let path = normalize_path(path)?;
-        if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path_label(&path)));
-        }
-        if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path_label(&path)));
-        }
-        let id = Self::track_id_for(&path);
-        let existed = self.store().track_exists(&id)?;
-        let mut metadata = tags::read_tags(&path)?;
-        let source_ref = path.to_string_lossy();
-        if let Some((existing, edited)) =
-            self.store().file_track_metadata_and_edited(&source_ref)?
-        {
-            tags::merge_user_metadata(&mut metadata, &existing, edited);
-        }
-        let source = self.upsert_file_source(&path, &metadata)?;
-        Ok((source, existed))
+        // Embedded performance data is adopted only for a new row; the helper
+        // also merges the stored RGB/label and editor-owned fields.
+        let (normalized, metadata, payload) = Self::read_discovered(path)?;
+        let imported = self.persist_discovered_file(&normalized, &metadata, &payload)?;
+        // This boolean means "existed", the opposite of `ImportedTrack::created`.
+        Ok((imported.source, !imported.created))
     }
 
     #[cfg(feature = "analysis")]

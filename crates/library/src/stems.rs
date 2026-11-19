@@ -736,11 +736,15 @@ pub(crate) fn prepare_native_stem_for_playback(
             config.min_bpm_confidence,
             config.min_key_confidence,
         );
-        let mut metadata = tag_metadata;
+        let mut metadata = tag_metadata.clone();
         metadata.bpm = merged.bpm;
         metadata.key = merged.key;
         let computed = ComputedFileAnalysis {
             metadata,
+            // A native `.stem.mp4` is outside the ID3 containers this reader
+            // understands, so only the ordinary tags are available here.
+            tag_metadata,
+            embedded_metadata: codec::SeratoPayload::default(),
             analysis,
             force: options.force,
         };

@@ -280,6 +280,7 @@ fn compute_waveform_window_rejects_out_of_range_buckets() {
 }
 
 #[test]
+#[cfg(feature = "analysis")]
 fn prepare_track_for_playback_does_not_require_waveform() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track.wav");
@@ -1141,6 +1142,7 @@ fn delete_folder_keeps_track_covered_by_another_folder() {
 }
 
 #[test]
+#[cfg(feature = "analysis")]
 fn collection_analyze_targets_skips_tagged_and_analyzed() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("plain.wav"));
@@ -1924,6 +1926,7 @@ fn clearing_user_metadata_survives_reanalysis() {
 }
 
 #[test]
+#[cfg(feature = "analysis")]
 fn folder_resync_preserves_edited_metadata() {
     let dir = tempfile::tempdir().unwrap();
     short_beats_fixture_copy(dir.path());
@@ -2134,4 +2137,1086 @@ fn needs_playback_analysis_waits_for_the_cue() {
         fixture.lib.needs_playback_analysis(&fixture.id).unwrap(),
         "a track with no cue row must be analyzed again"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Serato / Mixed In Key embedded metadata (#742)
+// ---------------------------------------------------------------------------
+
+fn serato_fixture(relative: &str) -> Vec<u8> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../codec/src/serato/fixtures")
+        .join(relative);
+    std::fs::read(&path).unwrap_or_else(|err| panic!("fixture {}: {err}", path.display()))
+}
+
+fn syncsafe_bytes(len: usize) -> [u8; 4] {
+    [
+        ((len >> 21) & 0x7F) as u8,
+        ((len >> 14) & 0x7F) as u8,
+        ((len >> 7) & 0x7F) as u8,
+        (len & 0x7F) as u8,
+    ]
+}
+
+fn id3_frame(id: &[u8; 4], data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    out.extend_from_slice(id);
+    out.extend_from_slice(&syncsafe_bytes(data.len()));
+    out.extend_from_slice(&[0, 0]);
+    out.extend_from_slice(data);
+    out
+}
+
+fn geob_frame(description: &str, object: &[u8]) -> Vec<u8> {
+    let mut data = vec![0u8];
+    data.extend_from_slice(b"application/octet-stream");
+    data.push(0);
+    data.push(0);
+    data.extend_from_slice(description.as_bytes());
+    data.push(0);
+    data.extend_from_slice(object);
+    id3_frame(b"GEOB", &data)
+}
+
+fn id3_tag(frames: &[Vec<u8>]) -> Vec<u8> {
+    let body: Vec<u8> = frames.concat();
+    let mut out = Vec::new();
+    out.extend_from_slice(b"ID3");
+    out.extend_from_slice(&[4, 0, 0]);
+    out.extend_from_slice(&syncsafe_bytes(body.len()));
+    out.extend_from_slice(&body);
+    out
+}
+
+fn mik_key_body(key: &str) -> Vec<u8> {
+    use base64::Engine as _;
+    let json = serde_json::json!({"key": key, "source": "mixedinkey", "algorithm": 94});
+    base64::engine::general_purpose::STANDARD
+        .encode(serde_json::to_vec(&json).unwrap())
+        .into_bytes()
+}
+
+fn tea_leaves_tag() -> Vec<u8> {
+    let tag = serato_fixture("tea-leaves.id3");
+    assert_eq!(tag.len(), 1464);
+    tag
+}
+
+fn push_chunk(out: &mut Vec<u8>, id: &[u8; 4], data: &[u8], big_endian: bool) {
+    out.extend_from_slice(id);
+    let len = data.len() as u32;
+    let len_bytes = if big_endian {
+        len.to_be_bytes()
+    } else {
+        len.to_le_bytes()
+    };
+    out.extend_from_slice(&len_bytes);
+    out.extend_from_slice(data);
+    if data.len() % 2 == 1 {
+        out.push(0);
+    }
+}
+
+/// 3 s mono 48 kHz sine, so both the analyzer and the decoder can run on it.
+fn sine_pcm_48k(seconds: u32) -> Vec<u8> {
+    let sample_rate = 48_000u32;
+    let mut pcm = Vec::with_capacity((sample_rate * seconds * 2) as usize);
+    for index in 0..sample_rate * seconds {
+        let time = index as f32 / sample_rate as f32;
+        let sample =
+            (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
+        pcm.extend_from_slice(&sample.to_le_bytes());
+    }
+    pcm
+}
+
+fn write_tagged_wav(path: &Path, tag: &[u8]) {
+    let sample_rate = 48_000u32;
+    let pcm = sine_pcm_48k(3);
+    let mut fmt = Vec::new();
+    fmt.extend_from_slice(&1u16.to_le_bytes());
+    fmt.extend_from_slice(&1u16.to_le_bytes());
+    fmt.extend_from_slice(&sample_rate.to_le_bytes());
+    fmt.extend_from_slice(&(sample_rate * 2).to_le_bytes());
+    fmt.extend_from_slice(&2u16.to_le_bytes());
+    fmt.extend_from_slice(&16u16.to_le_bytes());
+
+    let mut chunks = Vec::new();
+    push_chunk(&mut chunks, b"fmt ", &fmt, false);
+    push_chunk(&mut chunks, b"data", &pcm, false);
+    push_chunk(&mut chunks, b"id3 ", tag, false);
+
+    let mut out = Vec::new();
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&((chunks.len() + 4) as u32).to_le_bytes());
+    out.extend_from_slice(b"WAVE");
+    out.extend_from_slice(&chunks);
+    std::fs::write(path, out).unwrap();
+}
+
+/// Minimal playable AIFF: 4410 mono 16-bit big-endian silent frames at 44.1 kHz.
+fn write_tagged_aiff(path: &Path, tag: &[u8]) {
+    let frames: u32 = 4_410;
+    let mut comm = Vec::new();
+    comm.extend_from_slice(&1u16.to_be_bytes()); // one channel
+    comm.extend_from_slice(&frames.to_be_bytes());
+    comm.extend_from_slice(&16u16.to_be_bytes());
+    comm.extend_from_slice(&[0x40, 0x0E, 0xAC, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+    let mut ssnd = Vec::new();
+    ssnd.extend_from_slice(&[0u8; 8]);
+    ssnd.resize(8 + frames as usize * 2, 0);
+
+    let mut chunks = Vec::new();
+    push_chunk(&mut chunks, b"COMM", &comm, true);
+    push_chunk(&mut chunks, b"SSND", &ssnd, true);
+    push_chunk(&mut chunks, b"ID3 ", tag, true);
+
+    let mut out = Vec::new();
+    out.extend_from_slice(b"FORM");
+    out.extend_from_slice(&((chunks.len() + 4) as u32).to_be_bytes());
+    out.extend_from_slice(b"AIFF");
+    out.extend_from_slice(&chunks);
+    std::fs::write(path, out).unwrap();
+}
+
+fn write_tagged_mp3(path: &Path, tag: &[u8]) {
+    let carrier = serato_fixture("carriers/empty.mp3");
+    let mut out = tag.to_vec();
+    out.extend_from_slice(&carrier);
+    std::fs::write(path, out).unwrap();
+}
+
+fn serato_track_id(path: &Path) -> TrackId {
+    LibraryManager::track_id_for(&crate::normalize_path(path).unwrap())
+}
+
+fn stored_grid(lib: &LibraryManager, id: &TrackId) -> crate::CanonicalBeatGrid {
+    crate::beat_grid::get_track_beat_grid(&lib.db, id)
+        .unwrap()
+        .expect("stored canonical grid")
+}
+
+/// Independent decode of the native grid wire format, straight from the fixture
+/// bytes: `(position_seconds, beats_to_next_or_bits)` per marker.
+fn wire_grid_markers(payload: &[u8]) -> Vec<(f64, u32)> {
+    let count = u32::from_be_bytes(payload[2..6].try_into().unwrap()) as usize;
+    (0..count)
+        .map(|index| {
+            let marker = &payload[6 + index * 8..6 + (index + 1) * 8];
+            (
+                f64::from(f32::from_be_bytes(marker[0..4].try_into().unwrap())),
+                u32::from_be_bytes(marker[4..8].try_into().unwrap()),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn serato_import_persists_cues_grid_and_colour() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("tea leaves.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    let metadata = source.metadata();
+    // Mixed In Key's `5A` becomes the ordinary musical key, and the native grid
+    // owns BPM (the fixture carries no TBPM at all).
+    assert_eq!(metadata.key.as_deref(), Some("Cm"));
+    assert_eq!(metadata.bpm, Some(79.0));
+    assert_eq!(metadata.color_rgb, Some(0x00FF_FFFF));
+    assert_eq!(
+        metadata.color_label, None,
+        "white is a real colour, not a palette label"
+    );
+
+    let cues = list_hot_cues(&lib.db, source.id()).unwrap();
+    let expected = [
+        (0u8, 510i32, "#CC0000", "Energy 8"),
+        (1, 12_661, "#CC8800", "Energy 7"),
+        (2, 30_888, "#0000CC", "Energy 7"),
+        (3, 55_190, "#CCCC00", "Energy 7"),
+        (4, 85_568, "#00CC00", "Energy 7"),
+        (5, 146_323, "#CC00CC", "Energy 7"),
+        (6, 158_475, "#00CCCC", "Energy 7"),
+        (7, 182_777, "#8800CC", "Energy 4"),
+    ];
+    assert_eq!(cues.len(), expected.len());
+    for (cue, (slot, position, color, label)) in cues.iter().zip(expected) {
+        assert_eq!(cue.slot_index, slot);
+        assert_eq!(cue.position_ms, position);
+        assert_eq!(cue.color.as_deref(), Some(color));
+        assert_eq!(cue.label.as_deref(), Some(label));
+        assert_eq!(cue.loop_length_beats, None);
+    }
+    assert!(list_loops(&lib.db, source.id()).unwrap().is_empty());
+
+    let grid = stored_grid(&lib, source.id());
+    assert_eq!(grid.source, crate::SOURCE_IMPORT);
+    assert_eq!(grid.segments.len(), 1);
+    assert_eq!(grid.segments[0].start_time_ms, 3_192);
+    assert_eq!(grid.segments[0].bpm, 79.0);
+    assert_eq!(grid.segments[0].beats_to_next, None);
+    assert_eq!(grid.segments[0].beats_per_bar, 4);
+    assert_eq!(grid.segments[0].beat_unit, 4);
+}
+
+#[test]
+fn serato_import_survives_a_database_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("reopen.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let db_path = dir.path().join("library.db");
+    let id;
+    {
+        let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+        id = lib.import_file_path(&wav).unwrap().id().clone();
+    }
+    let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+    assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
+    assert_eq!(stored_grid(&lib, &id).segments[0].bpm, 79.0);
+    let stored = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(stored.metadata().color_rgb, Some(0x00FF_FFFF));
+    assert_eq!(stored.metadata().key.as_deref(), Some("Cm"));
+}
+
+#[test]
+fn serato_import_is_container_independent() {
+    let dir = tempfile::tempdir().unwrap();
+    let tag = tea_leaves_tag();
+    let wav = dir.path().join("same.wav");
+    let aiff = dir.path().join("same.aiff");
+    let mp3 = dir.path().join("same.mp3");
+    write_tagged_wav(&wav, &tag);
+    write_tagged_aiff(&aiff, &tag);
+    write_tagged_mp3(&mp3, &tag);
+
+    let mut shapes = Vec::new();
+    for path in [&wav, &aiff, &mp3] {
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let source = lib.import_file_path(path).unwrap();
+        let cues: Vec<(u8, i32, Option<String>, Option<String>)> =
+            list_hot_cues(&lib.db, source.id())
+                .unwrap()
+                .into_iter()
+                .map(|cue| (cue.slot_index, cue.position_ms, cue.color, cue.label))
+                .collect();
+        let grid = stored_grid(&lib, source.id());
+        shapes.push((
+            cues,
+            grid.segments
+                .iter()
+                .map(|segment| (segment.start_time_ms, segment.bpm))
+                .collect::<Vec<_>>(),
+            source.metadata().color_rgb,
+            source.metadata().key.clone(),
+        ));
+    }
+    assert_eq!(shapes[0].0.len(), 8);
+    assert_eq!(shapes[0], shapes[1], "WAV and AIFF import identically");
+    assert_eq!(shapes[0], shapes[2], "MP3 imports identically");
+    assert_eq!(shapes[0].3.as_deref(), Some("Cm"));
+}
+
+#[test]
+fn changing_tempo_grid_imports_as_canonical_segments() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("changing.wav");
+    let payload = serato_fixture("beatgrid/manual-beatgrid-changing-tempo.octet-stream");
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Serato BeatGrid", &payload)]));
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    let grid = stored_grid(&lib, source.id());
+
+    // Expected values are computed here from the fixture's raw wire bytes, not
+    // from the reader's own decoded output.
+    let markers = wire_grid_markers(&payload);
+    assert_eq!(markers.len(), 8);
+    let expected_starts: Vec<i64> = markers
+        .iter()
+        .map(|(seconds, _)| (seconds * 1000.0).round() as i64)
+        .collect();
+    assert_eq!(
+        expected_starts,
+        vec![71, 16_470, 36_892, 239_980, 244_096, 301_660, 350_927, 424_703]
+    );
+    assert_eq!(grid.segments.len(), markers.len());
+    let mut cumulative = 0i64;
+    for (index, segment) in grid.segments.iter().enumerate() {
+        assert_eq!(segment.segment_index, index as i32);
+        assert_eq!(segment.start_time_ms, expected_starts[index]);
+        assert_eq!(segment.start_beat_index, cumulative);
+        let (_, value) = markers[index];
+        if index + 1 == markers.len() {
+            assert_eq!(segment.beats_to_next, None);
+            assert_eq!(
+                segment.bpm,
+                f64::from(f32::from_bits(value)),
+                "terminal BPM comes from the wire float"
+            );
+            assert_eq!(segment.bpm, 116.995_559_692_382_81);
+        } else {
+            assert_eq!(segment.beats_to_next, Some(i64::from(value)));
+            let span = markers[index + 1].0 - markers[index].0;
+            let expected_bpm = 60.0 * f64::from(value) / span;
+            assert!(
+                (segment.bpm - expected_bpm).abs() < 1e-9,
+                "segment {index} bpm {} != {expected_bpm}",
+                segment.bpm
+            );
+            cumulative += i64::from(value);
+        }
+        assert_eq!(segment.beats_per_bar, 4);
+        assert_eq!(segment.beat_unit, 4);
+    }
+    // The mirror column carries the first segment's tempo, and the deck reads it.
+    assert_eq!(source.metadata().bpm, Some(grid.segments[0].bpm));
+    assert_eq!(
+        lib.get_track(source.id()).unwrap().unwrap().metadata().bpm,
+        Some(grid.segments[0].bpm)
+    );
+}
+
+#[test]
+fn saved_loops_import_as_saved_loops_not_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("loops.wav");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[geob_frame(
+            "Serato Markers2",
+            &serato_fixture("markers2/saved-loops.octet-stream"),
+        )]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    let loops = list_loops(&lib.db, source.id()).unwrap();
+    assert_eq!(loops.len(), 4);
+    for (index, saved) in loops.iter().enumerate() {
+        assert_eq!(usize::from(saved.slot_index), index);
+        assert_eq!(saved.in_ms, 0);
+        assert_eq!(saved.out_ms, 2_086);
+        assert_eq!(saved.color.as_deref(), Some("#27AAE1"));
+        assert!(!saved.auto_saved, "imported loops are not loop memory");
+    }
+    assert_eq!(loops[3].label.as_deref(), Some("Test"));
+    assert!(list_hot_cues(&lib.db, source.id()).unwrap().is_empty());
+}
+
+#[test]
+fn malformed_auxiliary_metadata_never_fails_an_import() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("broken.wav");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[
+            geob_frame("Serato Markers2", b"\x01\x01@@@"),
+            geob_frame("Serato Markers_", b"\x02\x05garbage"),
+            geob_frame("Serato BeatGrid", b"\x01\x00\xff\xff\xff\xff"),
+            geob_frame("CuePoints", b"not json"),
+        ]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    assert_eq!(source.metadata().title.as_deref(), Some("broken"));
+    assert!(list_hot_cues(&lib.db, source.id()).unwrap().is_empty());
+    assert!(list_loops(&lib.db, source.id()).unwrap().is_empty());
+    assert!(crate::beat_grid::get_track_beat_grid(&lib.db, source.id())
+        .unwrap()
+        .is_none());
+    assert_eq!(source.metadata().color_rgb, None);
+}
+
+#[test]
+fn rescan_never_resurrects_deleted_imported_cues_or_loops() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("deleted.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let tag = id3_tag(&[geob_frame(
+        "Serato Markers2",
+        &serato_fixture("markers2/saved-loops.octet-stream"),
+    )]);
+    let loops_wav = dir.path().join("loopfile.wav");
+    write_tagged_wav(&loops_wav, &tag);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let cues_id = lib.import_file_path(&wav).unwrap().id().clone();
+    let loops_id = lib.import_file_path(&loops_wav).unwrap().id().clone();
+    assert_eq!(list_hot_cues(&lib.db, &cues_id).unwrap().len(), 8);
+    assert_eq!(list_loops(&lib.db, &loops_id).unwrap().len(), 4);
+
+    for slot in 0..8u8 {
+        delete_hot_cue(&lib.db, &cues_id, slot).unwrap();
+    }
+    for slot in 0..4u8 {
+        delete_loop(&lib.db, &loops_id, slot).unwrap();
+    }
+
+    // Rescan, a second import, and a deck load must not bring them back: backfill
+    // belongs to the adoption issue, not to ordinary discovery.
+    lib.refresh_file_source(&wav).unwrap();
+    lib.import_file_path(&wav).unwrap();
+    let library = std::sync::Mutex::new(lib);
+    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
+    let lib = library.into_inner().unwrap();
+    assert!(list_hot_cues(&lib.db, &cues_id).unwrap().is_empty());
+    assert!(list_loops(&lib.db, &loops_id).unwrap().is_empty());
+    // The imported grid is not deleted by cue edits and stays in place.
+    assert_eq!(stored_grid(&lib, &cues_id).segments.len(), 1);
+}
+
+#[test]
+fn an_existing_row_is_not_backfilled() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("known.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    // Metadata-only adapter import: the documented contract for external
+    // libraries, which must not start probing files or adopting cues.
+    let metadata = crate::tags::read_tags(&wav).unwrap();
+    let imported = WritableLibrary::import_track(&mut lib, &wav, &metadata).unwrap();
+    assert!(imported.created);
+    let id = imported.source.id().clone();
+    assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
+    assert!(crate::beat_grid::get_track_beat_grid(&lib.db, &id)
+        .unwrap()
+        .is_none());
+
+    // A later refresh updates the ordinary metadata but adopts nothing.
+    lib.refresh_file_source(&wav).unwrap();
+    assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
+    assert!(crate::beat_grid::get_track_beat_grid(&lib.db, &id)
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        lib.get_track(&id).unwrap().unwrap().metadata().color_rgb,
+        None
+    );
+
+    // The reader stays independently callable for the future adoption pass.
+    let payload = codec::read_file_serato(&wav).unwrap();
+    assert_eq!(payload.cues.len(), 8);
+}
+
+#[test]
+fn refresh_preserves_a_stored_colour_pair_and_editor_rating() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("refresh-colour.wav");
+    write_tagged_wav(&wav, &id3_tag(&[]));
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    // An importer hands over a palette label with its exact swatch.
+    let metadata = TrackMetadata {
+        color_label: Some(library_core::ColorLabel::Pink),
+        color_rgb: Some(library_core::ColorLabel::Pink.rgb()),
+        ..TrackMetadata::default()
+    };
+    let imported = WritableLibrary::import_track(&mut lib, &wav, &metadata).unwrap();
+    let id = imported.source.id().clone();
+    // The editor rates the track and leaves the colour alone, as the UI does.
+    lib.update_track_metadata(
+        &id,
+        TrackMetadataEdit {
+            rating: Some(5),
+            color_label: Some(library_core::ColorLabel::Pink),
+            ..TrackMetadataEdit::default()
+        },
+    )
+    .unwrap();
+
+    lib.refresh_file_source(&wav).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap();
+    let metadata = stored.metadata();
+    assert_eq!(
+        metadata.color_label,
+        Some(library_core::ColorLabel::Pink),
+        "the stored label survives a refresh"
+    );
+    assert_eq!(
+        metadata.color_rgb,
+        Some(library_core::ColorLabel::Pink.rgb()),
+        "its exact swatch survives too"
+    );
+    assert_eq!(metadata.rating, Some(5), "the editor rating is kept");
+}
+
+#[test]
+fn file_import_reports_added_then_updated() {
+    use std::sync::Mutex;
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("outcome.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+
+    assert!(matches!(
+        LibraryManager::import_file_off_mutex(&library, &wav).unwrap(),
+        FileImportOutcome::Added
+    ));
+    assert!(matches!(
+        LibraryManager::import_file_off_mutex(&library, &wav).unwrap(),
+        FileImportOutcome::Updated
+    ));
+}
+
+#[test]
+fn off_mutex_folder_sync_imports_embedded_data() {
+    use std::sync::Mutex;
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("synced.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let id = serato_track_id(&wav);
+
+    let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+    let folder_id = {
+        let mut lib = library.lock().unwrap();
+        lib.add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+            .unwrap()
+            .id
+    };
+    LibraryManager::sync_collection_off_mutex(&library, Some(&folder_id)).unwrap();
+
+    let lib = library.into_inner().unwrap();
+    assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
+    assert_eq!(stored_grid(&lib, &id).segments[0].bpm, 79.0);
+    let source = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(source.metadata().color_rgb, Some(0x00FF_FFFF));
+}
+
+#[test]
+fn database_errors_roll_back_the_whole_new_track() {
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("atomic.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let id = serato_track_id(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    {
+        use sea_orm::EntityName;
+        let cues = crate::entity::track_hot_cue::Entity.table_name();
+        let conn = lib.db.conn().unwrap();
+        conn.as_connection()
+            .execute_raw(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                format!(
+                    "CREATE TRIGGER reject_hot_cue_insert BEFORE INSERT ON {cues} \
+                     BEGIN SELECT RAISE(ABORT, 'injected cue failure'); END;"
+                ),
+            ))
+            .unwrap();
+    }
+
+    let err = lib
+        .import_file_path(&wav)
+        .expect_err("the auxiliary insert failure must propagate");
+    assert!(
+        format!("{err}").contains("injected cue failure"),
+        "unexpected error: {err}"
+    );
+    // Nothing survives: no track row, cue, loop or grid.
+    assert!(lib.get_track(&id).unwrap().is_none(), "no new track row");
+    assert!(list_hot_cues(&lib.db, &id).unwrap().is_empty());
+    assert!(list_loops(&lib.db, &id).unwrap().is_empty());
+    assert!(crate::beat_grid::get_track_beat_grid(&lib.db, &id)
+        .unwrap()
+        .is_none());
+
+    {
+        let conn = lib.db.conn().unwrap();
+        conn.as_connection()
+            .execute_raw(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "DROP TRIGGER reject_hot_cue_insert".to_string(),
+            ))
+            .unwrap();
+    }
+    let source = lib.import_file_path(&wav).unwrap();
+    assert_eq!(source.id(), &id);
+    assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
+    assert_eq!(stored_grid(&lib, &id).segments.len(), 1);
+}
+
+#[test]
+fn discovery_and_playback_leave_the_source_file_untouched() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("untouched.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+    let before = std::fs::read(&wav).unwrap();
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    lib.import_file_path(&wav).unwrap();
+    lib.refresh_file_source(&wav).unwrap();
+    let _ = codec::read_file_serato(&wav).unwrap();
+    let library = std::sync::Mutex::new(lib);
+    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
+    drop(library);
+
+    assert_eq!(std::fs::read(&wav).unwrap(), before, "no tag write-back");
+}
+
+#[test]
+fn legacy_databases_gain_the_nullable_colour_column() {
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("legacy.db");
+    let wav = dir.path().join("labelled.wav");
+    write_minimal_wav(&wav);
+    let id;
+    {
+        let mut lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+        let metadata = TrackMetadata {
+            color_label: Some(library_core::ColorLabel::Aqua),
+            ..TrackMetadata::default()
+        };
+        id = WritableLibrary::import_track(&mut lib, &wav, &metadata)
+            .unwrap()
+            .source
+            .id()
+            .clone();
+    }
+    {
+        // Emulate a database written before the column existed. Both names come
+        // from the entity, so a rename surfaces at compile time.
+        use sea_orm::ColumnTrait;
+        let (table, column) = crate::entity::tracks::Column::ColorRgb.as_column_ref();
+        let db = crate::db::open(&db_path).unwrap();
+        db.conn()
+            .unwrap()
+            .as_connection()
+            .execute_raw(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                format!("ALTER TABLE {table} DROP COLUMN {column}"),
+            ))
+            .unwrap();
+    }
+
+    let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+    let stored = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(
+        stored.metadata().color_label,
+        Some(library_core::ColorLabel::Aqua),
+        "the existing label survives the schema sync"
+    );
+    assert_eq!(stored.metadata().color_rgb, None);
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn imported_grid_survives_rescan_playback_and_non_forced_analysis() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("grid.wav");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[geob_frame(
+            "Serato BeatGrid",
+            &serato_fixture("beatgrid/manual-beatgrid-changing-tempo.octet-stream"),
+        )]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    let id = source.id().clone();
+    let before = stored_grid(&lib, &id).segments;
+
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(stored_grid(&lib, &id).segments, before, "rescan");
+
+    let library = std::sync::Mutex::new(lib);
+    LibraryManager::prepare_file_path_for_playback(&library, &wav).unwrap();
+    let lib = library.into_inner().unwrap();
+    assert_eq!(stored_grid(&lib, &id).segments, before, "deck load");
+
+    lib.analyze_file_source(&wav, AnalyzeTrackOptions::default())
+        .unwrap();
+    let after = stored_grid(&lib, &id);
+    assert_eq!(after.source, crate::SOURCE_IMPORT, "non-forced keeps it");
+    assert_eq!(after.segments, before, "never replaced by an even grid");
+    let starts: Vec<i64> = after.segments.iter().map(|s| s.start_time_ms).collect();
+    assert_eq!(
+        starts,
+        vec![71, 16_470, 36_892, 239_980, 244_096, 301_660, 350_927, 424_703]
+    );
+
+    // An explicit force keeps today's permission to replace the grid.
+    lib.analyze_file_source(&wav, AnalyzeTrackOptions::force())
+        .unwrap();
+    let forced = stored_grid(&lib, &id);
+    assert_ne!(forced.segments, before, "forced analysis replaces the grid");
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn mik_key_precedes_analysis_on_first_discovery() {
+    use analyzer::{AnalysisRunMetadata, BpmAnalysis, KeyAnalysis, TrackAnalysis};
+
+    let analysis = || TrackAnalysis {
+        bpm: Some(BpmAnalysis {
+            bpm: 140.0,
+            confidence: 0.99,
+        }),
+        key: Some(KeyAnalysis {
+            musical: "F#m".into(),
+            confidence: 0.99,
+            clarity: 0.9,
+        }),
+        beat_grid: None,
+        loudness_lufs: None,
+        metadata: AnalysisRunMetadata {
+            backend: "test".into(),
+            backend_version: "0".into(),
+            analyzed_at: "2026-01-01T00:00:00Z".into(),
+            sample_rate: 48_000,
+            duration_analyzed_ms: 1_000,
+        },
+        cue_ms: None,
+    };
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("mik.wav");
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]));
+
+    let (tag_metadata, embedded) = crate::tags::read_file_metadata(&wav).unwrap();
+    assert_eq!(tag_metadata.key, None, "no standard key tag");
+    // What `compute_file_analysis` would produce: the analyzer's own key.
+    let mut merged = tag_metadata.clone();
+    merged.key = Some("F#m".into());
+    merged.bpm = Some(140.0);
+    let computed = |force: bool| crate::analysis::ComputedFileAnalysis {
+        metadata: merged.clone(),
+        tag_metadata: tag_metadata.clone(),
+        embedded_metadata: embedded.clone(),
+        analysis: analysis(),
+        force,
+    };
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let (source, _) = lib
+        .persist_file_analysis(&wav, &computed(false), false)
+        .unwrap();
+    assert_eq!(
+        source.metadata().key.as_deref(),
+        Some("Cm"),
+        "Mixed In Key precedes the analyzer on first discovery"
+    );
+
+    // Explicit force retains the current analysis-replacement semantics.
+    let dir2 = tempfile::tempdir().unwrap();
+    let forced_wav = dir2.path().join("mik-forced.wav");
+    write_tagged_wav(
+        &forced_wav,
+        &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]),
+    );
+    let (forced_tags, forced_embedded) = crate::tags::read_file_metadata(&forced_wav).unwrap();
+    let mut forced_merged = forced_tags.clone();
+    forced_merged.key = Some("F#m".into());
+    forced_merged.bpm = Some(140.0);
+    let forced = crate::analysis::ComputedFileAnalysis {
+        metadata: forced_merged,
+        tag_metadata: forced_tags,
+        embedded_metadata: forced_embedded,
+        analysis: analysis(),
+        force: true,
+    };
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let (source, _) = lib
+        .persist_file_analysis(&forced_wav, &forced, false)
+        .unwrap();
+    assert_eq!(source.metadata().key.as_deref(), Some("F#m"));
+    assert_eq!(source.metadata().bpm, Some(140.0));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn standard_key_beats_the_mixed_in_key_fallback() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("both.wav");
+    // TKEY is an ordinary text frame; `Am` must win over MIK's `5A` (Cm).
+    let mut tkey = vec![0u8];
+    tkey.extend_from_slice(b"Am");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[
+            id3_frame(b"TKEY", &tkey),
+            geob_frame("Key", &mik_key_body("5A")),
+        ]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    assert_eq!(source.metadata().key.as_deref(), Some("Am"));
+}
+
+#[test]
+fn imported_mik_key_survives_a_rescan() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("mik-rescan.wav");
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]));
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    let key = |lib: &LibraryManager| lib.get_track(&id).unwrap().unwrap().metadata().key.clone();
+    assert_eq!(key(&lib).as_deref(), Some("Cm"));
+    // A rescan whose ordinary tags carry no key must not erase the imported one.
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(key(&lib).as_deref(), Some("Cm"));
+    lib.import_file_path(&wav).unwrap();
+    assert_eq!(key(&lib).as_deref(), Some("Cm"));
+
+    // Nor may a vendor frame that later becomes corrupt or disappears: keeping
+    // the stored key never depends on re-reading the frame it came from.
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", b"@@@")]));
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(key(&lib).as_deref(), Some("Cm"), "corrupt vendor frame");
+    write_analysis_wav(&wav);
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(key(&lib).as_deref(), Some("Cm"), "tag removed entirely");
+
+    // An ordinary tag key still wins, including on later refreshes.
+    let tagged = dir.path().join("mik-and-tag.wav");
+    let mut tkey = vec![0u8];
+    tkey.extend_from_slice(b"Am");
+    write_tagged_wav(
+        &tagged,
+        &id3_tag(&[
+            id3_frame(b"TKEY", &tkey),
+            geob_frame("Key", &mik_key_body("5A")),
+        ]),
+    );
+    let tagged_id = lib.import_file_path(&tagged).unwrap().id().clone();
+    lib.refresh_file_source(&tagged).unwrap();
+    assert_eq!(
+        lib.get_track(&tagged_id)
+            .unwrap()
+            .unwrap()
+            .metadata()
+            .key
+            .as_deref(),
+        Some("Am")
+    );
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn imported_mik_key_survives_non_forced_analysis() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("mik-analysis.wav");
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]));
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    // The vendor frame is gone by the time the deck analyzes the file; the key
+    // already on the row still wins without `force`.
+    write_analysis_wav(&wav);
+    lib.analyze_file_source(&wav, AnalyzeTrackOptions::default())
+        .unwrap();
+    assert_eq!(
+        lib.get_track(&id)
+            .unwrap()
+            .unwrap()
+            .metadata()
+            .key
+            .as_deref(),
+        Some("Cm"),
+        "a non-forced analysis must not replace the imported key"
+    );
+}
+
+#[test]
+fn a_key_cleared_in_the_editor_is_not_resurrected() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("mik-cleared.wav");
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Key", &mik_key_body("5A"))]));
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    assert_eq!(
+        lib.get_track(&id)
+            .unwrap()
+            .unwrap()
+            .metadata()
+            .key
+            .as_deref(),
+        Some("Cm")
+    );
+    // The full-replacement editor write clears the key; a rescan must keep it
+    // cleared instead of restoring an empty stored value from the vendor frame.
+    lib.update_track_metadata(&id, crate::store::TrackMetadataEdit::default())
+        .unwrap();
+    lib.refresh_file_source(&wav).unwrap();
+    assert_eq!(lib.get_track(&id).unwrap().unwrap().metadata().key, None);
+}
+
+#[test]
+fn ordinary_bpm_is_kept_without_a_valid_native_grid() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("bpm.wav");
+    let mut tbpm = vec![0u8];
+    tbpm.extend_from_slice(b"120");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[
+            id3_frame(b"TBPM", &tbpm),
+            // A grid outside the canonical tempo range is omitted.
+            geob_frame("Serato BeatGrid", &{
+                let mut grid = vec![1u8, 0];
+                grid.extend_from_slice(&1u32.to_be_bytes());
+                grid.extend_from_slice(&1.0f32.to_be_bytes());
+                grid.extend_from_slice(&900.0f32.to_be_bytes());
+                grid.push(0x37);
+                grid
+            }),
+        ]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    assert_eq!(source.metadata().bpm, Some(120.0));
+    assert!(
+        crate::beat_grid::get_track_beat_grid(&lib.db, source.id())
+            .unwrap()
+            .is_none(),
+        "an invalid grid is omitted, not clamped"
+    );
+}
+
+fn markers2_payload(records: &[(&str, Vec<u8>)]) -> Vec<u8> {
+    use base64::Engine as _;
+    let mut binary = vec![1u8, 1];
+    for (name, payload) in records {
+        binary.extend_from_slice(name.as_bytes());
+        binary.push(0);
+        binary.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        binary.extend_from_slice(payload);
+    }
+    binary.push(0);
+    let mut out = vec![1u8, 1];
+    out.extend_from_slice(
+        base64::engine::general_purpose::STANDARD
+            .encode(&binary)
+            .as_bytes(),
+    );
+    out
+}
+
+fn cue_record(slot: u8, position_ms: u32, rgb: [u8; 3], name: &str) -> Vec<u8> {
+    let mut out = vec![0, slot];
+    out.extend_from_slice(&position_ms.to_be_bytes());
+    out.push(0);
+    out.extend_from_slice(&rgb);
+    out.extend_from_slice(&[0, 0]);
+    out.extend_from_slice(name.as_bytes());
+    out.push(0);
+    out
+}
+
+fn loop_record(slot: u8, start_ms: u32, end_ms: u32) -> Vec<u8> {
+    let mut out = vec![0, slot];
+    out.extend_from_slice(&start_ms.to_be_bytes());
+    out.extend_from_slice(&end_ms.to_be_bytes());
+    out.extend_from_slice(&[0xFF; 4]);
+    out.extend_from_slice(&[0, 0x27, 0xAA, 0xE1]);
+    out.extend_from_slice(&[0, 0]);
+    out.push(0);
+    out
+}
+
+#[test]
+fn a_valid_native_grid_owns_bpm_over_an_ordinary_tag() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("bpm-grid.wav");
+    let mut tbpm = vec![0u8];
+    tbpm.extend_from_slice(b"120");
+    write_tagged_wav(
+        &wav,
+        &id3_tag(&[
+            id3_frame(b"TBPM", &tbpm),
+            geob_frame(
+                "Serato BeatGrid",
+                &serato_fixture("beatgrid/analyzed.octet-stream"),
+            ),
+        ]),
+    );
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    assert_eq!(source.metadata().bpm, Some(115.0), "grid owns BPM");
+    let grid = stored_grid(&lib, source.id());
+    assert_eq!(grid.segments[0].bpm, 115.0);
+    assert_eq!(
+        lib.get_track(source.id()).unwrap().unwrap().metadata().bpm,
+        Some(115.0)
+    );
+
+    // The deck reads the same canonical BPM, not the tag's 120.
+    let id = source.id().clone();
+    let library = std::sync::Mutex::new(lib);
+    let prepared = LibraryManager::prepare_track_for_playback(&library, &id).unwrap();
+    assert_eq!(prepared.source.metadata().bpm, Some(115.0));
+}
+
+#[test]
+fn out_of_range_imported_times_are_skipped_not_clamped() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("ranges.wav");
+    let within = i32::MAX as u32 - 1;
+    let payload = markers2_payload(&[
+        ("COLOR", vec![0, 0xFF, 0xFF, 0xFF]),
+        // Fits, and must import unchanged.
+        ("CUE", cue_record(0, 1_000, [0xCC, 0x00, 0x00], "ok")),
+        // Does not fit the canonical i32 millisecond range.
+        (
+            "CUE",
+            cue_record(1, 0xFFFF_FFF0, [0x00, 0xCC, 0x00], "huge"),
+        ),
+        ("CUE", cue_record(2, within, [0x00, 0x00, 0xCC], "last")),
+        ("LOOP", loop_record(0, 0, 2_000)),
+        ("LOOP", loop_record(1, 0, 0xFFFF_FFF0)),
+    ]);
+    write_tagged_wav(&wav, &id3_tag(&[geob_frame("Serato Markers2", &payload)]));
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let source = lib.import_file_path(&wav).unwrap();
+    let cues = list_hot_cues(&lib.db, source.id()).unwrap();
+    assert_eq!(
+        cues.iter()
+            .map(|cue| (cue.slot_index, cue.position_ms))
+            .collect::<Vec<_>>(),
+        vec![(0, 1_000), (2, i32::MAX - 1)],
+        "an unrepresentable position is dropped, never clamped"
+    );
+    let loops = list_loops(&lib.db, source.id()).unwrap();
+    assert_eq!(loops.len(), 1);
+    assert_eq!(loops[0].out_ms, 2_000);
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_preserves_an_imported_raw_colour() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("colour-analysis.wav");
+    write_tagged_wav(&wav, &tea_leaves_tag());
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.analyze_file_source(&wav, AnalyzeTrackOptions::default())
+        .unwrap();
+    let stored = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(stored.metadata().color_rgb, Some(0x00FF_FFFF));
+    assert_eq!(stored.metadata().color_label, None);
+
+    lib.analyze_file_source(&wav, AnalyzeTrackOptions::force())
+        .unwrap();
+    let stored = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(stored.metadata().color_rgb, Some(0x00FF_FFFF));
 }
