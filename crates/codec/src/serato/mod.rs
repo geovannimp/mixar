@@ -1,22 +1,27 @@
-//! Read-only Serato and Mixed In Key metadata ingestion from ID3v2.3/v2.4 tags.
+//! Serato and Mixed In Key metadata ingestion, plus the write-side patchers.
 //!
 //! This module reads the vendor metadata that Serato writes into GEOB frames
 //! (`Serato Markers2`, `Serato Markers_`, `Serato BeatGrid`) and the JSON frames
 //! Mixed In Key adds (`CuePoints`, `Key`) from MP3, WAV and AIFF/AIFC files.
-//! It never writes to the file and never mutates the tags it reads.
+//! The reader never writes to the file and never mutates the tags it reads; the
+//! write side lives in [`write`], which only patches the logical payloads the
+//! reader kept and never authors a frame the file did not already carry.
 //!
 //! The result preserves the difference between "no such frame" (no entry in
 //! [`SeratoPayload::frames`]), "present but empty" ([`FrameStatus::Valid`] with
 //! no decoded rows) and "present but corrupt" ([`FrameStatus::Invalid`]), and
-//! keeps every recognized frame's logical payload bytes so later write-back work
-//! can round-trip them.
+//! keeps every recognized frame's logical payload bytes so write-back can patch
+//! them without re-serializing the aggregated, provenance-free view.
 
 mod beatgrid;
 mod id3;
 mod markers2;
 mod markers_legacy;
 mod mixed_in_key;
+pub(crate) mod write;
 
+#[cfg(test)]
+mod reference_decode;
 #[cfg(test)]
 mod tests;
 
@@ -42,6 +47,13 @@ pub fn read_file_serato(path: &Path) -> anyhow::Result<SeratoPayload> {
 pub fn read_from_file(file: &mut std::fs::File) -> anyhow::Result<SeratoPayload> {
     let scan = id3::scan_reader(file)?;
     Ok(build_payload(scan))
+}
+
+/// Major ID3v2 version (3 or 4) of the tag stored in `path`, when the file has
+/// a readable tag header. Used by write-back so a rewritten tag keeps the
+/// version the file already used.
+pub(crate) fn id3v2_major(path: &Path) -> anyhow::Result<Option<u8>> {
+    id3::id3v2_major(path)
 }
 
 /// Everything the reader could recover from one file.
@@ -365,6 +377,77 @@ fn merge_markers(
 
     loops.retain(|_, saved| saved.out_ms > saved.in_ms);
     (cues.into_values().collect(), loops.into_values().collect())
+}
+
+/// The adopted vendor state a caller wants mirrored back into the file.
+///
+/// This is a patch, not a file snapshot: every `None` keeps whatever the file
+/// already carries for that kind. `Some(Vec::new())` clears every slot the
+/// available descriptors can represent, and `colour: Some(None)` clears the
+/// Markers2 `COLOR` record. Callers must only request a kind the file actually
+/// adopted (see the library's adoption mask); this type carries no provenance,
+/// so an unadopted kind would look like a deliberate clear.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SeratoWriteSnapshot {
+    /// Hot cues to store, by slot. Slots 8–15 are DB-only and must not be
+    /// passed: Markers2 carries slots 0–7 and the legacy descriptor 0–4.
+    pub cues: Option<Vec<SeratoCue>>,
+    /// Saved loops to store, by slot. Markers2 carries slots 0–7 and the
+    /// legacy descriptor 0–8, so slot 8 is representable only there.
+    pub loops: Option<Vec<SeratoLoop>>,
+    /// The one terminal marker of a constant-tempo grid; `None` keeps the
+    /// file's existing grid.
+    pub grid: Option<ConstantTempoGrid>,
+    /// Exact 24-bit track colour. `Some(None)` clears the Markers2 `COLOR`
+    /// record; `None` keeps it.
+    pub colour: Option<Option<u32>>,
+}
+
+impl SeratoWriteSnapshot {
+    /// Whether this snapshot asks for any file change.
+    pub fn is_empty(&self) -> bool {
+        self.cues.is_none() && self.loops.is_none() && self.grid.is_none() && self.colour.is_none()
+    }
+}
+
+/// One constant-tempo grid, as exported into the native single-marker frame.
+///
+/// Only the terminal marker exists natively, so a canonical grid with more than
+/// one segment cannot be represented and is not exported.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConstantTempoGrid {
+    /// First beat position, in whole milliseconds (the DB's precision).
+    pub first_beat_ms: i64,
+    /// Tempo for the whole track.
+    pub bpm: f64,
+}
+
+/// One kind of adopted vendor data that write-back can mirror.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SeratoWriteKind {
+    /// Hot cues (Markers2 `CUE`, legacy entries 0–4).
+    Cues,
+    /// Saved loops (Markers2 `LOOP`, legacy entries 5–13).
+    Loops,
+    /// Native beat grid (`Serato BeatGrid`).
+    Grid,
+    /// Exact track colour (Markers2 `COLOR` only).
+    Colour,
+}
+
+impl SeratoWriteKind {
+    /// Every kind, in report order.
+    pub const ALL: [Self; 4] = [Self::Cues, Self::Loops, Self::Grid, Self::Colour];
+
+    /// Short name for logs.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cues => "cues",
+            Self::Loops => "loops",
+            Self::Grid => "grid",
+            Self::Colour => "colour",
+        }
+    }
 }
 
 /// Decode a `serato32`-encoded three-byte value (bits are spread over four

@@ -480,11 +480,16 @@ fn handle_save_hot_cue(
     } = cmd;
 
     let id = TrackId::new(track_id.clone());
+    let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
         lib.save_track_hot_cue(&id, slot, position_ms, loop_length_beats, color, label)
-            .and_then(|_| lib.list_track_hot_cues(&id))
+            .and_then(|_| {
+                write_back = crate::tags::plan_for_track(&lib, &id, false);
+                lib.list_track_hot_cues(&id)
+            })
     };
+    execute_write_back(write_back, library);
     publish_hot_cues_result(buses, track_id, result);
 }
 
@@ -496,11 +501,15 @@ fn handle_delete_hot_cue(
     let DeleteTrackHotCue { track_id, slot } = cmd;
 
     let id = TrackId::new(track_id.clone());
+    let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.delete_track_hot_cue(&id, slot)
-            .and_then(|_| lib.list_track_hot_cues(&id))
+        lib.delete_track_hot_cue(&id, slot).and_then(|_| {
+            write_back = crate::tags::plan_for_track(&lib, &id, false);
+            lib.list_track_hot_cues(&id)
+        })
     };
+    execute_write_back(write_back, library);
     publish_hot_cues_result(buses, track_id, result);
 }
 
@@ -519,6 +528,7 @@ fn handle_save_loop(
     } = cmd;
 
     let id = TrackId::new(track_id.clone());
+    let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
         let saved = if slot == AUTO_LOOP_SLOT {
@@ -526,8 +536,16 @@ fn handle_save_loop(
         } else {
             lib.save_track_loop(&id, slot, in_ms, out_ms, label, color)
         };
-        saved.and_then(|_| lib.list_track_loops(&id))
+        saved.and_then(|_| {
+            // Automatic loop memory is not an explicit saved loop: allocating it
+            // must not rewrite (or evict) the file's saved loops.
+            if slot != AUTO_LOOP_SLOT {
+                write_back = crate::tags::plan_for_track(&lib, &id, false);
+            }
+            lib.list_track_loops(&id)
+        })
     };
+    execute_write_back(write_back, library);
     publish_loops_result(buses, track_id, result);
 }
 
@@ -539,11 +557,24 @@ fn handle_delete_loop(
     let DeleteTrackLoop { track_id, slot } = cmd;
 
     let id = TrackId::new(track_id.clone());
+    let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.delete_track_loop(&id, slot)
-            .and_then(|_| lib.list_track_loops(&id))
+        // Deleting an automatic loop row is DB-only too; the slot is all the
+        // command carries, so the row tells us whether it was automatic.
+        let was_auto = lib
+            .list_track_loops(&id)
+            .ok()
+            .and_then(|rows| rows.into_iter().find(|row| row.slot_index == slot))
+            .is_some_and(|row| row.auto_saved);
+        lib.delete_track_loop(&id, slot).and_then(|_| {
+            if !was_auto {
+                write_back = crate::tags::plan_for_track(&lib, &id, false);
+            }
+            lib.list_track_loops(&id)
+        })
     };
+    execute_write_back(write_back, library);
     publish_loops_result(buses, track_id, result);
 }
 
@@ -560,35 +591,35 @@ fn handle_save_beat_grid(
     } = cmd;
 
     let id = TrackId::new(track_id.clone());
-    // Tag write-back is planned under the lock but executed after it is released:
-    // a manual grid is the user telling us this BPM is the right one.
+    // Tag write-back is planned under the lock but executed after it is released.
     let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
         lib.save_track_beat_grid(&id, bpm, first_beat_secs, replace)
             .and_then(|grid| {
+                // The stored row already carries the manual BPM, so the plan can
+                // read it back instead of keeping a stale ad-hoc override.
+                write_back = crate::tags::plan_for_track(&lib, &id, true);
                 let source = lib.get_track(&id)?;
-                let file = source.as_ref().and_then(AudioSource::file);
-                let metadata = source.as_ref().map(AudioSource::metadata);
-                if let (Some(file), Some(metadata)) = (file, metadata) {
-                    // The manual grid is the user telling us this BPM is the right one.
-                    let mut tags = crate::tags::app_managed_tags(metadata);
-                    tags.bpm = Some(bpm);
-                    write_back = crate::tags::TagWritePlan::new(
-                        lib.config().tag_write_back,
-                        file.path().to_path_buf(),
-                        tags,
-                        lib.tag_write_gate(),
-                    );
-                }
                 Ok((grid, source))
             })
     };
     // File I/O for tag write-back runs after the manager lock is released.
-    if let Some(plan) = write_back {
-        plan.execute();
-    }
+    execute_write_back(write_back, library);
     publish_beat_grid_result(buses, track_id, result);
+}
+
+/// Run a planned file mirror after the manager lock is gone.
+///
+/// Best-effort: the DB mutation and its published result stand even when the
+/// file cannot be written.
+fn execute_write_back(
+    plan: Option<crate::tags::TagWritePlan>,
+    library: &Arc<Mutex<LibraryManager>>,
+) {
+    if let Some(plan) = plan {
+        plan.execute_off_mutex(library);
+    }
 }
 
 fn publish_beat_grid_result(

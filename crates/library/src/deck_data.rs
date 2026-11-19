@@ -4,6 +4,7 @@ use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::ColumnTrait;
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 use library_core::{CueSource, Library, LibraryError, LoopImport, Result, TrackCue, TrackId};
 
@@ -619,6 +620,54 @@ impl LibraryManager {
         self.store()
             .update_track_metadata(track_id, &normalized, &unix_secs_string())
     }
+
+    /// Editor save that mirrors an adopted colour change into the file.
+    ///
+    /// The DB edit is authoritative and runs under the guard; the file mirror is
+    /// planned there (comparing the logical colour before and after) and
+    /// executed after the manager is released, so a slow file write never blocks
+    /// other readers. A file failure keeps the successful edit.
+    pub fn update_track_metadata_off_mutex(
+        library: &Mutex<Self>,
+        track_id: &TrackId,
+        edit: TrackMetadataEdit,
+    ) -> Result<()> {
+        let (result, plan) = {
+            let lib = Self::lock_library(library)?;
+            let colour_before = lib
+                .get_track(track_id)?
+                .map(|source| colour_pair(source.metadata()));
+            let result = lib.update_track_metadata(track_id, edit);
+            let colour_after = if result.is_ok() {
+                lib.get_track(track_id)
+                    .ok()
+                    .flatten()
+                    .map(|source| colour_pair(source.metadata()))
+            } else {
+                None
+            };
+            // Only a colour change is mirrored (and only the colour: these plans
+            // never carry the ordinary fields). Non-colour edits stay DB-only.
+            let plan = match (colour_before, colour_after) {
+                (Some(stored), Some(current)) if stored != current => {
+                    crate::tags::plan_for_track(&lib, track_id, false)
+                }
+                _ => None,
+            };
+            (result, plan)
+        };
+        if let Some(plan) = plan {
+            plan.execute_off_mutex(library);
+        }
+        result
+    }
+}
+
+/// The colour as one logical value: the exact RGB and the palette label.
+fn colour_pair(
+    metadata: &library_core::TrackMetadata,
+) -> (Option<library_core::ColorLabel>, Option<u32>) {
+    (metadata.color_label, metadata.color_rgb)
 }
 
 /// Whether two optional BPM values are the same editor value.

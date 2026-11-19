@@ -1832,3 +1832,686 @@ fn missing_files_are_reported_as_errors() {
     let missing = Path::new(FIXTURES).join("does-not-exist.mp3");
     assert!(read_file_serato(&missing).is_err());
 }
+
+// ---------------------------------------------------------------------------
+// Write-back (verified by the independent decoder in `reference_decode`)
+// ---------------------------------------------------------------------------
+
+use crate::serato::reference_decode as refs;
+use crate::tag_write::{
+    inject_fault, write_track_payload, FaultPoint, FieldWrite, TagField, TrackTags,
+};
+
+/// A Markers2 frame that carries every record shape the writer must preserve.
+fn writable_markers2() -> Vec<u8> {
+    markers2_payload(&[
+        ("CUE", cue_record(0, 1000, [0xAA, 0xBB, 0xCC], "Intro")),
+        ("LOOP", loop_record(0, 1000, 2000, [1, 2, 3], 1, "Roll")),
+        ("COLOR", color_record([0x11, 0x22, 0x33])),
+        ("BPMLOCK", bpm_lock_record(true)),
+        ("FLIP", vec![0xDE, 0xAD, 0xBE, 0xEF]),
+    ])
+}
+
+fn write_snapshot(
+    path: &Path,
+    tags: &TrackTags,
+    serato: &SeratoWriteSnapshot,
+) -> anyhow::Result<crate::tag_write::PayloadWriteReport> {
+    write_track_payload(path, tags, Some(serato))
+}
+
+fn markers2_of(bytes: &[u8]) -> refs::RefMarkers2 {
+    refs::markers2(&refs::geob(bytes, "Serato Markers2").expect("Markers2 frame"))
+}
+
+fn legacy_of(bytes: &[u8]) -> refs::RefLegacy {
+    refs::legacy(&refs::geob(bytes, "Serato Markers_").expect("legacy markers frame"))
+}
+
+#[test]
+fn writing_cues_preserves_unowned_markers2_records() {
+    let file = temp_file(
+        "write-cues.mp3",
+        &carrier_mp3(&single_geob("Serato Markers2", &writable_markers2())),
+    );
+    let before = markers2_of(&fs::read(&file.path).unwrap());
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![
+            SeratoCue {
+                slot: 0,
+                position_ms: 4321,
+                label: Some("Drop".into()),
+                color_rgb: Some(0x123456),
+            },
+            SeratoCue {
+                slot: 3,
+                position_ms: 9000,
+                label: Some("Outro".into()),
+                color_rgb: Some(0x00FF00),
+            },
+        ]),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Written)
+    );
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Loops),
+        None,
+        "an unrequested kind is not reported"
+    );
+
+    let bytes = fs::read(&file.path).unwrap();
+    let after = markers2_of(&bytes);
+
+    let cue0 = after.cues.iter().find(|cue| cue.slot == 0).unwrap();
+    assert_eq!(cue0.position_ms, 4321);
+    assert_eq!(cue0.rgb, (0x12, 0x34, 0x56));
+    assert_eq!(cue0.label, "Drop");
+    assert_eq!(
+        cue0.reserved, before.cues[0].reserved,
+        "reserved prefix bytes are preserved"
+    );
+    let cue3 = after.cues.iter().find(|cue| cue.slot == 3).unwrap();
+    assert_eq!(cue3.position_ms, 9000);
+    assert_eq!(cue3.label, "Outro");
+
+    assert_eq!(
+        after.loops, before.loops,
+        "loop prefix/lock/colour preserved"
+    );
+    assert_eq!(after.color, Some(0x0011_2233));
+    assert_eq!(after.bpm_lock, Some(true));
+    assert_eq!(after.opaque, before.opaque, "FLIP and friends survive");
+    assert_eq!(
+        after.order,
+        vec!["CUE", "LOOP", "COLOR", "BPMLOCK", "FLIP", "CUE"],
+        "owned records keep their position; new slots are appended before the terminator"
+    );
+
+    let payload = file.read_payload();
+    assert!(payload.scan_complete);
+    assert_eq!(
+        payload
+            .cues
+            .iter()
+            .map(|cue| (cue.slot, cue.position_ms))
+            .collect::<Vec<_>>(),
+        vec![(0, 4321), (3, 9000)]
+    );
+}
+
+#[test]
+fn both_marker_descriptors_are_patched_from_one_snapshot() {
+    let mut entries = empty_legacy();
+    entries[0] = LegacyEntry {
+        start: Some(1000),
+        end: None,
+        color: 0x0000FF,
+    };
+    entries[5 + 8] = LegacyEntry {
+        start: Some(5000),
+        end: Some(6000),
+        color: 0x00FF00,
+    };
+    let tag = tag_with(
+        4,
+        &[
+            geob_frame(4, "Serato Markers_", &legacy_payload(&entries)),
+            geob_frame(4, "Serato Markers2", &writable_markers2()),
+        ],
+        0,
+    );
+    let file = temp_file("both-markers.mp3", &carrier_mp3(&tag));
+    let before_legacy = legacy_of(&fs::read(&file.path).unwrap());
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 2000,
+            label: Some("Intro".into()),
+            color_rgb: Some(0xAA_BB_CC),
+        }]),
+        loops: Some(vec![SeratoLoop {
+            slot: 0,
+            in_ms: 1000,
+            out_ms: 2000,
+            label: Some("Roll".into()),
+            color_rgb: Some(0x0001_0203),
+        }]),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Written)
+    );
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Loops),
+        Some(FieldWrite::Written)
+    );
+
+    let bytes = fs::read(&file.path).unwrap();
+    let legacy = legacy_of(&bytes);
+    assert_eq!(legacy.cues[0], Some(2000));
+    assert_eq!(legacy.cues[1], None);
+    assert_eq!(legacy.loops[0], Some((1000, 2000)));
+    assert_eq!(legacy.loops[8], None, "deleted legacy-only loop is cleared");
+    assert_eq!(
+        legacy.footer_color, before_legacy.footer_color,
+        "the legacy footer colour is not ours to rewrite"
+    );
+    assert_eq!(legacy.shadows[0][5..], before_legacy.shadows[0][5..]);
+    assert_eq!(legacy.shadows[1], before_legacy.shadows[1]);
+    assert_eq!(
+        legacy.shadows[13][10..],
+        before_legacy.shadows[13][10..],
+        "only the cleared position words change; colour and reserved bytes survive"
+    );
+
+    let markers2 = markers2_of(&bytes);
+    assert_eq!(
+        markers2.cues[0].position_ms, 2000,
+        "Markers2 follows the same snapshot"
+    );
+    assert!(
+        markers2.loops.iter().all(|saved| saved.slot != 8),
+        "legacy loop slot 8 is never squeezed into Markers2"
+    );
+    assert_eq!(markers2.loops[0].in_ms, 1000);
+    assert_eq!(markers2.loops[0].out_ms, 2000);
+}
+
+#[test]
+fn semantically_equal_state_never_rewrites_the_file() {
+    // Same values, different envelope: wrapped base64 and trailing NUL padding.
+    let mut binary = vec![1u8, 1];
+    for (name, payload) in [
+        ("CUE", cue_record(0, 1000, [0xAA, 0xBB, 0xCC], "Intro")),
+        ("COLOR", color_record([0x11, 0x22, 0x33])),
+    ] {
+        binary.extend_from_slice(name.as_bytes());
+        binary.push(0);
+        binary.extend_from_slice(&uint32(payload.len() as u32));
+        binary.extend_from_slice(&payload);
+    }
+    binary.push(0);
+    let encoded = B64.encode(&binary);
+    let mut wrapped = vec![1u8, 1];
+    for chunk in encoded.as_bytes().chunks(24) {
+        wrapped.extend_from_slice(chunk);
+        wrapped.push(b'\n');
+    }
+    wrapped.extend_from_slice(&[0, 0, 0, 0]);
+
+    let file = temp_file(
+        "already-written.mp3",
+        &carrier_mp3(&single_geob("Serato Markers2", &wrapped)),
+    );
+    let before = fs::read(&file.path).unwrap();
+    let modified = fs::metadata(&file.path).unwrap().modified().unwrap();
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 1000,
+            label: Some("Intro".into()),
+            color_rgb: Some(0xAA_BB_CC),
+        }]),
+        colour: Some(Some(0x0011_2233)),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert!(!report.wrote(), "a semantic no-op writes nothing");
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Unchanged)
+    );
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Colour),
+        Some(FieldWrite::Unchanged)
+    );
+    assert_eq!(fs::read(&file.path).unwrap(), before, "bytes are untouched");
+    assert_eq!(
+        fs::metadata(&file.path).unwrap().modified().unwrap(),
+        modified,
+        "mtime is untouched"
+    );
+}
+
+#[test]
+fn imported_grid_anchor_is_not_rewritten_because_the_db_rounds_it() {
+    let position = 1.2345f32;
+    let grid = grid_payload(&[(position, 128.0f32.to_bits())]);
+    let file = temp_file(
+        "grid-anchor.mp3",
+        &carrier_mp3(&single_geob("Serato BeatGrid", &grid)),
+    );
+    let before = fs::read(&file.path).unwrap();
+
+    let first_beat_ms = (f64::from(position) * 1000.0).round() as i64;
+    let snapshot = SeratoWriteSnapshot {
+        grid: Some(ConstantTempoGrid {
+            first_beat_ms,
+            bpm: 128.0,
+        }),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Grid),
+        Some(FieldWrite::Unchanged),
+        "the sub-millisecond wire anchor survives a rounded DB copy"
+    );
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+}
+
+#[test]
+fn variable_grid_is_replaced_by_one_terminal_marker_and_keeps_the_footer() {
+    let grid = grid_payload(&[(0.0, 4u32), (2.0, 120.0f32.to_bits())]);
+    let file = temp_file(
+        "variable-grid.mp3",
+        &carrier_mp3(&single_geob("Serato BeatGrid", &grid)),
+    );
+    let before = refs::beatgrid(&grid).unwrap();
+
+    let snapshot = SeratoWriteSnapshot {
+        grid: Some(ConstantTempoGrid {
+            first_beat_ms: 250,
+            bpm: 124.5,
+        }),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Grid),
+        Some(FieldWrite::Written)
+    );
+
+    let bytes = fs::read(&file.path).unwrap();
+    let after = refs::beatgrid(&refs::geob(&bytes, "Serato BeatGrid").unwrap()).unwrap();
+    assert_eq!(after.markers.len(), 1);
+    assert_eq!(after.markers[0].0, 0.25f32);
+    assert_eq!(after.markers[0].1, 124.5f32);
+    assert_eq!(
+        after.footer, before.footer,
+        "the undocumented footer survives"
+    );
+}
+
+#[test]
+fn ordinary_fields_and_markers_land_in_one_replacement() {
+    use std::os::unix::fs::MetadataExt;
+
+    let tag = single_geob("Serato Markers2", &writable_markers2());
+    let file = temp_file("combined.mp3", &carrier_mp3(&tag));
+    let audio_before = fs::read(&file.path).unwrap()[tag.len()..].to_vec();
+    let inode_before = fs::metadata(&file.path).unwrap().ino();
+
+    let tags = TrackTags {
+        bpm: Some(128.0),
+        key: Some("Am".into()),
+        ..TrackTags::default()
+    };
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 1,
+            position_ms: 5000,
+            label: Some("Build".into()),
+            color_rgb: Some(0x00_00FF),
+        }]),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &tags, &snapshot).unwrap();
+    assert!(report.wrote());
+    assert!(report.track.outcome(TagField::Bpm).is_some());
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Written)
+    );
+
+    let bytes = fs::read(&file.path).unwrap();
+    assert_ne!(
+        fs::metadata(&file.path).unwrap().ino(),
+        inode_before,
+        "a real change replaces the file exactly once"
+    );
+    assert_eq!(
+        &bytes[bytes.len() - audio_before.len()..],
+        audio_before.as_slice(),
+        "MPEG frames are untouched"
+    );
+    let markers2 = markers2_of(&bytes);
+    let written = markers2
+        .cues
+        .iter()
+        .find(|cue| cue.slot == 1)
+        .expect("cue slot 1");
+    assert_eq!(written.position_ms, 5000);
+    assert_eq!(markers2.color, Some(0x0011_2233));
+
+    let read = crate::read_file_tags(&file.path).unwrap();
+    assert_eq!(read.bpm, Some(128.0));
+    assert_eq!(read.key.as_deref(), Some("Am"));
+
+    // A second identical call is a byte-identical no-op: no replacement.
+    let inode_once = fs::metadata(&file.path).unwrap().ino();
+    let second = write_snapshot(&file.path, &tags, &snapshot).unwrap();
+    assert!(!second.wrote());
+    assert_eq!(fs::read(&file.path).unwrap(), bytes);
+    assert_eq!(fs::metadata(&file.path).unwrap().ino(), inode_once);
+}
+
+#[test]
+fn missing_descriptor_is_refused_and_never_authored() {
+    let file = temp_file("no-frames.mp3", &carrier_mp3(&tag_with(4, &[], 0)));
+    let before = fs::read(&file.path).unwrap();
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 1000,
+            label: None,
+            color_rgb: Some(0xFFFFFF),
+        }]),
+        colour: Some(Some(0x0000FF)),
+        ..Default::default()
+    };
+    let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot).unwrap();
+    assert!(!report.wrote());
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Refused)
+    );
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Colour),
+        Some(FieldWrite::Refused)
+    );
+    assert_eq!(fs::read(&file.path).unwrap(), before, "no frame is created");
+    assert!(refs::geob_frames(&fs::read(&file.path).unwrap()).is_empty());
+}
+
+#[test]
+fn a_refused_marker_target_still_writes_the_ordinary_fields() {
+    let file = temp_file("ordinary-only.mp3", &carrier_mp3(&tag_with(4, &[], 0)));
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 1000,
+            label: None,
+            color_rgb: Some(0xFFFFFF),
+        }]),
+        ..Default::default()
+    };
+    let tags = TrackTags {
+        bpm: Some(122.0),
+        key: Some("Am".into()),
+        ..TrackTags::default()
+    };
+    let report = write_snapshot(&file.path, &tags, &snapshot).unwrap();
+    assert_eq!(
+        report.serato_outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Refused)
+    );
+    assert!(report.track.wrote(), "the ordinary fields are independent");
+    let read = crate::read_file_tags(&file.path).unwrap();
+    assert_eq!(read.bpm, Some(122.0));
+    assert_eq!(read.key.as_deref(), Some("Am"));
+    assert!(refs::geob_frames(&fs::read(&file.path).unwrap()).is_empty());
+}
+
+#[test]
+fn unsupported_carrier_reports_unsupported() {
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(Vec::new()),
+        ..Default::default()
+    };
+    let plan = write::plan(&SeratoPayload::default(), &snapshot).unwrap();
+    assert_eq!(
+        plan.outcome(SeratoWriteKind::Cues),
+        Some(FieldWrite::Unsupported)
+    );
+    assert!(plan.patches.is_empty());
+}
+
+#[test]
+fn invalid_requests_are_refused_without_touching_the_file() {
+    let file = temp_file(
+        "invalid-loop.mp3",
+        &carrier_mp3(&single_geob("Serato Markers2", &writable_markers2())),
+    );
+    let before = fs::read(&file.path).unwrap();
+    let snapshot = SeratoWriteSnapshot {
+        loops: Some(vec![SeratoLoop {
+            slot: 1,
+            in_ms: 2000,
+            out_ms: 1000,
+            label: None,
+            color_rgb: None,
+        }]),
+        ..Default::default()
+    };
+    assert!(write_snapshot(&file.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 1,
+            position_ms: 1000,
+            label: Some("a\0b".into()),
+            color_rgb: None,
+        }]),
+        ..Default::default()
+    };
+    assert!(write_snapshot(&file.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![
+            SeratoCue {
+                slot: 1,
+                position_ms: 1000,
+                label: None,
+                color_rgb: None,
+            },
+            SeratoCue {
+                slot: 1,
+                position_ms: 2000,
+                label: None,
+                color_rgb: None,
+            },
+        ]),
+        ..Default::default()
+    };
+    assert!(write_snapshot(&file.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+}
+
+#[test]
+fn legacy_positions_that_do_not_fit_are_refused() {
+    let mut entries = empty_legacy();
+    entries[0] = LegacyEntry {
+        start: Some(1000),
+        end: None,
+        color: 0,
+    };
+    let file = temp_file(
+        "legacy-overflow.mp3",
+        &carrier_mp3(&single_geob("Serato Markers_", &legacy_payload(&entries))),
+    );
+    let before = fs::read(&file.path).unwrap();
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 0x0100_0000,
+            label: None,
+            color_rgb: None,
+        }]),
+        ..Default::default()
+    };
+    assert!(
+        write_snapshot(&file.path, &TrackTags::default(), &snapshot).is_err(),
+        "a serato32 value cannot be wrapped"
+    );
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+}
+
+#[test]
+fn duplicated_descriptor_refuses_the_whole_call() {
+    let tag = tag_with(
+        4,
+        &[
+            geob_frame(4, "Serato Markers2", &writable_markers2()),
+            geob_frame(4, "Serato Markers2", &writable_markers2()),
+        ],
+        0,
+    );
+    let file = temp_file("double-markers2.mp3", &carrier_mp3(&tag));
+    let before = fs::read(&file.path).unwrap();
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(Vec::new()),
+        ..Default::default()
+    };
+    assert!(write_snapshot(&file.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&file.path).unwrap(), before);
+}
+
+#[test]
+#[allow(clippy::permissions_set_readonly_false)]
+fn unsafe_files_are_refused_instead_of_replacing_them() {
+    let entry = |name: &str| {
+        temp_file(
+            name,
+            &carrier_mp3(&single_geob("Serato Markers2", &writable_markers2())),
+        )
+    };
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 0,
+            position_ms: 2000,
+            label: None,
+            color_rgb: Some(0x0000FF),
+        }]),
+        ..Default::default()
+    };
+
+    let target = entry("symlink-target.mp3");
+    let link = target.path.with_file_name("symlink.mp3");
+    std::os::unix::fs::symlink(&target.path, &link).unwrap();
+    let before = fs::read(&target.path).unwrap();
+    assert!(write_snapshot(&link, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&target.path).unwrap(), before);
+
+    let hard = entry("hard-linked.mp3");
+    let second = hard.path.with_file_name("hard-link-2.mp3");
+    fs::hard_link(&hard.path, &second).unwrap();
+    let before = fs::read(&hard.path).unwrap();
+    assert!(write_snapshot(&hard.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&hard.path).unwrap(), before);
+
+    let readonly = entry("read-only.mp3");
+    let mut permissions = fs::metadata(&readonly.path).unwrap().permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&readonly.path, permissions).unwrap();
+    let before = fs::read(&readonly.path).unwrap();
+    assert!(write_snapshot(&readonly.path, &TrackTags::default(), &snapshot).is_err());
+    assert_eq!(fs::read(&readonly.path).unwrap(), before);
+    let mut permissions = fs::metadata(&readonly.path).unwrap().permissions();
+    permissions.set_readonly(false);
+    fs::set_permissions(&readonly.path, permissions).unwrap();
+}
+
+#[test]
+fn injected_failures_leave_the_original_and_no_temporary_file() {
+    for point in [
+        FaultPoint::AfterCopy,
+        FaultPoint::AfterSave,
+        FaultPoint::AfterSync,
+        FaultPoint::AfterVerify,
+        FaultPoint::BeforePersist,
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fault.mp3");
+        fs::write(
+            &path,
+            carrier_mp3(&single_geob("Serato Markers2", &writable_markers2())),
+        )
+        .unwrap();
+        let before = fs::read(&path).unwrap();
+
+        let snapshot = SeratoWriteSnapshot {
+            cues: Some(vec![SeratoCue {
+                slot: 0,
+                position_ms: 2000,
+                label: None,
+                color_rgb: Some(0x0000FF),
+            }]),
+            ..Default::default()
+        };
+        inject_fault(Some(point));
+        let result = write_snapshot(&path, &TrackTags::default(), &snapshot);
+        inject_fault(None);
+
+        assert!(result.is_err(), "{point:?} must fail the write");
+        assert_eq!(fs::read(&path).unwrap(), before, "{point:?} keeps the file");
+        let leftovers: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .filter(|name| name != "fault.mp3")
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "{point:?} must not leak {leftovers:?}"
+        );
+    }
+}
+
+#[test]
+fn wav_and_aiff_id3_carriers_are_written() {
+    let tag = single_geob("Serato Markers2", &writable_markers2());
+    let format = [
+        1u8, 0, 2, 0, 0x44, 0xAC, 0, 0, 0x10, 0xB1, 2, 0, 4, 0, 16, 0,
+    ];
+    let silence = [0u8; 32];
+    let wav_chunks: [(&[u8; 4], &[u8]); 3] =
+        [(b"fmt ", &format), (b"data", &silence), (b"id3 ", &tag)];
+    let wav = temp_file("write.wav", &wav_with(&wav_chunks));
+
+    let comm = [
+        0u8, 2, // channels
+        0, 0, 0, 32, // sample frames
+        0, 16, // sample size
+        0x40, 0x0E, 0xAC, 0x44, 0, 0, 0, 0, 0, 0, // 44100 as an 80-bit float
+    ];
+    let sound = [0u8; 40];
+    let aiff_chunks: [(&[u8; 4], &[u8]); 3] =
+        [(b"COMM", &comm), (b"SSND", &sound), (b"ID3 ", &tag)];
+    let aiff = temp_file("write.aiff", &aiff_with(b"AIFF", &aiff_chunks));
+
+    let snapshot = SeratoWriteSnapshot {
+        cues: Some(vec![SeratoCue {
+            slot: 2,
+            position_ms: 7000,
+            label: Some("Wav".into()),
+            color_rgb: Some(0x00_FF00),
+        }]),
+        ..Default::default()
+    };
+    for file in [&wav, &aiff] {
+        let report = write_snapshot(&file.path, &TrackTags::default(), &snapshot)
+            .unwrap_or_else(|err| panic!("{}: {err}", file.path.display()));
+        assert_eq!(
+            report.serato_outcome(SeratoWriteKind::Cues),
+            Some(FieldWrite::Written)
+        );
+        let markers2 = markers2_of(&fs::read(&file.path).unwrap());
+        assert_eq!(markers2.cues[0].slot, 2);
+        assert_eq!(markers2.cues[0].position_ms, 7000);
+    }
+}

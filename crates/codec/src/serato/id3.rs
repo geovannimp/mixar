@@ -73,6 +73,56 @@ impl TagScan {
     }
 }
 
+/// Major ID3v2 version (3 or 4) of the tag stored in `path`.
+///
+/// Only used by write-back, which must keep the version a file already used
+/// instead of letting a tag library silently upgrade it (`Id3v2Tag` upgrades
+/// v2.2/v2.3 to v2.4 when reading). `None` means "no tag we can see".
+pub(crate) fn id3v2_major(path: &Path) -> anyhow::Result<Option<u8>> {
+    let mut file = File::open(path)?;
+    let file_len = file.metadata()?.len();
+    let offset = {
+        let mut head = [0u8; 12];
+        let head_len = read_some(&mut file, &mut head)?;
+        let head = &head[..head_len];
+        if head.len() >= 3 && &head[..3] == b"ID3" {
+            0
+        } else {
+            let (order, form) =
+                if head.len() >= 12 && &head[..4] == b"RIFF" && &head[8..12] == b"WAVE" {
+                    (ByteOrder::Little, 4)
+                } else if head.len() >= 12
+                    && &head[..4] == b"FORM"
+                    && (&head[8..12] == b"AIFF" || &head[8..12] == b"AIFC")
+                {
+                    (ByteOrder::Big, 4)
+                } else {
+                    return Ok(None);
+                };
+            let declared = order.read_u32(&head[form..form + 4]) as u64;
+            let Some(form_end) = declared.checked_add(8) else {
+                return Ok(None);
+            };
+            if form_end > file_len {
+                return Ok(None);
+            }
+            match find_metadata_chunk(&mut file, 12, form_end, order)? {
+                ChunkSearch::Found { offset, .. } => offset,
+                ChunkSearch::Absent | ChunkSearch::Malformed => return Ok(None),
+            }
+        }
+    };
+    if offset + TAG_HEADER_LEN > file_len {
+        return Ok(None);
+    }
+    let mut header = [0u8; TAG_HEADER_LEN as usize];
+    read_at(&mut file, offset, &mut header)?;
+    if &header[..3] != b"ID3" {
+        return Ok(None);
+    }
+    Ok(Some(header[3]))
+}
+
 /// Scan `path` for Serato/Mixed In Key GEOB frames.
 pub(crate) fn scan_path(path: &Path) -> anyhow::Result<TagScan> {
     let mut file = File::open(path)?;

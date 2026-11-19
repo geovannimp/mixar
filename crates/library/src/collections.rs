@@ -657,7 +657,7 @@ impl LibraryManager {
         // library-owned path (worker `AnalyzeTrack`, deck-load pre-analysis,
         // native-stem analysis) drops the lock first and executes the plan there.
         if let Some(plan) = plan {
-            plan.execute();
+            plan.execute_with_library(self);
         }
         Ok(source)
     }

@@ -6,10 +6,14 @@
 //!
 //! - **opt-in** (`LibraryConfig::tag_write_back`),
 //! - **field-scoped**: only the fields the caller passes are touched; anything
-//!   else in the file (pictures, ReplayGain, Serato frames, foreign keys) is
-//!   left exactly as it was,
+//!   else in the file (pictures, ReplayGain, foreign keys) is left exactly as it
+//!   was. Serato frames are untouched unless the caller passes a
+//!   [`SeratoWriteSnapshot`] *and* the file already carries the matching
+//!   descriptor — see [`write_track_payload`],
 //! - **idempotent**: fields already carrying the wanted value are left alone, and
-//!   a file with nothing to change is never rewritten.
+//!   a file with nothing to change is never rewritten,
+//! - **atomic**: a change is written to a verified copy beside the original and
+//!   only then renamed over it, so every failure leaves the file byte-identical.
 //!
 //! Field per container (lofty/TagLib mapping, matching MusicBrainz Picard):
 //!
@@ -68,15 +72,21 @@
 //! whose `stem` manifest Mixar does not own, so writing an `ilst` through
 //! lofty's single-tag path would be a guess at which track's tag is meant.
 
-use std::path::Path;
+use std::fs::{self, File};
+use std::io::{Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 
 use lofty::config::WriteOptions;
 use lofty::file::{AudioFile, TaggedFileExt};
+use lofty::id3::v2::{Frame as Id3Frame, FrameFlags, GeneralEncapsulatedObject, Id3v2Tag};
 use lofty::probe::Probe;
 use lofty::tag::items::popularimeter::Popularimeter;
-use lofty::tag::{ItemKey, ItemValue, Tag, TagItem, TagType};
+use lofty::tag::{ItemKey, ItemValue, Tag, TagExt, TagItem, TagType};
 
 use crate::paths::is_stem_path;
+use crate::serato;
+use crate::serato::write::{FramePatch, SeratoWritePlan};
+use crate::serato::{SeratoFrameKind, SeratoPayload, SeratoWriteKind, SeratoWriteSnapshot};
 
 /// One writable tag field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -345,21 +355,91 @@ impl TagWriteReport {
 /// Errors are I/O or parse failures; per-field outcomes (unsupported container,
 /// rounding, refusal) come back in the report instead.
 pub fn write_track_tags(path: &Path, tags: &TrackTags) -> anyhow::Result<TagWriteReport> {
+    Ok(write_track_payload(path, tags, None)?.track)
+}
+
+/// What a [`write_track_payload`] call did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PayloadWriteReport {
+    /// Ordinary tag fields, exactly as [`write_track_tags`] reports them.
+    pub track: TagWriteReport,
+    /// Outcome per requested Serato kind, in [`SeratoWriteKind::ALL`] order.
+    pub serato: Vec<(SeratoWriteKind, FieldWrite)>,
+}
+
+impl PayloadWriteReport {
+    /// Whether the file on disk was rewritten.
+    pub fn wrote(&self) -> bool {
+        self.track.wrote()
+            || self.serato.iter().any(|(_, outcome)| {
+                matches!(outcome, FieldWrite::Written | FieldWrite::Rounded { .. })
+            })
+    }
+
+    /// Outcome for one Serato kind, when it was requested.
+    pub fn serato_outcome(&self, kind: SeratoWriteKind) -> Option<FieldWrite> {
+        self.serato
+            .iter()
+            .find(|(candidate, _)| *candidate == kind)
+            .map(|(_, outcome)| *outcome)
+    }
+}
+
+/// Write track information and adopted Serato performance data into one file.
+///
+/// The ordinary fields behave exactly like [`write_track_tags`]. `serato`
+/// additionally patches the vendor frames the file already carries; a `None`
+/// (or empty) snapshot leaves them untouched, and so does every ordinary-only
+/// call. The ordinary fields and the vendor frames land in one atomic
+/// replacement: a copy is written, verified and only then renamed over the
+/// original, so a failure at any point leaves the file byte-identical.
+pub fn write_track_payload(
+    path: &Path,
+    tags: &TrackTags,
+    serato: Option<&SeratoWriteSnapshot>,
+) -> anyhow::Result<PayloadWriteReport> {
     // The probe below converts `POPM` frames through the process-wide rating
     // provider, and the save converts them back, so install it up front.
     crate::rating::install();
     let requests: Vec<Request<'_>> = tags.requests().collect();
     let fields: Vec<TagField> = requests.iter().map(Request::field).collect();
-    if requests.is_empty() {
-        return Ok(TagWriteReport {
-            container: None,
-            fields: Vec::new(),
+
+    // Plan the vendor patches first. The work is pure and in-memory, but it
+    // must read the current file to see which descriptors exist; an unsafe or
+    // ambiguous shape refuses the whole call before anything is staged.
+    let planned = match serato.filter(|snapshot| !snapshot.is_empty()) {
+        Some(snapshot) => {
+            let payload = serato::read_file_serato(path)?;
+            let plan = serato::write::plan(&payload, snapshot)?;
+            Some((payload, plan))
+        }
+        None => None,
+    };
+    let serato_outcomes = planned
+        .as_ref()
+        .map(|(_, plan)| plan.outcomes.clone())
+        .unwrap_or_default();
+    let serato_changes = planned.as_ref().is_some_and(|(_, plan)| plan.wrote());
+
+    if requests.is_empty() && !serato_changes {
+        return Ok(PayloadWriteReport {
+            track: TagWriteReport {
+                container: None,
+                fields: Vec::new(),
+            },
+            serato: serato_outcomes,
         });
     }
 
     // `.stem.mp4` files are multi-track MP4s carrying the NI `stem` manifest.
     if is_stem_path(path) {
-        return Ok(TagWriteReport::all(None, &fields, FieldWrite::Refused));
+        return Ok(PayloadWriteReport {
+            track: TagWriteReport::all(None, &fields, FieldWrite::Refused),
+            serato: serato_outcomes
+                .into_iter()
+                .map(|(kind, _)| (kind, FieldWrite::Refused))
+                .collect(),
+        });
     }
 
     let mut tagged = Probe::open(path)
@@ -369,52 +449,450 @@ pub fn write_track_tags(path: &Path, tags: &TrackTags) -> anyhow::Result<TagWrit
 
     let container = TagContainer::of(tagged.file_type().primary_tag_type());
     let Some(container) = container else {
-        return Ok(TagWriteReport::all(None, &fields, FieldWrite::Unsupported));
+        return Ok(PayloadWriteReport {
+            track: TagWriteReport::all(None, &fields, FieldWrite::Unsupported),
+            serato: serato_outcomes
+                .into_iter()
+                .map(|(kind, _)| (kind, FieldWrite::Unsupported))
+                .collect(),
+        });
     };
 
     let tag_type = tagged.file_type().primary_tag_type();
     if !tagged.tag_support(tag_type).is_writable() {
-        return Ok(TagWriteReport::all(
-            Some(container),
-            &fields,
-            FieldWrite::Unsupported,
-        ));
+        if serato_changes {
+            anyhow::bail!(
+                "{} has no writable tag for the vendor frames",
+                path.display()
+            );
+        }
+        return Ok(PayloadWriteReport {
+            track: TagWriteReport::all(Some(container), &fields, FieldWrite::Unsupported),
+            serato: serato_outcomes
+                .into_iter()
+                .map(|(kind, _)| (kind, FieldWrite::Unsupported))
+                .collect(),
+        });
     }
     if tagged.tag(tag_type).is_none() {
         tagged.insert_tag(Tag::new(tag_type));
     }
-    let Some(tag) = tagged.tag_mut(tag_type) else {
-        return Ok(TagWriteReport::all(
-            Some(container),
-            &fields,
-            FieldWrite::Unsupported,
-        ));
-    };
 
-    let report = TagWriteReport {
-        container: Some(container),
-        fields: requests
-            .into_iter()
-            .map(|request| {
-                let field = request.field();
-                (field, apply(tag, request))
-            })
-            .collect(),
-    };
-    if report.wrote() {
-        // `RATING:<email>` is a per-app Vorbis rating (Picard writes them).
-        // lofty's split turns it into its internal `email|stars|counter` text,
-        // which its writer would emit verbatim under plain `RATING` — a value
-        // no other reader can parse. Rewrite it as the plain normalized float
-        // instead, so the star survives the save.
-        if tag_type == TagType::VorbisComments {
+    let report = {
+        let Some(tag) = tagged.tag_mut(tag_type) else {
+            return Ok(PayloadWriteReport {
+                track: TagWriteReport::all(Some(container), &fields, FieldWrite::Unsupported),
+                serato: serato_outcomes
+                    .into_iter()
+                    .map(|(kind, _)| (kind, FieldWrite::Unsupported))
+                    .collect(),
+            });
+        };
+        let report = TagWriteReport {
+            container: Some(container),
+            fields: requests
+                .into_iter()
+                .map(|request| {
+                    let field = request.field();
+                    (field, apply(tag, request))
+                })
+                .collect(),
+        };
+        if report.wrote() && tag_type == TagType::VorbisComments {
+            // `RATING:<email>` is a per-app Vorbis rating (Picard writes them).
+            // lofty's split turns it into its internal `email|stars|counter`
+            // text, which its writer would emit verbatim under plain `RATING` —
+            // a value no other reader can parse. Rewrite it as the plain
+            // normalized float instead, so the star survives the save.
             collapse_vorbis_rating_aliases(tag);
         }
-        tagged
-            .save_to_path(path, WriteOptions::default())
-            .map_err(|e| anyhow::anyhow!("write tags {}: {e}", path.display()))?;
+        report
+    };
+
+    let Some((before, plan)) = planned else {
+        if report.wrote() {
+            stage_ordinary_write(path, &tagged)?;
+        }
+        return Ok(PayloadWriteReport {
+            track: report,
+            serato: serato_outcomes,
+        });
+    };
+    if !plan.wrote() {
+        if report.wrote() {
+            stage_ordinary_write(path, &tagged)?;
+        }
+        return Ok(PayloadWriteReport {
+            track: report,
+            serato: serato_outcomes,
+        });
     }
-    Ok(report)
+    if tag_type != TagType::Id3v2 {
+        anyhow::bail!(
+            "{} would need an ID3v2 tag for the vendor frames",
+            path.display()
+        );
+    }
+
+    // Apply the ordinary fields to the generic tag (above), then recover the
+    // concrete ID3v2 tag so the GEOB payloads can be patched without guessing
+    // which frame a description belongs to.
+    let tag = tagged
+        .remove(TagType::Id3v2)
+        .ok_or_else(|| anyhow::anyhow!("{} lost its ID3v2 tag", path.display()))?;
+    let mut id3 = Id3v2Tag::from(tag);
+
+    // Lofty upgrades v2.2/v2.3 tags to v2.4 in memory; keep the version the
+    // file already used instead of silently changing it.
+    let mut options = WriteOptions::default();
+    if serato::id3v2_major(path)? == Some(3) {
+        options = options.use_id3v23(true);
+    }
+    apply_frame_patches(&mut id3, &plan.patches, options)?;
+    stage_id3_write(path, &id3, options, &before, &plan)?;
+    Ok(PayloadWriteReport {
+        track: report,
+        serato: serato_outcomes,
+    })
+}
+
+/// Replace the targeted GEOB frames' object data in one concrete ID3v2 tag.
+///
+/// Every requested descriptor must be found exactly once; a frame whose flags
+/// would make its data unreadable (compression, encryption, grouping, a data
+/// length indicator) refuses the whole write instead of emitting a frame that
+/// lies about its own length.
+fn apply_frame_patches(
+    tag: &mut Id3v2Tag,
+    patches: &[FramePatch],
+    options: WriteOptions,
+) -> anyhow::Result<()> {
+    let mut applied = vec![false; patches.len()];
+    let mut failure: Option<anyhow::Error> = None;
+
+    tag.retain_mut(|frame| {
+        let Id3Frame::Binary(binary) = frame else {
+            return true;
+        };
+        if binary.id().as_str() != "GEOB" {
+            return true;
+        }
+        let flags = binary.flags();
+        let Ok(object) = GeneralEncapsulatedObject::parse(&binary.data, flags) else {
+            return true;
+        };
+        let Some(description) = object.descriptor.clone().filter(|d| !d.is_empty()) else {
+            return true;
+        };
+        let Some(kind) = descriptor_kind(&description) else {
+            return true;
+        };
+        let Some(index) = patches.iter().position(|patch| patch.kind == kind) else {
+            return true;
+        };
+        if applied[index] {
+            failure = Some(anyhow::anyhow!(
+                "duplicated {description} frame; refusing to rewrite vendor frames"
+            ));
+            return true;
+        }
+        if flags.compression || flags.encryption.is_some() {
+            failure = Some(anyhow::anyhow!(
+                "{description} frame is compressed or encrypted; refusing to rewrite it"
+            ));
+            return true;
+        }
+        applied[index] = true;
+        let mut updated = object;
+        updated.data = patches[index].payload.clone();
+        match updated.as_bytes(options) {
+            Ok(bytes) => {
+                binary.data = bytes.into();
+                // The payload changed, so any length indicator, grouping or
+                // unsync flag from the old frame no longer describes it.
+                binary.set_flags(FrameFlags::default());
+            }
+            Err(err) => {
+                failure = Some(anyhow::anyhow!(
+                    "{description} frame could not be re-encoded: {err}"
+                ));
+            }
+        }
+        true
+    });
+
+    if let Some(err) = failure {
+        return Err(err);
+    }
+    if let Some(missing) = patches
+        .iter()
+        .zip(applied.iter())
+        .find(|(_, applied)| !**applied)
+        .map(|(patch, _)| patch.kind)
+    {
+        anyhow::bail!("{} frame is missing from the tag", descriptor_name(missing));
+    }
+    Ok(())
+}
+
+fn descriptor_kind(description: &str) -> Option<SeratoFrameKind> {
+    match description {
+        "Serato Markers2" => Some(SeratoFrameKind::Markers2),
+        "Serato Markers_" => Some(SeratoFrameKind::MarkersLegacy),
+        "Serato BeatGrid" => Some(SeratoFrameKind::BeatGrid),
+        _ => None,
+    }
+}
+
+fn descriptor_name(kind: SeratoFrameKind) -> &'static str {
+    match kind {
+        SeratoFrameKind::Markers2 => "Serato Markers2",
+        SeratoFrameKind::MarkersLegacy => "Serato Markers_",
+        SeratoFrameKind::BeatGrid => "Serato BeatGrid",
+        SeratoFrameKind::MikCuePoints => "CuePoints",
+        SeratoFrameKind::MikKey => "Key",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Atomic replacement
+// ---------------------------------------------------------------------------
+
+/// A file that must not change while a tag rewrite is staged beside it.
+struct TargetFile {
+    path: PathBuf,
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+    #[cfg(unix)]
+    identity: (u64, u64),
+}
+
+impl TargetFile {
+    /// Snapshot the identity of a file that is safe to replace atomically.
+    ///
+    /// Symlinks, directories, read-only files and files with extra hard links
+    /// are refused: replacing any of them would change link semantics or
+    /// permissions the user did not ask to change.
+    fn capture(path: &Path) -> anyhow::Result<Self> {
+        let link = fs::symlink_metadata(path)
+            .map_err(|e| anyhow::anyhow!("stat {}: {e}", path.display()))?;
+        if link.file_type().is_symlink() {
+            anyhow::bail!("{} is a symlink; refusing to replace it", path.display());
+        }
+        if !link.is_file() {
+            anyhow::bail!("{} is not a regular file", path.display());
+        }
+        let metadata =
+            fs::metadata(path).map_err(|e| anyhow::anyhow!("stat {}: {e}", path.display()))?;
+        if metadata.permissions().readonly() {
+            anyhow::bail!("{} is read-only", path.display());
+        }
+        #[cfg(unix)]
+        let identity = {
+            use std::os::unix::fs::MetadataExt;
+            let links = metadata.nlink();
+            if links > 1 {
+                anyhow::bail!(
+                    "{} has {links} hard links; refusing to replace one of them",
+                    path.display()
+                );
+            }
+            (metadata.dev(), metadata.ino())
+        };
+        Ok(Self {
+            path: path.to_path_buf(),
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
+            #[cfg(unix)]
+            identity,
+        })
+    }
+
+    /// Whether the original file is still the same, unchanged file.
+    fn unchanged(&self) -> bool {
+        let Ok(metadata) = fs::symlink_metadata(&self.path) else {
+            return false;
+        };
+        if !metadata.is_file() || metadata.len() != self.len {
+            return false;
+        }
+        if metadata.modified().ok() != self.modified {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if (metadata.dev(), metadata.ino()) != self.identity {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+/// Staging step that can be made to fail in tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FaultPoint {
+    AfterCopy,
+    AfterSave,
+    AfterSync,
+    AfterVerify,
+    BeforePersist,
+}
+
+#[cfg(test)]
+thread_local! {
+    static FAULT: std::cell::Cell<Option<FaultPoint>> = const { std::cell::Cell::new(None) };
+}
+
+/// Inject (or clear) one staged-write failure on this thread.
+#[cfg(test)]
+pub(crate) fn inject_fault(point: Option<FaultPoint>) {
+    FAULT.with(|slot| slot.set(point));
+}
+
+fn fault(point: FaultPoint) -> anyhow::Result<()> {
+    #[cfg(test)]
+    if FAULT.with(|slot| slot.get() == Some(point)) {
+        anyhow::bail!("injected failure at {point:?}");
+    }
+    #[cfg(not(test))]
+    let _ = point;
+    Ok(())
+}
+
+/// Write, verify and atomically replace `target`.
+///
+/// The temporary file lives in the target's own directory so the final rename
+/// is atomic, and it is removed on every failure path: only a successful
+/// `persist` changes the original file.
+fn staged_replace(
+    target: TargetFile,
+    write: impl FnOnce(&Path, &mut File) -> anyhow::Result<()>,
+    verify: impl FnOnce(&Path) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let directory = target
+        .path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut temp = tempfile::Builder::new()
+        .prefix(".mixar-tags-")
+        .tempfile_in(&directory)
+        .map_err(|e| anyhow::anyhow!("create a temporary file in {}: {e}", directory.display()))?;
+
+    {
+        let mut source = File::open(&target.path)
+            .map_err(|e| anyhow::anyhow!("open {}: {e}", target.path.display()))?;
+        std::io::copy(&mut source, temp.as_file_mut())
+            .map_err(|e| anyhow::anyhow!("copy {}: {e}", target.path.display()))?;
+    }
+    temp.as_file()
+        .set_permissions(fs::metadata(&target.path)?.permissions())?;
+    temp.as_file_mut().sync_all()?;
+    fault(FaultPoint::AfterCopy)?;
+
+    let temp_path = temp.path().to_path_buf();
+    write(&temp_path, temp.as_file_mut())?;
+    fault(FaultPoint::AfterSave)?;
+    temp.as_file_mut().sync_all()?;
+    fault(FaultPoint::AfterSync)?;
+
+    verify(&temp_path)?;
+    fault(FaultPoint::AfterVerify)?;
+
+    if !target.unchanged() {
+        anyhow::bail!(
+            "{} changed while its tags were staged; leaving it untouched",
+            target.path.display()
+        );
+    }
+    fault(FaultPoint::BeforePersist)?;
+
+    temp.persist(&target.path)
+        .map_err(|e| anyhow::anyhow!("replace {}: {}", target.path.display(), e.error))?;
+    Ok(())
+}
+
+/// Stage an ordinary-only tags rewrite through Lofty.
+fn stage_ordinary_write(path: &Path, tagged: &lofty::file::TaggedFile) -> anyhow::Result<()> {
+    let target = TargetFile::capture(path)?;
+    staged_replace(
+        target,
+        |temp_path, _file| {
+            tagged
+                .save_to_path(temp_path, WriteOptions::default())
+                .map_err(|e| anyhow::anyhow!("write tags {}: {e}", temp_path.display()))
+        },
+        |_temp_path| Ok(()),
+    )
+}
+
+/// Stage a combined ordinary + Serato rewrite of one concrete ID3v2 tag.
+fn stage_id3_write(
+    path: &Path,
+    tag: &Id3v2Tag,
+    options: WriteOptions,
+    before: &SeratoPayload,
+    plan: &SeratoWritePlan,
+) -> anyhow::Result<()> {
+    let target = TargetFile::capture(path)?;
+    staged_replace(
+        target,
+        |temp_path, file| {
+            file.seek(SeekFrom::Start(0))?;
+            tag.save_to(file, options)
+                .map_err(|e| anyhow::anyhow!("write tags {}: {e}", temp_path.display()))
+        },
+        |temp_path| verify_staged_serato(temp_path, before, plan),
+    )
+}
+
+/// Re-read the staged copy and confirm the vendor frames landed as planned.
+///
+/// Every frame this write did not own must come back byte-identical, and every
+/// patched frame must decode to exactly the planned payload; anything else
+/// aborts the replacement while the original file is still untouched.
+fn verify_staged_serato(
+    temp_path: &Path,
+    before: &SeratoPayload,
+    plan: &SeratoWritePlan,
+) -> anyhow::Result<()> {
+    let after = serato::read_file_serato(temp_path)?;
+    if !after.scan_complete {
+        anyhow::bail!("staged tag could not be read back completely");
+    }
+    for patch in &plan.patches {
+        let found = after
+            .frames
+            .iter()
+            .find(|frame| frame.kind == patch.kind)
+            .filter(|frame| frame.status == crate::serato::FrameStatus::Valid);
+        match found {
+            Some(frame) if frame.payload == patch.payload => {}
+            _ => anyhow::bail!(
+                "staged {} frame does not carry the requested data",
+                descriptor_name(patch.kind)
+            ),
+        }
+    }
+    for frame in &before.frames {
+        if plan.patches.iter().any(|patch| patch.kind == frame.kind) {
+            continue;
+        }
+        let preserved = after
+            .frames
+            .iter()
+            .any(|candidate| candidate.kind == frame.kind && candidate.payload == frame.payload);
+        if !preserved {
+            anyhow::bail!(
+                "staged {} frame changed but was not part of the write",
+                descriptor_name(frame.kind)
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Keep a Vorbis tag's rating readable when it carried a `RATING:<email>` alias.
