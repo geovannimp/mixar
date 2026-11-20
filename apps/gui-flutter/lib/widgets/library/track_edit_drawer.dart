@@ -12,6 +12,7 @@ import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/header_safe_dialog_route.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -19,6 +20,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Drawer width; clamped to the viewport on narrow windows.
 const trackEditDrawerWidth = 420.0;
+
+/// Dimming behind the track edit drawer, on the body only.
+///
+/// Like the library and pages drawers, it stops at the titlebar so the chrome
+/// keeps its normal card colour while the drawer is open.
+const kTrackEditDrawerScrimColor = Color(0x80000000);
 
 /// Fields of the track edit drawer, in form order.
 ///
@@ -159,41 +166,54 @@ Future<void> showTrackEditDrawer(
           .setError('Track no longer exists in the library');
       return;
     }
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Edit track',
-      transitionBuilder: (context, animation, _, child) {
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-              .animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-          child: child,
-        );
-      },
-      pageBuilder: (ctx, _, _) {
-        return Padding(
-          // The drawer stage is the body below the titlebar, as with the
-          // library drawer: the panel never covers the window controls.
-          padding: const EdgeInsets.only(top: kAppHeaderHeight),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: math.min(
-                trackEditDrawerWidth,
-                MediaQuery.sizeOf(ctx).width,
-              ),
-              height: double.infinity,
-              child: _TrackEditPanel(
-                transport: transport,
-                trackId: trackId,
-                track: track,
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      HeaderSafeDialogRoute<void>(
+        barrierLabel: 'Edit track',
+        pageBuilder: (ctx, _, _) {
+          return Padding(
+            // The drawer stage is the body below the titlebar, as with the
+            // library drawer: the panel never covers the window controls.
+            padding: const EdgeInsets.only(top: kAppHeaderHeight),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SizedBox(
+                width: math.min(
+                  trackEditDrawerWidth,
+                  MediaQuery.sizeOf(ctx).width,
+                ),
+                height: double.infinity,
+                child: _TrackEditPanel(
+                  transport: transport,
+                  trackId: trackId,
+                  track: track,
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+        transitionBuilder: (dialogContext, animation, _, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              HeaderSafeBarrier(
+                onDismiss: () => Navigator.of(dialogContext).maybePop(),
+                label: 'Close edit',
+              ),
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            ],
+          );
+        },
+      ),
     );
   } on Object catch (e) {
     // Same channel as the rest of the shell: AppNoticeBridge toasts it.

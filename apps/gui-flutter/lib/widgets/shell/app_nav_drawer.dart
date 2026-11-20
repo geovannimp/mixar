@@ -1,14 +1,25 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/app_assets.dart';
+import 'package:gui_flutter/providers/shell/nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/header_safe_dialog_route.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Width of the navigation drawer's panel.
 const double kAppNavDrawerWidth = 220;
+
+/// Dimming under the pages menu, on the body only.
+///
+/// The menu is chrome opened from the titlebar: its panel is inset below the
+/// header, and the titlebar must stay at its normal card colour while it is
+/// open. The route's own barrier is transparent, so this scrim — starting at
+/// [kAppHeaderHeight] — is what dims the page underneath.
+const kAppNavDrawerScrimColor = Color(0x80000000);
 
 /// Shows the shell's navigation drawer from the left edge, with one row per
 /// page.
@@ -21,21 +32,45 @@ Future<void> showAppNavDrawer(
   required String title,
   required ShellTab current,
   required Future<void> Function(ShellTab) onSelect,
-}) {
-  return showGeneralDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Close menu',
-    pageBuilder: (dialogContext, _, _) =>
-        _AppNavDrawer(title: title, current: current, onSelect: onSelect),
-    transitionBuilder: (dialogContext, animation, _, child) => SlideTransition(
-      position: Tween(
-        begin: const Offset(-1, 0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-      child: child,
-    ),
-  );
+}) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final open = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(navDrawerOpenProvider.notifier)..set(value: true);
+  try {
+    await navigator.push<void>(
+      HeaderSafeDialogRoute<void>(
+        barrierLabel: 'Close menu',
+        pageBuilder: (dialogContext, _, _) =>
+            _AppNavDrawer(title: title, current: current, onSelect: onSelect),
+        transitionBuilder: (dialogContext, animation, _, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          );
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              HeaderSafeBarrier(
+                onDismiss: () => Navigator.of(dialogContext).maybePop(),
+                label: 'Close menu',
+              ),
+              SlideTransition(
+                position: Tween(
+                  begin: const Offset(-1, 0),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  } finally {
+    open.set(value: false);
+  }
 }
 
 /// The drawer's panel, inset below the header so it never covers the chrome

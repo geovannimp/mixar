@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -24,6 +25,50 @@ void main() {
       ),
     );
   }
+
+  testWidgets('dialogs dim the body but leave the titlebar bright', (
+    tester,
+  ) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarDialog<String?>(
+              context: context,
+              builder: (context) => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Export format'),
+              ),
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    // The body-only barrier is the dialog's dimming layer; the titlebar is
+    // above it and stays clickable.
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((barrier) => barrier.color == kMixarDialogScrimColor);
+    final rect = tester.getRect(find.byWidget(barrier));
+    expect(rect.top, kAppHeaderHeight);
+    expect(rect.height, 600 - kAppHeaderHeight);
+
+    // A titlebar press must not dismiss the dialog.
+    await tester.tapAt(const Offset(400, 20));
+    await tester.pumpAndSettle();
+    expect(find.text('Export format'), findsOneWidget);
+
+    // A press on the dimmed body still closes it.
+    await tester.tapAt(const Offset(20, 300));
+    await tester.pumpAndSettle();
+    expect(find.text('Export format'), findsNothing);
+  });
 
   testWidgets('showMixarDialog under pt_BR does not crash', (tester) async {
     await pumpHome(
@@ -218,7 +263,8 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tapAt(const Offset(8, 8));
+    // The body barrier, below the titlebar, is the dismiss target.
+    await tester.tapAt(const Offset(8, kAppHeaderHeight + 10));
     await tester.pumpAndSettle();
     expect(result, isNull);
   });

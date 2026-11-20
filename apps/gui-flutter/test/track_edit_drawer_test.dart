@@ -460,6 +460,16 @@ void main() {
       ((surface.decoration as BoxDecoration).border! as Border).left.width,
       greaterThan(0),
     );
+    // The visible dim stops at the header, so the titlebar stays bright.
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((barrier) => barrier.color == kTrackEditDrawerScrimColor);
+    expect(tester.getRect(find.byWidget(barrier)).top, kAppHeaderHeight);
+
+    // A titlebar press must not dismiss the drawer.
+    await tester.tapAt(const Offset(40, 20));
+    await tester.pumpAndSettle();
+    expect(find.text('Save'), findsOneWidget);
   });
 
   testWidgets('tapping the barrier closes without saving', (tester) async {
