@@ -65,14 +65,17 @@ MixarButtonLook resolveMixarButtonLook({
   required bool icon,
   EdgeInsetsGeometry? padding,
   Color? backgroundColor,
+  BorderRadius? borderRadius,
 }) {
   final colors = theme.colors;
   final style = theme.style;
   final light = colors.brightness == Brightness.light;
-  final radius = switch (size) {
-    MixarButtonSize.xs => style.borderRadius.sm,
-    MixarButtonSize.sm || MixarButtonSize.md => style.borderRadius.md,
-  };
+  final radius =
+      borderRadius ??
+      switch (size) {
+        MixarButtonSize.xs => style.borderRadius.sm,
+        MixarButtonSize.sm || MixarButtonSize.md => style.borderRadius.md,
+      };
 
   final (
     Color fill,

@@ -842,7 +842,11 @@ void main() {
         32 + MixerPaneMetrics.mixerBleed,
         reason: 'endpoint must fill the gutter',
       );
-      expect(rect.height, 64, reason: 'endpoint must fill the foot height');
+      expect(
+        rect.height,
+        stripRect.bottom - footTop,
+        reason: 'endpoint must fill the foot height',
+      );
       expect(rect.top, footTop);
       expect(rect.bottom, stripRect.bottom);
     }

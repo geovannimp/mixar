@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/core/theme/mixar_style.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme;
 
@@ -62,6 +63,23 @@ class MixarThemeData {
   /// buttons. Alpha (not a solid step) so the same wash reads on card,
   /// secondary, and background surfaces.
   Color get hoverWash => colors.foreground.withValues(alpha: 0.05);
+
+  /// Dark-theme knob face shared by the rotary and fader controls: half a
+  /// palette step darker than zinc-700.
+  Color get _darkControlFace =>
+      Color.lerp(MixarZinc.s700, MixarZinc.s800, 0.5)!;
+
+  /// Fader grip face. The light theme keeps the lighter mid-grey plate so the
+  /// control does not read as a heavy block on pale chrome.
+  Color get faderFace =>
+      colors.brightness == Brightness.dark ? _darkControlFace : MixarZinc.s400;
+
+  /// Rotary face. The light theme keeps the warm secondary→foreground blend,
+  /// at a lighter ratio than the original 0.28 so the disc sits close to the
+  /// pale chrome while staying distinct from the track halo.
+  Color get rotaryFace => colors.brightness == Brightness.dark
+      ? _darkControlFace
+      : Color.lerp(colors.secondary, colors.foreground, 0.12)!;
 }
 
 /// Provides [MixarThemeData] and a body [DefaultTextStyle] (Forui `FTheme` parity).

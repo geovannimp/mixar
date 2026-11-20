@@ -7,6 +7,10 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 /// Narrow width → bottom-anchored sheet; otherwise centered dialog.
 const mixarDialogBreakpoint = 768.0;
 
+/// Soft corner shared by the shell and its full-bleed content, so header and
+/// footer rules cannot paint over the rounded card.
+const mixarDialogRadius = BorderRadius.all(Radius.circular(12));
+
 class MixarDialogAction<T> {
   const new({
     required this.label,
@@ -87,56 +91,60 @@ class MixarDialog extends StatelessWidget {
       // otherwise be covered by the card bands.
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
+        borderRadius: mixarDialogRadius,
         border: Border.all(
           color: theme.colors.border,
           width: theme.style.borderWidth,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Right inset leaves room for the shell's close button.
-          if (title case final title?) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 56, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 4,
-                children: [
-                  Text(
-                    title,
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (description case final description?)
+      child: ClipRRect(
+        borderRadius: mixarDialogRadius,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Right inset leaves room for the shell's close button.
+            if (title case final title?) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 56, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 4,
+                  children: [
                     Text(
-                      description,
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
+                      title,
+                      style: theme.typography.body.md.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                ],
+                    if (description case final description?)
+                      Text(
+                        description,
+                        style: theme.typography.body.sm.copyWith(
+                          color: theme.colors.mutedForeground,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            rule(),
-          ],
-          if (child case final child?)
-            Padding(padding: contentPadding, child: child),
-          if (actions.isNotEmpty) ...[
-            // A message-only dialog already ends with the header rule.
-            if (child != null) rule(),
-            Padding(
-              padding: actionsPadding,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                spacing: 8,
-                children: actions,
+              rule(),
+            ],
+            if (child case final child?)
+              Padding(padding: contentPadding, child: child),
+            if (actions.isNotEmpty) ...[
+              // A message-only dialog already ends with the header rule.
+              if (child != null) rule(),
+              Padding(
+                padding: actionsPadding,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  spacing: 8,
+                  children: actions,
+                ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -151,10 +159,6 @@ BoxConstraints _mixarDialogConstraints(BuildContext context) {
     return BoxConstraints(minWidth: size.width, maxWidth: size.width);
   }
   return const BoxConstraints(maxWidth: 512);
-}
-
-BorderRadius _mixarDialogRadius(BuildContext context) {
-  return context.theme.style.borderRadius.lg;
 }
 
 ShadDialog _mixarDialogShell({
@@ -174,7 +178,7 @@ ShadDialog _mixarDialogShell({
     // Tall form/picker bodies (collections, pads, selects) must scroll.
     scrollable: true,
     backgroundColor: theme.colors.card,
-    radius: _mixarDialogRadius(context),
+    radius: mixarDialogRadius,
     border: Border.all(
       color: theme.colors.border,
       width: theme.style.borderWidth,

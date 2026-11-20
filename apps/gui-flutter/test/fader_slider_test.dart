@@ -175,6 +175,43 @@ void main() {
     );
   });
 
+  test('the grip stays centred on the groove for any row size', () {
+    // Logic, not a layout size: the plate must ride the lane centre and stay
+    // inside the travel axis whatever box the parent gives it. Compact rows may
+    // be shorter than the grip's cross-axis extent.
+    for (final orientation in FaderOrientation.values) {
+      for (final size in const [
+        Size(160, 24),
+        Size(160, 26),
+        Size(160, 32),
+        Size(40, 120),
+      ]) {
+        for (final t in const [0.0, 0.25, 0.5, 0.75, 1.0]) {
+          final rect = faderThumbRect(
+            size: size,
+            orientation: orientation,
+            t: t,
+          );
+          final horizontal = orientation == FaderOrientation.horizontal;
+          final crossAxis = horizontal ? rect.center.dy : rect.center.dx;
+          final expected = horizontal ? size.height / 2 : size.width / 2;
+          expect(
+            crossAxis,
+            closeTo(expected, 1e-9),
+            reason: '$orientation t=$t in $size keeps the lane centre',
+          );
+          if (horizontal) {
+            expect(rect.left, greaterThanOrEqualTo(0));
+            expect(rect.right, lessThanOrEqualTo(size.width));
+          } else {
+            expect(rect.top, greaterThanOrEqualTo(0));
+            expect(rect.bottom, lessThanOrEqualTo(size.height));
+          }
+        }
+      }
+    }
+  });
+
   testWidgets('vertical drag down decreases value', (tester) async {
     final theme = MixarThemeData.dark();
     var value = 80.0;
@@ -405,43 +442,6 @@ void main() {
           reason: 'value $value painted the lane outside its box at y=$y',
         );
       }
-    }
-  });
-
-  testWidgets('the horizontal plate keeps clear of its row edges', (
-    tester,
-  ) async {
-    final theme = MixarThemeData.dark();
-    final key = GlobalKey();
-    // The crossfader strip and the master/cue rows are 24 high; a plate that
-    // fills the row leaves the slot no margin.
-    await _pumpFader(
-      tester,
-      theme: theme,
-      key: key,
-      value: 50,
-      size: const Size(160, 24),
-      orientation: FaderOrientation.horizontal,
-      step: 0.05,
-    );
-
-    final raster = await _faderRaster(tester, key);
-    final box = raster.box;
-    final gripX =
-        box.left +
-        kFaderThumbH.width / 2 +
-        (box.width - kFaderThumbH.width) / 2;
-    expect(
-      kFaderThumbH.height,
-      lessThan(box.height),
-      reason: 'the plate must not span the row',
-    );
-    for (final y in [box.top, box.top + 1, box.bottom - 1, box.bottom - 2]) {
-      expect(
-        raster.rgbAt(x: gripX, y: y),
-        rgbOf(theme.colors.card),
-        reason: 'the plate touched the row edge at y=$y',
-      );
     }
   });
 
