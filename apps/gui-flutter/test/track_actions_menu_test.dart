@@ -17,6 +17,7 @@ import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/widgets/library/track_list_view.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_segments.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -153,6 +154,34 @@ void main() {
     expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
   });
 
+  testWidgets('desktop menu rows are divided by hairlines', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpMenu(tester);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+
+    final horizontal = find.byWidgetPredicate(
+      (w) => w is MDivider && w.axis == Axis.horizontal,
+    );
+    final dividers = tester.widgetList<MDivider>(horizontal).toList();
+    expect(dividers.length, greaterThanOrEqualTo(3));
+    for (final divider in dividers) {
+      expect(divider.color, theme.colors.border);
+      expect(divider.padding, EdgeInsets.zero);
+    }
+
+    // At least one rule falls between two action rows, not only at a group
+    // boundary or inside the A/B track.
+    final analyzeBottom = tester.getBottomLeft(find.text('Analyze')).dy;
+    final generateTop = tester.getTopLeft(find.text('Generate stems')).dy;
+    final betweenRows = Iterable<int>.generate(horizontal.evaluate().length)
+        .any((i) {
+          final y = tester.getCenter(horizontal.at(i)).dy;
+          return y > analyzeBottom && y < generateTop;
+        });
+    expect(betweenRows, isTrue);
+  });
+
   testWidgets('Analyze passes the replacement opt-in to the library', (
     tester,
   ) async {
@@ -186,7 +215,7 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
   });
 
-  testWidgets('mobile Load to deck section spacing matches action cards', (
+  testWidgets('mobile menu rows are flat, full-bleed and aligned', (
     tester,
   ) async {
     await pumpMenu(tester, selectStyle: SelectStyleSetting.mobile);
@@ -194,64 +223,52 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
 
-    final labelBottom = tester.getBottomLeft(find.text('Load to deck')).dy;
-    final segmentTrack = find.descendant(
-      of: find.byType(MixarMenuSegments),
-      matching: find.byWidgetPredicate(
-        (w) =>
-            w is DecoratedBox &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).border != null,
-      ),
-    );
-    expect(segmentTrack, findsOneWidget);
-    final segmentTop = tester.getTopLeft(segmentTrack).dy;
-    final segmentBottom = tester.getBottomLeft(segmentTrack).dy;
-    final segmentLeft = tester.getTopLeft(segmentTrack).dx;
-
-    final analyzeCard = find
-        .ancestor(
-          of: find.text('Analyze'),
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is DecoratedBox &&
-                w.decoration is BoxDecoration &&
-                (w.decoration as BoxDecoration).border != null,
-          ),
-        )
-        .first;
-    final analyzeTop = tester.getTopLeft(analyzeCard).dy;
-    final analyzeLeft = tester.getTopLeft(analyzeCard).dx;
-    final generateCard = find
-        .ancestor(
-          of: find.text('Generate stems'),
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is DecoratedBox &&
-                w.decoration is BoxDecoration &&
-                (w.decoration as BoxDecoration).border != null,
-          ),
-        )
-        .first;
-    final analyzeBottom = tester.getBottomLeft(analyzeCard).dy;
-    final generateTop = tester.getTopLeft(generateCard).dy;
-
-    // Full-bleed like action cards (no extra 12px track inset).
-    expect(segmentLeft, moreOrLessEquals(analyzeLeft, epsilon: 0.5));
-
-    // Section label shares the dialog title's left edge (not the card text inset).
+    // Section label, action rows and the dialog title share one inset edge.
     final titleLeft = tester.getTopLeft(find.text('Track actions')).dx;
     final labelLeft = tester.getTopLeft(find.text('Load to deck')).dx;
+    final analyzeLeft = tester.getTopLeft(find.text('Analyze')).dx;
     expect(labelLeft, moreOrLessEquals(titleLeft, epsilon: 0.5));
+    expect(analyzeLeft, moreOrLessEquals(titleLeft, epsilon: 0.5));
 
-    // Label → A/B gap should be at least the inter-card gap (not cramped).
-    final labelToSegment = segmentTop - labelBottom;
-    final cardGap = generateTop - analyzeBottom;
-    expect(labelToSegment, greaterThanOrEqualTo(cardGap - 0.5));
+    // The A/B control's track keeps the same inset.
+    final track = find
+        .descendant(
+          of: find.byType(MixarMenuSegments),
+          matching: find.byType(DecoratedBox),
+        )
+        .first;
+    expect(
+      tester.getRect(track).left,
+      moreOrLessEquals(analyzeLeft, epsilon: 0.5),
+    );
+    // Deck buttons keep the bordered track they have in a desktop dropdown.
+    expect(
+      (tester.widget<DecoratedBox>(track).decoration as BoxDecoration).border,
+      isNotNull,
+    );
 
-    // A/B → Analyze uses the same gap as Analyze → Generate stems.
-    final segmentToAnalyze = analyzeTop - segmentBottom;
-    expect(segmentToAnalyze, moreOrLessEquals(cardGap, epsilon: 0.5));
+    // No per-row frames: rows are separated by hairlines only.
+    final analyzeItem = find.ancestor(
+      of: find.text('Analyze'),
+      matching: find.byType(MixarMenuItem),
+    );
+    expect(analyzeItem, findsOneWidget);
+    expect(
+      find.descendant(
+        of: analyzeItem,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).border != null,
+        ),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate((w) => w is MDivider && w.axis == Axis.horizontal),
+      findsWidgets,
+    );
   });
 
   testWidgets('the Load to deck header is not announced as a button', (

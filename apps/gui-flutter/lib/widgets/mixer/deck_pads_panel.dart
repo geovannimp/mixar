@@ -411,8 +411,7 @@ class DeckPadsPanel extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
                 child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: MixarMenuGroup(
                     children: [
                       for (final bank in samplerBanks)
                         MixarMenuItem(

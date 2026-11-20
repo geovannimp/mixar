@@ -11,6 +11,7 @@ import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_command.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -189,9 +190,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
           final menuEnabled = menuRef.watch(engineRunningProvider);
           final numDecks =
               menuRef.watch(appSettingsProvider).value?.numDecks ?? 2;
-          return Column(
-            mainAxisSize: .min,
-            crossAxisAlignment: .stretch,
+          return MixarMenuGroup(
             children: [
               for (var deckId = 0; deckId < numDecks; deckId++)
                 Consumer(

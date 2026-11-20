@@ -10,9 +10,11 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/track_artwork_thumb.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/header_safe_dialog_route.dart';
+import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -548,138 +550,190 @@ class _TrackEditPanel extends HookConsumerWidget {
     }
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.card,
-        // Square corners, flush to the screen edge: only the inner edge rules.
-        border: Border(
-          left: BorderSide(
-            color: theme.colors.border,
-            width: theme.style.borderWidth,
+      // Fill stays behind the content; the edge rule is painted in the
+      // foreground so the flush header cover cannot cover the hairline.
+      decoration: BoxDecoration(color: theme.colors.card),
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          // Square corners, flush to the screen edge: only the inner edge
+          // rules.
+          border: Border(
+            left: BorderSide(
+              color: theme.colors.border,
+              width: theme.style.borderWidth,
+            ),
           ),
         ),
-      ),
-      child: HookedForm(
-        form: form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.typography.body.md.copyWith(
-                            fontWeight: FontWeight.w700,
+        child: HookedForm(
+          form: form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Dialog-style title band: the cover sits flush to the band's
+              // edges and fills its height (the deck's track-info arrangement),
+              // then title/artist, with a full-bleed rule below.
+              DecoratedBox(
+                // Foreground so the flush cover cannot paint over the rule.
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: theme.colors.border,
+                      width: theme.style.borderWidth,
+                    ),
+                  ),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox.square(
+                        dimension: 64,
+                        child: TrackArtworkThumb(trackId: trackId, size: 64),
+                      ),
+                      MDivider(
+                        axis: Axis.vertical,
+                        padding: EdgeInsets.zero,
+                        color: theme.colors.border,
+                        thickness: theme.style.borderWidth,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.typography.body.md.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    if (artist != null &&
+                                        artist.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        artist,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.typography.body.sm
+                                            .copyWith(
+                                              color:
+                                                  theme.colors.mutedForeground,
+                                            ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              AppButton.icon(
+                                variant: MixarButtonVariant.ghost,
+                                size: MixarButtonSize.sm,
+                                semanticsLabel: 'Close',
+                                onPress: () => Navigator.of(context).pop(),
+                                child: const Icon(LucideIcons.x, size: 20),
+                              ),
+                            ],
                           ),
                         ),
-                        if (artist != null && artist.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            artist,
-                            style: theme.typography.body.sm.copyWith(
-                              color: theme.colors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  AppButton.icon(
-                    variant: MixarButtonVariant.ghost,
-                    size: MixarButtonSize.sm,
-                    semanticsLabel: 'Close',
-                    onPress: () => Navigator.of(context).pop(),
-                    child: const Icon(LucideIcons.x, size: 20),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildField('Title', TrackFormField.title),
-                    const SizedBox(height: 12),
-                    _buildField('Artist', TrackFormField.artist),
-                    const SizedBox(height: 12),
-                    _buildField('Album', TrackFormField.album),
-                    const SizedBox(height: 12),
-                    _buildField('Genre', TrackFormField.genre),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'BPM',
-                      TrackFormField.bpm,
-                      // Decimal allowed: fractional BPMs are supported end to
-                      // end (parseBpm, _formatBpm, the stored column).
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Key',
-                      TrackFormField.key,
-                      hint: 'e.g. Am, or Camelot 8A',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'ISRC',
-                      TrackFormField.isrc,
-                      hint: 'International Standard Recording Code',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Year',
-                      TrackFormField.year,
-                      hint: 'Release year',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Track #',
-                      TrackFormField.trackNumber,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Disc #',
-                      TrackFormField.discNumber,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField('Comment', TrackFormField.comment, maxLines: 3),
-                    const SizedBox(height: 16),
-                    _StarRating(
-                      value: rating.value,
-                      onChanged: (value) => rating.value = value,
-                    ),
-                    const SizedBox(height: 16),
-                    _ColorLabelPicker(
-                      value: color.value,
-                      onChanged: (value) => color.value = value,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // Outside the scroll area so Save stays reachable in short windows.
-            // Dismissal is the header close button or a barrier tap; no Cancel.
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: AppButton(
-                onPress: canSave && !saving.value ? save : null,
-                child: const Text('Save'),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildField('Title', TrackFormField.title),
+                      const SizedBox(height: 12),
+                      _buildField('Artist', TrackFormField.artist),
+                      const SizedBox(height: 12),
+                      _buildField('Album', TrackFormField.album),
+                      const SizedBox(height: 12),
+                      _buildField('Genre', TrackFormField.genre),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'BPM',
+                        TrackFormField.bpm,
+                        // Decimal allowed: fractional BPMs are supported end to
+                        // end (parseBpm, _formatBpm, the stored column).
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Key',
+                        TrackFormField.key,
+                        hint: 'e.g. Am, or Camelot 8A',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'ISRC',
+                        TrackFormField.isrc,
+                        hint: 'International Standard Recording Code',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Year',
+                        TrackFormField.year,
+                        hint: 'Release year',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Track #',
+                        TrackFormField.trackNumber,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Disc #',
+                        TrackFormField.discNumber,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        'Comment',
+                        TrackFormField.comment,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      _StarRating(
+                        value: rating.value,
+                        onChanged: (value) => rating.value = value,
+                      ),
+                      const SizedBox(height: 16),
+                      _ColorLabelPicker(
+                        value: color.value,
+                        onChanged: (value) => color.value = value,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              // Outside the scroll area so Save stays reachable in
+              // short windows. Dismissal: the close button or barrier tap.
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: AppButton(
+                  onPress: canSave && !saving.value ? save : null,
+                  child: const Text('Save'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

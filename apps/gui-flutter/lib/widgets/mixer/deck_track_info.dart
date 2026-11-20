@@ -133,6 +133,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                       padding: const .symmetric(horizontal: 8, vertical: 4),
                       child: Column(
                         crossAxisAlignment: .stretch,
+                        mainAxisAlignment: .spaceBetween,
                         children: [
                           Row(
                             spacing: 8,
@@ -212,7 +213,7 @@ class _DeckTitleArtist extends StatelessWidget {
             title ?? 'No track loaded',
             maxLines: 1,
             overflow: .ellipsis,
-            style: theme.typography.display.xs.copyWith(
+            style: theme.typography.display.sm.copyWith(
               fontFamily: MixarFonts.spaceGrotesk,
               fontWeight: .w700,
               height: 1.15,

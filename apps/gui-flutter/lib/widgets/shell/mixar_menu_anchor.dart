@@ -92,6 +92,8 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
         final theme = dialogContext.theme;
         return MixarDialog(
           title: widget.dialogTitle,
+          // Menu rows are full-bleed bands; each owns its horizontal inset.
+          contentPadding: EdgeInsets.zero,
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
               color: theme.colors.foreground,

@@ -628,4 +628,35 @@ void main() {
     );
     expect(call.title, 'Track', reason: 'other fields stay as loaded');
   });
+
+  testWidgets('long metadata keeps the header one line and Save reachable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    const longTrack = LibraryTrackSummary(
+      id: 't1',
+      displayName: 'Long',
+      title:
+          'A very long track title that would wrap across several lines '
+          'if the header let it',
+      artist:
+          'An equally long artist name that would otherwise grow the '
+          'non-scrolling header',
+      path: '/tmp/t1.wav',
+    );
+    await pumpDrawer(
+      tester,
+      FakeLibraryTransport(getTrackHandler: (id) async => longTrack),
+    );
+
+    // A RenderFlex overflow surfaces as a test exception; the header must clip
+    // both lines instead of growing until Save leaves the drawer.
+    expect(tester.takeException(), isNull);
+    final save = saveButton();
+    expect(save, findsOneWidget);
+    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(600));
+  });
 }

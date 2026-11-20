@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
@@ -40,6 +42,10 @@ void main() {
                     children: [
                       MixarMenuItem(
                         title: const Text('Analyze tracks…'),
+                        onPress: controller.hide,
+                      ),
+                      MixarMenuItem(
+                        title: const Text('Refresh'),
                         onPress: controller.hide,
                       ),
                     ],
@@ -133,7 +139,22 @@ void main() {
         matching: find.byType(ClipRRect),
       ),
     );
-    expect(clip.borderRadius, MixarThemeData.dark().style.borderRadius.md);
+    expect(clip.borderRadius, MixarThemeData.dark().style.borderRadius.dialog);
+
+    // Rows paint edge to edge, so the stroke must sit above them.
+    final foregroundStroke = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.byType(MixarMenuPanel),
+            matching: find.byType(DecoratedBox),
+          ),
+        )
+        .where(
+          (w) =>
+              w.position == DecorationPosition.foreground &&
+              (w.decoration as BoxDecoration).border != null,
+        );
+    expect(foregroundStroke, hasLength(1));
   });
 
   testWidgets('MixarMenuAnchor dismisses on outside tap', (tester) async {
@@ -192,36 +213,64 @@ void main() {
     expect(find.text('Analyze tracks…'), findsNothing);
   });
 
-  testWidgets(
-    'MixarMenuAnchor mobile menu rows use bordered cards like select',
-    (tester) async {
-      final theme = MixarThemeData.dark();
-      await pumpMenuAnchor(tester, dialogTitle: 'Collection actions');
-      await tester.tap(find.text('Open menu'));
-      await tester.pumpAndSettle();
+  testWidgets('MixarMenuAnchor mobile rows are flat, divided by hairlines', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpMenuAnchor(tester, dialogTitle: 'Collection actions');
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
 
-      final item = find.ancestor(
-        of: find.text('Analyze tracks…'),
-        matching: find.byType(MixarMenuItem),
-      );
-      expect(item, findsOneWidget);
+    final item = find.ancestor(
+      of: find.text('Analyze tracks…'),
+      matching: find.byType(MixarMenuItem),
+    );
+    expect(item, findsOneWidget);
 
-      // Card chrome must live under the menu item, not only on the dialog
-      // shell.
-      final rowFinder = find.descendant(
+    // No frame under the row: the list uses hairlines only.
+    expect(
+      find.descendant(
         of: item,
         matching: find.byWidgetPredicate((w) {
           if (w is! DecoratedBox) return false;
           final decoration = w.decoration;
           return decoration is BoxDecoration && decoration.border != null;
         }),
-      );
-      expect(rowFinder, findsOneWidget);
-      final decoration =
-          tester.widget<DecoratedBox>(rowFinder).decoration as BoxDecoration;
-      expect(decoration.color, theme.colors.card);
-    },
-  );
+      ),
+      findsNothing,
+    );
+    // Exactly one rule between the two rows, painted like the dialog's own
+    // hairlines (not the darker MDivider default).
+    expect(find.byType(MDivider), findsOneWidget);
+    final divider = tester.widget<MDivider>(find.byType(MDivider));
+    expect(divider.axis, Axis.horizontal);
+    expect(divider.color, theme.colors.border);
+  });
+
+  testWidgets('desktop menu hover uses the shared quiet wash', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpMenuAnchor(tester, style: SelectStyleSetting.desktop);
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(tester.getCenter(find.text('Analyze tracks…')));
+    await tester.pumpAndSettle();
+
+    final wash = tester.widget<ColoredBox>(
+      find
+          .ancestor(
+            of: find.text('Analyze tracks…'),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(wash.color, theme.colors.secondary);
+  });
 
   testWidgets('MixarMenuAnchor mobile barrier dismiss clears isShowing', (
     tester,

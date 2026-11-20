@@ -232,6 +232,7 @@ class DeckTempoPanel extends StatelessWidget {
                           )
                         : null,
                     semanticsLabel: 'Tempo range',
+                    borderRadius: theme.style.borderRadius.pill,
                     child: Text(
                       formatTempoRange(tempoRange),
                       style: theme.typography.body.xs.copyWith(

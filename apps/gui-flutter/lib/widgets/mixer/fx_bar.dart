@@ -11,6 +11,8 @@ import 'package:gui_flutter/widgets/mixer/master_meter_bar.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -190,21 +192,26 @@ class _EffectMenu extends StatelessWidget {
       dialogTitle: 'FX select',
       minWidth: 160,
       enabled: enabled,
-      menuBuilder: (context, controller) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+      menuBuilder: (context, controller) => MixarMenuGroup(
         children: [
           for (final option in const [FxKind.echo, FxKind.reverb])
-            MixerButton(
-              variant: .ghost,
-              size: .xs,
+            MixarMenuItem(
               selected: option == kind,
-              semanticsLabel: fxKindLabel(option),
+              title: Row(
+                children: [
+                  Expanded(child: Text(fxKindLabel(option))),
+                  if (option == kind)
+                    Icon(
+                      LucideIcons.check,
+                      size: 14,
+                      color: theme.colors.foreground,
+                    ),
+                ],
+              ),
               onPress: () {
                 controller.hide();
                 onSelected(option);
               },
-              child: Text(fxKindLabel(option)),
             ),
         ],
       ),
