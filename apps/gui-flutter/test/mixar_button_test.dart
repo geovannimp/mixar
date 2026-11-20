@@ -1,10 +1,16 @@
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/widgets/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
+import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -152,4 +158,195 @@ void main() {
     expect(look.decoration.color, theme.hoverWash);
     expect(look.decoration.color, isNot(theme.colors.selection));
   });
+
+  testWidgets('AppButton.icon paints a circle and keeps its hit box', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    var presses = 0;
+    await pumpApp(
+      tester,
+      AppButton.icon(
+        variant: .outline,
+        size: .sm,
+        semanticsLabel: 'Gear',
+        onPress: () => presses++,
+        child: const Icon(LucideIcons.settings, size: 16),
+      ),
+    );
+    final button = find.byType(AppButton);
+    expect(tester.getSize(button), const Size(32, 32));
+
+    var decorations = surfaceDecorations(tester, button);
+    expect(decorations, hasLength(1));
+    expect(decorations.single.shape, BoxShape.circle);
+    expect(decorations.single.borderRadius, isNull);
+    expect(decorations.single.border, isNotNull);
+    expect(decorations.single.color, theme.colors.card);
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(button));
+    await tester.pumpAndSettle();
+
+    decorations = surfaceDecorations(tester, button);
+    expect(decorations.single.shape, BoxShape.circle);
+    expect(decorations.single.borderRadius, isNull);
+    expect(decorations.single.color, theme.colors.secondary);
+
+    Focus.of(tester.element(find.byIcon(LucideIcons.settings))).requestFocus();
+    await tester.pumpAndSettle();
+
+    decorations = surfaceDecorations(tester, button);
+    expect(decorations, hasLength(2));
+    final focus = decorations.first;
+    expect(focus.shape, BoxShape.circle);
+    expect(focus.borderRadius, isNull);
+    expect((focus.border! as Border).top.width, 2);
+    expect(decorations.last.shape, BoxShape.circle);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(presses, 1);
+
+    await tester.tapAt(tester.getTopLeft(button) + const Offset(2, 2));
+    await tester.pump();
+    expect(presses, 2);
+  });
+
+  testWidgets('MixerButton.icon is circular, labeled MixerButton is not', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpApp(
+      tester,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MixerButton.icon(
+            semanticsLabel: 'Gear',
+            onPress: () {},
+            child: const Icon(LucideIcons.settings),
+          ),
+          MixerButton(onPress: () {}, child: const Text('Mix')),
+        ],
+      ),
+    );
+
+    final iconButton = find.ancestor(
+      of: find.byIcon(LucideIcons.settings),
+      matching: find.byType(MixerButton),
+    );
+    expect(tester.getSize(iconButton), const Size(36, 36));
+    final iconSurface = surfaceDecorations(tester, iconButton).last;
+    expect(iconSurface.shape, BoxShape.circle);
+    expect(iconSurface.borderRadius, isNull);
+
+    final labeled = find.ancestor(
+      of: find.text('Mix'),
+      matching: find.byType(MixerButton),
+    );
+    final labeledSurface = surfaceDecorations(tester, labeled).last;
+    expect(labeledSurface.shape, BoxShape.rectangle);
+    expect(labeledSurface.borderRadius, theme.style.borderRadius.md);
+  });
+
+  testWidgets('deck grid side cells are circular and still tap', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    var bpmUps = 0;
+    await pumpApp(
+      tester,
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        ],
+        child: DeckGridPanel(
+          bpm: 120,
+          hasTrack: true,
+          bordered: false,
+          onSetDownbeat: () {},
+          onNudgeBack: () {},
+          onNudgeForward: () {},
+          onBpmDown: () {},
+          onBpmUp: () => bpmUps++,
+          onBpmSubmit: (_) {},
+        ),
+      ),
+    );
+
+    for (final label in const [
+      'Decrease BPM',
+      'Increase BPM',
+      'Nudge grid back',
+      'Nudge grid forward',
+    ]) {
+      final side = mixerButton(label);
+      expect(side, findsOneWidget, reason: label);
+      final surface = surfaceDecorations(tester, side).last;
+      expect(surface.shape, BoxShape.circle, reason: label);
+      expect(surface.borderRadius, isNull, reason: label);
+    }
+
+    final now = find.ancestor(
+      of: find.text('Now'),
+      matching: find.byType(MixerButton),
+    );
+    final nowSurface = surfaceDecorations(tester, now).last;
+    expect(nowSurface.shape, BoxShape.rectangle);
+    expect(nowSurface.borderRadius, theme.style.borderRadius.sm);
+
+    await tester.tap(mixerButton('Increase BPM'));
+    await tester.pump();
+    expect(bpmUps, 1);
+  });
+
+  testWidgets('settings numeric stepper step buttons are circular', (
+    tester,
+  ) async {
+    final emitted = <double>[];
+    await pumpApp(
+      tester,
+      SettingsNumericStepper(
+        value: 0,
+        min: 0,
+        max: 2,
+        step: 1,
+        onChanged: emitted.add,
+      ),
+    );
+
+    for (final glyph in const ['−', '+']) {
+      final step = find.widgetWithText(AppButton, glyph);
+      expect(step, findsOneWidget, reason: glyph);
+      final surface = surfaceDecorations(tester, step).last;
+      expect(surface.shape, BoxShape.circle, reason: glyph);
+      expect(surface.borderRadius, isNull, reason: glyph);
+    }
+
+    await tester.tap(find.widgetWithText(AppButton, '−'));
+    await tester.pump();
+    expect(emitted, isEmpty);
+
+    await tester.tap(find.widgetWithText(AppButton, '+'));
+    await tester.pump();
+    expect(emitted, [1.0]);
+  });
 }
+
+/// Box decorations painted inside [ancestor], outermost first.
+List<BoxDecoration> surfaceDecorations(WidgetTester tester, Finder ancestor) =>
+    [
+      for (final box in tester.widgetList<DecoratedBox>(
+        find.descendant(of: ancestor, matching: find.byType(DecoratedBox)),
+      ))
+        box.decoration as BoxDecoration,
+    ];
+
+/// The [MixerButton] carrying [label] as its semantics label.
+Finder mixerButton(String label) => find.byWidgetPredicate(
+  (widget) => widget is MixerButton && widget.semanticsLabel == label,
+);

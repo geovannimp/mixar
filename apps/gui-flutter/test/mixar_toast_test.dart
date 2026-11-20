@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -331,5 +333,52 @@ void main() {
       lessThanOrEqualTo(420),
       reason: 'long copy must not push the card past its cap',
     );
+  });
+
+  testWidgets('toast close hover paints a circular wash', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Controller connected'),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('Controller connected'), findsOneWidget);
+
+    final close = find.byWidgetPredicate(
+      (widget) =>
+          widget is MTappable &&
+          widget.semanticsLabel == 'Dismiss notification',
+    );
+    expect(close, findsOneWidget);
+    expect(tester.getSize(close), const Size(26, 26));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(close));
+    await tester.pumpAndSettle();
+
+    final wash = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(of: close, matching: find.byType(DecoratedBox)),
+        )
+        .map((box) => box.decoration as BoxDecoration)
+        .last;
+    expect(wash.shape, BoxShape.circle);
+    expect(wash.color, theme.hoverWash);
+
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    expect(find.text('Controller connected'), findsNothing);
   });
 }

@@ -594,8 +594,11 @@ class _ToastCloseButton extends StatelessWidget {
         return SizedBox(
           width: 26,
           height: 26,
-          child: ColoredBox(
-            color: state.hovered ? theme.hoverWash : const Color(0x00000000),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: state.hovered ? theme.hoverWash : const Color(0x00000000),
+            ),
             child: Center(
               child: Icon(
                 LucideIcons.x,

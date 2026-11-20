@@ -65,10 +65,12 @@ class DeckGridPanel extends StatelessWidget {
         aspectRatio: 1,
         child: AppTooltip(
           tip: tip,
-          child: MixerButton(
+          child: MixerButton.icon(
             variant: .outline,
             size: .xs,
             semanticsLabel: tip,
+            // Same content insets the regular `xs` mixer constructor uses.
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
             onPress: controlsDisabled ? null : onPress,
             child: child,
           ),

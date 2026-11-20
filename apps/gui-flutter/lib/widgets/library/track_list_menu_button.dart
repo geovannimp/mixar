@@ -34,6 +34,9 @@ class TrackListMenuButton extends StatelessWidget {
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
+        // A bigger target around the same 14 px glyph: the row's trailing
+        // column is 44 wide and centres it, so nothing moves.
+        padding: const EdgeInsets.all(9),
         onPress: controller.toggle,
         onSecondaryPress: enableSecondaryPress ? controller.toggle : null,
         child: const Icon(LucideIcons.ellipsisVertical),

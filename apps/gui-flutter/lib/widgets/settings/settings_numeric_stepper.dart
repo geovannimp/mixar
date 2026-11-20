@@ -42,10 +42,11 @@ class SettingsNumericStepper extends StatelessWidget {
     final atMax = value >= max - step / 2;
     return Row(
       children: [
-        AppButton(
+        AppButton.icon(
           variant: .outline,
           size: .sm,
           semanticsLabel: decreaseLabel,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           onPress: atMin
               ? null
               : () => onChanged((value - step).clamp(min, max)),
@@ -59,10 +60,11 @@ class SettingsNumericStepper extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        AppButton(
+        AppButton.icon(
           variant: .outline,
           size: .sm,
           semanticsLabel: increaseLabel,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           onPress: atMax
               ? null
               : () => onChanged((value + step).clamp(min, max)),

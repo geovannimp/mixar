@@ -88,7 +88,8 @@ class MixarButtonBody extends StatelessWidget {
         if (look.showFocusOutline) {
           box = DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: look.borderRadius,
+              shape: look.decoration.shape,
+              borderRadius: look.decoration.borderRadius,
               border: Border.all(color: look.focusColor, width: 2),
             ),
             child: box,

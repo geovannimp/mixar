@@ -27,7 +27,6 @@ class MixarButtonLook {
     required this.contentSpacing,
     required this.showFocusOutline,
     required this.focusColor,
-    required this.borderRadius,
   });
 
   final BoxDecoration decoration;
@@ -40,7 +39,6 @@ class MixarButtonLook {
   final double contentSpacing;
   final bool showFocusOutline;
   final Color focusColor;
-  final BorderRadius borderRadius;
 }
 
 /// Desktop-parity button look from [MixarThemeData].
@@ -148,7 +146,10 @@ MixarButtonLook resolveMixarButtonLook({
       border: border == null
           ? null
           : Border.all(color: border, width: style.borderWidth),
-      borderRadius: radius,
+      // Single-icon buttons paint a circle; labeled buttons keep the theme
+      // corner radius.
+      shape: icon ? BoxShape.circle : BoxShape.rectangle,
+      borderRadius: icon ? null : radius,
     ),
     foreground: state.disabled ? disabledFg : fg,
     textStyle: metrics.textStyle.copyWith(
@@ -164,7 +165,6 @@ MixarButtonLook resolveMixarButtonLook({
     contentSpacing: metrics.contentSpacing,
     showFocusOutline: state.focused && !state.disabled,
     focusColor: colors.primary,
-    borderRadius: radius,
   );
 }
 

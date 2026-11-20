@@ -348,12 +348,14 @@ class _MixerCueFooter extends StatelessWidget {
       child: Center(
         child: AppTooltip(
           tip: 'Headphone cue',
-          child: MixerButton(
+          child: MixerButton.icon(
             variant: cue ? .secondary : .ghost,
             size: .sm,
-            mainAxisSize: .min,
             selected: cue,
             semanticsLabel: 'Headphone cue',
+            // Keep the regular `sm` content insets so the footer hit area does
+            // not shrink now that the icon construction is used.
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             onPress: disabled ? null : onCue,
             child: Icon(
               LucideIcons.headphones,
