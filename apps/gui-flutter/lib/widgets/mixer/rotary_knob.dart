@@ -233,11 +233,7 @@ class _RotaryKnobState extends State<RotaryKnob> {
                     strokeWidth: _strokeWidth,
                     trackColor: theme.colors.secondary,
                     fillColor: ringColor,
-                    faceColor: Color.lerp(
-                      theme.colors.secondary,
-                      theme.colors.foreground,
-                      0.28,
-                    )!,
+                    faceColor: theme.rotaryFace,
                     tickColor: theme.colors.foreground,
                     size: widget.size,
                   ),

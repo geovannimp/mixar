@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+const _transparent = Color(0x00000000);
+
 /// Mixar slider over [ShadSlider].
 ///
 /// [ShadSlider] reads `initialValue` only when its state is created, so a
@@ -176,6 +178,17 @@ class _MixarSliderState extends State<MixarSlider> {
         _fallbackThumbRadius;
     final hitHeight = math.max(trackHeight, thumbRadius * 2 + _focusRingRoom);
     final canReset = widget.enabled && widget.defaultValue != null;
+    // [ShadSlider] paints a square-ended track and only rounds its active
+    // fill's left edge. Paint the trail ourselves instead: one clip around the
+    // full track height gives both ends a stadium cap at any value.
+    final activeTrackColor = widget.enabled
+        ? shad.sliderTheme.activeTrackColor ?? shad.colorScheme.primary
+        : shad.sliderTheme.disabledActiveTrackColor ??
+              shad.colorScheme.primary.withValues(alpha: 0.5);
+    final inactiveTrackColor = widget.enabled
+        ? shad.sliderTheme.inactiveTrackColor ?? shad.colorScheme.secondary
+        : shad.sliderTheme.disabledInactiveTrackColor ??
+              shad.colorScheme.secondary.withValues(alpha: 0.5);
     // ShadSlider paints the thumb outside its short track box, so the whole
     // reserved height must be the hit target.
     return SizedBox(
@@ -222,19 +235,46 @@ class _MixarSliderState extends State<MixarSlider> {
               child: Center(
                 child: SizedBox(
                   height: trackHeight,
-                  child: ShadSlider(
-                    controller: _controller,
-                    min: widget.min,
-                    max: widget.max,
-                    divisions: widget.divisions,
-                    enabled: widget.enabled,
-                    allowedInteraction: ShadSliderInteraction.slideOnly,
-                    trackHeight: widget.trackHeight,
-                    thumbRadius: widget.thumbRadius,
-                    onChanged: widget.onChanged,
-                    onChangeStart: (_) => _dragging = true,
-                    onChangeEnd: (_) => _dragging = false,
-                    semanticFormatterCallback: widget.semanticFormatterCallback,
+                  // The thumb and its focus ring paint outside the track box.
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: _controller,
+                            builder: (context, value, _) => _MixarSliderTrack(
+                              value: value,
+                              min: widget.min,
+                              max: widget.max,
+                              activeColor: activeTrackColor,
+                              inactiveColor: inactiveTrackColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      ShadSlider(
+                        controller: _controller,
+                        min: widget.min,
+                        max: widget.max,
+                        divisions: widget.divisions,
+                        enabled: widget.enabled,
+                        allowedInteraction: ShadSliderInteraction.slideOnly,
+                        trackHeight: widget.trackHeight,
+                        thumbRadius: widget.thumbRadius,
+                        // The custom trail below supplies the paint; keep
+                        // Shad's own track as the transparent hit area.
+                        activeTrackColor: _transparent,
+                        inactiveTrackColor: _transparent,
+                        disabledActiveTrackColor: _transparent,
+                        disabledInactiveTrackColor: _transparent,
+                        onChanged: widget.onChanged,
+                        onChangeStart: (_) => _dragging = true,
+                        onChangeEnd: (_) => _dragging = false,
+                        semanticFormatterCallback:
+                            widget.semanticFormatterCallback,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -242,6 +282,54 @@ class _MixarSliderState extends State<MixarSlider> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Rounded trail painted under [ShadSlider]'s transparent track.
+///
+/// Clipping the full-height track gives both ends (and the active fill at the
+/// extremes) a stadium cap; the value boundary stays square where the thumb
+/// covers it.
+class _MixarSliderTrack extends StatelessWidget {
+  const new({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final double value;
+  final double min;
+  final double max;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final range = max - min;
+    final t = range == 0 ? 0.0 : ((value - min) / range).clamp(0.0, 1.0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(constraints.maxHeight / 2),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: inactiveColor),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: t,
+                  heightFactor: 1,
+                  child: ColoredBox(color: activeColor),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -33,9 +33,19 @@ const _faderTicks = <_FaderTick>[
   _FaderTick(100, _TickSize.major),
 ];
 
+const _tickGap = 6.0;
+const _tickMajorLength = 12.0;
+const _tickMinorLength = 6.0;
+
+/// Furthest a tick paints from the lane centre (gap + major length).
+///
+/// Faders that must contain their markers can size their cross-axis box from
+/// this instead of repeating the painter's constants.
+const kFaderMarkerExtent = _tickGap + _tickMajorLength;
+
 const Map<_TickSize, double> _tickLength = {
-  _TickSize.major: 10.0,
-  _TickSize.minor: 6.0,
+  _TickSize.major: _tickMajorLength,
+  _TickSize.minor: _tickMinorLength,
 };
 
 /// Deck A/B/C/D and neutral fader tokens.
@@ -118,14 +128,18 @@ double snapTowardCenter(
 /// colour and the cap read at a glance (a 10px cap disappeared into the slot).
 /// Cross-axis sizes are the plate width; the along-axis extent sets the travel.
 ///
-/// The horizontal plate is 20 tall on purpose: every horizontal fader sits in a
-/// 24px row (crossfader strip, master/cue in `master_strip.dart`), so it keeps
-/// 2px clear at each edge instead of filling the row.
-const kFaderThumbV = Size(26, 12);
-const kFaderThumbH = Size(12, 20);
+/// The horizontal plate is 26 tall so it matches the vertical cap. Compact
+/// rows let it paint slightly past their 24px box rather than shrinking the
+/// grip.
+const kFaderThumbV = Size(28, 12);
+const kFaderThumbH = Size(12, 26);
 
 /// Extra hit padding so the knob stays easy to grab near the track.
 const kFaderThumbHitPadding = 4.0;
+
+/// Soft corner on the grip plate: rounded, but still reads as a rectangular
+/// cap rather than a pill.
+const kFaderThumbCornerRadius = 4.0;
 
 double _normalizeFaderT(double value, double min, double max) {
   _requireValidRange(min, max);
@@ -560,9 +574,13 @@ class _FaderSliderState extends State<FaderSlider> {
                           colors: colors,
                           grooveColor: theme.colors.background,
                           edgeColor: theme.colors.border,
-                          faceColor: theme.colors.brightness == Brightness.dark
-                              ? MixarZinc.s600
-                              : MixarZinc.s400,
+                          faceColor: theme.faderFace,
+                          // Dark cap outline on dark chrome; a light highlight
+                          // ring reads better against the pale plate.
+                          thumbBorderColor:
+                              theme.colors.brightness == Brightness.dark
+                              ? MixarZinc.s800
+                              : MixarZinc.s300,
                           showIndicator: widget.showIndicator,
                           showMarkers: widget.showMarkers,
                           centerNotch: widget.centerNotch,
@@ -590,6 +608,7 @@ class _FaderPainter extends CustomPainter {
     required this.grooveColor,
     required this.edgeColor,
     required this.faceColor,
+    required this.thumbBorderColor,
     required this.showIndicator,
     required this.showMarkers,
     required this.centerNotch,
@@ -611,6 +630,10 @@ class _FaderPainter extends CustomPainter {
   /// Grip plate.
   final Color faceColor;
 
+  /// Hairline around the grip plate: dark in the dark theme, a light highlight
+  /// on the pale light-theme plate.
+  final Color thumbBorderColor;
+
   final bool showIndicator;
   final bool showMarkers;
   final bool centerNotch;
@@ -618,7 +641,6 @@ class _FaderPainter extends CustomPainter {
   final bool dragging;
 
   static const _grooveThickness = 6.0;
-  static const _tickGap = 6.0;
   static const _tickThickness = 2.0;
   static const _tickTone = Color(0x3371717a); // zinc-500 @ 20%
   static const _tickEmphasize = Color(0x4071717a); // zinc-500 @ 25%
@@ -646,8 +668,11 @@ class _FaderPainter extends CustomPainter {
             height: _grooveThickness,
           );
 
-    // Square slot: Mixar chrome has no rounded rects, only pills.
-    final trackRRect = RRect.fromRectAndRadius(trackRect, Radius.zero);
+    // Stadium slot and lane: the trail is a pill, so both ends stay curved at
+    // every value.
+    const trackRadius = Radius.circular(_grooveThickness / 2);
+    const laneRadius = Radius.circular((_grooveThickness - 2) / 2);
+    final trackRRect = RRect.fromRectAndRadius(trackRect, trackRadius);
     // The lane is a slot cut into the panel, not a painted line: the 1px
     // [edgeColor] frame with the recessed surface inside it. The frame is what
     // draws the lane at all in light mode, where the window tone (FAFAFA) and
@@ -665,11 +690,12 @@ class _FaderPainter extends CustomPainter {
             width: trackRect.width - 2,
             height: _grooveThickness - 2,
           );
-    canvas.drawRRect(trackRRect, Paint()..color = edgeColor);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(laneRect, Radius.zero),
-      Paint()..color = grooveColor,
-    );
+    canvas
+      ..drawRRect(trackRRect, Paint()..color = edgeColor)
+      ..drawRRect(
+        RRect.fromRectAndRadius(laneRect, laneRadius),
+        Paint()..color = grooveColor,
+      );
 
     // Value fill and the crossfader tint sit inside the frame.
     if (crossfaderTrack && !vertical) {
@@ -677,7 +703,7 @@ class _FaderPainter extends CustomPainter {
         ..shader = const LinearGradient(
           colors: [_crossStart, _crossMid, _crossEnd],
         ).createShader(laneRect);
-      canvas.drawRRect(RRect.fromRectAndRadius(laneRect, Radius.zero), paint);
+      canvas.drawRRect(RRect.fromRectAndRadius(laneRect, laneRadius), paint);
     }
 
     if (showMarkers) {
@@ -704,7 +730,7 @@ class _FaderPainter extends CustomPainter {
               laneRect.bottom,
             );
       canvas.drawRRect(
-        RRect.fromRectAndRadius(indicator, Radius.zero),
+        RRect.fromRectAndRadius(indicator, laneRadius),
         Paint()..color = colors.indicator,
       );
     }
@@ -723,29 +749,43 @@ class _FaderPainter extends CustomPainter {
       canvas.translate(-thumbCenter.dx, -thumbCenter.dy);
     }
 
-    final thumbRRect = RRect.fromRectAndRadius(thumbRect, Radius.zero);
+    // Soft corners, not a stadium: the plate keeps its rectangular grip
+    // silhouette in both orientations.
+    final thumbRRect = RRect.fromRectAndRadius(
+      thumbRect,
+      const Radius.circular(kFaderThumbCornerRadius),
+    );
     canvas.drawRRect(thumbRRect, Paint()..color = faceColor);
 
     // Deck-coloured grip line across the plate — the same mark the EQ knobs
-    // carry as a radial tick.
-    if (vertical) {
-      canvas.drawLine(
-        Offset(thumbRect.left, thumbCenter.dy),
-        Offset(thumbRect.right, thumbCenter.dy),
+    // carry as a radial tick. Clipped to the plate so its stroke cannot
+    // square off a corner.
+    final gripStart = vertical
+        ? Offset(thumbRect.left, thumbCenter.dy)
+        : Offset(thumbCenter.dx, thumbRect.top);
+    final gripEnd = vertical
+        ? Offset(thumbRect.right, thumbCenter.dy)
+        : Offset(thumbCenter.dx, thumbRect.bottom);
+    canvas
+      ..save()
+      ..clipRRect(thumbRRect)
+      ..drawLine(
+        gripStart,
+        gripEnd,
         Paint()
           ..color = colors.grip
           ..strokeWidth = 2,
-      );
-    } else {
-      canvas.drawLine(
-        Offset(thumbCenter.dx, thumbRect.top),
-        Offset(thumbCenter.dx, thumbRect.bottom),
+      )
+      ..restore()
+      // Inset half a pixel so the 1px hairline stays inside the plate.
+      ..drawRRect(
+        thumbRRect.deflate(0.5),
         Paint()
-          ..color = colors.grip
-          ..strokeWidth = 2,
-      );
-    }
-    canvas.restore();
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = thumbBorderColor,
+      )
+      ..restore();
   }
 
   void _paintMarkers(
@@ -843,6 +883,7 @@ class _FaderPainter extends CustomPainter {
         grooveColor != oldDelegate.grooveColor ||
         edgeColor != oldDelegate.edgeColor ||
         faceColor != oldDelegate.faceColor ||
+        thumbBorderColor != oldDelegate.thumbBorderColor ||
         showIndicator != oldDelegate.showIndicator ||
         showMarkers != oldDelegate.showMarkers ||
         centerNotch != oldDelegate.centerNotch ||

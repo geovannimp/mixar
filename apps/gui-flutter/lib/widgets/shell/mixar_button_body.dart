@@ -20,6 +20,7 @@ class MixarButtonBody extends StatelessWidget {
     this.semanticsLabel,
     this.padding,
     this.backgroundColor,
+    this.borderRadius,
     super.key,
   });
 
@@ -35,6 +36,9 @@ class MixarButtonBody extends StatelessWidget {
   final String? semanticsLabel;
   final EdgeInsetsGeometry? padding;
   final Color? backgroundColor;
+
+  /// Optional corner override; `null` keeps the size-derived radius.
+  final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +58,7 @@ class MixarButtonBody extends StatelessWidget {
           icon: icon,
           padding: padding,
           backgroundColor: backgroundColor,
+          borderRadius: borderRadius,
         );
         var content = IconTheme.merge(
           data: IconThemeData(color: look.foreground, size: look.iconSize),

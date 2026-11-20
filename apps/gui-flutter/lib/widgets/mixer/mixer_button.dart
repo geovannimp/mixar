@@ -16,6 +16,7 @@ class MixerButton extends StatelessWidget {
     this.semanticsLabel,
     this.padding,
     this.backgroundColor,
+    this.borderRadius,
     super.key,
   }) : _icon = false;
 
@@ -31,6 +32,7 @@ class MixerButton extends StatelessWidget {
     this.backgroundColor,
     super.key,
   }) : _icon = true,
+       borderRadius = null,
        mainAxisSize = MainAxisSize.min;
 
   final Widget child;
@@ -43,6 +45,12 @@ class MixerButton extends StatelessWidget {
   final String? semanticsLabel;
   final EdgeInsetsGeometry? padding;
   final Color? backgroundColor;
+
+  /// Overrides the size-derived corner radius; deck toggles pass the theme
+  /// pill for a stadium silhouette. Icon buttons are always circular and do
+  /// not expose this parameter.
+  final BorderRadius? borderRadius;
+
   final bool _icon;
 
   @override
@@ -58,6 +66,7 @@ class MixerButton extends StatelessWidget {
       onSecondaryPress: onSecondaryPress,
       padding: padding,
       backgroundColor: backgroundColor,
+      borderRadius: borderRadius,
       icon: _icon,
       child: child,
     );

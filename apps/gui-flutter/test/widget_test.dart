@@ -842,7 +842,11 @@ void main() {
         32 + MixerPaneMetrics.mixerBleed,
         reason: 'endpoint must fill the gutter',
       );
-      expect(rect.height, 64, reason: 'endpoint must fill the foot height');
+      expect(
+        rect.height,
+        stripRect.bottom - footTop,
+        reason: 'endpoint must fill the foot height',
+      );
       expect(rect.top, footTop);
       expect(rect.bottom, stripRect.bottom);
     }
@@ -850,11 +854,23 @@ void main() {
     expect(tester.getRect(assignB).right, stripRect.right);
 
     // The crossfader row sits centred between the rule and the panel bottom.
-    final rowCentre = tester.getRect(xfader()).center.dy;
+    final faderRect = tester.getRect(xfader());
+    final rowCentre = faderRect.center.dy;
     expect(
       rowCentre - footTop,
       closeTo(tester.getRect(strip).bottom - rowCentre, 0.5),
     );
+
+    // The fader box (and therefore its markers) stays inside the foot band
+    // with clearance on both sides, whatever the foot height becomes.
+    expect(faderRect.top, greaterThan(footTop));
+    expect(faderRect.bottom, lessThan(stripRect.bottom));
+    expect(
+      faderRect.height,
+      kFaderMarkerExtent * 2,
+      reason: 'the fader box must contain its markers',
+    );
+    expect(faderRect.height, lessThan(stripRect.bottom - footTop));
   });
 
   testWidgets('hiding mixer meters narrows the strip', (tester) async {

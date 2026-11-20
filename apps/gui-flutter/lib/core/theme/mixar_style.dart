@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// Border radius scale — square chrome; [pill] only for tiny status chips.
+/// Border radius scale — square chrome, a soft [dialog] corner, and [pill] for
+/// status chips and deck toggles.
 @immutable
 class MixarBorderRadius {
   const new({
@@ -13,6 +14,7 @@ class MixarBorderRadius {
     this.xl = BorderRadius.zero,
     this.xl2 = BorderRadius.zero,
     this.xl3 = BorderRadius.zero,
+    this.dialog = const BorderRadius.all(Radius.circular(12)),
     this.pill = const BorderRadius.all(Radius.circular(100)),
   });
 
@@ -24,6 +26,10 @@ class MixarBorderRadius {
   final BorderRadius xl;
   final BorderRadius xl2;
   final BorderRadius xl3;
+
+  /// Shared by the dialog shell and its clipped content.
+  final BorderRadius dialog;
+
   final BorderRadius pill;
 }
 
