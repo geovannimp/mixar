@@ -79,35 +79,36 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
       if (!mounted) {
         return;
       }
-      final confirmed = await Navigator.of(context).push<bool>(
-        HeaderSafeDialogRoute<bool>(
-          pageBuilder: (dialogContext, _, _) => Stack(
-            fit: StackFit.expand,
-            children: [
-              HeaderSafeBarrier(
-                onDismiss: () => Navigator.of(dialogContext).maybePop(),
-              ),
-              AlertDialog(
-                title: const Text('Replace variable-tempo grid?'),
-                content: const Text(
-                  'This track has multiple tempo segments. This edit will '
-                  'replace them with one constant-tempo grid. Continue?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(false),
-                    child: const Text('Cancel'),
+      final confirmed = await Navigator.of(context, rootNavigator: true)
+          .push<bool>(
+            HeaderSafeDialogRoute<bool>(
+              pageBuilder: (dialogContext, _, _) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  HeaderSafeBarrier(
+                    onDismiss: () => Navigator.of(dialogContext).maybePop(),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(true),
-                    child: const Text('Replace'),
+                  AlertDialog(
+                    title: const Text('Replace variable-tempo grid?'),
+                    content: const Text(
+                      'This track has multiple tempo segments. This edit will '
+                      'replace them with one constant-tempo grid. Continue?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Replace'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      );
+            ),
+          );
       if (confirmed != true || !mounted) {
         return;
       }

@@ -252,6 +252,22 @@ Widget _mixarDialogTransition(
   );
 }
 
+Future<T?> _pushMixarDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return Navigator.of(context, rootNavigator: true).push<T>(
+    HeaderSafeDialogRoute<T>(
+      barrierLabel: 'Close dialog',
+      transitionBuilder: _mixarDialogTransition,
+      pageBuilder: (modalContext, _, _) => _MixarDialogBackdrop(
+        onDismiss: () => Navigator.of(modalContext).maybePop(),
+        child: builder(modalContext),
+      ),
+    ),
+  );
+}
+
 /// Confirmation with title, optional body and in-flow actions.
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
@@ -260,28 +276,22 @@ Future<T?> showMixarConfirm<T>({
   String? body,
 }) {
   assert(actions.isNotEmpty, 'showMixarConfirm requires at least one action');
-  return Navigator.of(context, rootNavigator: true).push<T>(
-    HeaderSafeDialogRoute<T>(
-      barrierLabel: 'Close dialog',
-      transitionBuilder: _mixarDialogTransition,
-      pageBuilder: (modalContext, _, _) => _MixarDialogBackdrop(
-        onDismiss: () => Navigator.of(modalContext).maybePop(),
-        child: _mixarDialogShell(
-          context: modalContext,
-          child: MixarDialog(
-            title: title,
-            description: body,
-            actions: [
-              for (final action in actions)
-                AppButton(
-                  mainAxisSize: MainAxisSize.min,
-                  variant: action.variant,
-                  onPress: () => Navigator.of(modalContext).pop(action.value),
-                  child: Text(action.label),
-                ),
-            ],
-          ),
-        ),
+  return _pushMixarDialog<T>(
+    context: context,
+    builder: (modalContext) => _mixarDialogShell(
+      context: modalContext,
+      child: MixarDialog(
+        title: title,
+        description: body,
+        actions: [
+          for (final action in actions)
+            AppButton(
+              mainAxisSize: MainAxisSize.min,
+              variant: action.variant,
+              onPress: () => Navigator.of(modalContext).pop(action.value),
+              child: Text(action.label),
+            ),
+        ],
       ),
     ),
   );
@@ -292,17 +302,9 @@ Future<T?> showMixarDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  return Navigator.of(context, rootNavigator: true).push<T>(
-    HeaderSafeDialogRoute<T>(
-      barrierLabel: 'Close dialog',
-      transitionBuilder: _mixarDialogTransition,
-      pageBuilder: (modalContext, _, _) => _MixarDialogBackdrop(
-        onDismiss: () => Navigator.of(modalContext).maybePop(),
-        child: _mixarDialogShell(
-          context: modalContext,
-          child: builder(modalContext),
-        ),
-      ),
-    ),
+  return _pushMixarDialog<T>(
+    context: context,
+    builder: (modalContext) =>
+        _mixarDialogShell(context: modalContext, child: builder(modalContext)),
   );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -172,8 +173,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Quality'), findsOneWidget);
 
-    // Barrier dismiss (same corner tap as mixar_dialog_test).
-    await tester.tapAt(const Offset(8, 8));
+    // Barrier dismiss below the titlebar (same tap as mixar_dialog_test).
+    await tester.tapAt(const Offset(8, kAppHeaderHeight + 10));
     await tester.pumpAndSettle();
 
     expect(find.text('Quality'), findsNothing);

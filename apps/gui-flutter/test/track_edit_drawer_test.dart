@@ -463,7 +463,7 @@ void main() {
     // The visible dim stops at the header, so the titlebar stays bright.
     final barrier = tester
         .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-        .firstWhere((barrier) => barrier.color == kTrackEditDrawerScrimColor);
+        .firstWhere((b) => b.color == kTrackEditDrawerScrimColor);
     expect(tester.getRect(find.byWidget(barrier)).top, kAppHeaderHeight);
 
     // A titlebar press must not dismiss the drawer.

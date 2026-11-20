@@ -54,7 +54,7 @@ void main() {
     // above it and stays clickable.
     final barrier = tester
         .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-        .firstWhere((barrier) => barrier.color == kMixarDialogScrimColor);
+        .firstWhere((b) => b.color == kMixarDialogScrimColor);
     final rect = tester.getRect(find.byWidget(barrier));
     expect(rect.top, kAppHeaderHeight);
     expect(rect.height, 600 - kAppHeaderHeight);
