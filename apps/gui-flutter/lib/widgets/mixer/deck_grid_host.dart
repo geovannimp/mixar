@@ -8,6 +8,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid_panel.dart';
+import 'package:gui_flutter/widgets/shell/header_safe_dialog_route.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 /// Watches deck/library beat grid state and publishes grid edits.
@@ -78,26 +79,36 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
       if (!mounted) {
         return;
       }
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Replace variable-tempo grid?'),
-          content: const Text(
-            'This track has multiple tempo segments. This edit will replace '
-            'them with one constant-tempo grid. Continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+      final confirmed = await Navigator.of(context, rootNavigator: true)
+          .push<bool>(
+            HeaderSafeDialogRoute<bool>(
+              pageBuilder: (dialogContext, _, _) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  HeaderSafeBarrier(
+                    onDismiss: () => Navigator.of(dialogContext).maybePop(),
+                  ),
+                  AlertDialog(
+                    title: const Text('Replace variable-tempo grid?'),
+                    content: const Text(
+                      'This track has multiple tempo segments. This edit will '
+                      'replace them with one constant-tempo grid. Continue?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Replace'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Replace'),
-            ),
-          ],
-        ),
-      );
+          );
       if (confirmed != true || !mounted) {
         return;
       }
@@ -124,12 +135,12 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
           firstBeatSecs: firstBeatSecs,
           replace: replace,
         );
-      } catch (e) {
+      } on Object catch (e) {
         _toast(e);
       }
     });
     _saveChain = save.catchError((_) {});
-    return save;
+    await save;
   }
 
   @override

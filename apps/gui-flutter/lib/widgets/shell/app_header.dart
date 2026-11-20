@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/providers/shell/nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
@@ -88,6 +89,12 @@ class AppHeader extends ConsumerWidget {
                       mainAxisSize: .min,
                       semanticsLabel: 'Menu',
                       onPress: () {
+                        // The titlebar stays clickable over the menu, so this
+                        // is a real toggle: a second press closes it.
+                        if (ref.read(navDrawerOpenProvider)) {
+                          Navigator.of(context).maybePop();
+                          return;
+                        }
                         // The pages drawer opens above the library drawer,
                         // and the library route only pops itself while it is
                         // current — so close it first, before the tab change.

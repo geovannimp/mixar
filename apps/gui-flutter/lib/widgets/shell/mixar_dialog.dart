@@ -1,11 +1,20 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/header_safe_dialog_route.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Narrow width → bottom-anchored sheet; otherwise centered dialog.
 const mixarDialogBreakpoint = 768.0;
+
+/// Dimming behind every Mixar dialog, on the body only.
+///
+/// The same 50% black the drawers paint. It stops at [kAppHeaderHeight] so the
+/// titlebar keeps its normal card colour while a dialog is open; the dialog
+/// still gets a transparent full-window barrier for outside presses.
+const kMixarDialogScrimColor = Color(0x80000000);
 
 class MixarDialogAction<T> {
   const new({
@@ -207,6 +216,61 @@ ShadDialog _mixarDialogShell({
   );
 }
 
+/// The dialog page: body-only dimming under the card.
+///
+/// The route installs no full-window barrier, so this is the page's own
+/// backdrop and outside-press target. It starts below the titlebar, which
+/// stays at its normal card colour and keeps receiving clicks.
+class _MixarDialogBackdrop extends StatelessWidget {
+  const new({required this.onDismiss, required this.child});
+
+  final VoidCallback onDismiss;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        HeaderSafeBarrier(onDismiss: onDismiss, label: 'Close dialog'),
+        child,
+      ],
+    );
+  }
+}
+
+Widget _mixarDialogTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+  return FadeTransition(
+    opacity: curved,
+    child: ScaleTransition(
+      scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+      child: child,
+    ),
+  );
+}
+
+Future<T?> _pushMixarDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return Navigator.of(context, rootNavigator: true).push<T>(
+    HeaderSafeDialogRoute<T>(
+      barrierLabel: 'Close dialog',
+      transitionBuilder: _mixarDialogTransition,
+      pageBuilder: (modalContext, _, _) => _MixarDialogBackdrop(
+        onDismiss: () => Navigator.of(modalContext).maybePop(),
+        child: builder(modalContext),
+      ),
+    ),
+  );
+}
+
 /// Confirmation with title, optional body and in-flow actions.
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
@@ -215,26 +279,24 @@ Future<T?> showMixarConfirm<T>({
   String? body,
 }) {
   assert(actions.isNotEmpty, 'showMixarConfirm requires at least one action');
-  return showShadDialog<T>(
+  return _pushMixarDialog<T>(
     context: context,
-    builder: (modalContext) {
-      return _mixarDialogShell(
-        context: modalContext,
-        child: MixarDialog(
-          title: title,
-          description: body,
-          actions: [
-            for (final action in actions)
-              AppButton(
-                mainAxisSize: MainAxisSize.min,
-                variant: action.variant,
-                onPress: () => Navigator.of(modalContext).pop(action.value),
-                child: Text(action.label),
-              ),
-          ],
-        ),
-      );
-    },
+    builder: (modalContext) => _mixarDialogShell(
+      context: modalContext,
+      child: MixarDialog(
+        title: title,
+        description: body,
+        actions: [
+          for (final action in actions)
+            AppButton(
+              mainAxisSize: MainAxisSize.min,
+              variant: action.variant,
+              onPress: () => Navigator.of(modalContext).pop(action.value),
+              child: Text(action.label),
+            ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -243,13 +305,9 @@ Future<T?> showMixarDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  return showShadDialog<T>(
+  return _pushMixarDialog<T>(
     context: context,
-    builder: (modalContext) {
-      return _mixarDialogShell(
-        context: modalContext,
-        child: builder(modalContext),
-      );
-    },
+    builder: (modalContext) =>
+        _mixarDialogShell(context: modalContext, child: builder(modalContext)),
   );
 }

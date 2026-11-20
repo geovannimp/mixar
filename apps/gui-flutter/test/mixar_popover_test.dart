@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
@@ -205,7 +206,8 @@ void main() {
       );
       expect(item, findsOneWidget);
 
-      // Card chrome must live under the menu item (not only on the dialog shell).
+      // Card chrome must live under the menu item, not only on the dialog
+      // shell.
       final rowFinder = find.descendant(
         of: item,
         matching: find.byWidgetPredicate((w) {
@@ -234,8 +236,8 @@ void main() {
     expect(find.text('Analyze tracks…'), findsOneWidget);
     expect(menuController!.isShowing, isTrue);
 
-    // Barrier dismiss (same corner tap as mixar_dialog_test).
-    await tester.tapAt(const Offset(8, 8));
+    // Barrier dismiss below the titlebar (same tap as mixar_dialog_test).
+    await tester.tapAt(const Offset(8, kAppHeaderHeight + 10));
     await tester.pumpAndSettle();
     expect(find.text('Analyze tracks…'), findsNothing);
     expect(menuController.isShowing, isFalse);

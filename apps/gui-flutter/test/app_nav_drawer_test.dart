@@ -222,6 +222,44 @@ void main() {
     }
   });
 
+  testWidgets('the menu dims the body but leaves the titlebar bright', (
+    tester,
+  ) async {
+    await pumpHeader(tester);
+
+    await openMenu(tester);
+
+    // The body-only barrier is the menu's dimming layer; the titlebar is
+    // above it and stays clickable.
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((b) => b.color == kAppNavDrawerScrimColor);
+    final rect = tester.getRect(find.byWidget(barrier));
+    expect(rect.top, kAppHeaderHeight);
+    expect(rect.height, 600 - kAppHeaderHeight);
+
+    // A titlebar press must not dismiss the menu.
+    await tester.tapAt(const Offset(700, 20));
+    await tester.pumpAndSettle();
+    expect(rowFinder('Play'), findsOneWidget);
+
+    // A press on the dimmed body still closes it.
+    await tester.tapAt(const Offset(700, 400));
+    await tester.pumpAndSettle();
+    expect(rowFinder('Play'), findsNothing);
+  });
+
+  testWidgets('the hamburger toggles the open menu', (tester) async {
+    await pumpHeader(tester);
+
+    await openMenu(tester);
+    expect(rowFinder('Play'), findsOneWidget);
+
+    await tester.tap(menuButton());
+    await tester.pumpAndSettle();
+    expect(rowFinder('Play'), findsNothing);
+  });
+
   testWidgets('escape closes the drawer', (tester) async {
     await pumpHeader(tester);
     await openMenu(tester);
