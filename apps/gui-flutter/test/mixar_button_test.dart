@@ -177,10 +177,9 @@ void main() {
     final button = find.byType(AppButton);
     expect(tester.getSize(button), const Size(32, 32));
 
+    expectCircularSurface(tester, button);
     var decorations = surfaceDecorations(tester, button);
     expect(decorations, hasLength(1));
-    expect(decorations.single.shape, BoxShape.circle);
-    expect(decorations.single.borderRadius, isNull);
     expect(decorations.single.border, isNotNull);
     expect(decorations.single.color, theme.colors.card);
 
@@ -191,10 +190,11 @@ void main() {
     await gesture.moveTo(tester.getCenter(button));
     await tester.pumpAndSettle();
 
-    decorations = surfaceDecorations(tester, button);
-    expect(decorations.single.shape, BoxShape.circle);
-    expect(decorations.single.borderRadius, isNull);
-    expect(decorations.single.color, theme.colors.secondary);
+    expectCircularSurface(tester, button);
+    expect(
+      surfaceDecorations(tester, button).single.color,
+      theme.colors.secondary,
+    );
 
     Focus.of(tester.element(find.byIcon(LucideIcons.settings))).requestFocus();
     await tester.pumpAndSettle();
@@ -205,7 +205,7 @@ void main() {
     expect(focus.shape, BoxShape.circle);
     expect(focus.borderRadius, isNull);
     expect((focus.border! as Border).top.width, 2);
-    expect(decorations.last.shape, BoxShape.circle);
+    expectCircularSurface(tester, button);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
@@ -240,9 +240,7 @@ void main() {
       matching: find.byType(MixerButton),
     );
     expect(tester.getSize(iconButton), const Size(36, 36));
-    final iconSurface = surfaceDecorations(tester, iconButton).last;
-    expect(iconSurface.shape, BoxShape.circle);
-    expect(iconSurface.borderRadius, isNull);
+    expectCircularSurface(tester, iconButton);
 
     final labeled = find.ancestor(
       of: find.text('Mix'),
@@ -286,9 +284,7 @@ void main() {
     ]) {
       final side = mixerButton(label);
       expect(side, findsOneWidget, reason: label);
-      final surface = surfaceDecorations(tester, side).last;
-      expect(surface.shape, BoxShape.circle, reason: label);
-      expect(surface.borderRadius, isNull, reason: label);
+      expectCircularSurface(tester, side, reason: label);
     }
 
     final now = find.ancestor(
@@ -322,9 +318,7 @@ void main() {
     for (final glyph in const ['−', '+']) {
       final step = find.widgetWithText(AppButton, glyph);
       expect(step, findsOneWidget, reason: glyph);
-      final surface = surfaceDecorations(tester, step).last;
-      expect(surface.shape, BoxShape.circle, reason: glyph);
-      expect(surface.borderRadius, isNull, reason: glyph);
+      expectCircularSurface(tester, step, reason: glyph);
     }
 
     await tester.tap(find.widgetWithText(AppButton, '−'));
@@ -335,6 +329,17 @@ void main() {
     await tester.pump();
     expect(emitted, [1.0]);
   });
+}
+
+/// Asserts [ancestor]'s painted surface is a circle with no corner radius.
+void expectCircularSurface(
+  WidgetTester tester,
+  Finder ancestor, {
+  String? reason,
+}) {
+  final surface = surfaceDecorations(tester, ancestor).last;
+  expect(surface.shape, BoxShape.circle, reason: reason);
+  expect(surface.borderRadius, isNull, reason: reason);
 }
 
 /// Box decorations painted inside [ancestor], outermost first.

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -355,7 +356,7 @@ class _MixerCueFooter extends StatelessWidget {
             semanticsLabel: 'Headphone cue',
             // Keep the regular `sm` content insets so the footer hit area does
             // not shrink now that the icon construction is used.
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            padding: mixarAppSmContentPadding,
             onPress: disabled ? null : onCue,
             child: Icon(
               LucideIcons.headphones,

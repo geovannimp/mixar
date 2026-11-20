@@ -14,6 +14,20 @@ enum MixarButtonDensity {
   app,
 }
 
+/// Content insets the regular `sm` app button uses around its label. Callers
+/// that keep an existing button's box while switching it to the icon
+/// construction pass this explicitly, so the two stay in step.
+const mixarAppSmContentPadding = EdgeInsets.symmetric(
+  horizontal: 10,
+  vertical: 9,
+);
+
+/// Content insets the regular mixer `xs` button uses around its label.
+const mixarMixerXsContentPadding = EdgeInsets.symmetric(
+  horizontal: 7,
+  vertical: 6,
+);
+
 @immutable
 class MixarButtonLook {
   const new({
@@ -205,7 +219,7 @@ _metrics({
       textStyle: theme.typography.body.sm,
       iconSize: theme.typography.body.md.fontSize ?? 16,
       contentConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      contentPadding: mixarAppSmContentPadding,
       iconPadding: const EdgeInsets.all(8),
       contentSpacing: 4.0,
     ),
@@ -226,7 +240,7 @@ _metrics({
     textStyle: base.textStyle,
     iconSize: base.iconSize,
     contentConstraints: base.contentConstraints,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+    contentPadding: mixarMixerXsContentPadding,
     iconPadding: base.iconPadding,
     contentSpacing: base.contentSpacing,
   );

@@ -204,6 +204,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _restoreSectionAfterSearch();
   }
 
+  /// The header's circular search control. The toggle that opens the bar and
+  /// the one that clears it share one set of insets, so the two circles stay
+  /// the same size in both states.
+  Widget _searchHeaderButton({
+    required String semanticsLabel,
+    required IconData icon,
+    required VoidCallback onPress,
+  }) {
+    return AppButton.icon(
+      variant: .ghost,
+      size: .sm,
+      semanticsLabel: semanticsLabel,
+      // 16 px glyph + 14 px all round: a comfortable target that still fits
+      // inside the band with an 8 px margin.
+      padding: const EdgeInsets.all(14),
+      onPress: onPress,
+      child: Icon(icon),
+    );
+  }
+
   void _onSearchChanged(String query) {
     setState(() => _searchQuery = query);
     if (query.trim().isEmpty) {
@@ -486,16 +506,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   // stretched cell would turn the circular
                                   // hover wash into a disc that touches the
                                   // header edges.
-                                  child: AppButton.icon(
-                                    variant: .ghost,
-                                    size: .sm,
+                                  child: _searchHeaderButton(
                                     semanticsLabel: l10n.settingsSearchHint,
-                                    // 16 px glyph + 14 px all round: a
-                                    // comfortable target that still fits inside
-                                    // the band with an 8 px margin.
-                                    padding: const EdgeInsets.all(14),
+                                    icon: LucideIcons.search,
                                     onPress: _openSearch,
-                                    child: const Icon(LucideIcons.search),
                                   ),
                                 ),
                         ),
@@ -506,13 +520,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             width: headerHeight,
                             height: headerHeight,
                             child: Center(
-                              child: AppButton.icon(
-                                variant: .ghost,
-                                size: .sm,
+                              child: _searchHeaderButton(
                                 semanticsLabel: l10n.settingsSearchClose,
-                                padding: const EdgeInsets.all(14),
+                                icon: LucideIcons.x,
                                 onPress: _closeSearch,
-                                child: const Icon(LucideIcons.x),
                               ),
                             ),
                           ),

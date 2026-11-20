@@ -53,6 +53,25 @@ void main() {
     );
   }
 
+  /// Mounts the "Show" trigger that opens a persistent toast about a connected
+  /// controller, so the tests below only differ in what they do with it.
+  Future<void> pumpShowControllerToast(
+    WidgetTester tester, {
+    Widget Function(BuildContext context, VoidCallback dismiss)? suffixBuilder,
+  }) {
+    return pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Controller connected'),
+          suffixBuilder: suffixBuilder,
+        ),
+      ),
+    ]);
+  }
+
   testWidgets('showMixarToast displays title', (tester) async {
     await pumpToastTriggers(tester, [
       (
@@ -76,18 +95,11 @@ void main() {
   testWidgets('showMixarToast suffix dismisses persistent toast', (
     tester,
   ) async {
-    await pumpToastTriggers(tester, [
-      (
-        label: 'Show',
-        onTap: (context) => showMixarToast(
-          context: context,
-          duration: null,
-          title: const Text('Controller connected'),
-          suffixBuilder: (context, dismiss) =>
-              GestureDetector(onTap: dismiss, child: const Text('Enable')),
-        ),
-      ),
-    ]);
+    await pumpShowControllerToast(
+      tester,
+      suffixBuilder: (context, dismiss) =>
+          GestureDetector(onTap: dismiss, child: const Text('Enable')),
+    );
 
     await tester.tap(find.text('Show'));
     await tester.pump();
@@ -337,16 +349,7 @@ void main() {
 
   testWidgets('toast close hover paints a circular wash', (tester) async {
     final theme = MixarThemeData.dark();
-    await pumpToastTriggers(tester, [
-      (
-        label: 'Show',
-        onTap: (context) => showMixarToast(
-          context: context,
-          duration: null,
-          title: const Text('Controller connected'),
-        ),
-      ),
-    ]);
+    await pumpShowControllerToast(tester);
 
     await tester.tap(find.text('Show'));
     await tester.pump();

@@ -132,13 +132,12 @@ void main() {
         )
         .first;
 
+    final surfaces = [(cueSurface, 'Cue'), (playSurface, 'Play')];
+
     // Short deck: the pair stacks beside the pads as square tiles, and only
     // there they wear fully rounded ends.
     await pumpDeck(tester, size: const Size(370, 316));
-    for (final (surface, what) in [
-      (cueSurface, 'Cue'),
-      (playSurface, 'Play'),
-    ]) {
+    for (final (surface, what) in surfaces) {
       final radius = chromeOf(surface).topLeft.x;
       final size = tester.getSize(surface);
       expect(
@@ -151,10 +150,7 @@ void main() {
     // Tall deck: the same pair spans the row as wide bars, which keep the
     // theme's square chrome.
     await pumpDeck(tester, size: const Size(370, 560));
-    for (final (surface, what) in [
-      (cueSurface, 'Cue'),
-      (playSurface, 'Play'),
-    ]) {
+    for (final (surface, what) in surfaces) {
       expect(
         chromeOf(surface),
         MixarThemeData.dark().style.borderRadius.md,

@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
@@ -70,7 +71,7 @@ class DeckGridPanel extends StatelessWidget {
             size: .xs,
             semanticsLabel: tip,
             // Same content insets the regular `xs` mixer constructor uses.
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+            padding: mixarMixerXsContentPadding,
             onPress: controlsDisabled ? null : onPress,
             child: child,
           ),
