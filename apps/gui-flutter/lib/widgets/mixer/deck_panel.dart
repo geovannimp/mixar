@@ -436,6 +436,30 @@ class _DeckPlayButton extends ConsumerWidget {
   }
 }
 
+/// Shared chrome for the five deck-header toggles. Callers supply only the
+/// state-dependent look and press handler.
+Widget _deckHeaderChip({
+  required BuildContext context,
+  required bool selected,
+  required VoidCallback? onPress,
+  required String semanticsLabel,
+  required Widget child,
+  Color? backgroundColor,
+}) {
+  return MixerButton(
+    variant: .outline,
+    size: .xs,
+    mainAxisSize: .min,
+    selected: selected,
+    borderRadius: context.theme.style.borderRadius.pill,
+    onPress: onPress,
+    semanticsLabel: semanticsLabel,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+    backgroundColor: backgroundColor,
+    child: child,
+  );
+}
+
 class _MasterButton extends StatelessWidget {
   const new({
     required this.onPress,
@@ -457,15 +481,11 @@ class _MasterButton extends StatelessWidget {
       description: isMaster
           ? 'This deck is the sync reference.'
           : 'Make this deck the tempo reference for sync.',
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
+      child: _deckHeaderChip(
+        context: context,
         selected: on,
-        borderRadius: theme.style.borderRadius.pill,
         onPress: (!disabled && !isMaster) ? onPress : null,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         backgroundColor: on ? kMixerMasterFill : null,
         child: Icon(
           LucideIcons.crown,
@@ -496,15 +516,11 @@ class _QuantizeButton extends StatelessWidget {
     return AppTooltip(
       tip: tip,
       description: "Snap cues, loops, and hot cues to the grid, and start in time with the playing deck.",
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
+      child: _deckHeaderChip(
+        context: context,
         selected: on,
-        borderRadius: theme.style.borderRadius.pill,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         backgroundColor: on ? theme.colors.primaryTint : null,
         child: Text(
           'Q',
@@ -535,15 +551,11 @@ class _SlipButton extends StatelessWidget {
     return AppTooltip(
       tip: tip,
       description: 'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
+      child: _deckHeaderChip(
+        context: context,
         selected: on,
-        borderRadius: theme.style.borderRadius.pill,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         backgroundColor: on ? slipFill : null,
         child: Text(
           'S',
@@ -591,15 +603,11 @@ class _StemEqButton extends StatelessWidget {
                 'VOC, B/O, DRM.'
           : 'The deck is not playing stems right now, so the knobs stay on the '
                 'channel EQ.',
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
+      child: _deckHeaderChip(
+        context: context,
         selected: on,
-        borderRadius: theme.style.borderRadius.pill,
         onPress: disabled || !stemsAudible ? null : onPress,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         backgroundColor: on ? theme.colors.primaryTint : null,
         child: Text(
           'ST',
@@ -632,15 +640,11 @@ class _FxButton extends StatelessWidget {
     return AppTooltip(
       tip: tip,
       description: 'Route this deck through the FX unit.',
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
+      child: _deckHeaderChip(
+        context: context,
         selected: on,
-        borderRadius: theme.style.borderRadius.pill,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         backgroundColor: on ? theme.colors.primaryTint : null,
         child: Text(
           'FX',

@@ -91,6 +91,9 @@ class _CrossfaderStrip extends ConsumerWidget {
           ),
           Expanded(
             child: Center(
+              // 32px is the marker envelope: 16px each side of the lane
+              // centre. Centred in the 52px foot it leaves 10px above and
+              // below, so no tick can paint outside the band.
               child: SizedBox(
                 height: _crossfaderAssignExtent,
                 width: double.infinity,

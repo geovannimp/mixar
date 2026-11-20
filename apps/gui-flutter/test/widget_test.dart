@@ -854,11 +854,18 @@ void main() {
     expect(tester.getRect(assignB).right, stripRect.right);
 
     // The crossfader row sits centred between the rule and the panel bottom.
-    final rowCentre = tester.getRect(xfader()).center.dy;
+    final faderRect = tester.getRect(xfader());
+    final rowCentre = faderRect.center.dy;
     expect(
       rowCentre - footTop,
       closeTo(tester.getRect(strip).bottom - rowCentre, 0.5),
     );
+
+    // The fader box (and therefore its markers) stays inside the foot band
+    // with clearance on both sides, whatever the foot height becomes.
+    expect(faderRect.top, greaterThan(footTop));
+    expect(faderRect.bottom, lessThan(stripRect.bottom));
+    expect(faderRect.height, lessThan(stripRect.bottom - footTop));
   });
 
   testWidgets('hiding mixer meters narrows the strip', (tester) async {
