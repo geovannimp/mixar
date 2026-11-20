@@ -260,7 +260,7 @@ Mostly flat surfaces with **soft lift on interaction**. Depth comes from tonal l
 Mostly square, instrument-like geometry — hard corners on most chrome, with soft corners where touch targets read better.
 
 - **Square** (`0`): App buttons (other than deck toggles), inputs, selects, cards, menus, toasts, tabs, tooltips. Marketing CTAs, feature cards, theme toggle, icon tiles, and the hero tablet mockup use the same zero-radius token scale (`apps/website` `--radius-*` in `global.css`).
-- **Dialog** (`12px`): `MixarDialog` shell and its full-bleed content (`mixarDialogRadius`).
+- **Dialog** (`12px`): `MixarDialog` shell and its full-bleed content (`MixarBorderRadius.dialog`).
 - **Window top** (`12px`): Undecorated desktop window clip only (`DesktopChrome`) — not a chrome-control radius.
 - **Full pill** (`9999px`): Deck header toggles (master, Q, S, ST, FX), fader tracks, and tiny status chips / badges (e.g. “In development”, compact metadata pills). Circular LED status dots stay full as geometry, not chrome.
 - **Fader plate** (`4px`): The grip knob keeps a soft rounded-rectangle corner rather than a full stadium cap, with a 1px hairline around the grip plate (zinc-800 in dark, a lighter zinc-300 highlight in light).

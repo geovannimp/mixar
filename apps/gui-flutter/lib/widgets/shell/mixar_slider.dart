@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+const _transparent = Color(0x00000000);
+
 /// Mixar slider over [ShadSlider].
 ///
 /// [ShadSlider] reads `initialValue` only when its state is created, so a
@@ -262,10 +264,10 @@ class _MixarSliderState extends State<MixarSlider> {
                         thumbRadius: widget.thumbRadius,
                         // The custom trail below supplies the paint; keep
                         // Shad's own track as the transparent hit area.
-                        activeTrackColor: const Color(0x00000000),
-                        inactiveTrackColor: const Color(0x00000000),
-                        disabledActiveTrackColor: const Color(0x00000000),
-                        disabledInactiveTrackColor: const Color(0x00000000),
+                        activeTrackColor: _transparent,
+                        inactiveTrackColor: _transparent,
+                        disabledActiveTrackColor: _transparent,
+                        disabledInactiveTrackColor: _transparent,
                         onChanged: widget.onChanged,
                         onChangeStart: (_) => _dragging = true,
                         onChangeEnd: (_) => _dragging = false,

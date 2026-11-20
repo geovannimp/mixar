@@ -865,6 +865,11 @@ void main() {
     // with clearance on both sides, whatever the foot height becomes.
     expect(faderRect.top, greaterThan(footTop));
     expect(faderRect.bottom, lessThan(stripRect.bottom));
+    expect(
+      faderRect.height,
+      kFaderMarkerExtent * 2,
+      reason: 'the fader box must contain its markers',
+    );
     expect(faderRect.height, lessThan(stripRect.bottom - footTop));
   });
 

@@ -62,10 +62,13 @@ class _SectionRule extends StatelessWidget {
 /// and [CrossAxisAlignment.stretch] makes both cells fill the foot height.
 const _crossfaderAssignExtent = 32.0;
 
+/// Fader box height: the full marker envelope, so ticks never paint past it.
+const _crossfaderFaderHeight = kFaderMarkerExtent * 2;
+
 /// Height of the crossfader foot below the section rule.
 ///
-/// Compact band: the 32px fader keeps 10px of breathing room above and below,
-/// while the A/B cells fill every pixel of it, border to border.
+/// The fader box is centred with 8px of breathing room above and below, while
+/// the A/B cells fill every pixel of the foot, border to border.
 const _crossfaderFootHeight = 52.0;
 
 class _CrossfaderStrip extends ConsumerWidget {
@@ -91,11 +94,8 @@ class _CrossfaderStrip extends ConsumerWidget {
           ),
           Expanded(
             child: Center(
-              // 32px is the marker envelope: 16px each side of the lane
-              // centre. Centred in the 52px foot it leaves 10px above and
-              // below, so no tick can paint outside the band.
               child: SizedBox(
-                height: _crossfaderAssignExtent,
+                height: _crossfaderFaderHeight,
                 width: double.infinity,
                 child: FaderSlider(
                   orientation: .horizontal,

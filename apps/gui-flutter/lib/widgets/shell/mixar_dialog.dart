@@ -7,10 +7,6 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 /// Narrow width → bottom-anchored sheet; otherwise centered dialog.
 const mixarDialogBreakpoint = 768.0;
 
-/// Soft corner shared by the shell and its full-bleed content, so header and
-/// footer rules cannot paint over the rounded card.
-const mixarDialogRadius = BorderRadius.all(Radius.circular(12));
-
 class MixarDialogAction<T> {
   const new({
     required this.label,
@@ -79,6 +75,9 @@ class MixarDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    // Shared with the shell so header and footer rules cannot paint over the
+    // rounded card.
+    final radius = theme.style.borderRadius.dialog;
 
     Widget rule() => SizedBox(
       width: double.infinity,
@@ -91,14 +90,14 @@ class MixarDialog extends StatelessWidget {
       // otherwise be covered by the card bands.
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        borderRadius: mixarDialogRadius,
+        borderRadius: radius,
         border: Border.all(
           color: theme.colors.border,
           width: theme.style.borderWidth,
         ),
       ),
       child: ClipRRect(
-        borderRadius: mixarDialogRadius,
+        borderRadius: radius,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -178,7 +177,7 @@ ShadDialog _mixarDialogShell({
     // Tall form/picker bodies (collections, pads, selects) must scroll.
     scrollable: true,
     backgroundColor: theme.colors.card,
-    radius: mixarDialogRadius,
+    radius: theme.style.borderRadius.dialog,
     border: Border.all(
       color: theme.colors.border,
       width: theme.style.borderWidth,

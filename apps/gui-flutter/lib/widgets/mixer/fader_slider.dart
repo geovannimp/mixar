@@ -33,9 +33,19 @@ const _faderTicks = <_FaderTick>[
   _FaderTick(100, _TickSize.major),
 ];
 
+const _tickGap = 6.0;
+const _tickMajorLength = 12.0;
+const _tickMinorLength = 6.0;
+
+/// Furthest a tick paints from the lane centre (gap + major length).
+///
+/// Faders that must contain their markers can size their cross-axis box from
+/// this instead of repeating the painter's constants.
+const kFaderMarkerExtent = _tickGap + _tickMajorLength;
+
 const Map<_TickSize, double> _tickLength = {
-  _TickSize.major: 12.0,
-  _TickSize.minor: 6.0,
+  _TickSize.major: _tickMajorLength,
+  _TickSize.minor: _tickMinorLength,
 };
 
 /// Deck A/B/C/D and neutral fader tokens.
@@ -631,7 +641,6 @@ class _FaderPainter extends CustomPainter {
   final bool dragging;
 
   static const _grooveThickness = 6.0;
-  static const _tickGap = 6.0;
   static const _tickThickness = 2.0;
   static const _tickTone = Color(0x3371717a); // zinc-500 @ 20%
   static const _tickEmphasize = Color(0x4071717a); // zinc-500 @ 25%
