@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/mixer/deck_transport_shape.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Hold to audition cue; a short tap sets the cue point.
@@ -124,26 +125,28 @@ class _DeckCueButtonState extends State<DeckCueButton> {
             opacity: enabled ? 1 : 0.5,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: fill,
-                  border: Border.all(
-                    color: borderColor,
-                    width: theme.style.borderWidth,
+              child: LayoutBuilder(
+                builder: (context, constraints) => DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: fill,
+                    border: Border.all(
+                      color: borderColor,
+                      width: theme.style.borderWidth,
+                    ),
+                    borderRadius: deckTransportRadius(theme, constraints),
                   ),
-                  borderRadius: theme.style.borderRadius.md,
-                ),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Cue',
-                        style: theme.typography.body.sm.copyWith(
-                          color: fg,
-                          fontWeight: .w700,
-                          letterSpacing: 0.4,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Cue',
+                          style: theme.typography.body.sm.copyWith(
+                            color: fg,
+                            fontWeight: .w700,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
                     ),

@@ -9,6 +9,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show DeckEq;
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
+import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -301,6 +302,31 @@ void main() {
     expect(find.text('VOC'), findsNothing);
     expect(find.text('B/O'), findsNothing);
     expect(find.text('DRM'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('headphone cue buttons keep their box and paint a circle', (
+    tester,
+  ) async {
+    await _pumpStrip(tester, numDecks: 2);
+
+    final cues = find.byWidgetPredicate(
+      (widget) =>
+          widget is MixerButton && widget.semanticsLabel == 'Headphone cue',
+    );
+    expect(cues, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      final cue = cues.at(index);
+      expect(tester.getSize(cue), const Size(34, 32));
+      final decoration = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(of: cue, matching: find.byType(DecoratedBox)),
+          )
+          .map((box) => box.decoration as BoxDecoration)
+          .last;
+      expect(decoration.shape, BoxShape.circle);
+      expect(decoration.borderRadius, isNull);
+    }
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

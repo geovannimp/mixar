@@ -45,6 +45,11 @@ const double kSettingsHeaderHeight = 60;
 /// Slack between the header's right cluster members.
 const double _kSettingsHeaderGap = 8;
 
+/// Side of the header's circular search control. It is inset inside the
+/// band-tall corner cell so its hover wash never touches the header edges while
+/// the target stays comfortably bigger than the glyph.
+const double _kSettingsHeaderButton = 44;
+
 /// How long the toggle takes to slide between its two seats, and how the Save
 /// slot opens under it.
 const Duration _kSettingsHeaderSlide = Duration(milliseconds: 200);
@@ -199,6 +204,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _restoreSectionAfterSearch();
   }
 
+  /// The header's circular search control. The toggle that opens the bar and
+  /// the one that clears it share one set of insets, so the two circles stay
+  /// the same size in both states.
+  Widget _searchHeaderButton({
+    required String semanticsLabel,
+    required IconData icon,
+    required VoidCallback onPress,
+  }) {
+    return AppButton.icon(
+      variant: .ghost,
+      size: .sm,
+      semanticsLabel: semanticsLabel,
+      // 16 px glyph + 14 px all round: a comfortable target that still fits
+      // inside the band with an 8 px margin.
+      padding: const EdgeInsets.all(14),
+      onPress: onPress,
+      child: Icon(icon),
+    );
+  }
+
   void _onSearchChanged(String query) {
     setState(() => _searchQuery = query);
     if (query.trim().isEmpty) {
@@ -347,8 +372,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     // toggle, then the clear button — with the Save slot
                     // opening to its left. Open, the toggle becomes the corner
                     // cell instead.
+                    final searchCell = headerHeight > _kSettingsHeaderButton
+                        ? _kSettingsHeaderButton
+                        : headerHeight;
+                    final searchInset = (headerHeight - searchCell) / 2;
                     final rightCluster =
-                        headerHeight +
+                        searchInset +
+                        searchCell +
                         (saveWidth == 0
                             ? 0.0
                             : saveWidth + 2 * _kSettingsHeaderGap);
@@ -471,12 +501,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     child: Icon(LucideIcons.search, size: 16),
                                   ),
                                 )
-                              : AppButton.icon(
-                                  variant: .ghost,
-                                  size: .sm,
-                                  semanticsLabel: l10n.settingsSearchHint,
-                                  onPress: _openSearch,
-                                  child: const Icon(LucideIcons.search),
+                              : Center(
+                                  // Keep the control's own square: a
+                                  // stretched cell would turn the circular
+                                  // hover wash into a disc that touches the
+                                  // header edges.
+                                  child: _searchHeaderButton(
+                                    semanticsLabel: l10n.settingsSearchHint,
+                                    icon: LucideIcons.search,
+                                    onPress: _openSearch,
+                                  ),
                                 ),
                         ),
                         if (_searchOpen)
@@ -485,19 +519,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             top: 0,
                             width: headerHeight,
                             height: headerHeight,
-                            child: AppButton.icon(
-                              variant: .ghost,
-                              size: .sm,
-                              semanticsLabel: l10n.settingsSearchClose,
-                              onPress: _closeSearch,
-                              child: const Icon(LucideIcons.x),
+                            child: Center(
+                              child: _searchHeaderButton(
+                                semanticsLabel: l10n.settingsSearchClose,
+                                icon: LucideIcons.x,
+                                onPress: _closeSearch,
+                              ),
                             ),
                           ),
                         if (dirty)
                           AnimatedPositioned(
                             duration: _kSettingsHeaderSlide,
                             curve: _kSettingsHeaderCurve,
-                            right: headerHeight + _kSettingsHeaderGap,
+                            right:
+                                searchInset + searchCell + _kSettingsHeaderGap,
                             top: 0,
                             bottom: 0,
                             child: Center(

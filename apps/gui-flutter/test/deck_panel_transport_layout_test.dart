@@ -110,4 +110,57 @@ void main() {
     // Half-width each, not squares.
     expect(cue.width, greaterThan(cue.height * 1.5));
   });
+
+  testWidgets('transport chrome is rounded only while it is a square tile', (
+    tester,
+  ) async {
+    BorderRadius chromeOf(Finder surface) =>
+        (tester.widget<DecoratedBox>(surface).decoration as BoxDecoration)
+                .borderRadius!
+            as BorderRadius;
+
+    final cueSurface = find
+        .descendant(
+          of: find.byType(DeckCueButton),
+          matching: find.byType(DecoratedBox),
+        )
+        .first;
+    final playSurface = find
+        .ancestor(
+          of: find.byIcon(LucideIcons.play),
+          matching: find.byType(DecoratedBox),
+        )
+        .first;
+
+    final surfaces = [(cueSurface, 'Cue'), (playSurface, 'Play')];
+
+    // Short deck: the pair stacks beside the pads as square tiles, and only
+    // there they wear fully rounded ends.
+    await pumpDeck(tester, size: const Size(370, 316));
+    for (final (surface, what) in surfaces) {
+      final radius = chromeOf(surface).topLeft.x;
+      final size = tester.getSize(surface);
+      expect(
+        radius,
+        greaterThanOrEqualTo(size.shortestSide / 2),
+        reason: '$what keeps fully rounded ends while it is a tile',
+      );
+    }
+
+    // Tall deck: the same pair spans the row as wide bars, which keep the
+    // theme's square chrome.
+    await pumpDeck(tester, size: const Size(370, 560));
+    for (final (surface, what) in surfaces) {
+      expect(
+        chromeOf(surface),
+        MixarThemeData.dark().style.borderRadius.md,
+        reason: '$what stays square as a wide bar',
+      );
+      expect(
+        tester.getSize(surface).width,
+        greaterThan(tester.getSize(surface).height * 1.5),
+        reason: 'the bar is wide, not a tile',
+      );
+    }
+  });
 }

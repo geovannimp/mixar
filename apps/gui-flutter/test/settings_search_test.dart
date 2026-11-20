@@ -360,6 +360,12 @@ void main() {
     final toggle = find.widgetWithIcon(AppButton, LucideIcons.search);
     final closed = tester.getRect(toggle);
     final headerRight = tester.getRect(find.byType(SettingsPage)).right;
+    // The control keeps its own square, inset into the band-tall cell so the
+    // circular wash keeps a margin from the header edges without shrinking the
+    // target to the glyph.
+    final inset = (kSettingsHeaderHeight - closed.width) / 2;
+    expect(closed.size, const Size(44, 44));
+    expect(closed.right, moreOrLessEquals(headerRight - inset));
     expect(find.widgetWithText(AppButton, 'Save changes'), findsNothing);
 
     await dirtyDraft(tester);
@@ -369,10 +375,9 @@ void main() {
     expect(
       shifted,
       closed,
-      reason: 'the square keeps the header edge; the slot opens beside it',
+      reason: 'the circle keeps its seat; the slot opens beside it',
     );
     expect(save.right, moreOrLessEquals(closed.left - 8));
-    expect(closed.right, moreOrLessEquals(headerRight));
   });
 
   testWidgets('closing the search goes back to the section it hid', (

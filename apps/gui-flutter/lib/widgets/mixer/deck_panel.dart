@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/mixer/deck_gain_popover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
+import 'package:gui_flutter/widgets/mixer/deck_transport_shape.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
@@ -401,25 +402,28 @@ class _DeckPlayButton extends ConsumerWidget {
           final fill = playing ? theme.colors.accentTint : theme.colors.card;
           return Opacity(
             opacity: state.disabled ? 0.5 : 1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: fill,
-                border: Border.all(
-                  color: borderColor,
-                  width: theme.style.borderWidth,
+            child: LayoutBuilder(
+              builder: (context, constraints) => DecoratedBox(
+                decoration: BoxDecoration(
+                  color: fill,
+                  border: Border.all(
+                    color: borderColor,
+                    width: theme.style.borderWidth,
+                  ),
+                  borderRadius: deckTransportRadius(theme, constraints),
                 ),
-                borderRadius: theme.style.borderRadius.md,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 36),
-                child: Center(
-                  // Optical nudge for the play triangle (site translate-x-px).
-                  child: Transform.translate(
-                    offset: playing ? Offset.zero : const Offset(1, 0),
-                    child: Icon(
-                      playing ? LucideIcons.pause : LucideIcons.play,
-                      size: 18,
-                      color: fg,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 36),
+                  child: Center(
+                    // Optical nudge for the play triangle
+                    // (site translate-x-px).
+                    child: Transform.translate(
+                      offset: playing ? Offset.zero : const Offset(1, 0),
+                      child: Icon(
+                        playing ? LucideIcons.pause : LucideIcons.play,
+                        size: 18,
+                        color: fg,
+                      ),
                     ),
                   ),
                 ),

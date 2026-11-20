@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -42,10 +43,11 @@ class SettingsNumericStepper extends StatelessWidget {
     final atMax = value >= max - step / 2;
     return Row(
       children: [
-        AppButton(
+        AppButton.icon(
           variant: .outline,
           size: .sm,
           semanticsLabel: decreaseLabel,
+          padding: mixarAppSmContentPadding,
           onPress: atMin
               ? null
               : () => onChanged((value - step).clamp(min, max)),
@@ -59,10 +61,11 @@ class SettingsNumericStepper extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        AppButton(
+        AppButton.icon(
           variant: .outline,
           size: .sm,
           semanticsLabel: increaseLabel,
+          padding: mixarAppSmContentPadding,
           onPress: atMax
               ? null
               : () => onChanged((value + step).clamp(min, max)),

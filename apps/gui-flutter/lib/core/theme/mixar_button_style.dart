@@ -14,6 +14,20 @@ enum MixarButtonDensity {
   app,
 }
 
+/// Content insets the regular `sm` app button uses around its label. Callers
+/// that keep an existing button's box while switching it to the icon
+/// construction pass this explicitly, so the two stay in step.
+const mixarAppSmContentPadding = EdgeInsets.symmetric(
+  horizontal: 10,
+  vertical: 9,
+);
+
+/// Content insets the regular mixer `xs` button uses around its label.
+const mixarMixerXsContentPadding = EdgeInsets.symmetric(
+  horizontal: 7,
+  vertical: 6,
+);
+
 @immutable
 class MixarButtonLook {
   const new({
@@ -27,7 +41,6 @@ class MixarButtonLook {
     required this.contentSpacing,
     required this.showFocusOutline,
     required this.focusColor,
-    required this.borderRadius,
   });
 
   final BoxDecoration decoration;
@@ -40,7 +53,6 @@ class MixarButtonLook {
   final double contentSpacing;
   final bool showFocusOutline;
   final Color focusColor;
-  final BorderRadius borderRadius;
 }
 
 /// Desktop-parity button look from [MixarThemeData].
@@ -148,7 +160,10 @@ MixarButtonLook resolveMixarButtonLook({
       border: border == null
           ? null
           : Border.all(color: border, width: style.borderWidth),
-      borderRadius: radius,
+      // Single-icon buttons paint a circle; labeled buttons keep the theme
+      // corner radius.
+      shape: icon ? BoxShape.circle : BoxShape.rectangle,
+      borderRadius: icon ? null : radius,
     ),
     foreground: state.disabled ? disabledFg : fg,
     textStyle: metrics.textStyle.copyWith(
@@ -164,7 +179,6 @@ MixarButtonLook resolveMixarButtonLook({
     contentSpacing: metrics.contentSpacing,
     showFocusOutline: state.focused && !state.disabled,
     focusColor: colors.primary,
-    borderRadius: radius,
   );
 }
 
@@ -205,7 +219,7 @@ _metrics({
       textStyle: theme.typography.body.sm,
       iconSize: theme.typography.body.md.fontSize ?? 16,
       contentConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      contentPadding: mixarAppSmContentPadding,
       iconPadding: const EdgeInsets.all(8),
       contentSpacing: 4.0,
     ),
@@ -226,7 +240,7 @@ _metrics({
     textStyle: base.textStyle,
     iconSize: base.iconSize,
     contentConstraints: base.contentConstraints,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+    contentPadding: mixarMixerXsContentPadding,
     iconPadding: base.iconPadding,
     contentSpacing: base.contentSpacing,
   );
