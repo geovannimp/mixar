@@ -48,8 +48,6 @@ const _ddj = DetectedController(
   deviceId: _ddjDeviceId,
 );
 
-const _windowManagerChannel = MethodChannel('window_manager');
-
 void main() {
   // Application builds DesktopChrome, which touches window_manager when the
   // host looks like a desktop. Widget tests have no window manager.
@@ -82,26 +80,6 @@ void main() {
       debugOverrideMacOSChromePreview = false;
       debugDefaultTargetPlatformOverride = null;
     }
-  }
-
-  /// Answers window_manager on a desktop host and records what the top bar
-  /// asked it, so a test can prove the app's own buttons were never built.
-  List<String> recordWindowCalls() {
-    final calls = <String>[];
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          ..setMockMethodCallHandler(_windowManagerChannel, (call) async {
-            calls.add(call.method);
-            // The window's buttons read these two; the rest is unused.
-            return switch (call.method) {
-              'isMaximized' || 'isMinimized' => false,
-              _ => null,
-            };
-          });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(_windowManagerChannel, null),
-    );
-    return calls;
   }
 
   /// The wordmark in the setup header — the bar's leading content, so its x
@@ -635,8 +613,6 @@ void main() {
   testWidgets('macOS leaves the setup corner to its traffic lights', (
     tester,
   ) async {
-    final calls = recordWindowCalls();
-
     // Baseline: not a desktop window, so nothing sits before the wordmark.
     final baseline = await pumpSetupBaseline(tester);
 
@@ -683,11 +659,6 @@ void main() {
           reason: 'Skip stays reachable beside the reserved corner',
         );
         expect(tester.takeException(), isNull);
-        expect(
-          calls,
-          isNot(contains('isMaximized')),
-          reason: 'no app buttons were built, so nothing asked the window',
-        );
 
         await unmount(tester);
       },
@@ -698,8 +669,6 @@ void main() {
     testWidgets('a ${platform.name} setup keeps the app buttons', (
       tester,
     ) async {
-      final calls = recordWindowCalls();
-
       await pumpSetup(
         tester,
         settings: FakeSettingsTransport(defaultAppSettings()),
@@ -725,7 +694,6 @@ void main() {
           expect(previewLights(), findsNothing);
           expect(tester.getSize(find.byType(MacOSTitleBarChrome)).height, 64);
           expect(find.byType(DragToMoveArea), findsNWidgets(2));
-          expect(calls, contains('isMaximized'));
           expect(tester.takeException(), isNull);
 
           await unmount(tester);
@@ -737,8 +705,6 @@ void main() {
   testWidgets('the Linux preview draws the setup reference lights', (
     tester,
   ) async {
-    final calls = recordWindowCalls();
-
     final baseline = await pumpSetupBaseline(tester);
 
     await withHost(
@@ -759,7 +725,6 @@ void main() {
           reason: 'Skip stays reachable beside the reserved corner',
         );
         expect(tester.takeException(), isNull);
-        expect(calls, isNot(contains('isMaximized')));
 
         await unmount(tester);
       },

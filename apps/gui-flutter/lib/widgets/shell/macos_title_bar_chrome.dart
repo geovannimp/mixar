@@ -1,10 +1,10 @@
-import 'dart:async';
-
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'window_actions.dart';
 
 /// Diameter of one traffic light.
 const double _kLightSize = 14;
@@ -81,47 +81,40 @@ class _TrafficLights extends StatefulWidget {
   State<_TrafficLights> createState() => _TrafficLightsState();
 }
 
-class _TrafficLightsState extends State<_TrafficLights> with WindowListener {
+class _TrafficLightsState extends State<_TrafficLights> {
+  ListenerId? _listener;
   var _hovered = false;
   var _focused = true;
 
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    unawaited(_refreshFocus());
+    final window = _window;
+    // Widget tests have no native host to ask; the override stands in, and a
+    // headless run keeps the focused look rather than failing over decoration.
+    _focused = debugOverrideWindowFocused ?? window?.isFocused ?? true;
+    if (window == null) {
+      return;
+    }
+    _listener = WindowManager.instance.addListener((event) {
+      final focused = switch (event) {
+        WindowFocusedEvent() => true,
+        WindowBlurredEvent() => false,
+        _ => null,
+      };
+      if (focused != null && mounted && focused != _focused) {
+        setState(() => _focused = focused);
+      }
+    });
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    final listener = _listener;
+    if (listener != null) {
+      WindowManager.instance.removeListener(listener);
+    }
     super.dispose();
-  }
-
-  @override
-  void onWindowFocus() {
-    if (!_focused) {
-      setState(() => _focused = true);
-    }
-  }
-
-  @override
-  void onWindowBlur() {
-    if (_focused) {
-      setState(() => _focused = false);
-    }
-  }
-
-  Future<void> _refreshFocus() async {
-    try {
-      final focused = await windowManager.isFocused();
-      if (mounted) {
-        setState(() => _focused = focused);
-      }
-    } on Object {
-      // No host to ask (widget tests, a headless run): stay on the focused
-      // look rather than failing the header over a decoration.
-    }
   }
 
   @override
@@ -147,7 +140,7 @@ class _TrafficLightsState extends State<_TrafficLights> with WindowListener {
               active: _focused,
               glyph: glyphs ? _GlyphKind.close : null,
               semanticsLabel: 'Close',
-              onPress: () => unawaited(windowManager.close()),
+              onPress: closeApp,
             ),
             const SizedBox(width: _kLightGap),
             _WindowLight(
@@ -156,7 +149,7 @@ class _TrafficLightsState extends State<_TrafficLights> with WindowListener {
               active: _focused,
               glyph: glyphs ? _GlyphKind.minimize : null,
               semanticsLabel: 'Minimize',
-              onPress: () => unawaited(_toggleMinimized()),
+              onPress: _toggleMinimized,
             ),
             const SizedBox(width: _kLightGap),
             _WindowLight(
@@ -165,7 +158,7 @@ class _TrafficLightsState extends State<_TrafficLights> with WindowListener {
               active: _focused,
               glyph: glyphs ? _GlyphKind.zoom : null,
               semanticsLabel: 'Zoom',
-              onPress: () => unawaited(_toggleMaximized()),
+              onPress: _toggleMaximized,
             ),
           ],
         ),
@@ -182,21 +175,32 @@ class _TrafficLightsState extends State<_TrafficLights> with WindowListener {
   }
 }
 
+/// The host window, or null where there is none (widget tests, headless runs).
+Window? get _window => WindowManager.instance.getCurrent();
+
 /// Minimise, or bring the window back when it is already down.
-Future<void> _toggleMinimized() async {
-  if (await windowManager.isMinimized()) {
-    await windowManager.restore();
+void _toggleMinimized() {
+  final window = _window;
+  if (window == null) {
+    return;
+  }
+  if (window.isMinimized) {
+    window.restore();
   } else {
-    await windowManager.minimize();
+    window.minimize();
   }
 }
 
 /// Zoom, or undo it — the same toggle the app's other window buttons offer.
-Future<void> _toggleMaximized() async {
-  if (await windowManager.isMaximized()) {
-    await windowManager.unmaximize();
+void _toggleMaximized() {
+  final window = _window;
+  if (window == null) {
+    return;
+  }
+  if (window.isMaximized) {
+    window.unmaximize();
   } else {
-    await windowManager.maximize();
+    window.maximize();
   }
 }
 

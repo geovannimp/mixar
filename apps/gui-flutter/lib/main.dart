@@ -11,7 +11,8 @@ import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:window_manager/window_manager.dart';
+// The pre-native API: this file only sets the window up on macOS and
+// Windows, where the Linux runner's geometry does not apply.
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,21 +65,11 @@ Future<void> main() async {
   installAnalyticsErrorReporting(container);
   await preloadAppSettings(container);
 
-  if (isDesktopWindow) {
-    await windowManager.ensureInitialized();
-    await windowManager.waitUntilReadyToShow(
-      desktopWindowOptions(title: appTitle),
-      () async {
-        // Repeat the flag: setTitleBarStyle re-shows the buttons by default.
-        await windowManager.setTitleBarStyle(
-          TitleBarStyle.hidden,
-          windowButtonVisibility: !isMacOSHost,
-        );
-        await windowManager.setBackgroundColor(Colors.transparent);
-        await windowManager.show();
-        await windowManager.focus();
-      },
-    );
+  // The Linux runner owns the window: my_application.cc sizes, centres and
+  // undecorates it. Other desktop hosts let window_manager apply the options.
+  if (configuresWindowFromDart) {
+    final window = currentNativeWindow();
+    if (window != null) configureDesktopWindow(window, title: appTitle);
   }
 
   runApp(
@@ -88,30 +79,6 @@ Future<void> main() async {
     ),
   );
 }
-
-/// Window options for this host.
-///
-/// The macOS layout draws close / minimise / zoom in the header
-/// (`MacOSTitleBarChrome`), so AppKit's own buttons are hidden there: leaving
-/// them would overlap the wordmark and duplicate the app's controls. Every
-/// other host keeps the native buttons — its header adds its own beside them.
-///
-/// [isMacOSHost] is the same predicate the headers use to decide whether they
-/// draw the cluster, so the two can never disagree.
-WindowOptions desktopWindowOptions({required String title}) => WindowOptions(
-  size: const Size(1280, 800),
-  minimumSize: const Size(1024, 768),
-  center: true,
-  // Transparent so the Linux rounded corners reveal the compositor, not
-  // opaque black (other hosts draw a square window).
-  backgroundColor: Colors.transparent,
-  skipTaskbar: false,
-  title: title,
-  // Hide OS title bar; in-app header provides drag + controls.
-  // https://pub.dev/packages/window_manager
-  titleBarStyle: TitleBarStyle.hidden,
-  windowButtonVisibility: !isMacOSHost,
-);
 
 /// Last-resort screen when start-up cannot reach a writable data directory.
 ///
