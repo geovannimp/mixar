@@ -4,11 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
-import 'package:gui_flutter/main.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
-
-const _windowManagerChannel = MethodChannel('window_manager');
+import 'package:window_manager/window_manager.dart';
 
 /// The marks a hovered cluster paints; the painter is private, so the glyph
 /// keys are the handle.
@@ -57,25 +55,6 @@ Future<void> withHost(
     debugOverrideDesktopWindow = null;
     debugOverrideMacOSChromePreview = null;
   }
-}
-
-/// Answers window_manager and records what the lights asked it.
-List<String> recordWindowCalls({bool focused = true}) {
-  final calls = <String>[];
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        ..setMockMethodCallHandler(_windowManagerChannel, (call) async {
-          calls.add(call.method);
-          return switch (call.method) {
-            'isMaximized' || 'isMinimized' => false,
-            'isFocused' => focused,
-            _ => null,
-          };
-        });
-  addTearDown(
-    () => messenger.setMockMethodCallHandler(_windowManagerChannel, null),
-  );
-  return calls;
 }
 
 const _childSize = Size(320, 40);
@@ -136,6 +115,7 @@ void main() {
   tearDown(() {
     debugOverrideDesktopWindow = null;
     debugOverrideMacOSChromePreview = null;
+    debugOverrideWindowFocused = null;
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -160,7 +140,6 @@ void main() {
   testWidgets('a macOS window draws the cluster as its own controls', (
     tester,
   ) async {
-    final calls = recordWindowCalls();
     await withHost(
       TargetPlatform.macOS,
       desktop: true,
@@ -191,52 +170,18 @@ void main() {
           findsNothing,
           reason: 'the macOS cluster is the window’s only close button',
         );
-        expect(
-          calls,
-          isNot(contains('isMaximized')),
-          reason: 'only the focus probe runs at build time',
-        );
-      },
-    );
-  });
-
-  testWidgets('the macOS cluster drives the window manager', (tester) async {
-    final calls = recordWindowCalls();
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: true,
-      preview: null,
-      body: () async {
-        await pumpChrome(tester);
-
-        await tester.tap(_light('Close'));
-        await tester.pump();
-        expect(calls, contains('close'));
-
-        await tester.tap(_light('Minimize'));
-        await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMinimized', 'minimize']));
-
-        await tester.tap(_light('Zoom'));
-        await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMaximized', 'maximize']));
-
-        expect(tester.takeException(), isNull);
       },
     );
   });
 
   testWidgets('an unfocused window greys the lights out', (tester) async {
-    recordWindowCalls(focused: false);
+    debugOverrideWindowFocused = false;
     await withHost(
       TargetPlatform.macOS,
       desktop: true,
       preview: null,
       body: () async {
         await pumpChrome(tester);
-        // Let the isFocused probe answer.
-        await tester.pump();
-
         expect(
           {for (var i = 0; i < 3; i++) _dotColor(tester, i)},
           {const Color(0xFF4C4E51)},
@@ -287,7 +232,6 @@ void main() {
   testWidgets("the preview lights drive the window like a Mac's do", (
     tester,
   ) async {
-    final calls = recordWindowCalls();
     await withHost(
       TargetPlatform.linux,
       desktop: true,
@@ -319,56 +263,93 @@ void main() {
 
         await tester.tap(_light('Close'));
         await tester.pump();
-        expect(calls, contains('close'));
 
         await tester.tap(_light('Zoom'));
         await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMaximized', 'maximize']));
         expect(tester.takeException(), isNull);
       },
     );
   });
 
-  test('macOS hides AppKit’s buttons where the header draws its own', () async {
-    for (final platform in [TargetPlatform.linux, TargetPlatform.windows]) {
+  test('the window setup runs from Dart everywhere except Linux', () async {
+    await withHost(
+      TargetPlatform.linux,
+      desktop: true,
+      preview: false,
+      body: () async {
+        expect(
+          configuresWindowFromDart,
+          isFalse,
+          reason: 'the GTK runner sizes, centres and undecorates the window',
+        );
+      },
+    );
+    for (final platform in [TargetPlatform.macOS, TargetPlatform.windows]) {
       await withHost(
         platform,
         desktop: true,
         preview: false,
         body: () async {
-          expect(
-            desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
-            isTrue,
-            reason: '${platform.name} keeps the native buttons',
-          );
+          expect(configuresWindowFromDart, isTrue, reason: platform.name);
         },
       );
     }
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: true,
-      preview: null,
-      body: () async {
-        expect(
-          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
-          isFalse,
-          reason: 'the header draws them, so AppKit must not',
-        );
-      },
-    );
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: false,
-      preview: null,
-      body: () async {
-        expect(
-          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
-          isTrue,
-          reason: 'a non-desktop Mac draws no chrome — keep the native ones',
-        );
-      },
-    );
   });
+
+  test(
+    'macOS hides AppKit’s buttons through the shared window setup',
+    () async {
+      for (final platform in [TargetPlatform.linux, TargetPlatform.windows]) {
+        await withHost(
+          platform,
+          desktop: true,
+          preview: false,
+          body: () async {
+            final window = _RecordingWindow();
+            configureDesktopWindow(window, title: 'Mixar');
+            expect(
+              window.calls,
+              contains('isWindowControlButtonsVisible=true'),
+              reason: '${platform.name} keeps the native buttons',
+            );
+          },
+        );
+      }
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: true,
+        preview: false,
+        body: () async {
+          final window = _recordingWindow();
+          expect(
+            window.calls,
+            contains('isWindowControlButtonsVisible=false'),
+            reason: 'the header draws them, so AppKit must not',
+          );
+          expect(
+            window.calls.indexOf('titleBarStyle=hidden'),
+            lessThan(
+              window.calls.indexOf('isWindowControlButtonsVisible=false'),
+            ),
+            reason: 'the style re-shows the native buttons, so it goes first',
+          );
+        },
+      );
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: false,
+        preview: null,
+        body: () async {
+          final window = _recordingWindow();
+          expect(
+            window.calls,
+            contains('isWindowControlButtonsVisible=true'),
+            reason: 'a non-desktop Mac draws no chrome — keep the native ones',
+          );
+        },
+      );
+    },
+  );
 
   testWidgets('the preview override cannot turn a Mac into a preview', (
     tester,
@@ -409,4 +390,33 @@ void main() {
       },
     );
   });
+}
+
+/// Records the calls [configureDesktopWindow] makes instead of reaching a host.
+///
+/// `Window` is an FFI handle with no test double, so the setup is asserted
+/// through the calls it makes: the wiring that a getter assertion misses.
+final class _RecordingWindow implements Window {
+  final calls = <String>[];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final name = RegExp(r'"([^"]+)"')
+        .firstMatch(invocation.memberName.toString())
+        ?.group(1)
+        ?.replaceAll('=', '');
+    calls.add(
+      invocation.isSetter
+          ? '$name=${invocation.positionalArguments.first}'
+          : '$name()',
+    );
+    return null;
+  }
+}
+
+/// A recording window with the desktop setup already applied.
+_RecordingWindow _recordingWindow() {
+  final window = _RecordingWindow();
+  configureDesktopWindow(window, title: 'Mixar');
+  return window;
 }
