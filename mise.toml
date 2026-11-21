@@ -4,10 +4,10 @@
 idiomatic_version_file_enable_tools = ["node", "rust"]
 
 [tools]
-# master: 3.50.0 misrenders Linux windows on NVIDIA (can_blit blocklist,
-# flutter/flutter#195885). The fix (#196083) is on master but not in any
-# release yet -- 3.50.1 will carry it. Re-pin to ^3.50.1 when it ships.
-flutter = { version = "master", postinstall = "dart pub global activate dashmonx" }
+# 3.50.1 is the first release with the Linux compositor fix (#196083): on
+# NVIDIA, where can_blit is false, 3.50.0 offset every layer by half the window
+# (flutter/flutter#195885).
+flutter = { version = "3.50.1", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
 # Rust compiler cache (rustc-wrapper in .cargo/config.toml). Installed from the
 # GitHub release archive so the `kache` front-end and its `kache-engine`

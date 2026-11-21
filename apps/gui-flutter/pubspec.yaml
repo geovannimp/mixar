@@ -138,12 +138,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-# Flutter master's ResizeImagePolicy gained `cover`; extended_image_library has
-# no release (or git fix) that handles it, and it is pulled in through
-# shadcn_ui -> universal_image -> extended_image. third_party holds 5.0.1 with
-# only that case added. Remove both the copy and this override once a release
-# supports it (independent of the 3.50.1 re-pin).
-dependency_overrides:
-  extended_image_library:
-    path: third_party/extended_image_library
