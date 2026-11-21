@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
-import 'package:gui_flutter/main.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 
@@ -279,7 +278,7 @@ void main() {
         preview: false,
         body: () async {
           expect(
-            desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+            showsNativeCaptionButtons,
             isTrue,
             reason: '${platform.name} keeps the native buttons',
           );
@@ -292,7 +291,7 @@ void main() {
       preview: null,
       body: () async {
         expect(
-          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+          showsNativeCaptionButtons,
           isFalse,
           reason: 'the header draws them, so AppKit must not',
         );
@@ -304,7 +303,7 @@ void main() {
       preview: null,
       body: () async {
         expect(
-          desktopWindowOptions(title: 'Mixar').windowButtonVisibility,
+          showsNativeCaptionButtons,
           isTrue,
           reason: 'a non-desktop Mac draws no chrome — keep the native ones',
         );

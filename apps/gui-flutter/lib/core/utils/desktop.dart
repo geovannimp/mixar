@@ -66,6 +66,12 @@ bool get isMacOSHost =>
 /// Linux preview (which draws and wires the same cluster).
 bool get usesMacOSTitleBarLayout => isMacOSHost || isMacOSChromePreview;
 
+/// Whether the window keeps its native caption buttons.
+///
+/// macOS hides them, because [usesMacOSTitleBarLayout] draws close /
+/// minimise / zoom in the header; every other host keeps the native ones.
+bool get showsNativeCaptionButtons => !isMacOSHost;
+
 /// Leading zone the macOS traffic-light cluster owns, in logical pixels. The
 /// cluster is centred in it and the header content starts after it, on every
 /// macOS-layout host and fullscreen included, so nothing moves or sits under
