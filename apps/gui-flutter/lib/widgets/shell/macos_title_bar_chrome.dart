@@ -89,19 +89,13 @@ class _TrafficLightsState extends State<_TrafficLights> {
   @override
   void initState() {
     super.initState();
-    final overridden = debugOverrideWindowFocused;
-    if (overridden != null) {
-      // Widget tests: no native host to ask.
-      _focused = overridden;
-      return;
-    }
-    final window = WindowManager.instance.getCurrent();
+    final window = _window;
+    // Widget tests have no native host to ask; the override stands in, and a
+    // headless run keeps the focused look rather than failing over decoration.
+    _focused = debugOverrideWindowFocused ?? window?.isFocused ?? true;
     if (window == null) {
-      // No native host (headless run): stay on the focused look rather than
-      // failing the header over a decoration.
       return;
     }
-    _focused = window.isFocused;
     _listener = WindowManager.instance.addListener((event) {
       final focused = switch (event) {
         WindowFocusedEvent() => true,
@@ -181,9 +175,12 @@ class _TrafficLightsState extends State<_TrafficLights> {
   }
 }
 
+/// The host window, or null where there is none (widget tests, headless runs).
+Window? get _window => WindowManager.instance.getCurrent();
+
 /// Minimise, or bring the window back when it is already down.
 void _toggleMinimized() {
-  final window = WindowManager.instance.getCurrent();
+  final window = _window;
   if (window == null) {
     return;
   }
@@ -196,7 +193,7 @@ void _toggleMinimized() {
 
 /// Zoom, or undo it — the same toggle the app's other window buttons offer.
 void _toggleMaximized() {
-  final window = WindowManager.instance.getCurrent();
+  final window = _window;
   if (window == null) {
     return;
   }
