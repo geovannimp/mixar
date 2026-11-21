@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:window_manager/window_manager.dart';
 
 /// Ends the app from a window control.
@@ -21,13 +22,28 @@ void closeApp() {
     // No native window (widget tests): leave the host alone.
     return;
   }
-  if (Platform.isLinux) {
+  runCloseSequence(
+    linux: Platform.isLinux,
     // Before close(): a close that blocks would keep the kill from running.
-    if (Process.killPid(pid, ProcessSignal.sigkill)) {
-      // SIGKILL lands at once; the lines below run only if it did not.
-      return;
-    }
-  }
-  window.close();
-  exit(0);
+    forceKill: () => Process.killPid(pid, ProcessSignal.sigkill),
+    closeWindow: window.close,
+    exitApp: exit,
+  );
+}
+
+/// The close sequence, split out so both host paths are testable.
+///
+/// On Linux a delivered SIGKILL ends the process at once, so the native close
+/// and `exit` never run behind it; a kill that did not land, and every other
+/// host, close the window and exit.
+@visibleForTesting
+void runCloseSequence({
+  required bool linux,
+  required bool Function() forceKill,
+  required void Function() closeWindow,
+  required void Function(int code) exitApp,
+}) {
+  if (linux && forceKill()) return;
+  closeWindow();
+  exitApp(0);
 }

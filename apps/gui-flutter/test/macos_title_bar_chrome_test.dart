@@ -320,8 +320,7 @@ void main() {
         desktop: true,
         preview: false,
         body: () async {
-          final window = _RecordingWindow();
-          configureDesktopWindow(window, title: 'Mixar');
+          final window = _recordingWindow();
           expect(
             window.calls,
             contains('isWindowControlButtonsVisible=false'),
@@ -341,8 +340,7 @@ void main() {
         desktop: false,
         preview: null,
         body: () async {
-          final window = _RecordingWindow();
-          configureDesktopWindow(window, title: 'Mixar');
+          final window = _recordingWindow();
           expect(
             window.calls,
             contains('isWindowControlButtonsVisible=true'),
@@ -414,4 +412,11 @@ final class _RecordingWindow implements Window {
     );
     return null;
   }
+}
+
+/// A recording window with the desktop setup already applied.
+_RecordingWindow _recordingWindow() {
+  final window = _RecordingWindow();
+  configureDesktopWindow(window, title: 'Mixar');
+  return window;
 }
