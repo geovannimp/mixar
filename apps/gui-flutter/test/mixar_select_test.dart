@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -155,6 +156,32 @@ void main() {
 
     expect(selected, 'medium');
     expect(find.text('Quality'), findsNothing);
+  });
+
+  testWidgets('mobile style lists options with dividers instead of cards', (
+    tester,
+  ) async {
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (_) {},
+      style: SelectStyleSetting.mobile,
+      dialogTitle: 'Quality',
+    );
+    await openMenu(tester);
+
+    // One hairline between each pair of options, none above the first row.
+    expect(find.byType(MDivider), findsNWidgets(2));
+
+    // Rows are flat: no frame stroke or corner radius around the label.
+    final row = tester.widget<DecoratedBox>(
+      find
+          .ancestor(of: find.text('high'), matching: find.byType(DecoratedBox))
+          .first,
+    );
+    final decoration = row.decoration as BoxDecoration;
+    expect(decoration.border, isNull);
+    expect(decoration.borderRadius, isNull);
   });
 
   testWidgets('mobile style dismiss without selection skips onChanged', (

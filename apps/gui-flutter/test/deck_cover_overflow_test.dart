@@ -13,6 +13,7 @@ import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -136,5 +137,14 @@ void main() {
     // card (the regression rendered it at the image's 1500px intrinsic size).
     expect(tester.getSize(find.byType(Image)), const Size(64, 64));
     expect(overflows, isEmpty, reason: 'deck card overflowed: $overflows');
+
+    // Times sit at the bottom of the info band, right above the waveform.
+    final timeRect = tester.getRect(find.text('-2:36.0'));
+    final waveformTop = tester.getRect(find.byType(OverviewStrip)).top;
+    expect(waveformTop - timeRect.bottom, lessThan(12));
+
+    // The title is one display step above the old 12px header type.
+    final title = tester.widget<Text>(find.text('Amplified Space'));
+    expect(title.style?.fontSize, greaterThan(12));
   });
 }

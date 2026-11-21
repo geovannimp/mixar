@@ -12,6 +12,7 @@ class MixarMenuItem extends StatelessWidget {
     this.enabled = true,
     this.onPress,
     this.destructive = false,
+    this.selected = false,
     super.key,
   }) : assert(title != null || child != null, 'title or child required');
 
@@ -21,16 +22,20 @@ class MixarMenuItem extends StatelessWidget {
   final VoidCallback? onPress;
   final bool destructive;
 
+  /// Latched state for choice rows (e.g. the active FX kind).
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final dialogChrome = MixarMenuDialogChrome.isActive(context);
+    // Custom blocks own their look; only the text rows add row padding.
     final content =
         child ??
         Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: dialogChrome ? 10 : 8,
+            horizontal: dialogChrome ? 24 : 12,
+            vertical: dialogChrome ? 12 : 8,
           ),
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
@@ -45,55 +50,20 @@ class MixarMenuItem extends StatelessWidget {
         );
 
     if (child != null && onPress == null) {
-      if (!dialogChrome) {
-        return content;
-      }
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: theme.colors.card,
-            borderRadius: theme.style.borderRadius.md,
-            border: Border.all(
-              color: theme.colors.border,
-              width: theme.style.borderWidth,
-            ),
-          ),
-          child: content,
-        ),
-      );
+      return content;
     }
 
-    return Padding(
-      padding: dialogChrome
-          ? const EdgeInsets.only(bottom: 6)
-          : EdgeInsets.zero,
-      child: MTappable(
-        onPress: enabled ? onPress : null,
-        builder: (context, state) {
-          if (!dialogChrome) {
-            final paint = state.active
-                ? theme.colors.selection
-                : const Color(0x00000000);
-            return ColoredBox(color: paint, child: content);
-          }
-          // Match mobile MixarSelect option cards.
-          final fill = state.active
-              ? theme.colors.secondary
-              : theme.colors.card;
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: theme.style.borderRadius.md,
-              border: Border.all(
-                color: theme.colors.border,
-                width: theme.style.borderWidth,
-              ),
-            ),
-            child: content,
-          );
-        },
-      ),
+    return MTappable(
+      onPress: enabled ? onPress : null,
+      selected: selected,
+      builder: (context, state) {
+        // Latch state is semantics-only (choice rows announce it); the wash is
+        // the momentary hover/press feedback shared by every presentation.
+        final paint = state.hovered || state.pressed
+            ? theme.colors.secondary
+            : const Color(0x00000000);
+        return ColoredBox(color: paint, child: content);
+      },
     );
   }
 }

@@ -17,10 +17,10 @@ class MixarMenuLabel extends StatelessWidget {
     final theme = context.theme;
     final dialogChrome = MixarMenuDialogChrome.isActive(context);
     return Padding(
-      // Dialog title has no horizontal inset; section labels share that edge.
-      // Action card labels keep their own 12px content padding inside the card.
+      // Dialog rows are full-bleed; labels take the rows' 24px text inset so
+      // they align with the dialog title.
       padding: dialogChrome
-          ? const EdgeInsets.fromLTRB(0, 0, 0, 10)
+          ? const EdgeInsets.fromLTRB(24, 12, 24, 8)
           : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: DefaultTextStyle(
         style: theme.typography.body.sm.copyWith(

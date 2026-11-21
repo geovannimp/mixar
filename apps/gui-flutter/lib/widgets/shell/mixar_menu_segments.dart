@@ -56,11 +56,14 @@ class MixarMenuSegments extends StatelessWidget {
     final dialogChrome = MixarMenuDialogChrome.isActive(context);
     final radius = theme.style.borderRadius.sm;
     return Padding(
-      padding: dialogChrome
-          ? const EdgeInsets.only(bottom: 6)
-          : const EdgeInsets.symmetric(horizontal: _inset, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: dialogChrome ? 24 : _inset,
+        vertical: 4,
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
+          // Bordered track like the desktop dropdown: the deck buttons stay a
+          // discrete control inside the flat list.
           border: Border.all(
             color: theme.colors.border,
             width: theme.style.borderWidth,

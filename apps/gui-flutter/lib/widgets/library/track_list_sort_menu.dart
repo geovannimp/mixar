@@ -53,6 +53,7 @@ class TrackListSortMenu extends ConsumerWidget {
           ],
         ),
         onPress: onPress,
+        selected: active,
       );
     }
 

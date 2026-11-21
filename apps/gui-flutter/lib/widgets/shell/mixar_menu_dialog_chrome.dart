@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 /// Marks menu content rendered inside a mobile `showMixarDialog` so rows can
-/// match `MixarSelect` bordered option cards without changing desktop panels.
+/// match `MixarSelect`'s flat, divider-separated list without changing
+/// desktop panels.
 class MixarMenuDialogChrome extends InheritedWidget {
   const new({required super.child, super.key});
 

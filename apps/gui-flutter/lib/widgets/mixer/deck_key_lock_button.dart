@@ -70,7 +70,8 @@ class DeckKeyLockButton extends StatelessWidget {
               }
             : null,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        borderRadius: theme.style.borderRadius.pill,
         child: Row(
           mainAxisSize: .min,
           children: [

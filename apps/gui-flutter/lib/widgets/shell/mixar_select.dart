@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -15,7 +16,8 @@ enum MixarBorderSide { top, right, bottom, left }
 
 /// Full-width left-aligned option row for the mobile select dialog.
 ///
-/// Avoids `AppButton`'s centered shrink-wrap layout. Selected rows use the
+/// Avoids `AppButton`'s centered shrink-wrap layout. Rows are a flat list
+/// separated by hairlines — no per-row frame — and the selected row uses the
 /// Mixar `MixarColors.selection` teal tint (same wash as desktop options).
 class _MobileSelectOption extends StatelessWidget {
   const new({
@@ -51,16 +53,9 @@ class _MobileSelectOption extends StatelessWidget {
             ? theme.colors.selectionForeground.withValues(alpha: 0.75)
             : theme.colors.mutedForeground;
         return DecoratedBox(
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: theme.style.borderRadius.md,
-            border: Border.all(
-              color: theme.colors.border,
-              width: theme.style.borderWidth,
-            ),
-          ),
+          decoration: BoxDecoration(color: fill),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -168,23 +163,29 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
         builder: (dialogContext) {
           return MixarDialog(
             title: widget.dialogTitle ?? 'Select',
+            // Rows are full-bleed bands: they paint and separate edge to edge,
+            // with the text inset by their own horizontal padding.
+            contentPadding: EdgeInsets.zero,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final option in widget.options)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _MobileSelectOption(
-                      key: ValueKey(option),
-                      label: (widget.optionLabelBuilder ?? widget.labelBuilder)(
-                        option,
-                      ),
-                      subtitle: widget.subtitleBuilder?.call(option),
-                      selected: option == widget.value,
-                      onPress: () => Navigator.of(dialogContext).pop(option),
+                for (final (index, option) in widget.options.indexed) ...[
+                  if (index > 0)
+                    MDivider(
+                      padding: EdgeInsets.zero,
+                      color: context.theme.colors.border,
                     ),
+                  _MobileSelectOption(
+                    key: ValueKey(option),
+                    label: (widget.optionLabelBuilder ?? widget.labelBuilder)(
+                      option,
+                    ),
+                    subtitle: widget.subtitleBuilder?.call(option),
+                    selected: option == widget.value,
+                    onPress: () => Navigator.of(dialogContext).pop(option),
                   ),
+                ],
               ],
             ),
           );
