@@ -57,9 +57,9 @@ class MixarMenuItem extends StatelessWidget {
       onPress: enabled ? onPress : null,
       selected: selected,
       builder: (context, state) {
-        // One quiet wash for every presentation: the mobile dialog and the
-        // desktop dropdown hover the same way.
-        final paint = state.active
+        // Latch state is semantics-only (choice rows announce it); the wash is
+        // the momentary hover/press feedback shared by every presentation.
+        final paint = state.hovered || state.pressed
             ? theme.colors.secondary
             : const Color(0x00000000);
         return ColoredBox(color: paint, child: content);

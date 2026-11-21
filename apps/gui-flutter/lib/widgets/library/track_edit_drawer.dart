@@ -23,6 +23,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// Drawer width; clamped to the viewport on narrow windows.
 const trackEditDrawerWidth = 420.0;
 
+/// Square cover tile in the drawer header, matching the deck's cover size.
+const _editCoverSize = 64.0;
+
 /// Dimming behind the track edit drawer, on the body only.
 ///
 /// Like the library and pages drawers, it stops at the titlebar so the chrome
@@ -589,8 +592,11 @@ class _TrackEditPanel extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox.square(
-                        dimension: 64,
-                        child: TrackArtworkThumb(trackId: trackId, size: 64),
+                        dimension: _editCoverSize,
+                        child: TrackArtworkThumb(
+                          trackId: trackId,
+                          size: _editCoverSize,
+                        ),
                       ),
                       MDivider(
                         axis: Axis.vertical,

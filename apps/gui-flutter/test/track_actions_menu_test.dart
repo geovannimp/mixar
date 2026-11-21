@@ -47,6 +47,10 @@ MixarMenuSegment _loadSegment(WidgetTester tester, String letter) {
   );
 }
 
+/// Rules that separate menu rows (excludes the A/B track's vertical rule).
+Finder _horizontalDividers() =>
+    find.byWidgetPredicate((w) => w is MDivider && w.axis == Axis.horizontal);
+
 void main() {
   const track = LibraryTrackSummary(
     id: 't1',
@@ -160,9 +164,7 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
 
-    final horizontal = find.byWidgetPredicate(
-      (w) => w is MDivider && w.axis == Axis.horizontal,
-    );
+    final horizontal = _horizontalDividers();
     final dividers = tester.widgetList<MDivider>(horizontal).toList();
     expect(dividers.length, greaterThanOrEqualTo(3));
     for (final divider in dividers) {
@@ -265,10 +267,7 @@ void main() {
       ),
       findsNothing,
     );
-    expect(
-      find.byWidgetPredicate((w) => w is MDivider && w.axis == Axis.horizontal),
-      findsWidgets,
-    );
+    expect(_horizontalDividers(), findsWidgets);
   });
 
   testWidgets('the Load to deck header is not announced as a button', (

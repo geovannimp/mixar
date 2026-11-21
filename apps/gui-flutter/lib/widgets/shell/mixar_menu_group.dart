@@ -33,4 +33,7 @@ bool _isDividerPair(Widget previous, Widget next) =>
     previous is! MixarMenuLabel &&
     next is! MixarMenuLabel &&
     previous is! MixarMenuSegments &&
-    next is! MixarMenuSegments;
+    next is! MixarMenuSegments &&
+    // A nested group manages its own rows and rules.
+    previous is! MixarMenuGroup &&
+    next is! MixarMenuGroup;
