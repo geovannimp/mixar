@@ -5,7 +5,6 @@ pub mod collections;
 pub mod history_sessions;
 pub mod sampler_bank;
 pub mod sampler_slot;
-pub mod schema_migration;
 pub mod track_analysis;
 pub mod track_beat_grid;
 pub mod track_beat_segment;
@@ -21,7 +20,6 @@ pub use collections::Entity as CollectionEntity;
 pub use history_sessions::Entity as HistorySessionEntity;
 pub use sampler_bank::{Entity as SamplerBankEntity, SamplerPlayMode};
 pub use sampler_slot::Entity as SamplerSlotEntity;
-#[cfg(feature = "analysis")]
 pub use track_analysis::Entity as TrackAnalysisEntity;
 pub use track_beat_grid::Entity as TrackBeatGridEntity;
 pub use track_beat_segment::Entity as TrackBeatSegmentEntity;

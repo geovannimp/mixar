@@ -21,14 +21,11 @@ mod analysis;
 mod beat_grid;
 mod bus;
 mod collections;
-mod db;
 mod deck_data;
 mod decode_cache;
 mod embedded_metadata;
-mod entity;
 mod export;
 mod history;
-mod migrations;
 mod model;
 mod playback;
 mod sampler_data;
@@ -44,6 +41,9 @@ mod worker;
 #[cfg(feature = "analysis")]
 use crate::analysis::{compute_file_analysis, ComputedFileAnalysis};
 use codec::is_loadable_audio_path;
+#[cfg(test)]
+pub(crate) use library_db::migrations;
+pub(crate) use library_db::{db, entity};
 
 use decode_cache::DecodeCache;
 use library_core::AnalysisDurationMode;
@@ -51,17 +51,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
-    CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    CueSource, FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
-    LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TagWriteBack, TrackCue, TrackId, TrackMetadata,
-    UpdateCollection, WritableLibrary,
+    path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, BeatSegment,
+    CanonicalBeatGrid, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
+    CollectionEntryId, CollectionId, CollectionType, CueSource, FileAudioSource, GridError,
+    ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio, LoadedAudio, Migratable,
+    MigrateOptions, MigrateReport, NewCollection, Result, ScanReport, StreamAudioSource,
+    StreamProvider, TagWriteBack, TrackCue, TrackId, TrackMetadata, UpdateCollection,
+    WritableLibrary, SOURCE_ANALYSIS, SOURCE_IMPORT, SOURCE_MANUAL,
 };
 
-pub use beat_grid::{
-    BeatSegment, CanonicalBeatGrid, GridError, SOURCE_ANALYSIS, SOURCE_IMPORT, SOURCE_MANUAL,
-};
 pub use bus::{LibraryBus, LibraryBuses, DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL, STEM_MODELS};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
@@ -427,20 +425,7 @@ pub(crate) fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<Pa
     Ok(files)
 }
 
-fn unix_now() -> std::time::Duration {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-}
-
-pub(crate) fn unix_secs_string() -> String {
-    unix_now().as_secs().to_string()
-}
-
-pub(crate) fn unix_millis_string() -> String {
-    unix_now().as_millis().to_string()
-}
+pub(crate) use library_core::{unix_millis_string, unix_secs_string};
 
 #[cfg(test)]
 mod tests;

@@ -14,12 +14,13 @@ audio-core = { path = "../audio-core" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 zstd = "0.14"
-sea-orm-sync = { version = "2.0.0", features = [
+# The sync ORM: one connection, no executor, and it builds for wasm32 too.
+# Migrations run on the same connection through `migrator`.
+sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "rusqlite",
-    "entity-registry",
-    "schema-sync",
+    "macros",
 ] }
-rusqlite = { workspace = true }
+library-db = { path = "../library-db" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
@@ -43,6 +44,8 @@ stems-webgpu = ["stems", "analyzer-stems/webgpu"]
 
 [dev-dependencies]
 base64 = "0.22.1"
+# Raw SQLite is only used by tests and fixtures.
+rusqlite = { workspace = true }
 tempfile = "3.0"
 lofty = "0.25.5"
 curve-core = { path = "../curve-core" }

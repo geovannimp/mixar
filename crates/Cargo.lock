@@ -1540,7 +1540,6 @@ dependencies = [
  "serde",
  "tempfile",
  "thiserror 1.0.69",
- "tokio",
  "toml 0.8.23",
  "tracing",
 ]
@@ -1583,7 +1582,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2328,15 +2327,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inventory"
-version = "0.3.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4f0c30c76f2f4ccee3fe55a2435f691ca00c0e4bd87abe4f4a851b1d4dac39b"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2350,7 +2340,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2613,6 +2603,7 @@ dependencies = [
  "event-bus",
  "image",
  "library-core",
+ "library-db",
  "lofty",
  "rusqlite",
  "sea-orm-sync",
@@ -2652,7 +2643,21 @@ dependencies = [
  "audio-core 0.1.0",
  "codec",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "library-db"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "library-core",
+ "migrator",
+ "rusqlite",
+ "sea-orm-sync",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -2847,6 +2852,15 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "windows",
+]
+
+[[package]]
+name = "migrator"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "sea-orm-sync",
+ "tracing",
 ]
 
 [[package]]
@@ -3783,7 +3797,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4214,7 +4228,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4314,9 +4328,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-macros"
-version = "2.0.0"
+version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4cbb7ae053b9b37c919ea944a3bc52f7830a90c223f8a765c908293bca8f22d"
+checksum = "91fa8c81c20fc8cfe78d22d9a2721ca5ef151dc4a8a7b372de218aaba33733fa"
 dependencies = [
  "heck 0.5.0",
  "itertools 0.14.0",
@@ -4330,15 +4344,14 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-sync"
-version = "2.0.0"
+version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af077c8192295a81104bdb5ffdc7f527ed9808b668e4fb047678180ac56bd5a7"
+checksum = "cca5d1e8a6bf36667a1f354e8050afc7c8487cea55795cb202b4d799b34148f2"
 dependencies = [
  "bigdecimal",
  "chrono",
  "derive-where",
  "derive_more",
- "inventory",
  "itertools 0.14.0",
  "log",
  "mac_address",
@@ -5016,7 +5029,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5687,7 +5700,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

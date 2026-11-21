@@ -92,9 +92,38 @@ pub fn camelot_code_to_musical(code: usize, minor: bool) -> Option<String> {
     }
 }
 
+/// Camelot token (any case, padded) → musical for tag import, else the trimmed
+/// token unchanged.
+pub fn normalize_key_notation(raw: &str) -> String {
+    camelot_to_musical(raw).unwrap_or_else(|| raw.trim().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn key_notation_normalizes_camelot_tokens() {
+        assert_eq!(
+            normalize_key_notation("8A"),
+            camelot_code_to_musical(8, true).unwrap()
+        );
+        assert_eq!(
+            normalize_key_notation(" 8b "),
+            camelot_code_to_musical(8, false).unwrap()
+        );
+    }
+
+    #[test]
+    fn key_notation_leaves_other_tokens_alone() {
+        for raw in ["", "8", "13B", "8C", "Am"] {
+            assert_eq!(
+                normalize_key_notation(raw),
+                raw,
+                "raw {raw:?} passes through"
+            );
+        }
+    }
 
     #[test]
     fn mixed_in_key_anchors() {
