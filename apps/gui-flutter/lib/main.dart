@@ -11,6 +11,7 @@ import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
+
 // The pre-native API: this file only sets the window up on macOS and
 // Windows, where the Linux runner's geometry does not apply.
 

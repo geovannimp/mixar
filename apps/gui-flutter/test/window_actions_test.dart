@@ -11,52 +11,44 @@ void main() {
 
   group('runCloseSequence', () {
     test('a delivered SIGKILL ends the process before close and exit', () {
-      var kills = 0;
-      var closes = 0;
-      var exits = 0;
-      runCloseSequence(
-        linux: true,
-        forceKill: () {
-          kills++;
-          return true;
-        },
-        closeWindow: () => closes++,
-        exitApp: (_) => exits++,
+      final calls = _record(linux: true, killLands: true);
+      expect(calls.kills, 1);
+      expect(
+        calls.closes,
+        0,
+        reason: 'a blocking close would outlive the kill',
       );
-      expect(kills, 1);
-      expect(closes, 0, reason: 'a blocking close would outlive the kill');
-      expect(exits, 0);
+      expect(calls.exits, 0);
     });
 
     test('a kill that did not land falls through to close and exit', () {
-      var closes = 0;
-      var exits = 0;
-      runCloseSequence(
-        linux: true,
-        forceKill: () => false,
-        closeWindow: () => closes++,
-        exitApp: (_) => exits++,
-      );
-      expect(closes, 1);
-      expect(exits, 1);
+      final calls = _record(linux: true, killLands: false);
+      expect((calls.kills, calls.closes, calls.exits), (1, 1, 1));
     });
 
     test('other hosts never try to kill', () {
-      var kills = 0;
-      var closes = 0;
-      var exits = 0;
-      runCloseSequence(
-        linux: false,
-        forceKill: () {
-          kills++;
-          return true;
-        },
-        closeWindow: () => closes++,
-        exitApp: (_) => exits++,
-      );
-      expect(kills, 0);
-      expect(closes, 1);
-      expect(exits, 1);
+      final calls = _record(linux: false, killLands: true);
+      expect((calls.kills, calls.closes, calls.exits), (0, 1, 1));
     });
   });
+}
+
+/// Runs the sequence against recording callbacks and reports what each counted.
+({int kills, int closes, int exits}) _record({
+  required bool linux,
+  required bool killLands,
+}) {
+  var kills = 0;
+  var closes = 0;
+  var exits = 0;
+  runCloseSequence(
+    linux: linux,
+    forceKill: () {
+      kills++;
+      return killLands;
+    },
+    closeWindow: () => closes++,
+    exitApp: (_) => exits++,
+  );
+  return (kills: kills, closes: closes, exits: exits);
 }
