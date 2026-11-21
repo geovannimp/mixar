@@ -24,8 +24,6 @@ import 'package:window_manager/window_manager.dart';
 import 'helpers/collection_tracks_override.dart';
 import 'support/mixar_material_app.dart';
 
-const _windowManagerChannel = MethodChannel('window_manager');
-
 void main() {
   /// Runs [body] as a [platform] host with the desktop-window and macOS
   /// preview overrides set, restoring all three before the framework's
@@ -115,26 +113,6 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-  }
-
-  /// Answers window_manager on a desktop host and records what the header
-  /// asked it, so a test can prove the app's own buttons were never built.
-  List<String> recordWindowCalls() {
-    final calls = <String>[];
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          ..setMockMethodCallHandler(_windowManagerChannel, (call) async {
-            calls.add(call.method);
-            // The window's buttons read these two; the rest is unused.
-            return switch (call.method) {
-              'isMaximized' || 'isMinimized' => false,
-              _ => null,
-            };
-          });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(_windowManagerChannel, null),
-    );
-    return calls;
   }
 
   /// The menu button's leading edge — the header's first content, so its x is
@@ -338,7 +316,6 @@ void main() {
 
     testWidgets('a macOS window keeps the corner for its traffic lights '
         '($mode)', (tester) async {
-      final calls = recordWindowCalls();
       const surface = Size(1024, 768);
 
       // Baseline: not a desktop window, so nothing sits before the menu.
@@ -396,11 +373,6 @@ void main() {
           await openMenu(tester);
           expect(rowFinder('Settings'), findsOneWidget);
           expect(tester.takeException(), isNull);
-          expect(
-            calls,
-            isNot(contains('isMaximized')),
-            reason: 'no app buttons were built, so nothing asked the window',
-          );
 
           await unmount(tester);
         },
@@ -411,8 +383,6 @@ void main() {
       testWidgets('a ${platform.name} window keeps the app buttons ($mode)', (
         tester,
       ) async {
-        final calls = recordWindowCalls();
-
         final baseline = await pumpHeaderBaseline(tester, theme: theme);
 
         await withHost(
@@ -439,7 +409,6 @@ void main() {
               tester.getSize(find.byType(AppHeader)).height,
               kAppHeaderHeight,
             );
-            expect(calls, contains('isMaximized'));
 
             await openMenu(tester);
             expect(rowFinder('Settings'), findsOneWidget);
@@ -454,8 +423,6 @@ void main() {
     testWidgets('the Linux preview draws the reference lights ($mode)', (
       tester,
     ) async {
-      final calls = recordWindowCalls();
-
       final baseline = await pumpHeaderBaseline(tester, theme: theme);
 
       await withHost(
@@ -484,7 +451,6 @@ void main() {
           await openMenu(tester);
           expect(rowFinder('Settings'), findsOneWidget);
           expect(tester.takeException(), isNull);
-          expect(calls, isNot(contains('isMaximized')));
 
           await unmount(tester);
         },

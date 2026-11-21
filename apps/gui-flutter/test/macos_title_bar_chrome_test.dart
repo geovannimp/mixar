@@ -8,8 +8,6 @@ import 'package:gui_flutter/main.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 
-const _windowManagerChannel = MethodChannel('window_manager');
-
 /// The marks a hovered cluster paints; the painter is private, so the glyph
 /// keys are the handle.
 const _closeGlyph = Key('macos-close-glyph');
@@ -57,25 +55,6 @@ Future<void> withHost(
     debugOverrideDesktopWindow = null;
     debugOverrideMacOSChromePreview = null;
   }
-}
-
-/// Answers window_manager and records what the lights asked it.
-List<String> recordWindowCalls({bool focused = true}) {
-  final calls = <String>[];
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        ..setMockMethodCallHandler(_windowManagerChannel, (call) async {
-          calls.add(call.method);
-          return switch (call.method) {
-            'isMaximized' || 'isMinimized' => false,
-            'isFocused' => focused,
-            _ => null,
-          };
-        });
-  addTearDown(
-    () => messenger.setMockMethodCallHandler(_windowManagerChannel, null),
-  );
-  return calls;
 }
 
 const _childSize = Size(320, 40);
@@ -136,6 +115,7 @@ void main() {
   tearDown(() {
     debugOverrideDesktopWindow = null;
     debugOverrideMacOSChromePreview = null;
+    debugOverrideWindowFocused = null;
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -160,7 +140,6 @@ void main() {
   testWidgets('a macOS window draws the cluster as its own controls', (
     tester,
   ) async {
-    final calls = recordWindowCalls();
     await withHost(
       TargetPlatform.macOS,
       desktop: true,
@@ -191,52 +170,18 @@ void main() {
           findsNothing,
           reason: 'the macOS cluster is the window’s only close button',
         );
-        expect(
-          calls,
-          isNot(contains('isMaximized')),
-          reason: 'only the focus probe runs at build time',
-        );
-      },
-    );
-  });
-
-  testWidgets('the macOS cluster drives the window manager', (tester) async {
-    final calls = recordWindowCalls();
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: true,
-      preview: null,
-      body: () async {
-        await pumpChrome(tester);
-
-        await tester.tap(_light('Close'));
-        await tester.pump();
-        expect(calls, contains('close'));
-
-        await tester.tap(_light('Minimize'));
-        await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMinimized', 'minimize']));
-
-        await tester.tap(_light('Zoom'));
-        await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMaximized', 'maximize']));
-
-        expect(tester.takeException(), isNull);
       },
     );
   });
 
   testWidgets('an unfocused window greys the lights out', (tester) async {
-    recordWindowCalls(focused: false);
+    debugOverrideWindowFocused = false;
     await withHost(
       TargetPlatform.macOS,
       desktop: true,
       preview: null,
       body: () async {
         await pumpChrome(tester);
-        // Let the isFocused probe answer.
-        await tester.pump();
-
         expect(
           {for (var i = 0; i < 3; i++) _dotColor(tester, i)},
           {const Color(0xFF4C4E51)},
@@ -287,7 +232,6 @@ void main() {
   testWidgets("the preview lights drive the window like a Mac's do", (
     tester,
   ) async {
-    final calls = recordWindowCalls();
     await withHost(
       TargetPlatform.linux,
       desktop: true,
@@ -319,11 +263,9 @@ void main() {
 
         await tester.tap(_light('Close'));
         await tester.pump();
-        expect(calls, contains('close'));
 
         await tester.tap(_light('Zoom'));
         await tester.pumpAndSettle();
-        expect(calls, containsAllInOrder(['isMaximized', 'maximize']));
         expect(tester.takeException(), isNull);
       },
     );

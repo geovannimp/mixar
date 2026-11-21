@@ -14,6 +14,12 @@ bool? debugOverrideDesktopWindow;
 /// method channel for a widget test to mock; tests set this instead.
 bool? debugOverrideWindowMaximized;
 
+/// Test override — whether the host window reports focus.
+///
+/// Like [debugOverrideWindowMaximized]: window_manager 0.7 reads focus over
+/// FFI, so there is no method channel for a widget test to answer.
+bool? debugOverrideWindowFocused;
+
 /// Desktop hosts where `window_manager` applies (not web / mobile).
 bool get isDesktopWindow =>
     debugOverrideDesktopWindow ?? (!kIsWeb && platform.ioIsDesktop);

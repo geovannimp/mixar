@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/analytics/analytics_providers.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
+// The pre-native API: this file only sets the window up on macOS and
+// Windows, where the Linux runner's geometry does not apply.
+import 'package:window_manager/legacy.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
