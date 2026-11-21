@@ -122,79 +122,83 @@ mod tests {
     #[test]
     fn track_metadata_maps_only_valid_raw_colours() {
         let db = crate::db::open_in_memory().unwrap();
-        let conn = db.conn().unwrap();
+        {
+            let conn = db.conn().unwrap();
 
-        for (id, stored, expected) in [
-            ("valid", 0x12_3456i64, Some(0x12_3456u32)),
-            ("white", 0x00FF_FFFF, Some(0x00FF_FFFF)),
-            ("black", 0, Some(0)),
-            ("absent", -1, None),
-            ("too-big", 16_777_216, None),
-            ("negative", -16, None),
-        ] {
-            let row = tracks::ActiveModel {
-                id: Set(id.into()),
-                source_type: Set("file".into()),
-                source_ref: Set(format!("/music/{id}.wav")),
-                // `absent` is written as NULL below, not as -1.
-                color_rgb: Set((id != "absent").then_some(stored as i32)),
-                added_at: Set("now".into()),
-                updated_at: Set("now".into()),
-                ..Default::default()
+            for (id, stored, expected) in [
+                ("valid", 0x12_3456i64, Some(0x12_3456u32)),
+                ("white", 0x00FF_FFFF, Some(0x00FF_FFFF)),
+                ("black", 0, Some(0)),
+                ("absent", -1, None),
+                ("too-big", 16_777_216, None),
+                ("negative", -16, None),
+            ] {
+                let row = tracks::ActiveModel {
+                    id: Set(id.into()),
+                    source_type: Set("file".into()),
+                    source_ref: Set(format!("/music/{id}.wav")),
+                    // `absent` is written as NULL below, not as -1.
+                    color_rgb: Set((id != "absent").then_some(stored as i32)),
+                    added_at: Set("now".into()),
+                    updated_at: Set("now".into()),
+                    ..Default::default()
+                }
+                .insert(conn.as_connection())
+                .unwrap();
+                assert_eq!(track_metadata(&row).color_rgb, expected, "{id}");
             }
-            .insert(conn.as_connection())
-            .unwrap();
-            assert_eq!(track_metadata(&row).color_rgb, expected, "{id}");
         }
     }
 
     #[test]
     fn track_metadata_normalizes_user_owned_columns() {
         let db = crate::db::open_in_memory().unwrap();
-        let conn = db.conn().unwrap();
+        {
+            let conn = db.conn().unwrap();
 
-        let invalid = tracks::ActiveModel {
-            id: Set("bad".into()),
-            source_type: Set("file".into()),
-            source_ref: Set("/music/bad.wav".into()),
-            rating: Set(Some(9)),
-            year: Set(Some(0)),
-            track_number: Set(Some(-1)),
-            disc_number: Set(Some(70_000)),
-            color_label: Set(Some("mauve".into())),
-            added_at: Set("now".into()),
-            updated_at: Set("now".into()),
-            ..Default::default()
-        }
-        .insert(conn.as_connection())
-        .unwrap();
-        let metadata = track_metadata(&invalid);
-        assert_eq!(metadata.rating, None);
-        assert_eq!(metadata.year, None);
-        assert_eq!(metadata.track_number, None);
-        assert_eq!(metadata.disc_number, None);
-        assert_eq!(metadata.color_label, None);
+            let invalid = tracks::ActiveModel {
+                id: Set("bad".into()),
+                source_type: Set("file".into()),
+                source_ref: Set("/music/bad.wav".into()),
+                rating: Set(Some(9)),
+                year: Set(Some(0)),
+                track_number: Set(Some(-1)),
+                disc_number: Set(Some(70_000)),
+                color_label: Set(Some("mauve".into())),
+                added_at: Set("now".into()),
+                updated_at: Set("now".into()),
+                ..Default::default()
+            }
+            .insert(conn.as_connection())
+            .unwrap();
+            let metadata = track_metadata(&invalid);
+            assert_eq!(metadata.rating, None);
+            assert_eq!(metadata.year, None);
+            assert_eq!(metadata.track_number, None);
+            assert_eq!(metadata.disc_number, None);
+            assert_eq!(metadata.color_label, None);
 
-        let valid = tracks::ActiveModel {
-            id: Set("good".into()),
-            source_type: Set("file".into()),
-            source_ref: Set("/music/good.wav".into()),
-            rating: Set(Some(4)),
-            year: Set(Some(2024)),
-            track_number: Set(Some(3)),
-            disc_number: Set(Some(2)),
-            color_label: Set(Some("Aqua".into())),
-            added_at: Set("now".into()),
-            updated_at: Set("now".into()),
-            ..Default::default()
+            let valid = tracks::ActiveModel {
+                id: Set("good".into()),
+                source_type: Set("file".into()),
+                source_ref: Set("/music/good.wav".into()),
+                rating: Set(Some(4)),
+                year: Set(Some(2024)),
+                track_number: Set(Some(3)),
+                disc_number: Set(Some(2)),
+                color_label: Set(Some("Aqua".into())),
+                added_at: Set("now".into()),
+                updated_at: Set("now".into()),
+                ..Default::default()
+            }
+            .insert(conn.as_connection())
+            .unwrap();
+            let metadata = track_metadata(&valid);
+            assert_eq!(metadata.rating, Some(4));
+            assert_eq!(metadata.year, Some(2024));
+            assert_eq!(metadata.track_number, Some(3));
+            assert_eq!(metadata.disc_number, Some(2));
+            assert_eq!(metadata.color_label, Some(library_core::ColorLabel::Aqua));
         }
-        .insert(conn.as_connection())
-        .unwrap();
-        let metadata = track_metadata(&valid);
-        assert_eq!(metadata.rating, Some(4));
-        assert_eq!(metadata.year, Some(2024));
-        assert_eq!(metadata.track_number, Some(3));
-        assert_eq!(metadata.disc_number, Some(2));
-        assert_eq!(metadata.color_label, Some(library_core::ColorLabel::Aqua));
     }
 }

@@ -24,6 +24,10 @@ use library_core::ColorLabel;
 
 use super::{start_counting, stop_counting, ApplyOutcome, SeratoAdoptionState};
 
+fn column_name(column: impl sea_orm::ColumnTrait) -> String {
+    column.as_column_ref().1.to_string()
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -221,35 +225,42 @@ fn legacy_database_gains_nullable_adoption_columns_without_eager_work() {
         id
     };
 
-    // Emulate the database written before this feature existed.
+    // Emulate the database written before this feature existed: raw SQLite drops
+    // the columns and forgets only the baseline, so reopening runs it again.
     {
-        let db = crate::db::open(&db_path).unwrap();
-        let guard = db.conn().unwrap();
-        for column in ["serato_imported_at", "serato_adopted_kinds"] {
-            guard
-                .as_connection()
-                .execute_raw(Statement::from_string(
-                    DatabaseBackend::Sqlite,
-                    format!("ALTER TABLE tracks DROP COLUMN {column}"),
-                ))
-                .unwrap();
+        use sea_orm::EntityName;
+
+        let table = tracks::Entity.table_name();
+        let imported_at = column_name(tracks::Column::SeratoImportedAt);
+        let adopted_kinds = column_name(tracks::Column::SeratoAdoptedKinds);
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let mut sql = String::new();
+        for column in [imported_at, adopted_kinds] {
+            sql.push_str(&format!("ALTER TABLE {table} DROP COLUMN {column};\n"));
         }
+        sql.push_str(&format!(
+            "DELETE FROM {ledger} WHERE {version} = '{}';",
+            crate::migrations::BASELINE_VERSION,
+            ledger = crate::migrations::LEDGER_TABLE,
+            version = crate::migrations::VERSION_COLUMN
+        ));
+        conn.execute_batch(&sql).unwrap();
     }
 
     let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
     // Columns exist again, both nullable.
     let columns: Vec<String> = {
         let guard = lib.db.conn().unwrap();
-        guard
-            .as_connection()
-            .query_all_raw(Statement::from_string(
+        {
+            guard.as_connection().query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "PRAGMA table_info(tracks)".to_string(),
             ))
-            .unwrap()
-            .iter()
-            .map(|row| row.try_get::<String>("", "name").unwrap())
-            .collect()
+        }
+        .unwrap()
+        .iter()
+        .map(|row| row.try_get::<String>("", "name").unwrap())
+        .collect()
     };
     assert!(columns.iter().any(|c| c == "serato_imported_at"));
     assert!(columns.iter().any(|c| c == "serato_adopted_kinds"));
@@ -807,16 +818,18 @@ fn stream_rows_are_not_applicable() {
     let id = TrackId::new("stream:http://radio.example/stream");
     {
         let guard = lib.db.conn().unwrap();
-        tracks::ActiveModel {
-            id: sea_orm::Set(id.as_str().to_string()),
-            source_type: sea_orm::Set("stream".into()),
-            source_ref: sea_orm::Set("http://radio.example/stream".into()),
-            added_at: sea_orm::Set("1".into()),
-            updated_at: sea_orm::Set("1".into()),
-            ..Default::default()
-        }
-        .insert(guard.as_connection())
-        .unwrap();
+        {
+            tracks::ActiveModel {
+                id: sea_orm::Set(id.as_str().to_string()),
+                source_type: sea_orm::Set("stream".into()),
+                source_ref: sea_orm::Set("http://radio.example/stream".into()),
+                added_at: sea_orm::Set("1".into()),
+                updated_at: sea_orm::Set("1".into()),
+                ..Default::default()
+            }
+            .insert(guard.as_connection())
+            .unwrap();
+        };
     }
     lib.ensure_serato_adopted(&id).unwrap();
     assert_eq!(state(&lib, &id).imported_at, None);
@@ -1145,13 +1158,13 @@ fn a_database_failure_rolls_back_every_mapped_row() {
 }
 
 fn install_marker_failure(lib: &LibraryManager) {
-    use sea_orm::{ColumnTrait, EntityName};
+    use sea_orm::EntityName;
 
     // The table and column names come from the entity, so a rename surfaces here
     // instead of leaving this trigger silently unable to fire (a false pass).
     let table = tracks::Entity.table_name();
-    let (_, imported_at) = tracks::Column::SeratoImportedAt.as_column_ref();
-    let (_, adopted_kinds) = tracks::Column::SeratoAdoptedKinds.as_column_ref();
+    let imported_at = column_name(tracks::Column::SeratoImportedAt);
+    let adopted_kinds = column_name(tracks::Column::SeratoAdoptedKinds);
     let guard = lib.db.conn().unwrap();
     guard
         .as_connection()
