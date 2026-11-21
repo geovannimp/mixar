@@ -112,17 +112,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # mise.toml names a release; flutter-action installs exactly it.
-          # A channel pin needs `channel:` instead of `flutter-version:`, so
-          # fail loudly rather than handing "master" to the action.
-          pin="$(mise current flutter)"
-          case "$pin" in
-            master|beta|stable)
-              echo "::error::mise.toml pins Flutter's $pin channel; pass it as channel: instead of flutter-version."
-              exit 1
-              ;;
-          esac
-          echo "version=$pin" >> "$GITHUB_OUTPUT"
+          echo "version=$(mise current flutter)" >> "$GITHUB_OUTPUT"
 
       # Windows Release: official Flutter action sets FLUTTER_ROOT (cargokit
       # run_build_tool.cmd needs it). Keep mise for Rust/Node/ninja; the
@@ -132,6 +122,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
+          channel: stable
           flutter-version: ${{ steps.flutter.outputs.version }}
           cache: true
 

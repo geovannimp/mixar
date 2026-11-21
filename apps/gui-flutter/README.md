@@ -46,7 +46,7 @@ graphics. Start a debug session with it on:
 ```sh
 MIXAR_PREVIEW_MACOS_CHROME=true npm run app:linux
 # same thing, spelled out:
-mise exec -- flutter run -d linux --dart-define=MIXAR_PREVIEW_MACOS_CHROME=true
+mise exec -- flutter run -d linux --no-enable-impeller --dart-define=MIXAR_PREVIEW_MACOS_CHROME=true
 ```
 
 It switches both headers to the macOS layout: the three lights centred in the
@@ -57,18 +57,6 @@ they behave identically on Linux. The flag is compiled out of profile/release
 builds. Stop and relaunch to switch it off: the switch is read at startup, so
 hot reload does not toggle it. On Linux this proves the Flutter layout and the
 button wiring, not AppKit behavior.
-
-The SDK is pinned to Flutter 3.50.1, the first release with the compositor fix
-([#196083](https://github.com/flutter/flutter/pull/196083)) for
-[#195885](https://github.com/flutter/flutter/issues/195885): on NVIDIA, where
-`can_blit` is false, 3.50.0 offset every layer by half the window. Flutter's
-experimental Desktop windowing API (`WindowController` / `Window` /
-`WindowManager`) is still `@internal` and sits behind a `windowing` feature
-flag, so the title bar drives the native window through `window_manager`.
-On Linux the runner owns the window geometry (`linux/runner/my_application.cc`)
-— letting window_manager apply the size on 3.50 added its frame margin on
-every resize.
-
 
 ### Android
 
