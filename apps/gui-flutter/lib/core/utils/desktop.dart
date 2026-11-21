@@ -1,5 +1,8 @@
+import 'dart:ui' show Color, Size;
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kDebugMode, kIsWeb;
+import 'package:window_manager/window_manager.dart';
 import 'package:gui_flutter/core/utils/desktop_stub.dart'
     if (dart.library.io) 'package:gui_flutter/core/utils/desktop_io.dart'
     as platform;
@@ -71,6 +74,44 @@ bool get usesMacOSTitleBarLayout => isMacOSHost || isMacOSChromePreview;
 /// macOS hides them, because [usesMacOSTitleBarLayout] draws close /
 /// minimise / zoom in the header; every other host keeps the native ones.
 bool get showsNativeCaptionButtons => !isMacOSHost;
+
+/// The host's native window, or null when it has none.
+///
+/// Widget tests and headless runs have no window. Routing every lookup through
+/// here keeps the null check in one place; a call site that re-derives it
+/// throws there instead, and every one of them breaks when the API changes.
+Window? currentNativeWindow() =>
+    isDesktopWindow ? WindowManager.instance.getCurrent() : null;
+
+/// Whether Dart applies the window options on this host.
+///
+/// Linux is excluded: `linux/runner/my_application.cc` sizes, centres and
+/// undecorates the window before Flutter starts. Applying the same options
+/// from Dart re-adds GTK's frame margin -- the window does not settle on
+/// 1280x800 but oscillates 1280x800 -> 1068x588 -> 1280x980.
+bool get configuresWindowFromDart =>
+    isDesktopWindow && defaultTargetPlatform != TargetPlatform.linux;
+
+/// Applies the window options a host without a runner setup needs from Dart.
+///
+/// Only call this when [configuresWindowFromDart]; the GTK runner owns the
+/// same values on Linux.
+void configureDesktopWindow(Window window, {required String title}) {
+  window
+    ..setSize(const Size(1280, 800).toNative(), false)
+    ..minimumSize = const Size(1024, 768).toNative()
+    ..center()
+    ..title = title
+    ..titleBarStyle = TitleBarStyle.hidden
+    // After the style, which re-shows the native buttons by default: the
+    // macOS header draws its own lights, every other host keeps the native
+    // ones.
+    ..isWindowControlButtonsVisible = showsNativeCaptionButtons
+    // Transparent so rounded corners reveal the compositor, not opaque black.
+    ..backgroundColor = const Color(0x00000000).toNative()
+    ..show()
+    ..focus();
+}
 
 /// Leading zone the macOS traffic-light cluster owns, in logical pixels. The
 /// cluster is centred in it and the header content starts after it, on every

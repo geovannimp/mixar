@@ -46,10 +46,10 @@ class _DesktopChromeState extends State<DesktopChrome> {
   void initState() {
     super.initState();
     // A test override replaces the native window entirely.
-    if (!isDesktopWindow || debugOverrideWindowMaximized != null) {
+    if (debugOverrideWindowMaximized != null) {
       return;
     }
-    final window = WindowManager.instance.getCurrent();
+    final window = currentNativeWindow();
     if (window == null) {
       return;
     }

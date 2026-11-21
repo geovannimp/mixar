@@ -23,10 +23,9 @@ void closeApp() {
   }
   if (Platform.isLinux) {
     // Before close(): a close that blocks would keep the kill from running.
-    try {
-      Process.killPid(pid, ProcessSignal.sigkill);
-    } on Object {
-      // Fall through to the orderly exit below.
+    if (Process.killPid(pid, ProcessSignal.sigkill)) {
+      // SIGKILL lands at once; the lines below run only if it did not.
+      return;
     }
   }
   window.close();

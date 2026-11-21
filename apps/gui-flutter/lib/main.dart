@@ -13,7 +13,6 @@ import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
 // The pre-native API: this file only sets the window up on macOS and
 // Windows, where the Linux runner's geometry does not apply.
-import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,25 +66,10 @@ Future<void> main() async {
   await preloadAppSettings(container);
 
   // The Linux runner owns the window: my_application.cc sizes, centres and
-  // undecorates it. Other desktop hosts still let window_manager apply the
-  // options and hide the native title bar.
-  if (isDesktopWindow && defaultTargetPlatform != TargetPlatform.linux) {
-    // The Linux runner sizes, centres and undecorates the window itself.
-    final window = WindowManager.instance.getCurrent();
-    if (window != null) {
-      window
-        ..setSize(const Size(1280, 800).toNative(), false)
-        ..minimumSize = const Size(1024, 768).toNative()
-        ..center()
-        ..title = appTitle
-        ..titleBarStyle = TitleBarStyle.hidden
-        // After the style: the macOS header draws its own lights, every other
-        // host keeps the native ones.
-        ..isWindowControlButtonsVisible = showsNativeCaptionButtons
-        ..backgroundColor = Colors.transparent.toNative()
-        ..show()
-        ..focus();
-    }
+  // undecorates it. Other desktop hosts let window_manager apply the options.
+  if (configuresWindowFromDart) {
+    final window = currentNativeWindow();
+    if (window != null) configureDesktopWindow(window, title: appTitle);
   }
 
   runApp(

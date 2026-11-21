@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
+import 'package:window_manager/window_manager.dart';
 
 /// The marks a hovered cluster paints; the painter is private, so the glyph
 /// keys are the handle.
@@ -270,46 +271,87 @@ void main() {
     );
   });
 
-  test('macOS hides AppKit’s buttons where the header draws its own', () async {
-    for (final platform in [TargetPlatform.linux, TargetPlatform.windows]) {
+  test('the window setup runs from Dart everywhere except Linux', () async {
+    await withHost(
+      TargetPlatform.linux,
+      desktop: true,
+      preview: false,
+      body: () async {
+        expect(
+          configuresWindowFromDart,
+          isFalse,
+          reason: 'the GTK runner sizes, centres and undecorates the window',
+        );
+      },
+    );
+    for (final platform in [TargetPlatform.macOS, TargetPlatform.windows]) {
       await withHost(
         platform,
         desktop: true,
         preview: false,
         body: () async {
-          expect(
-            showsNativeCaptionButtons,
-            isTrue,
-            reason: '${platform.name} keeps the native buttons',
-          );
+          expect(configuresWindowFromDart, isTrue, reason: platform.name);
         },
       );
     }
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: true,
-      preview: null,
-      body: () async {
-        expect(
-          showsNativeCaptionButtons,
-          isFalse,
-          reason: 'the header draws them, so AppKit must not',
-        );
-      },
-    );
-    await withHost(
-      TargetPlatform.macOS,
-      desktop: false,
-      preview: null,
-      body: () async {
-        expect(
-          showsNativeCaptionButtons,
-          isTrue,
-          reason: 'a non-desktop Mac draws no chrome — keep the native ones',
-        );
-      },
-    );
   });
+
+  test(
+    'macOS hides AppKit’s buttons through the shared window setup',
+    () async {
+      for (final platform in [TargetPlatform.linux, TargetPlatform.windows]) {
+        await withHost(
+          platform,
+          desktop: true,
+          preview: false,
+          body: () async {
+            final window = _RecordingWindow();
+            configureDesktopWindow(window, title: 'Mixar');
+            expect(
+              window.calls,
+              contains('isWindowControlButtonsVisible=true'),
+              reason: '${platform.name} keeps the native buttons',
+            );
+          },
+        );
+      }
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: true,
+        preview: false,
+        body: () async {
+          final window = _RecordingWindow();
+          configureDesktopWindow(window, title: 'Mixar');
+          expect(
+            window.calls,
+            contains('isWindowControlButtonsVisible=false'),
+            reason: 'the header draws them, so AppKit must not',
+          );
+          expect(
+            window.calls.indexOf('titleBarStyle=hidden'),
+            lessThan(
+              window.calls.indexOf('isWindowControlButtonsVisible=false'),
+            ),
+            reason: 'the style re-shows the native buttons, so it goes first',
+          );
+        },
+      );
+      await withHost(
+        TargetPlatform.macOS,
+        desktop: false,
+        preview: null,
+        body: () async {
+          final window = _RecordingWindow();
+          configureDesktopWindow(window, title: 'Mixar');
+          expect(
+            window.calls,
+            contains('isWindowControlButtonsVisible=true'),
+            reason: 'a non-desktop Mac draws no chrome — keep the native ones',
+          );
+        },
+      );
+    },
+  );
 
   testWidgets('the preview override cannot turn a Mac into a preview', (
     tester,
@@ -350,4 +392,26 @@ void main() {
       },
     );
   });
+}
+
+/// Records the calls [configureDesktopWindow] makes instead of reaching a host.
+///
+/// `Window` is an FFI handle with no test double, so the setup is asserted
+/// through the calls it makes: the wiring that a getter assertion misses.
+final class _RecordingWindow implements Window {
+  final calls = <String>[];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final name = RegExp(r'"([^"]+)"')
+        .firstMatch(invocation.memberName.toString())
+        ?.group(1)
+        ?.replaceAll('=', '');
+    calls.add(
+      invocation.isSetter
+          ? '$name=${invocation.positionalArguments.first}'
+          : '$name()',
+    );
+    return null;
+  }
 }
