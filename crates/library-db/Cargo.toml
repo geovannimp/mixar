@@ -1,0 +1,24 @@
+[package]
+name = "library-db"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Library schema, entities and migrations for Mixar"
+
+[dependencies]
+library-core = { path = "../library-core" }
+migrator = { path = "../migrator" }
+sea-orm-sync = { version = "2.0.4", default-features = false, features = [
+    "rusqlite",
+    "macros",
+] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tracing.workspace = true
+
+[dev-dependencies]
+rusqlite = { workspace = true }
+tempfile = "3.0"
+
+[lints]
+workspace = true

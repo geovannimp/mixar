@@ -11,8 +11,7 @@ use sea_orm::sea_query::{Expr, OnConflict, Order};
 use sea_orm::Statement;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, Set, SqliteTransactionMode, TransactionOptions,
-    TransactionTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set,
 };
 
 use crate::beat_grid::{self, SOURCE_IMPORT, SOURCE_MANUAL};
@@ -612,33 +611,15 @@ impl<'a> Store<'a> {
         if ids.is_empty() {
             return Ok(());
         }
-        let conn = self.db.conn()?;
-        let txn = conn
-            .as_connection()
-            .begin_with_options(TransactionOptions {
-                sqlite_transaction_mode: Some(SqliteTransactionMode::Immediate),
-                ..Default::default()
-            })
-            .map_err(db::db_err)?;
-        let result = (|| -> Result<()> {
+        self.db.transaction(|conn| {
             for chunk in ids.chunks(TRACK_ID_CHUNK) {
                 TrackEntity::delete_many()
                     .filter(tracks::Column::Id.is_in(track_id_strings(chunk)))
-                    .exec(&txn)
+                    .exec(conn)
                     .map_err(db::db_err)?;
             }
             Ok(())
-        })();
-        match result {
-            Ok(()) => {
-                txn.commit().map_err(db::db_err)?;
-                Ok(())
-            }
-            Err(error) => {
-                let _ = txn.rollback();
-                Err(error)
-            }
-        }
+        })
     }
 
     /// Test helper: remove a track row but leave playlist entries pointing at it.
@@ -819,42 +800,24 @@ impl<'a> Store<'a> {
         track_id: &TrackId,
         position: Option<i32>,
     ) -> Result<CollectionEntryId> {
-        let conn = self.db.conn()?;
         // IMMEDIATE: crate membership is a set; serialize writers so two connections
         // cannot both observe absence and insert a second row for the same pair.
-        let txn = conn
-            .as_connection()
-            .begin_with_options(TransactionOptions {
-                sqlite_transaction_mode: Some(SqliteTransactionMode::Immediate),
-                ..Default::default()
-            })
-            .map_err(db::db_err)?;
-        let result = (|| -> Result<CollectionEntryId> {
+        self.db.transaction(|conn| {
             let existing = CollectionEntryEntity::find()
                 .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
                 .filter(collection_entries::Column::TrackId.eq(track_id.as_str()))
-                .one(&txn)
+                .one(conn)
                 .map_err(db::db_err)?;
             if let Some(row) = existing {
                 let entry_id = CollectionEntryId::new(row.id.clone());
                 let mut active: collection_entries::ActiveModel = row.into();
                 active.position = Set(position);
-                active.update(&txn).map_err(db::db_err)?;
+                active.update(conn).map_err(db::db_err)?;
                 return Ok(entry_id);
             }
-            let id = self.insert_collection_entry_on(&txn, collection_id, track_id, position)?;
+            let id = self.insert_collection_entry_on(conn, collection_id, track_id, position)?;
             Ok(CollectionEntryId::new(id))
-        })();
-        match result {
-            Ok(entry_id) => {
-                txn.commit().map_err(db::db_err)?;
-                Ok(entry_id)
-            }
-            Err(error) => {
-                let _ = txn.rollback();
-                Err(error)
-            }
-        }
+        })
     }
 
     pub fn delete_collection_entry_by_id(

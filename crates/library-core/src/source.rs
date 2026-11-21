@@ -100,6 +100,11 @@ impl StreamAudioSource {
     }
 }
 
+/// `tracks.source_type` for a local file.
+pub const SOURCE_TYPE_FILE: &str = "file";
+/// `tracks.source_type` for a remote or service-backed stream.
+pub const SOURCE_TYPE_STREAM: &str = "stream";
+
 /// A track in the library pool — file or stream.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "source_type", rename_all = "snake_case")]
@@ -154,8 +159,8 @@ impl AudioSource {
     /// Wire format for storage (`file` / `stream`).
     pub fn source_type(&self) -> &'static str {
         match self {
-            Self::File(_) => "file",
-            Self::Stream(_) => "stream",
+            Self::File(_) => SOURCE_TYPE_FILE,
+            Self::Stream(_) => SOURCE_TYPE_STREAM,
         }
     }
 
