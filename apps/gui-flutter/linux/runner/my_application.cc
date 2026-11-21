@@ -66,12 +66,12 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Mixar");
   }
 
-  // The runner owns the window geometry. It used to be applied from Dart
-  // through window_manager's WindowOptions, but on Flutter 3.50 that adds the
-  // window frame margin again on every resize: 1280x800 grew to 1544x1064 and
-  // then 1808x1328 while the FlView stayed 1280x800, inset 132px per side, so
-  // the UI ended up in the bottom-left of a mostly transparent window. Sizing
-  // here keeps window, surface and view in agreement (verified 1280x800 @0,0).
+  // The runner owns the window geometry. Applied from Dart (window_manager's
+  // WindowOptions) it re-adds GTK's frame margin: a regenerated stock runner on
+  // 3.50.1 holds a 1280x800 view in a 1332x899 window, and once Dart applies
+  // the size the window oscillates (1280x800 -> 1068x588 -> 1280x980) instead
+  // of settling. Sizing here keeps window, surface and view in agreement
+  // (verified 1280x800 @0,0).
   gtk_window_set_default_size(window, 1280, 800);
   gtk_window_set_position(window, GTK_WIN_POS_CENTER);
   // window_manager WindowOptions.minimumSize uses gdk_window_set_geometry_hints,

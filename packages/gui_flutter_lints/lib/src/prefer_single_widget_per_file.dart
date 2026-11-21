@@ -33,11 +33,7 @@ class PreferSingleWidgetPerFile extends AnalysisRule {
     'prefer_single_widget_per_file',
     'Only one public Widget subclass is allowed per file. Found: {0}.',
     correctionMessage: 'Split every public Widget subclass into its own file.',
-    // Advisory: several long-standing files still hold more than one widget,
-    // and the analyzer offers no way to scope this per file (neither
-    // `errors:` nor `ignore_for_file` reaches plugin diagnostics). Make it
-    // blocking again once those are split.
-    severity: DiagnosticSeverity.INFO,
+    severity: DiagnosticSeverity.WARNING,
   );
 
   @override

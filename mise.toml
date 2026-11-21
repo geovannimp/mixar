@@ -4,9 +4,6 @@
 idiomatic_version_file_enable_tools = ["node", "rust"]
 
 [tools]
-# 3.50.1 is the first release with the Linux compositor fix (#196083): on
-# NVIDIA, where can_blit is false, 3.50.0 offset every layer by half the window
-# (flutter/flutter#195885).
 flutter = { version = "3.50.1", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
 # Rust compiler cache (rustc-wrapper in .cargo/config.toml). Installed from the
