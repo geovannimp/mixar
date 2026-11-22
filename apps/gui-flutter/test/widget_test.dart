@@ -1209,6 +1209,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
+    // The header stays clickable over the confirmation; a second press must
+    // not stack another one.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.byWidgetPredicate(
+          (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Unsaved settings'), findsOneWidget);
+
     await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsOneWidget);

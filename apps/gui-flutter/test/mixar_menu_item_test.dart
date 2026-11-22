@@ -9,24 +9,30 @@ import 'support/mixar_material_app.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<void> pumpItem(WidgetTester tester, {required bool selected}) async {
+  Future<void> pumpItem(
+    WidgetTester tester, {
+    required bool selected,
+    bool bounded = false,
+  }) async {
     final theme = MixarThemeData.dark();
+    final item = MixarMenuItem(
+      title: const Text('Echo'),
+      selected: selected,
+      onPress: () {},
+    );
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
-          // Loose height, like a menu column: the row is a band, not a fill.
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              MixarMenuItem(
-                title: const Text('Echo'),
-                selected: selected,
-                onPress: () {},
-              ),
-            ],
-          ),
+          // [bounded] is the regression shape: a row handed the whole body
+          // height must still paint a band, not become a viewport-tall target.
+          body: bounded
+              ? item
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [item],
+                ),
         ),
       ),
     );
@@ -38,6 +44,16 @@ void main() {
     expect(
       tester.getSize(find.byType(MixarMenuItem)).height,
       kMixarMenuRowHeight,
+    );
+  });
+
+  testWidgets('a lone row in a bounded panel stays a band', (tester) async {
+    await pumpItem(tester, selected: false, bounded: true);
+
+    expect(
+      tester.getSize(find.byType(MixarMenuItem)).height,
+      kMixarMenuRowHeight,
+      reason: 'an Align without a height factor would fill the body',
     );
   });
 

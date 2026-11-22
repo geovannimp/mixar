@@ -33,6 +33,10 @@ class _AppBackButtonState extends State<AppBackButton>
   );
   late bool _present = widget.visible;
 
+  /// True from the press-driven page change until the exit finishes: the
+  /// painted button is already gone as far as input is concerned.
+  var _leaving = false;
+
   @override
   void didUpdateWidget(AppBackButton oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -46,17 +50,24 @@ class _AppBackButtonState extends State<AppBackButton>
         ..stop()
         ..value = 0;
       _present = true;
+      _leaving = false;
       return;
     }
+    // Inert from this frame on, however long the fade takes.
+    _leaving = true;
     if (MediaQuery.disableAnimationsOf(context)) {
       // Reduced motion: the corner empties with the page.
       _present = false;
+      _leaving = false;
       return;
     }
     unawaited(
       _exit.forward(from: 0).whenComplete(() {
         if (mounted) {
-          setState(() => _present = false);
+          setState(() {
+            _present = false;
+            _leaving = false;
+          });
         }
       }),
     );
@@ -79,13 +90,18 @@ class _AppBackButtonState extends State<AppBackButton>
         // Accelerating away: the press reads as a throw out of the corner.
         final t = Curves.easeInCubic.transform(_exit.value);
         return IgnorePointer(
-          // A disappearing control must not take a second press.
-          ignoring: _exit.value > 0,
-          child: Opacity(
-            opacity: 1 - t,
-            child: Transform.translate(
-              offset: Offset(-kAppBackExitDistance * t, 0),
-              child: child,
+          // A disappearing control must not take a second press, not even on
+          // the frame the exit starts.
+          ignoring: _leaving,
+          child: ExcludeFocus(
+            // Nor keep the keyboard's focus while it fades away.
+            excluding: _leaving,
+            child: Opacity(
+              opacity: 1 - t,
+              child: Transform.translate(
+                offset: Offset(-kAppBackExitDistance * t, 0),
+                child: child,
+              ),
             ),
           ),
         );
@@ -95,7 +111,7 @@ class _AppBackButtonState extends State<AppBackButton>
         size: .sm,
         mainAxisSize: .min,
         semanticsLabel: 'Back to Booth',
-        onPress: widget.onPress,
+        onPress: _leaving ? null : widget.onPress,
         child: const Row(
           mainAxisSize: .min,
           children: [

@@ -50,6 +50,10 @@ class MixarMenuItem extends StatelessWidget {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
+              // Without this the alignment expands a lone row to whatever
+              // height its parent offers — a viewport-tall hit target in a
+              // bounded panel. A band stays a band; a wrapped title grows it.
+              heightFactor: 1,
               child: DefaultTextStyle(
                 style: theme.typography.body.sm.copyWith(
                   color: !enabled

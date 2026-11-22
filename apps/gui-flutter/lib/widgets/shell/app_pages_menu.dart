@@ -27,11 +27,12 @@ String shellPageLabel(ShellTab tab) => switch (tab) {
 /// It sits at the window's centre, so the pages live in one place instead of a
 /// corner hamburger, and it reads as the app's own title rather than as the
 /// current page's chrome.
-class AppPagesMenu extends StatelessWidget {
+class AppPagesMenu extends StatefulWidget {
   const new({
     required this.appTitle,
     required this.current,
     required this.onSelect,
+    this.onBeforeOpen,
     super.key,
   });
 
@@ -39,53 +40,102 @@ class AppPagesMenu extends StatelessWidget {
   final ShellTab current;
   final Future<void> Function(ShellTab) onSelect;
 
+  /// Called before the menu opens, for chrome that would cover it.
+  final VoidCallback? onBeforeOpen;
+
+  @override
+  State<AppPagesMenu> createState() => _AppPagesMenuState();
+}
+
+class _AppPagesMenuState extends State<AppPagesMenu> {
+  /// Owned here so the system Back button can close the menu: an anchored
+  /// overlay is not a route, and returning from the app would be wrong with a
+  /// menu on screen.
+  final _menu = MixarOverlayController();
+  var _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _menu.addListener(_syncOpen);
+  }
+
+  void _syncOpen() {
+    if (_open != _menu.isShowing) {
+      setState(() => _open = _menu.isShowing);
+    }
+  }
+
+  @override
+  void dispose() {
+    _menu.removeListener(_syncOpen);
+    _menu.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final label = shellPageLabel(current);
-    return MixarMenuAnchor(
-      // A shell menu, not a page-local one: it drops under the wordmark on
-      // every host, so a phone sees the list in the same place the desktop
-      // does instead of in a separate dialog.
-      style: SelectStyleSetting.desktop,
-      placement: Placement.bottom,
-      // Wide enough for the longest page name beside its icon and accent rule.
-      minWidth: 200,
-      menuBuilder: (context, controller) => _PagesMenuBody(
-        current: current,
-        controller: controller,
-        onSelect: onSelect,
-      ),
-      childBuilder: (context, controller) => AppButton(
-        variant: .ghost,
-        size: .sm,
-        mainAxisSize: MainAxisSize.min,
-        semanticsLabel: 'Pages, $label',
-        onPress: controller.toggle,
-        child: Row(
+    final label = shellPageLabel(widget.current);
+    return PopScope(
+      // While the menu is up, Back closes the menu instead of leaving the app.
+      canPop: !_open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _menu.hide();
+        }
+      },
+      child: MixarMenuAnchor(
+        controller: _menu,
+        // A shell menu, not a page-local one: it drops under the wordmark on
+        // every host, so a phone sees the list in the same place the desktop
+        // does instead of in a separate dialog.
+        style: SelectStyleSetting.desktop,
+        placement: Placement.bottom,
+        // Wide enough for the longest page name beside its icon and accent
+        // rule.
+        minWidth: 200,
+        menuBuilder: (context, controller) => _PagesMenuBody(
+          current: widget.current,
+          controller: controller,
+          onSelect: widget.onSelect,
+        ),
+        childBuilder: (context, controller) => AppButton(
+          variant: .ghost,
+          size: .sm,
           mainAxisSize: MainAxisSize.min,
-          children: [
-            ColorFiltered(
-              colorFilter: ColorFilter.mode(
-                theme.colors.foreground,
-                BlendMode.srcIn,
+          semanticsLabel: 'Pages, $label',
+          onPress: () {
+            if (!controller.isShowing) {
+              widget.onBeforeOpen?.call();
+            }
+            controller.toggle();
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ColorFiltered(
+                colorFilter: ColorFilter.mode(
+                  theme.colors.foreground,
+                  BlendMode.srcIn,
+                ),
+                child: Image.asset(
+                  kMixarLogoAsset,
+                  height: 12,
+                  semanticLabel: widget.appTitle,
+                ),
               ),
-              child: Image.asset(
-                kMixarLogoAsset,
-                height: 12,
-                semanticLabel: appTitle,
+              const SizedBox(width: 8),
+              Text(label),
+              const SizedBox(width: 4),
+              // The control opens a menu: the chevron says so before a press.
+              Icon(
+                LucideIcons.chevronDown,
+                size: 14,
+                color: theme.colors.mutedForeground,
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(label),
-            const SizedBox(width: 4),
-            // The control opens a menu: the chevron says so before a press.
-            Icon(
-              LucideIcons.chevronDown,
-              size: 14,
-              color: theme.colors.mutedForeground,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

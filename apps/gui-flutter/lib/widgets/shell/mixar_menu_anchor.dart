@@ -11,10 +11,16 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_controller.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
+/// Share of the window height an anchored menu may fill before it scrolls.
+const double kMixarMenuMaxHeightFactor = 0.8;
+
 /// Button-anchored action menu (⋯ menus).
 ///
 /// Desktop / auto-on-desktop opens an anchored popover. Mobile opens the same
 /// menu body in [showMixarDialog] (driven by Settings → UI → Select style).
+///
+/// The anchored panel never grows past [kMixarMenuMaxHeightFactor] of the
+/// window; longer menus scroll inside the panel.
 class MixarMenuAnchor extends StatefulWidget {
   const new({
     required this.childBuilder,
@@ -141,9 +147,22 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
       backdropBuilder: (context) =>
           MixarOverlayDismissBackdrop(onDismiss: _anchorController.hide),
       overlayBuilder: (context) {
+        // A menu taller than the window scrolls. Without the bound, a long
+        // list (hot cues, banks) runs past the bottom edge and its last
+        // choices cannot be reached at all.
+        final media = MediaQuery.maybeOf(context);
         return MixarMenuPanel(
           minWidth: widget.minWidth,
-          child: widget.menuBuilder(context, _anchorController),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: media == null
+                  ? double.infinity
+                  : media.size.height * kMixarMenuMaxHeightFactor,
+            ),
+            child: SingleChildScrollView(
+              child: widget.menuBuilder(context, _anchorController),
+            ),
+          ),
         );
       },
       child: widget.childBuilder(context, _anchorController),

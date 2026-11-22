@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
@@ -304,6 +305,41 @@ void main() {
       panel.center.dx,
       moreOrLessEquals(tester.getRect(pagesButton()).center.dx, epsilon: 1),
       reason: 'the menu hangs centred under the title control',
+    );
+  });
+
+  testWidgets('system back closes the menu instead of leaving', (tester) async {
+    await pumpHeader(tester);
+    await openMenu(tester);
+    expect(rowFinder('Booth'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(rowFinder('Booth'), findsNothing);
+    expect(
+      find.byType(AppHeader),
+      findsOneWidget,
+      reason: 'the shell is still the open route',
+    );
+  });
+
+  testWidgets('opening the menu clears the library drawer first', (
+    tester,
+  ) async {
+    await pumpHeader(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppHeader)),
+    );
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+
+    await openMenu(tester);
+
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+    expect(
+      rowFinder('Booth'),
+      findsOneWidget,
+      reason: 'the drawer no longer paints over the pages',
     );
   });
 

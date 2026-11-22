@@ -157,6 +157,72 @@ void main() {
     expect(foregroundStroke, hasLength(1));
   });
 
+  testWidgets('a menu taller than the window scrolls inside the panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final theme = MixarThemeData.dark();
+    var picked = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: MixarMenuAnchor(
+              style: SelectStyleSetting.desktop,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      for (var i = 1; i <= 30; i++)
+                        MixarMenuItem(
+                          title: Text('Row $i'),
+                          onPress: () {
+                            picked = i;
+                            controller.hide();
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              childBuilder: (context, controller) => GestureDetector(
+                onTap: controller.toggle,
+                child: const Text('Open menu'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+
+    // The band height stays, but the panel is bounded so the last rows are
+    // reachable instead of clipped off the bottom of the window.
+    expect(
+      tester.getRect(find.byType(MixarMenuPanel)).height,
+      lessThanOrEqualTo(400 * kMixarMenuMaxHeightFactor + 1),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Row 30'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('Row 30'));
+    await tester.pumpAndSettle();
+
+    expect(picked, 30);
+  });
+
   testWidgets('MixarMenuAnchor dismisses on outside tap', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(

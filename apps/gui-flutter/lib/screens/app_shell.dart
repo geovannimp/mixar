@@ -39,31 +39,42 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.read(libraryDrawerOpenProvider.notifier).set(false);
   }
 
+  /// True while a page change is waiting on the Settings leave guard.
+  ///
+  /// The header stays clickable over that guard's dialog, so without this a
+  /// second press stacks a second confirmation on the first.
+  var _switchingPage = false;
+
   /// Switches pages from the header's menu.
   ///
   /// Leaving Settings asks the page first: its draft, and the save that can
   /// apply it, live there — the menu cannot see either.
   Future<void> _selectPage(ShellTab tab) async {
-    if (tab == _tab) {
+    if (_switchingPage || tab == _tab) {
       return;
     }
-    if (_tab == ShellTab.settings) {
-      final guard = ref.read(settingsLeaveGuardProvider);
-      if (guard != null && !await guard()) {
-        return;
+    _switchingPage = true;
+    try {
+      if (_tab == ShellTab.settings) {
+        final guard = ref.read(settingsLeaveGuardProvider);
+        if (guard != null && !await guard()) {
+          return;
+        }
+        if (!mounted) {
+          return;
+        }
       }
-      if (!mounted) {
-        return;
+      if (tab != ShellTab.mixer) {
+        _closeLibraryDrawer();
       }
+      setState(() {
+        _tab = tab;
+        // Manual tab changes never carry a deep link; listen sets it.
+        _settingsDeepLink = null;
+      });
+    } finally {
+      _switchingPage = false;
     }
-    if (tab != ShellTab.mixer) {
-      _closeLibraryDrawer();
-    }
-    setState(() {
-      _tab = tab;
-      // Manual tab changes never carry a deep link; listen sets it.
-      _settingsDeepLink = null;
-    });
   }
 
   @override

@@ -299,7 +299,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 ### App chrome (Flutter)
 
 - **Header:** 40px, card token with the hairline underside; the pages title is centred — wordmark plus the open page's name (`Mixar Booth`) — and pressing it opens a dropdown of every page; any page but the booth also carries `← Booth` in the leading corner, which leaves with a 180ms slide-left fade when the page changes, while the trailing side holds the Library toggle on the mixer and the window controls; macOS keeps its traffic lights in the leading corner, left of the back button
-- **Menus:** anchored dropdowns and the mobile dialog share one row band — 44px (`kMixarMenuRowHeight`), flat, hairlines between choices; custom blocks (e.g. load-to-deck chips) keep their own look and height
+- **Menus:** anchored dropdowns and the mobile dialog share one row band — 44px (`kMixarMenuRowHeight`), flat, hairlines between choices; a dropdown never grows past 80% of the window and scrolls past that, so long lists stay reachable; custom blocks (e.g. load-to-deck chips) keep their own look and height
 - **Controls:** Mixar / Shad-bridged buttons, switches, sliders — square corners via `MixarStyle` / Shad `radius`, except deck toggles and fader tracks (full pill), fader nodes (4px), and dialogs (12px); faders custom with deck accent grips
 - **Control faces:** Dark theme uses one deepened neutral face for rotary and fader knobs; light theme uses a lighter warm blend for the rotary and zinc-400 for the fader grip plate
 - **Select menus:** Desktop `ShadSelect` opens with a top-anchored height grow + short fade (`selectTheme.effects` in `shadThemeFromMixar`)

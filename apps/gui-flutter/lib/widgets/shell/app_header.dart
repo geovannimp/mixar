@@ -88,6 +88,12 @@ class AppHeader extends ConsumerWidget {
                       appTitle: appTitle,
                       current: tab,
                       onSelect: onTabChanged,
+                      // A top-docked library drawer paints above the shell's
+                      // anchored menus; close it first so the pages it would
+                      // cover can be picked.
+                      onBeforeOpen: () => ref
+                          .read(libraryDrawerOpenProvider.notifier)
+                          .set(false),
                     ),
                   ),
                 ),

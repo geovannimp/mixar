@@ -99,6 +99,21 @@ void main() {
     expect(tester.widget<Opacity>(slotOpacity()).opacity, 1);
   });
 
+  testWidgets('an exiting button takes no press', (tester) async {
+    final host = await pumpSlot(tester, visible: true);
+
+    host.setVisible(false);
+    await tester.pump();
+
+    // The exit starts on this frame; the painted button must already be inert.
+    await tester.tap(find.byType(AppButton), warnIfMissed: false);
+    expect(host.presses(), 0);
+
+    await tester.pump(kAppBackExitDuration ~/ 2);
+    await tester.tap(find.byType(AppButton), warnIfMissed: false);
+    expect(host.presses(), 0);
+  });
+
   testWidgets('reduced motion empties the slot in the same frame', (
     tester,
   ) async {
