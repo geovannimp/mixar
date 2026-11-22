@@ -111,6 +111,40 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   /// `panes` package paints (`resizerHitTestThickness: 8`).
   static const _gripThickness = 8.0;
 
+  /// A close request that arrived while another route (the track edit drawer,
+  /// a dialog) sat above this one. The drawer cannot pop itself then, so it
+  /// waits for the covering route to leave instead of staying open with its
+  /// flag already false.
+  var _closeWhenRevealed = false;
+  var _revealCheckScheduled = false;
+
+  /// Starts the wait. The route's own `secondaryAnimation` is not driven when
+  /// a route covers it, so the reveal is caught by looking at the next frames.
+  void _closeOnceRevealed() {
+    _closeWhenRevealed = true;
+    if (_revealCheckScheduled) {
+      return;
+    }
+    _revealCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback(_checkRevealed);
+  }
+
+  void _checkRevealed(Duration _) {
+    _revealCheckScheduled = false;
+    if (!mounted || !_closeWhenRevealed) {
+      return;
+    }
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent) {
+      _closeWhenRevealed = false;
+      Navigator.of(context).pop();
+      return;
+    }
+    // Still covered: look again after the next frame.
+    _revealCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback(_checkRevealed);
+  }
+
   bool get _isHorizontal =>
       widget.side == LibraryDrawerSideSetting.left ||
       widget.side == LibraryDrawerSideSetting.right;
@@ -133,16 +167,23 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // Closed by request: the header toggle, or the end of a track drag.
-    // `isCurrent` keeps a second pop from taking the route underneath while
-    // this one animates out.
+    // Closed by request: the header toggle, the pages menu, or the end of a
+    // track drag. `isCurrent` keeps a second pop from taking the route
+    // underneath while this one animates out; when a route above is in the
+    // way, remember the request and pop on reveal.
     ref.listen(libraryDrawerOpenProvider, (_, open) {
       if (open) {
+        _closeWhenRevealed = false;
         return;
       }
       final route = ModalRoute.of(context);
-      if (route != null && route.isCurrent) {
+      if (route == null) {
+        return;
+      }
+      if (route.isCurrent) {
         Navigator.of(context).pop();
+      } else {
+        _closeOnceRevealed();
       }
     });
 

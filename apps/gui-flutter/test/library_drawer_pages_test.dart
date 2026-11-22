@@ -19,6 +19,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
+import 'package:gui_flutter/widgets/mixer/library_drawer.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
@@ -435,6 +436,64 @@ void main() {
     expect(container.read(libraryTrackDragActiveProvider), isFalse);
     // Open in its normal place, not tucked off the edge.
     expect(tester.getRect(find.byType(LibraryPanel)).top, 320);
+  });
+
+  testWidgets('a close request waits for the route above to leave', (
+    tester,
+  ) async {
+    await pumpSized(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      child: Builder(
+        builder: (context) => Center(
+          child: AppButton(
+            onPress: () =>
+                showLibraryDrawer(context, LibraryDrawerSideSetting.right),
+            child: const Text('Open library'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open library'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LibraryPanel)),
+    );
+    // Pushed through the drawer's own context: the covering route is what
+    // keeps the drawer from popping itself.
+    Navigator.of(
+      tester.element(find.byType(LibraryPanel)),
+      rootNavigator: true,
+    ).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => const Scaffold(body: Text('Editor')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The drawer is covered, so it cannot pop itself: the request has to wait
+    // rather than leave the panel open with its open flag already false.
+    container.read(libraryDrawerOpenProvider.notifier)
+      ..set(true)
+      ..set(false);
+    await tester.pumpAndSettle();
+    // Still mounted (covered routes are offstage), not popped.
+    expect(find.byType(LibraryPanel, skipOffstage: false), findsOneWidget);
+
+    Navigator.of(
+      tester.element(find.byType(LibraryPanel, skipOffstage: false)),
+      rootNavigator: true,
+    ).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LibraryPanel), findsNothing);
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
   });
 
   testWidgets('the header button closes the drawer it opened', (tester) async {

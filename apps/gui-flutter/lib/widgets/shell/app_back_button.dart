@@ -33,8 +33,8 @@ class _AppBackButtonState extends State<AppBackButton>
   );
   late bool _present = widget.visible;
 
-  /// True from the press-driven page change until the exit finishes: the
-  /// painted button is already gone as far as input is concerned.
+  /// True from the page change until the exit finishes: the painted button is
+  /// already gone as far as input is concerned.
   var _leaving = false;
 
   @override
@@ -63,12 +63,15 @@ class _AppBackButtonState extends State<AppBackButton>
     }
     unawaited(
       _exit.forward(from: 0).whenComplete(() {
-        if (mounted) {
-          setState(() {
-            _present = false;
-            _leaving = false;
-          });
+        // Only a finished exit clears the row; a re-show has already put it
+        // back, and its cancelled ticker must not undo that.
+        if (!mounted || !_leaving) {
+          return;
         }
+        setState(() {
+          _present = false;
+          _leaving = false;
+        });
       }),
     );
   }

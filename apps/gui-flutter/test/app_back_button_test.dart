@@ -114,6 +114,23 @@ void main() {
     expect(host.presses(), 0);
   });
 
+  testWidgets('coming back mid-exit leaves the button up', (tester) async {
+    final host = await pumpSlot(tester, visible: true);
+
+    host.setVisible(false);
+    await tester.pump();
+    await tester.pump(kAppBackExitDuration ~/ 2);
+
+    host.setVisible(true);
+    await tester.pump();
+
+    // The cancelled exit completes its future; it must not clear the row the
+    // re-show just put back.
+    await tester.pump(kAppBackExitDuration);
+    expect(find.byType(AppButton), findsOneWidget);
+    expect(tester.widget<Opacity>(slotOpacity()).opacity, 1);
+  });
+
   testWidgets('reduced motion empties the slot in the same frame', (
     tester,
   ) async {
