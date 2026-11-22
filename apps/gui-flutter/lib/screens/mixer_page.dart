@@ -55,7 +55,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   /// Whether the body has built once with a positive height. The first solve
   /// seeds the controllers before their panes exist; later solves must wait
   /// for the frame.
-  var _built = false;
+  var _builtWithPositiveHeight = false;
 
   @override
   void initState() {
@@ -175,8 +175,8 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         }
 
         final solvedFor = (constraints.maxHeight.roundToDouble(), config);
-        final firstBuild = !_built;
-        _built = true;
+        final firstBuild = !_builtWithPositiveHeight;
+        _builtWithPositiveHeight = true;
         // A zero-height body has nothing to split; applying it would only move
         // the controllers to a degenerate state before the window exists.
         if (constraints.maxHeight > 0 && _solvedFor != solvedFor) {
