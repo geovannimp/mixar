@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -118,19 +119,32 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   var _closeWhenRevealed = false;
   var _revealCheckScheduled = false;
 
-  /// Announce the route once it is mounted; a provider cannot be written from
-  /// initState.
+  /// Identifies this route in [libraryDrawerRouteMountedProvider], and the
+  /// owner handle used to publish and release it.
+  final _routeToken = Object();
   late final LibraryDrawerRouteMounted _routeMounted;
 
   @override
   void initState() {
     super.initState();
     _routeMounted = ref.read(libraryDrawerRouteMountedProvider.notifier);
+    // Claim the slot once mounted; a provider cannot be written from initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _routeMounted.set(true);
+        _routeMounted.claim(_routeToken);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // The route can also leave without our close paths (Android system Back
+    // pops it directly), so release the slot after teardown — and only if this
+    // route still owns it.
+    final mounted = _routeMounted;
+    final token = _routeToken;
+    scheduleMicrotask(() => mounted.releaseLate(token));
+    super.dispose();
   }
 
   /// Starts the wait. The route's own `secondaryAnimation` is not driven when
@@ -152,7 +166,7 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
     final route = ModalRoute.of(context);
     if (route != null && route.isCurrent) {
       _closeWhenRevealed = false;
-      _routeMounted.set(false);
+      _routeMounted.release(_routeToken);
       Navigator.of(context).pop();
       return;
     }
@@ -199,7 +213,7 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
       if (route.isCurrent) {
         // Free the slot now, not at dispose: a re-open during the closing
         // animation is a new drawer route, as it was before.
-        _routeMounted.set(false);
+        _routeMounted.release(_routeToken);
         Navigator.of(context).pop();
       } else {
         _closeOnceRevealed();

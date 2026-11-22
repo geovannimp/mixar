@@ -130,7 +130,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
       }
       // A drawer route can be on the stack under another one (the track edit
       // drawer); toggling the header there must not stack a second panel.
-      if (ref.read(libraryDrawerRouteMountedProvider)) {
+      if (ref.read(libraryDrawerRouteMountedProvider) != null) {
         return;
       }
       final drawerAvailable =

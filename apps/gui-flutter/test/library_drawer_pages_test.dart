@@ -548,6 +548,46 @@ void main() {
     },
   );
 
+  testWidgets('system back frees the drawer slot for the next open', (
+    tester,
+  ) async {
+    await pumpSized(
+      tester,
+      size: const Size(1200, 800),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      child: Column(
+        children: [
+          AppHeader(
+            appTitle: 'Mixar',
+            tab: ShellTab.mixer,
+            onTabChanged: (_) async {},
+          ),
+          const Expanded(child: MixerPage()),
+        ],
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MixerPage)),
+    );
+
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // System Back pops the route directly, skipping the drawer's own close
+    // paths; the mounted slot still has to be freed.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsNothing);
+
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+  });
+
   testWidgets('the header button closes the drawer it opened', (tester) async {
     await pumpSized(
       tester,
