@@ -202,6 +202,86 @@ void main() {
     expect(rowFinder('Booth'), findsNothing);
   });
 
+  /// The leading control that names the page it goes back to.
+  Finder backControl() => find.descendant(
+    of: find.byType(AppHeader),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is AppButton && widget.semanticsLabel == 'Back to Booth',
+    ),
+  );
+
+  testWidgets('a page other than the booth offers the way back', (
+    tester,
+  ) async {
+    await pumpHeader(tester, tab: ShellTab.settings);
+
+    expect(backControl(), findsOneWidget);
+    expect(
+      find.descendant(
+        of: backControl(),
+        matching: find.byIcon(LucideIcons.arrowLeft),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: backControl(), matching: find.text('Booth')),
+      findsOneWidget,
+      reason: 'the back button names its destination',
+    );
+  });
+
+  testWidgets('the booth has no back button', (tester) async {
+    await pumpHeader(tester);
+    expect(backControl(), findsNothing);
+  });
+
+  testWidgets('the back button reports the booth', (tester) async {
+    final picked = await pumpHeader(tester, tab: ShellTab.settings);
+
+    await tester.tap(backControl());
+    await tester.pumpAndSettle();
+
+    expect(picked, [ShellTab.mixer]);
+  });
+
+  testWidgets('the back button owns the leading corner', (tester) async {
+    await pumpHeader(tester, tab: ShellTab.settings);
+
+    expect(tester.getRect(backControl()).left, 0);
+    expect(
+      tester.getRect(backControl()).right,
+      lessThan(tester.getRect(pagesButton()).left),
+      reason: 'it never runs under the centred title',
+    );
+  });
+
+  testWidgets('the back button clears the macOS traffic lights', (
+    tester,
+  ) async {
+    await withHost(
+      TargetPlatform.macOS,
+      desktop: true,
+      body: () async {
+        await pumpHeader(
+          tester,
+          tab: ShellTab.settings,
+          desktop: true,
+          platform: TargetPlatform.macOS,
+          surfaceSize: const Size(1024, 768),
+        );
+
+        expect(tester.getRect(backControl()).left, kMacOSWindowControlsInset);
+        expect(
+          tester.getRect(backControl()).right,
+          lessThan(tester.getRect(pagesButton()).left),
+        );
+
+        await unmount(tester);
+      },
+    );
+  });
+
   testWidgets('pressing the title lists every page', (tester) async {
     await pumpHeader(tester);
     await openMenu(tester);

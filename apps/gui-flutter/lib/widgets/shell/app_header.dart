@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
@@ -88,6 +90,35 @@ class AppHeader extends ConsumerWidget {
                     ),
                   ),
                 ),
+                // The way back from every page but the booth sits where the
+                // old hamburger did; it runs the same page switch, so a dirty
+                // Settings draft still asks before it closes.
+                if (tab != ShellTab.mixer)
+                  Positioned(
+                    left: usesMacOSTitleBarLayout
+                        ? kMacOSWindowControlsInset
+                        : 0,
+                    top: 0,
+                    bottom: 0,
+                    child: SizedBox(
+                      height: kAppHeaderHeight,
+                      child: AppButton(
+                        variant: .ghost,
+                        size: .sm,
+                        mainAxisSize: .min,
+                        semanticsLabel: 'Back to Booth',
+                        onPress: () => unawaited(onTabChanged(ShellTab.mixer)),
+                        child: const Row(
+                          mainAxisSize: .min,
+                          children: [
+                            Icon(LucideIcons.arrowLeft),
+                            SizedBox(width: 6),
+                            Text('Booth'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   top: 0,
                   bottom: 0,
