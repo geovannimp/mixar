@@ -15,6 +15,15 @@ import 'package:gui_flutter/widgets/mixer/layout/mixer_slot.dart';
 import 'package:gui_flutter/widgets/mixer/library_drawer.dart';
 import 'package:panes/panes.dart';
 
+/// A solved split and the layout it belongs to, waiting for the frame that
+/// scheduled it. Kept together so a callback cannot pair a newer solution with
+/// an older plan or config.
+typedef _PendingSplit = ({
+  MixerLayoutSolution solution,
+  MixerPlan plan,
+  MixerLayoutConfig config,
+});
+
 /// Mixer page: two fixed pane stacks whose slots hold the panels.
 ///
 /// The stacks never change — band, deck row, bottom slot, FX bar, and inside
@@ -41,7 +50,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   (double, MixerLayoutConfig)? _solvedFor;
 
   /// The split waiting to be applied, after the frame that solved it.
-  MixerLayoutSolution? _pending;
+  _PendingSplit? _pending;
 
   /// Whether the body has built once with a positive height. The first solve
   /// seeds the controllers before their panes exist; later solves must wait
@@ -172,7 +181,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         // the controllers to a degenerate state before the window exists.
         if (constraints.maxHeight > 0 && _solvedFor != solvedFor) {
           _solvedFor = solvedFor;
-          _pending = solution;
+          _pending = (solution: solution, plan: plan, config: config);
           if (firstBuild) {
             // Mounting: the panes below are built in this same pass, so nothing
             // is listening yet. Seeding now keeps the entry split from being
@@ -186,7 +195,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
             }
             final pending = _pending;
             if (pending != null) {
-              _apply(pending, plan, config);
+              _apply(pending.solution, pending.plan, pending.config);
             }
           });
         }
@@ -203,6 +212,9 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     MixerPlan plan,
     MixerLayoutConfig config,
   ) {
+    // The first solve of a mounting page already seeded this exact split before
+    // its frame, so this write is a no-op there; later solves need it. One path
+    // keeps both cases in step, and the drawer side effects below ride along.
     _seed(solution, plan, config);
 
     // The library forces the drawer when the body has no room to dock it; a
@@ -248,19 +260,19 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final center = row?.center;
     _setVisible(_content, MixerPaneIds.center, center != null);
     if (row != null && center != null) {
-      final width = row.centerWidth;
+      final centerWidth = row.centerWidth;
       final centerEntry = _content.entries.firstWhere(
         (entry) => entry.id == MixerPaneIds.center,
       );
       _content
         ..updatePane(
           centerEntry.copyWith(
-            initialSize: PaneSize.pixel(width),
-            minSize: PaneSize.pixel(width),
-            maxSize: PaneSize.pixel(width),
+            initialSize: PaneSize.pixel(centerWidth),
+            minSize: PaneSize.pixel(centerWidth),
+            maxSize: PaneSize.pixel(centerWidth),
           ),
         )
-        ..updateSize(MixerPaneIds.center, PaneSize.pixel(width));
+        ..updateSize(MixerPaneIds.center, PaneSize.pixel(centerWidth));
     }
   }
 

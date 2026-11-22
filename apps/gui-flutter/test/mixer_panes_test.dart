@@ -100,7 +100,8 @@ void main() {
 
     // Settings replaces the page in the shell, disposing it; Booth mounts a
     // fresh one in the same container. Its first painted frame must already
-    // hold the split, not the pane defaults (`apply` lands after the frame).
+    // hold the split, not the pane defaults (`apply` lands after the frame), so
+    // the pump is held to that frame on purpose; a settle follows each check.
     await pumpSized(tester, child: const SizedBox.shrink(), settle: false);
     await tester.pump();
     await pumpSized(tester, child: const MixerPage(), settle: false);
