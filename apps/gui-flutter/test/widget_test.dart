@@ -46,6 +46,7 @@ import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -198,26 +199,33 @@ void main() {
     }
   }
 
-  /// The menu button holds the hamburger and the wordmark, so the icon alone
-  /// is not the hit target: press the button.
+  /// A pages-menu row, addressed by the shared widget's own label: the header
+  /// shows the open page's name too, so the rendered text is not unique.
+  Finder pageRow(String label) =>
+      find.byWidgetPredicate((w) => w is NavListItem && w.label == label);
+
+  /// The title control holds the wordmark and the open page's name, so the
+  /// label alone is not the hit target: press the button.
   Future<void> openMenu(WidgetTester tester) async {
     await tester.tap(
       find.descendant(
         of: find.byType(AppHeader),
         matching: find.byWidgetPredicate(
-          (w) => w is AppButton && w.semanticsLabel == 'Menu',
+          (w) =>
+              w is AppButton &&
+              (w.semanticsLabel?.startsWith('Pages') ?? false),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Play'), findsOneWidget, reason: 'the menu opened');
+    expect(pageRow('Booth'), findsOneWidget, reason: 'the menu opened');
   }
 
   /// Settings is no longer a header button: it lives in the pages menu behind
-  /// the hamburger next to the logo.
+  /// the title control.
   Future<void> openSettings(WidgetTester tester) async {
     await openMenu(tester);
-    await tester.tap(find.text('Settings'));
+    await tester.tap(pageRow('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsOneWidget);
   }
@@ -1194,7 +1202,7 @@ void main() {
 
     // The pages menu is the way out now, so it runs the page's guard.
     await openMenu(tester);
-    await tester.tap(find.text('Play'));
+    await tester.tap(pageRow('Booth'));
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
@@ -1204,7 +1212,7 @@ void main() {
 
     // The menu still opens after a cancelled guard, and discarding leaves.
     await openMenu(tester);
-    await tester.tap(find.text('Play'));
+    await tester.tap(pageRow('Booth'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Discard'));
     await tester.pumpAndSettle();

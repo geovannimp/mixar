@@ -298,7 +298,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 
 ### App chrome (Flutter)
 
-- **Header:** 40px, background token, logo white-filtered, engine status caption, Mixar `MTabs`, window controls
+- **Header:** 40px, card token with the hairline underside; the pages title is centred — wordmark plus the open page's name (`Mixar Booth`) — and pressing it opens a dropdown of every page; trailing Library toggle on the mixer and window controls; macOS keeps its traffic lights in the leading corner
 - **Controls:** Mixar / Shad-bridged buttons, switches, sliders — square corners via `MixarStyle` / Shad `radius`, except deck toggles and fader tracks (full pill), fader nodes (4px), and dialogs (12px); faders custom with deck accent grips
 - **Control faces:** Dark theme uses one deepened neutral face for rotary and fader knobs; light theme uses a lighter warm blend for the rotary and zinc-400 for the fader grip plate
 - **Select menus:** Desktop `ShadSelect` opens with a top-anchored height grow + short fade (`selectTheme.effects` in `shadThemeFromMixar`)
