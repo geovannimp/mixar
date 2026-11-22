@@ -16,15 +16,30 @@ void main() {
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
-          body: MixarMenuItem(
-            title: const Text('Echo'),
-            selected: selected,
-            onPress: () {},
+          // Loose height, like a menu column: the row is a band, not a fill.
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MixarMenuItem(
+                title: const Text('Echo'),
+                selected: selected,
+                onPress: () {},
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  testWidgets('a text row keeps the menu band height', (tester) async {
+    await pumpItem(tester, selected: false);
+
+    expect(
+      tester.getSize(find.byType(MixarMenuItem)).height,
+      kMixarMenuRowHeight,
+    );
+  });
 
   testWidgets('a selected row announces its state', (tester) async {
     final semantics = tester.ensureSemantics();

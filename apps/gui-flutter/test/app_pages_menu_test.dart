@@ -288,6 +288,14 @@ void main() {
 
     expect(rowFinder('Booth'), findsOneWidget);
     expect(rowFinder('Settings'), findsOneWidget);
+    // Each page is a full band, not a line of text with a hairline margin.
+    for (final label in ['Booth', 'Settings']) {
+      expect(
+        tester.getSize(rowFinder(label)).height,
+        kMixarMenuRowHeight,
+        reason: '$label sits on the shared menu row height',
+      );
+    }
 
     // The dropdown drops from the control, under the header.
     final panel = tester.getRect(find.byType(MixarMenuPanel));

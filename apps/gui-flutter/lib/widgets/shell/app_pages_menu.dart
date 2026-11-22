@@ -78,6 +78,7 @@ class AppPagesMenu extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(label),
+            const SizedBox(width: 4),
             // The control opens a menu: the chevron says so before a press.
             Icon(
               LucideIcons.chevronDown,
