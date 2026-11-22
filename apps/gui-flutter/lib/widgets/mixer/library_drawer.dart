@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -111,6 +112,92 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   /// `panes` package paints (`resizerHitTestThickness: 8`).
   static const _gripThickness = 8.0;
 
+  /// A close request that arrived while another route (the track edit drawer,
+  /// a dialog) sat above this one. The drawer cannot pop itself then, so it
+  /// waits for the covering route to leave instead of staying open with its
+  /// flag already false.
+  var _closeWhenRevealed = false;
+  var _revealCheckScheduled = false;
+
+  /// Identifies this route in [libraryDrawerRouteMountedProvider], and the
+  /// owner handle used to publish and release it.
+  final _routeToken = Object();
+  late final LibraryDrawerRouteMounted _routeMounted;
+
+  @override
+  void initState() {
+    super.initState();
+    _routeMounted = ref.read(libraryDrawerRouteMountedProvider.notifier);
+    // Claim the slot once mounted; a provider cannot be written from initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _routeMounted.claim(_routeToken);
+      }
+    });
+  }
+
+  /// The route's own animation: any close — ours or a system Back — frees the
+  /// slot as it starts, so a press during the exit can open a new drawer.
+  Animation<double>? _routeAnimation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animation = ModalRoute.of(context)?.animation;
+    if (identical(animation, _routeAnimation)) {
+      return;
+    }
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _routeAnimation = animation;
+    animation?.addStatusListener(_onRouteStatus);
+  }
+
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse) {
+      _routeMounted.release(_routeToken);
+    }
+  }
+
+  @override
+  void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    // Backstop for a route removed without ever animating (teardown, a
+    // direct removeRoute): release after teardown, and only while this route
+    // still owns the slot.
+    final routeFlag = _routeMounted;
+    final token = _routeToken;
+    scheduleMicrotask(() => routeFlag.releaseLate(token));
+    super.dispose();
+  }
+
+  /// Starts the wait. The route's own `secondaryAnimation` is not driven when
+  /// a route covers it, so the reveal is caught by looking at the next frames.
+  void _closeOnceRevealed() {
+    _closeWhenRevealed = true;
+    if (_revealCheckScheduled) {
+      return;
+    }
+    _revealCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback(_checkRevealed);
+  }
+
+  void _checkRevealed(Duration _) {
+    _revealCheckScheduled = false;
+    if (!mounted || !_closeWhenRevealed) {
+      return;
+    }
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent) {
+      _closeWhenRevealed = false;
+      _routeMounted.release(_routeToken);
+      Navigator.of(context).pop();
+      return;
+    }
+    // Still covered: look again after the next frame.
+    _revealCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback(_checkRevealed);
+  }
+
   bool get _isHorizontal =>
       widget.side == LibraryDrawerSideSetting.left ||
       widget.side == LibraryDrawerSideSetting.right;
@@ -133,16 +220,26 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // Closed by request: the header toggle, or the end of a track drag.
-    // `isCurrent` keeps a second pop from taking the route underneath while
-    // this one animates out.
+    // Closed by request: the header toggle, the pages menu, or the end of a
+    // track drag. `isCurrent` keeps a second pop from taking the route
+    // underneath while this one animates out; when a route above is in the
+    // way, remember the request and pop on reveal.
     ref.listen(libraryDrawerOpenProvider, (_, open) {
       if (open) {
+        _closeWhenRevealed = false;
         return;
       }
       final route = ModalRoute.of(context);
-      if (route != null && route.isCurrent) {
+      if (route == null) {
+        return;
+      }
+      if (route.isCurrent) {
+        // Free the slot now, not at dispose: a re-open during the closing
+        // animation is a new drawer route, as it was before.
+        _routeMounted.release(_routeToken);
         Navigator.of(context).pop();
+      } else {
+        _closeOnceRevealed();
       }
     });
 

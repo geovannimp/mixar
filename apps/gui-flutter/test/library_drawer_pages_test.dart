@@ -19,6 +19,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
+import 'package:gui_flutter/widgets/mixer/library_drawer.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
@@ -435,6 +436,157 @@ void main() {
     expect(container.read(libraryTrackDragActiveProvider), isFalse);
     // Open in its normal place, not tucked off the edge.
     expect(tester.getRect(find.byType(LibraryPanel)).top, 320);
+  });
+
+  testWidgets('a close request waits for the route above to leave', (
+    tester,
+  ) async {
+    await pumpSized(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      child: Builder(
+        builder: (context) => Center(
+          child: AppButton(
+            onPress: () =>
+                showLibraryDrawer(context, LibraryDrawerSideSetting.right),
+            child: const Text('Open library'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open library'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LibraryPanel)),
+    );
+    // Pushed through the drawer's own context: the covering route is what
+    // keeps the drawer from popping itself.
+    Navigator.of(
+      tester.element(find.byType(LibraryPanel)),
+      rootNavigator: true,
+    ).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => const Scaffold(body: Text('Editor')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The drawer is covered, so it cannot pop itself: the request has to wait
+    // rather than leave the panel open with its open flag already false.
+    container.read(libraryDrawerOpenProvider.notifier)
+      ..set(true)
+      ..set(false);
+    await tester.pumpAndSettle();
+    // Still mounted (covered routes are offstage), not popped.
+    expect(find.byType(LibraryPanel, skipOffstage: false), findsOneWidget);
+
+    Navigator.of(
+      tester.element(find.byType(LibraryPanel, skipOffstage: false)),
+      rootNavigator: true,
+    ).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LibraryPanel), findsNothing);
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+  });
+
+  testWidgets(
+    'toggling the header while the drawer is covered does not stack',
+    (tester) async {
+      await pumpSized(
+        tester,
+        size: const Size(1200, 800),
+        settings: copyAppSettings(
+          defaultAppSettings(),
+          libraryDrawerEnabled: true,
+        ),
+        child: Column(
+          children: [
+            AppHeader(
+              appTitle: 'Mixar',
+              tab: ShellTab.mixer,
+              onTabChanged: (_) async {},
+            ),
+            const Expanded(child: MixerPage()),
+          ],
+        ),
+      );
+
+      final button = find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.widgetWithText(AppButton, 'Library'),
+      );
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(LibraryPanel), findsOneWidget);
+
+      final context = tester.element(find.byType(LibraryPanel));
+      Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => const Scaffold(body: Text('Editor')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Closing is deferred while covered; toggling back on in that window must
+      // reuse the drawer already on the stack, not push a second one.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MixerPage, skipOffstage: false)),
+      );
+      container.read(libraryDrawerOpenProvider.notifier)
+        ..set(false)
+        ..set(true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LibraryPanel, skipOffstage: false), findsOneWidget);
+    },
+  );
+
+  testWidgets('system back frees the drawer slot for the next open', (
+    tester,
+  ) async {
+    await pumpSized(
+      tester,
+      size: const Size(1200, 800),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      child: Column(
+        children: [
+          AppHeader(
+            appTitle: 'Mixar',
+            tab: ShellTab.mixer,
+            onTabChanged: (_) async {},
+          ),
+          const Expanded(child: MixerPage()),
+        ],
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MixerPage)),
+    );
+
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // System Back pops the route directly, skipping the drawer's own close
+    // paths; the slot is freed as the exit starts, so a press during the exit
+    // is not lost.
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 50));
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LibraryPanel), findsOneWidget);
+    expect(container.read(libraryDrawerOpenProvider), isTrue);
   });
 
   testWidgets('the header button closes the drawer it opened', (tester) async {

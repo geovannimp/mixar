@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
@@ -155,6 +157,104 @@ void main() {
               (w.decoration as BoxDecoration).border != null,
         );
     expect(foregroundStroke, hasLength(1));
+  });
+
+  /// Pumps a 30-row menu whose trigger sits at [alignment] in an 800×400
+  /// window, opens it, and returns the picked row.
+  Future<int Function()> pumpLongMenu(
+    WidgetTester tester, {
+    required Alignment alignment,
+  }) async {
+    tester.view.physicalSize = const Size(800, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final theme = MixarThemeData.dark();
+    var picked = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Align(
+            alignment: alignment,
+            child: MixarMenuAnchor(
+              style: SelectStyleSetting.desktop,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      for (var i = 1; i <= 30; i++)
+                        MixarMenuItem(
+                          title: Text('Row $i'),
+                          onPress: () {
+                            picked = i;
+                            controller.hide();
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              childBuilder: (context, controller) => GestureDetector(
+                onTap: controller.toggle,
+                child: const Text('Open menu'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    return () => picked;
+  }
+
+  testWidgets('a long menu scrolls inside the room beside its trigger', (
+    tester,
+  ) async {
+    final picked = await pumpLongMenu(tester, alignment: Alignment.center);
+
+    // Neither side of a mid-window trigger holds 30 rows: the panel is bounded
+    // by that room, not by the whole window, and the last row stays reachable.
+    final trigger = tester.getRect(find.text('Open menu'));
+    final room =
+        math.max(trigger.top, 400 - trigger.bottom) - kMixarMenuEdgeMargin;
+    expect(
+      tester.getRect(find.byType(MixarMenuPanel)).height,
+      lessThanOrEqualTo(room + 1),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Row 30'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('Row 30'));
+    await tester.pumpAndSettle();
+
+    expect(picked(), 30);
+    expect(find.text('Row 30'), findsNothing);
+  });
+
+  testWidgets('a menu near the bottom edge opens upward and fits', (
+    tester,
+  ) async {
+    await pumpLongMenu(tester, alignment: Alignment.bottomLeft);
+
+    final panel = tester.getRect(find.byType(MixarMenuPanel));
+    final trigger = tester.getRect(find.text('Open menu'));
+    expect(panel.bottom, lessThanOrEqualTo(trigger.top));
+    expect(panel.top, greaterThanOrEqualTo(0));
+
+    await tester.scrollUntilVisible(
+      find.text('Row 30'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Row 30'), findsOneWidget);
   });
 
   testWidgets('MixarMenuAnchor dismisses on outside tap', (tester) async {

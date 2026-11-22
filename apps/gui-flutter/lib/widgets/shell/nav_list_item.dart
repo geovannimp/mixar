@@ -5,10 +5,10 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 /// One row in a vertical menu: icon + label, accent-highlighted while it is
 /// the open page.
 ///
-/// Shared by the settings sidebar and the app menu behind the header's
-/// hamburger, so both lists read as the same navigation chrome. Full-bleed and
-/// square: the selected row's fill runs to the panel's edges and its 2px accent
-/// rule pins it to the leading edge.
+/// Shared by the settings sidebar and the header's pages menu, so both lists
+/// read as the same navigation chrome. Full-bleed and square: the selected
+/// row's fill runs to the panel's edges and its 2px accent rule pins it to the
+/// leading edge.
 class NavListItem extends StatelessWidget {
   const new({
     required this.label,

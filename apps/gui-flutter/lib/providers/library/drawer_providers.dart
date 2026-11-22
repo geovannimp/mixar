@@ -54,6 +54,38 @@ final libraryDrawerOpenProvider = NotifierProvider<LibraryDrawerOpen, bool>(
   LibraryDrawerOpen.new,
 );
 
+/// The drawer route on the stack — visible, or under a route above it (the
+/// track edit drawer, a dialog) — held as the token of the panel that owns it.
+///
+/// Separate from [libraryDrawerOpenProvider] because the open state is already
+/// false while a close waits for a covering route to leave; the toggle must not
+/// read that as "no drawer" and push a second one. A token, not a bool, so an
+/// old route finishing its teardown cannot clear the drawer that replaced it.
+class LibraryDrawerRouteMounted extends Notifier<Object?> {
+  @override
+  Object? build() => null;
+
+  void claim(Object token) => state = token;
+
+  void release(Object token) {
+    if (identical(state, token)) {
+      state = null;
+    }
+  }
+
+  /// Releases [token] if this provider is still alive; call after teardown.
+  void releaseLate(Object token) {
+    if (ref.mounted) {
+      release(token);
+    }
+  }
+}
+
+final libraryDrawerRouteMountedProvider =
+    NotifierProvider<LibraryDrawerRouteMounted, Object?>(
+      LibraryDrawerRouteMounted.new,
+    );
+
 /// Whether the mixer has forced the library into the drawer because the body
 /// left too little room to dock it.
 ///

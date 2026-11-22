@@ -6,16 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
-import 'package:gui_flutter/widgets/shell/app_nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -105,26 +106,36 @@ void main() {
     return picked;
   }
 
-  Future<void> openMenu(WidgetTester tester) async {
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppHeader),
-        matching: find.byIcon(LucideIcons.menu),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  /// The menu button's leading edge — the header's first content, so its x is
-  /// the corner the window controls own.
-  Finder menuButton() => find.descendant(
+  /// The header's one navigation control: wordmark + open page.
+  Finder pagesButton() => find.descendant(
     of: find.byType(AppHeader),
     matching: find.byWidgetPredicate(
-      (widget) => widget is AppButton && widget.semanticsLabel == 'Menu',
+      (widget) =>
+          widget is AppButton &&
+          (widget.semanticsLabel?.startsWith('Pages') ?? false),
     ),
   );
 
-  double menuLeft(WidgetTester tester) => tester.getTopLeft(menuButton()).dx;
+  Finder withinPagesButton(Finder matching) =>
+      find.descendant(of: pagesButton(), matching: matching);
+
+  Future<void> openMenu(WidgetTester tester) async {
+    await tester.tap(pagesButton());
+    await tester.pumpAndSettle();
+  }
+
+  /// A menu row, addressed by its rendered label inside the panel: the header
+  /// shows the open page's name too, so a bare text finder is not unique.
+  Finder rowFinder(String label) => find.ancestor(
+    of: find.descendant(
+      of: find.byType(MixarMenuPanel),
+      matching: find.text(label),
+    ),
+    matching: find.byType(MixarMenuItem),
+  );
+
+  MixarMenuItem row(WidgetTester tester, String label) =>
+      tester.widget<MixarMenuItem>(rowFinder(label));
 
   /// The preview's reference lights, if any were painted.
   Finder previewLights() => find.byWidgetPredicate(
@@ -139,127 +150,223 @@ void main() {
     await tester.pump();
   }
 
-  /// Pumps the header off-desktop and returns the menu button's x — the
-  /// baseline each host case measures its leading inset against.
-  Future<double> pumpHeaderBaseline(
-    WidgetTester tester, {
-    MixarThemeData? theme,
-    Size surfaceSize = const Size(900, 600),
-  }) async {
-    await pumpHeader(tester, theme: theme, surfaceSize: surfaceSize);
-    return menuLeft(tester);
-  }
-
-  /// A drawer row, addressed by the shared widget's own label rather than by
-  /// rendered text.
-  Finder rowFinder(String label) =>
-      find.byWidgetPredicate((w) => w is NavListItem && w.label == label);
-
-  MTappable row(WidgetTester tester, String label) => tester.widget<MTappable>(
-    find.descendant(of: rowFinder(label), matching: find.byType(MTappable)),
-  );
-
-  testWidgets('the hamburger lists the shell pages', (tester) async {
-    await pumpHeader(tester);
-    expect(rowFinder('Play'), findsNothing);
-
-    await openMenu(tester);
-
-    expect(find.byType(AppHeader), findsOneWidget);
-    expect(rowFinder('Play'), findsOneWidget);
-    expect(rowFinder('Settings'), findsOneWidget);
-    // The wordmark stays in the titlebar and heads the menu.
-    final wordmark = find.byWidgetPredicate(
-      (w) => w is Image && w.semanticLabel == 'Mixar',
-    );
-    expect(wordmark, findsWidgets);
-    final inMenu = wordmark.evaluate().where(
-      (e) =>
-          tester.getRect(find.byElementPredicate((w) => w == e)).top >=
-          kAppHeaderHeight,
-    );
-    expect(inMenu, isNotEmpty, reason: 'the menu carries its own wordmark');
-
-    // The panel is inset below the header, so it never covers the chrome that
-    // opened it.
-    expect(
-      tester.getTopLeft(rowFinder('Play')).dy,
-      greaterThan(kAppHeaderHeight),
-    );
-    expect(
-      tester.getRect(find.byType(AppHeader)).width,
-      greaterThan(kAppNavDrawerWidth),
-      reason: 'the panel is a drawer, not the whole window',
-    );
-    // Rows are full-bleed, so the row box *is* the panel width.
-    for (final item in find.byType(NavListItem).evaluate()) {
-      expect(
-        tester.getSize(find.byElementPredicate((w) => w == item)).width,
-        kAppNavDrawerWidth,
-      );
-    }
-  });
-
-  testWidgets('the menu dims the body but leaves the titlebar bright', (
+  testWidgets('the header names the open page beside the wordmark', (
     tester,
   ) async {
     await pumpHeader(tester);
 
-    await openMenu(tester);
+    expect(
+      withinPagesButton(
+        find.byWidgetPredicate((w) => w is Image && w.semanticLabel == 'Mixar'),
+      ),
+      findsOneWidget,
+      reason: 'the wordmark is part of the pages control',
+    );
+    expect(withinPagesButton(find.text('Booth')), findsOneWidget);
 
-    // The body-only barrier is the menu's dimming layer; the titlebar is
-    // above it and stays clickable.
-    final barrier = tester
-        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-        .firstWhere((b) => b.color == kAppNavDrawerScrimColor);
-    final rect = tester.getRect(find.byWidget(barrier));
-    expect(rect.top, kAppHeaderHeight);
-    expect(rect.height, 600 - kAppHeaderHeight);
-
-    // A titlebar press must not dismiss the menu.
-    await tester.tapAt(const Offset(700, 20));
-    await tester.pumpAndSettle();
-    expect(rowFinder('Play'), findsOneWidget);
-
-    // A press on the dimmed body still closes it.
-    await tester.tapAt(const Offset(700, 400));
-    await tester.pumpAndSettle();
-    expect(rowFinder('Play'), findsNothing);
+    await pumpHeader(tester, tab: ShellTab.settings);
+    expect(withinPagesButton(find.text('Settings')), findsOneWidget);
+    expect(withinPagesButton(find.text('Booth')), findsNothing);
   });
 
-  testWidgets('the hamburger toggles the open menu', (tester) async {
+  testWidgets('the pages control sits at the centre of the window', (
+    tester,
+  ) async {
+    // The header surface is 900 wide by default: the title lands on 450.
     await pumpHeader(tester);
+    expect(
+      tester.getRect(pagesButton()).center.dx,
+      moreOrLessEquals(450, epsilon: 1),
+      reason: 'the centred title control owns the middle',
+    );
 
-    await openMenu(tester);
-    expect(rowFinder('Play'), findsOneWidget);
-
-    await tester.tap(menuButton());
-    await tester.pumpAndSettle();
-    expect(rowFinder('Play'), findsNothing);
+    // The trailing corner changes with the page (the Library toggle only
+    // exists on the mixer); the title must not drift with it.
+    await pumpHeader(tester, tab: ShellTab.settings);
+    expect(
+      tester.getRect(pagesButton()).center.dx,
+      moreOrLessEquals(450, epsilon: 1),
+    );
   });
 
-  testWidgets('escape closes the drawer', (tester) async {
+  testWidgets('the hamburger is gone and the title control is the menu', (
+    tester,
+  ) async {
+    await pumpHeader(tester);
+    expect(
+      find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.byIcon(LucideIcons.menu),
+      ),
+      findsNothing,
+    );
+    expect(rowFinder('Booth'), findsNothing);
+  });
+
+  /// The leading control that names the page it goes back to.
+  Finder backControl() => find.descendant(
+    of: find.byType(AppHeader),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is AppButton && widget.semanticsLabel == 'Back to Booth',
+    ),
+  );
+
+  testWidgets('a page other than the booth offers the way back', (
+    tester,
+  ) async {
+    await pumpHeader(tester, tab: ShellTab.settings);
+
+    expect(backControl(), findsOneWidget);
+    expect(
+      find.descendant(
+        of: backControl(),
+        matching: find.byIcon(LucideIcons.arrowLeft),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: backControl(), matching: find.text('Booth')),
+      findsOneWidget,
+      reason: 'the back button names its destination',
+    );
+  });
+
+  testWidgets('the booth has no back button', (tester) async {
+    await pumpHeader(tester);
+    expect(backControl(), findsNothing);
+  });
+
+  testWidgets('the back button reports the booth', (tester) async {
+    final picked = await pumpHeader(tester, tab: ShellTab.settings);
+
+    await tester.tap(backControl());
+    await tester.pumpAndSettle();
+
+    expect(picked, [ShellTab.mixer]);
+  });
+
+  testWidgets('the back button owns the leading corner', (tester) async {
+    await pumpHeader(tester, tab: ShellTab.settings);
+
+    expect(tester.getRect(backControl()).left, 0);
+    expect(
+      tester.getRect(backControl()).right,
+      lessThan(tester.getRect(pagesButton()).left),
+      reason: 'it never runs under the centred title',
+    );
+  });
+
+  testWidgets('the back button clears the macOS traffic lights', (
+    tester,
+  ) async {
+    await withHost(
+      TargetPlatform.macOS,
+      desktop: true,
+      body: () async {
+        await pumpHeader(
+          tester,
+          tab: ShellTab.settings,
+          desktop: true,
+          platform: TargetPlatform.macOS,
+          surfaceSize: const Size(1024, 768),
+        );
+
+        expect(tester.getRect(backControl()).left, kMacOSWindowControlsInset);
+        expect(
+          tester.getRect(backControl()).right,
+          lessThan(tester.getRect(pagesButton()).left),
+        );
+
+        await unmount(tester);
+      },
+    );
+  });
+
+  testWidgets('pressing the title lists every page', (tester) async {
     await pumpHeader(tester);
     await openMenu(tester);
-    expect(rowFinder('Play'), findsOneWidget);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
+    expect(rowFinder('Booth'), findsOneWidget);
+    expect(rowFinder('Settings'), findsOneWidget);
+    // Each page is a full band, not a line of text with a hairline margin.
+    for (final label in ['Booth', 'Settings']) {
+      expect(
+        tester.getSize(rowFinder(label)).height,
+        kMixarMenuRowHeight,
+        reason: '$label sits on the shared menu row height',
+      );
+    }
 
-    expect(rowFinder('Play'), findsNothing);
+    // The dropdown drops from the control, under the header.
+    final panel = tester.getRect(find.byType(MixarMenuPanel));
+    expect(panel.top, greaterThanOrEqualTo(kAppHeaderHeight));
+    expect(
+      panel.center.dx,
+      moreOrLessEquals(tester.getRect(pagesButton()).center.dx, epsilon: 1),
+      reason: 'the menu hangs centred under the title control',
+    );
   });
 
-  testWidgets('the open page is marked in the drawer', (tester) async {
+  testWidgets('system back closes the menu instead of leaving', (tester) async {
+    await pumpHeader(tester);
+    await openMenu(tester);
+    expect(rowFinder('Booth'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(rowFinder('Booth'), findsNothing);
+    expect(
+      find.byType(AppHeader),
+      findsOneWidget,
+      reason: 'the shell is still the open route',
+    );
+  });
+
+  testWidgets('opening the menu clears the library drawer first', (
+    tester,
+  ) async {
+    await pumpHeader(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppHeader)),
+    );
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+
+    await openMenu(tester);
+
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+    expect(
+      rowFinder('Booth'),
+      findsOneWidget,
+      reason: 'the drawer no longer paints over the pages',
+    );
+  });
+
+  testWidgets('the open page is marked in the menu', (tester) async {
     await pumpHeader(tester, tab: ShellTab.settings);
     await openMenu(tester);
 
     expect(row(tester, 'Settings').selected, isTrue);
-    expect(row(tester, 'Play').selected, isFalse);
+    expect(row(tester, 'Booth').selected, isFalse);
+    // Accent ink plus a check, the same mark every choice menu uses.
+    expect(
+      find.descendant(
+        of: rowFinder('Settings'),
+        matching: find.byIcon(LucideIcons.check),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: rowFinder('Booth'),
+        matching: find.byIcon(LucideIcons.check),
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('picking a page reports it and closes the drawer', (
-    tester,
-  ) async {
+  testWidgets('picking a page reports it and closes the menu', (tester) async {
     final picked = await pumpHeader(tester);
     await openMenu(tester);
 
@@ -267,63 +374,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, [ShellTab.settings]);
-    expect(rowFinder('Play'), findsNothing);
+    expect(rowFinder('Booth'), findsNothing);
   });
 
-  testWidgets('a press outside the drawer closes it without navigating', (
+  testWidgets('a press outside the menu closes it without navigating', (
     tester,
   ) async {
     final picked = await pumpHeader(tester);
     await openMenu(tester);
 
-    await tester.tapAt(const Offset(700, 400));
+    await tester.tapAt(const Offset(700, 500));
     await tester.pumpAndSettle();
 
     expect(picked, isEmpty);
-    expect(rowFinder('Play'), findsNothing);
+    expect(rowFinder('Booth'), findsNothing);
   });
 
-  testWidgets('the header no longer carries a settings button', (tester) async {
+  testWidgets('escape closes the menu', (tester) async {
     await pumpHeader(tester);
-    expect(
-      find.descendant(
-        of: find.byType(AppHeader),
-        matching: find.byIcon(LucideIcons.settings),
-      ),
-      findsNothing,
-    );
-  });
+    await openMenu(tester);
+    expect(rowFinder('Booth'), findsOneWidget);
 
-  testWidgets('the wordmark sits inside the menu button', (tester) async {
-    await pumpHeader(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
 
-    expect(
-      find.descendant(
-        of: find.byWidgetPredicate(
-          (w) => w is AppButton && w.semanticsLabel == 'Menu',
-        ),
-        matching: find.byWidgetPredicate(
-          (w) => w is Image && w.semanticLabel == 'Mixar',
-        ),
-      ),
-      findsOneWidget,
-      reason: 'the logo is part of the control that opens the menu',
-    );
+    expect(rowFinder('Booth'), findsNothing);
   });
 
   for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
     final mode = theme.colors.brightness.name;
 
-    testWidgets('a macOS window keeps the corner for its traffic lights '
-        '($mode)', (tester) async {
+    testWidgets('a macOS window keeps the middle and its lights ($mode)', (
+      tester,
+    ) async {
       const surface = Size(1024, 768);
-
-      // Baseline: not a desktop window, so nothing sits before the menu.
-      final baseline = await pumpHeaderBaseline(
-        tester,
-        theme: theme,
-        surfaceSize: surface,
-      );
 
       await withHost(
         TargetPlatform.macOS,
@@ -338,9 +422,8 @@ void main() {
           );
 
           expect(
-            menuLeft(tester),
-            baseline + kMacOSWindowControlsInset,
-            reason: 'the menu clears the system buttons by the same inset',
+            tester.getRect(pagesButton()).center.dx,
+            moreOrLessEquals(surface.width / 2, epsilon: 1),
           );
           expect(find.byType(WindowTitleBarControls), findsNothing);
           expect(find.byType(WindowCaptionButton), findsNothing);
@@ -366,10 +449,9 @@ void main() {
           expect(
             find.byType(DragToMoveArea),
             findsOneWidget,
-            reason: 'the empty middle still moves the window',
+            reason: 'the empty chrome still moves the window',
           );
 
-          // The menu still opens, shifted header and all.
           await openMenu(tester);
           expect(rowFinder('Settings'), findsOneWidget);
           expect(tester.takeException(), isNull);
@@ -383,8 +465,6 @@ void main() {
       testWidgets('a ${platform.name} window keeps the app buttons ($mode)', (
         tester,
       ) async {
-        final baseline = await pumpHeaderBaseline(tester, theme: theme);
-
         await withHost(
           platform,
           desktop: true,
@@ -398,9 +478,8 @@ void main() {
             );
 
             expect(
-              menuLeft(tester),
-              baseline,
-              reason: 'no system buttons there, so nothing is reserved',
+              tester.getRect(pagesButton()).center.dx,
+              moreOrLessEquals(512, epsilon: 1),
             );
             expect(find.byType(WindowTitleBarControls), findsOneWidget);
             expect(find.byType(WindowCaptionButton), findsNWidgets(3));
@@ -408,6 +487,13 @@ void main() {
             expect(
               tester.getSize(find.byType(AppHeader)).height,
               kAppHeaderHeight,
+            );
+            expect(
+              tester.getRect(pagesButton()).right,
+              lessThan(
+                tester.getRect(find.byType(WindowTitleBarControls)).left,
+              ),
+              reason: 'the title never runs under the window buttons',
             );
 
             await openMenu(tester);
@@ -423,8 +509,6 @@ void main() {
     testWidgets('the Linux preview draws the reference lights ($mode)', (
       tester,
     ) async {
-      final baseline = await pumpHeaderBaseline(tester, theme: theme);
-
       await withHost(
         TargetPlatform.linux,
         desktop: true,
@@ -439,7 +523,10 @@ void main() {
             surfaceSize: const Size(1024, 768),
           );
 
-          expect(menuLeft(tester), baseline + kMacOSWindowControlsInset);
+          expect(
+            tester.getRect(pagesButton()).center.dx,
+            moreOrLessEquals(512, epsilon: 1),
+          );
           expect(find.byType(WindowTitleBarControls), findsNothing);
           expect(find.byType(WindowCaptionButton), findsNothing);
           expect(previewLights(), findsOneWidget);

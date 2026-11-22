@@ -3,6 +3,13 @@ import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
+/// Height of a menu's text row.
+///
+/// The settings sidebar's density, so a dropdown reads as a list of places to
+/// go instead of a stack of chips hugging their labels. The mobile dialog and
+/// the anchored panel use the same band.
+const double kMixarMenuRowHeight = 44;
+
 /// Tappable menu row. Prefer [title] for text actions; [child] for custom
 /// blocks (e.g. load-to-deck chips).
 class MixarMenuItem extends StatelessWidget {
@@ -32,20 +39,32 @@ class MixarMenuItem extends StatelessWidget {
     // Custom blocks own their look; only the text rows add row padding.
     final content =
         child ??
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: dialogChrome ? 24 : 12,
-            vertical: dialogChrome ? 12 : 8,
-          ),
-          child: DefaultTextStyle(
-            style: theme.typography.body.sm.copyWith(
-              color: !enabled
-                  ? theme.colors.mutedForeground
-                  : destructive
-                  ? theme.colors.destructive
-                  : theme.colors.foreground,
+        ConstrainedBox(
+          // A band, not a hugging label: the row keeps this height however
+          // small its ink, and grows if the title wraps.
+          constraints: const BoxConstraints(minHeight: kMixarMenuRowHeight),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: dialogChrome ? 24 : 12,
+              vertical: dialogChrome ? 12 : 8,
             ),
-            child: title!,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              // Without this the alignment expands a lone row to whatever
+              // height its parent offers — a viewport-tall hit target in a
+              // bounded panel. A band stays a band; a wrapped title grows it.
+              heightFactor: 1,
+              child: DefaultTextStyle(
+                style: theme.typography.body.sm.copyWith(
+                  color: !enabled
+                      ? theme.colors.mutedForeground
+                      : destructive
+                      ? theme.colors.destructive
+                      : theme.colors.foreground,
+                ),
+                child: title!,
+              ),
+            ),
           ),
         );
 

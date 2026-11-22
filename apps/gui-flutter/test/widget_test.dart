@@ -40,9 +40,11 @@ import 'package:gui_flutter/widgets/mixer/waveform/vertical_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
+import 'package:gui_flutter/widgets/shell/app_back_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -198,26 +200,43 @@ void main() {
     }
   }
 
-  /// The menu button holds the hamburger and the wordmark, so the icon alone
-  /// is not the hit target: press the button.
+  /// A pages-menu row's label. Scoped to the panel: the header shows the open
+  /// page's name too, so a bare text finder is not unique.
+  Finder pageRow(String label) => find.descendant(
+    of: find.byType(MixarMenuPanel),
+    matching: find.text(label),
+  );
+
+  /// The leading way back, on every page but the booth.
+  Finder backToBoothButton() => find.descendant(
+    of: find.byType(AppHeader),
+    matching: find.byWidgetPredicate(
+      (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
+    ),
+  );
+
+  /// The title control holds the wordmark and the open page's name, so the
+  /// label alone is not the hit target: press the button.
   Future<void> openMenu(WidgetTester tester) async {
     await tester.tap(
       find.descendant(
         of: find.byType(AppHeader),
         matching: find.byWidgetPredicate(
-          (w) => w is AppButton && w.semanticsLabel == 'Menu',
+          (w) =>
+              w is AppButton &&
+              (w.semanticsLabel?.startsWith('Pages') ?? false),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Play'), findsOneWidget, reason: 'the menu opened');
+    expect(pageRow('Booth'), findsOneWidget, reason: 'the menu opened');
   }
 
   /// Settings is no longer a header button: it lives in the pages menu behind
-  /// the hamburger next to the logo.
+  /// the title control.
   Future<void> openSettings(WidgetTester tester) async {
     await openMenu(tester);
-    await tester.tap(find.text('Settings'));
+    await tester.tap(pageRow('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsOneWidget);
   }
@@ -1194,7 +1213,13 @@ void main() {
 
     // The pages menu is the way out now, so it runs the page's guard.
     await openMenu(tester);
-    await tester.tap(find.text('Play'));
+    await tester.tap(pageRow('Booth'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unsaved settings'), findsOneWidget);
+
+    // The header stays clickable over the confirmation; a second press must
+    // not stack another one.
+    await tester.tap(backToBoothButton());
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
@@ -1204,12 +1229,44 @@ void main() {
 
     // The menu still opens after a cancelled guard, and discarding leaves.
     await openMenu(tester);
-    await tester.tap(find.text('Play'));
+    await tester.tap(pageRow('Booth'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Discard'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsNothing);
     expect(find.byType(MixerStrip), findsOneWidget);
+  });
+
+  testWidgets('the back button leaves settings and animates out', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await openSettings(tester);
+
+    final back = backToBoothButton();
+    expect(back, findsOneWidget);
+
+    await tester.tap(back);
+    await tester.pump();
+
+    // The page has changed, but the chrome is still painting its exit out of
+    // the corner.
+    expect(find.byType(SettingsPage), findsNothing);
+    expect(back, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 90));
+    final opacity = tester.widget<Opacity>(
+      find
+          .descendant(
+            of: find.byType(AppBackButton),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(opacity.opacity, lessThan(1));
+
+    await tester.pumpAndSettle();
+    expect(back, findsNothing);
   });
 
   testWidgets('settings header marks the page with the settings glyph', (
