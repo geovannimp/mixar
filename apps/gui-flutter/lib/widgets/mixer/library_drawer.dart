@@ -164,9 +164,9 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
     // Backstop for a route removed without ever animating (teardown, a
     // direct removeRoute): release after teardown, and only while this route
     // still owns the slot.
-    final mounted = _routeMounted;
+    final routeFlag = _routeMounted;
     final token = _routeToken;
-    scheduleMicrotask(() => mounted.releaseLate(token));
+    scheduleMicrotask(() => routeFlag.releaseLate(token));
     super.dispose();
   }
 

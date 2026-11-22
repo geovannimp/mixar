@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -61,19 +59,19 @@ class _AppBackButtonState extends State<AppBackButton>
       _leaving = false;
       return;
     }
-    unawaited(
-      _exit.forward(from: 0).whenComplete(() {
-        // Only a finished exit clears the row; a re-show has already put it
-        // back, and its cancelled ticker must not undo that.
-        if (!mounted || !_leaving) {
-          return;
-        }
-        setState(() {
-          _present = false;
-          _leaving = false;
-        });
-      }),
-    );
+    // `whenCompleteOrCancel` is the ticker API that runs for both endings; a
+    // cancelled exit (re-show, unmount) must not leave an error behind.
+    _exit.forward(from: 0).whenCompleteOrCancel(() {
+      // Only a finished exit clears the row; a re-show has already put it
+      // back, and its cancelled ticker must not undo that.
+      if (!mounted || !_leaving) {
+        return;
+      }
+      setState(() {
+        _present = false;
+        _leaving = false;
+      });
+    });
   }
 
   @override

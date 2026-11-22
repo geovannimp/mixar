@@ -207,6 +207,14 @@ void main() {
     matching: find.text(label),
   );
 
+  /// The leading way back, on every page but the booth.
+  Finder backToBoothButton() => find.descendant(
+    of: find.byType(AppHeader),
+    matching: find.byWidgetPredicate(
+      (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
+    ),
+  );
+
   /// The title control holds the wordmark and the open page's name, so the
   /// label alone is not the hit target: press the button.
   Future<void> openMenu(WidgetTester tester) async {
@@ -1211,14 +1219,7 @@ void main() {
 
     // The header stays clickable over the confirmation; a second press must
     // not stack another one.
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppHeader),
-        matching: find.byWidgetPredicate(
-          (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
-        ),
-      ),
-    );
+    await tester.tap(backToBoothButton());
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
@@ -1242,12 +1243,7 @@ void main() {
     await pumpShell(tester);
     await openSettings(tester);
 
-    final back = find.descendant(
-      of: find.byType(AppHeader),
-      matching: find.byWidgetPredicate(
-        (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
-      ),
-    );
+    final back = backToBoothButton();
     expect(back, findsOneWidget);
 
     await tester.tap(back);
