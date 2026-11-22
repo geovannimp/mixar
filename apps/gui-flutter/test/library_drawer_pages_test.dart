@@ -496,6 +496,58 @@ void main() {
     expect(container.read(libraryDrawerOpenProvider), isFalse);
   });
 
+  testWidgets(
+    'toggling the header while the drawer is covered does not stack',
+    (tester) async {
+      await pumpSized(
+        tester,
+        size: const Size(1200, 800),
+        settings: copyAppSettings(
+          defaultAppSettings(),
+          libraryDrawerEnabled: true,
+        ),
+        child: Column(
+          children: [
+            AppHeader(
+              appTitle: 'Mixar',
+              tab: ShellTab.mixer,
+              onTabChanged: (_) async {},
+            ),
+            const Expanded(child: MixerPage()),
+          ],
+        ),
+      );
+
+      final button = find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.widgetWithText(AppButton, 'Library'),
+      );
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(LibraryPanel), findsOneWidget);
+
+      final context = tester.element(find.byType(LibraryPanel));
+      Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => const Scaffold(body: Text('Editor')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Closing is deferred while covered; toggling back on in that window must
+      // reuse the drawer already on the stack, not push a second one.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MixerPage, skipOffstage: false)),
+      );
+      container.read(libraryDrawerOpenProvider.notifier)
+        ..set(false)
+        ..set(true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LibraryPanel, skipOffstage: false), findsOneWidget);
+    },
+  );
+
   testWidgets('the header button closes the drawer it opened', (tester) async {
     await pumpSized(
       tester,

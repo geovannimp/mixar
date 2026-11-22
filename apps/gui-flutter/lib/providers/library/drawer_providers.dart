@@ -54,6 +54,28 @@ final libraryDrawerOpenProvider = NotifierProvider<LibraryDrawerOpen, bool>(
   LibraryDrawerOpen.new,
 );
 
+/// Whether the drawer's route is on the stack — visible, or under a route above
+/// it (the track edit drawer, a dialog).
+///
+/// Separate from [libraryDrawerOpenProvider] because the open state is already
+/// false while a close waits for a covering route to leave; the toggle must not
+/// read that as "no drawer" and push a second one.
+class LibraryDrawerRouteMounted extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool mounted) {
+    if (state != mounted) {
+      state = mounted;
+    }
+  }
+}
+
+final libraryDrawerRouteMountedProvider =
+    NotifierProvider<LibraryDrawerRouteMounted, bool>(
+      LibraryDrawerRouteMounted.new,
+    );
+
 /// Whether the mixer has forced the library into the drawer because the body
 /// left too little room to dock it.
 ///

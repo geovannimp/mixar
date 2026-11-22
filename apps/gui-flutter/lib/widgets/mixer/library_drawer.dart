@@ -118,6 +118,21 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
   var _closeWhenRevealed = false;
   var _revealCheckScheduled = false;
 
+  /// Announce the route once it is mounted; a provider cannot be written from
+  /// initState.
+  late final LibraryDrawerRouteMounted _routeMounted;
+
+  @override
+  void initState() {
+    super.initState();
+    _routeMounted = ref.read(libraryDrawerRouteMountedProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _routeMounted.set(true);
+      }
+    });
+  }
+
   /// Starts the wait. The route's own `secondaryAnimation` is not driven when
   /// a route covers it, so the reveal is caught by looking at the next frames.
   void _closeOnceRevealed() {
@@ -137,6 +152,7 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
     final route = ModalRoute.of(context);
     if (route != null && route.isCurrent) {
       _closeWhenRevealed = false;
+      _routeMounted.set(false);
       Navigator.of(context).pop();
       return;
     }
@@ -181,6 +197,9 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
         return;
       }
       if (route.isCurrent) {
+        // Free the slot now, not at dispose: a re-open during the closing
+        // animation is a new drawer route, as it was before.
+        _routeMounted.set(false);
         Navigator.of(context).pop();
       } else {
         _closeOnceRevealed();
