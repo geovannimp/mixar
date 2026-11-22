@@ -136,11 +136,34 @@ class _LibraryDrawerPanelState extends ConsumerState<_LibraryDrawerPanel> {
     });
   }
 
+  /// The route's own animation: any close — ours or a system Back — frees the
+  /// slot as it starts, so a press during the exit can open a new drawer.
+  Animation<double>? _routeAnimation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animation = ModalRoute.of(context)?.animation;
+    if (identical(animation, _routeAnimation)) {
+      return;
+    }
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _routeAnimation = animation;
+    animation?.addStatusListener(_onRouteStatus);
+  }
+
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse) {
+      _routeMounted.release(_routeToken);
+    }
+  }
+
   @override
   void dispose() {
-    // The route can also leave without our close paths (Android system Back
-    // pops it directly), so release the slot after teardown — and only if this
-    // route still owns it.
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    // Backstop for a route removed without ever animating (teardown, a
+    // direct removeRoute): release after teardown, and only while this route
+    // still owns the slot.
     final mounted = _routeMounted;
     final token = _routeToken;
     scheduleMicrotask(() => mounted.releaseLate(token));

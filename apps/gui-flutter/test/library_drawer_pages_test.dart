@@ -578,14 +578,15 @@ void main() {
     expect(find.byType(LibraryPanel), findsOneWidget);
 
     // System Back pops the route directly, skipping the drawer's own close
-    // paths; the mounted slot still has to be freed.
+    // paths; the slot is freed as the exit starts, so a press during the exit
+    // is not lost.
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byType(LibraryPanel), findsNothing);
-
+    await tester.pump(const Duration(milliseconds: 50));
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
+
     expect(find.byType(LibraryPanel), findsOneWidget);
+    expect(container.read(libraryDrawerOpenProvider), isTrue);
   });
 
   testWidgets('the header button closes the drawer it opened', (tester) async {
