@@ -10,6 +10,7 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -49,6 +50,7 @@ void main() {
     WidgetTester tester, {
     required Widget child,
     List<LibraryCollectionSummary>? collections,
+    bool settle = true,
   }) async {
     final theme = MixarThemeData.dark();
     tester.view.physicalSize = const Size(1200, 800);
@@ -66,7 +68,9 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    if (settle) {
+      await tester.pump();
+    }
   }
 
   testWidgets('LibraryPanel builds MultiPane split', (tester) async {
@@ -81,6 +85,79 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MultiPane), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
+  });
+
+  testWidgets('a rebuilt MixerPage paints the split it last solved', (
+    tester,
+  ) async {
+    final contentRow = find.byKey(const ValueKey('mixer-content-row'));
+    final deck = find.byType(DeckPanel).first;
+
+    await pumpSized(tester, child: const MixerPage());
+    await tester.pumpAndSettle();
+    final settledTop = tester.getRect(contentRow).top;
+    final settledDeck = tester.getRect(deck);
+
+    // Settings replaces the page in the shell, disposing it; Booth mounts a
+    // fresh one in the same container. Its first painted frame must already
+    // hold the split, not the pane defaults (`apply` lands after the frame).
+    await pumpSized(tester, child: const SizedBox.shrink(), settle: false);
+    await tester.pump();
+    await pumpSized(tester, child: const MixerPage(), settle: false);
+    expect(tester.getRect(contentRow).top, closeTo(settledTop, 0.5));
+    // The inner row has its own solved widths (the centre column is pinned to
+    // the mixer width, not its lane entry).
+    expect(tester.getRect(deck).left, closeTo(settledDeck.left, 0.5));
+    expect(tester.getRect(deck).width, closeTo(settledDeck.width, 0.5));
+
+    await tester.pumpAndSettle();
+    expect(tester.getRect(contentRow).top, closeTo(settledTop, 0.5));
+    expect(tester.getRect(deck).width, closeTo(settledDeck.width, 0.5));
+  });
+
+  testWidgets('a MixerPage that gains height paints the solved split', (
+    tester,
+  ) async {
+    final contentRow = find.byKey(const ValueKey('mixer-content-row'));
+
+    // Reference: a page mounted straight at the final height.
+    await pumpSized(
+      tester,
+      child: const SizedBox(
+        height: 800,
+        child: MixerPage(key: ValueKey('reference')),
+      ),
+      settle: false,
+    );
+    await tester.pumpAndSettle();
+    final solvedTop = tester.getRect(contentRow).top;
+
+    // The window can report zero height on the first layout (hidden, or still
+    // being sized). Mounting the panes into that would paint the entry split
+    // on the first real frame and snap afterwards.
+    await pumpSized(
+      tester,
+      child: const SizedBox(
+        height: 0,
+        child: MixerPage(key: ValueKey('growing')),
+      ),
+      settle: false,
+    );
+    expect(contentRow, findsNothing);
+
+    await pumpSized(
+      tester,
+      child: const SizedBox(
+        height: 800,
+        child: MixerPage(key: ValueKey('growing')),
+      ),
+      settle: false,
+    );
+    final firstFrameTop = tester.getRect(contentRow).top;
+    expect(firstFrameTop, closeTo(solvedTop, 0.5));
+
+    await tester.pumpAndSettle();
+    expect(tester.getRect(contentRow).top, closeTo(firstFrameTop, 0.5));
   });
 
   testWidgets('sidebar tabs and the track toolbar share a header height', (

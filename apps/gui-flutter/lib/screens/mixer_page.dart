@@ -43,6 +43,11 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   /// The split waiting to be applied, after the frame that solved it.
   MixerLayoutSolution? _pending;
 
+  /// Whether the body has built once with a positive height. The first solve
+  /// seeds the controllers before their panes exist; later solves must wait
+  /// for the frame.
+  var _built = false;
+
   @override
   void initState() {
     super.initState();
@@ -152,12 +157,29 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         );
         final plan = mixerPlanFor(config, solution);
 
+        // Nothing to split and no split yet: mounting the panes into a
+        // zero-height body would make the first real frame paint the entry
+        // split before the post-frame solve. Wait for the first positive
+        // height instead.
+        if (_solvedFor == null && constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
+
         final solvedFor = (constraints.maxHeight.roundToDouble(), config);
+        final firstBuild = !_built;
+        _built = true;
         // A zero-height body has nothing to split; applying it would only move
         // the controllers to a degenerate state before the window exists.
         if (constraints.maxHeight > 0 && _solvedFor != solvedFor) {
           _solvedFor = solvedFor;
           _pending = solution;
+          if (firstBuild) {
+            // Mounting: the panes below are built in this same pass, so nothing
+            // is listening yet. Seeding now keeps the entry split from being
+            // painted for one frame and snapping to the solved one — the jump
+            // a page rebuilt after Settings used to show.
+            _seed(solution, plan, config);
+          }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) {
               return;
@@ -177,6 +199,30 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   /// Puts the solved split on the controllers: hidden slots go away, the rest
   /// take their fraction, and the deck row's floor follows the deck count.
   void _apply(
+    MixerLayoutSolution solution,
+    MixerPlan plan,
+    MixerLayoutConfig config,
+  ) {
+    _seed(solution, plan, config);
+
+    // The library forces the drawer when the body has no room to dock it; a
+    // drawer that was opened for that reason closes again once it fits. Only a
+    // drawer *this* flag forced is closed, and closing it flips nothing here —
+    // `forced` depends on the split alone — so the two cannot ping-pong.
+    final forced = config.preferDockedLibrary && !solution.libraryDocked;
+    final wasForced = ref.read(mixerLibraryForcedDrawerProvider);
+    ref.read(mixerLibraryForcedDrawerProvider.notifier).set(forced);
+    if (wasForced && !forced && ref.read(libraryDrawerOpenProvider)) {
+      ref.read(libraryDrawerOpenProvider.notifier).set(false);
+    }
+  }
+
+  /// Writes a solved split onto the controllers: hidden slots go away, the rest
+  /// take their fraction, and the deck row's floor follows the deck count.
+  ///
+  /// Runs before the first paint on a mounting page and after the frame for
+  /// later solves.
+  void _seed(
     MixerLayoutSolution solution,
     MixerPlan plan,
     MixerLayoutConfig config,
@@ -202,29 +248,19 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final center = row?.center;
     _setVisible(_content, MixerPaneIds.center, center != null);
     if (row != null && center != null) {
+      final width = row.centerWidth;
       final centerEntry = _content.entries.firstWhere(
         (entry) => entry.id == MixerPaneIds.center,
       );
       _content
         ..updatePane(
           centerEntry.copyWith(
-            initialSize: PaneSize.pixel(row.centerWidth),
-            minSize: PaneSize.pixel(row.centerWidth),
-            maxSize: PaneSize.pixel(row.centerWidth),
+            initialSize: PaneSize.pixel(width),
+            minSize: PaneSize.pixel(width),
+            maxSize: PaneSize.pixel(width),
           ),
         )
-        ..updateSize(MixerPaneIds.center, PaneSize.pixel(row.centerWidth));
-    }
-
-    // The library forces the drawer when the body has no room to dock it; a
-    // drawer that was opened for that reason closes again once it fits. Only a
-    // drawer *this* flag forced is closed, and closing it flips nothing here —
-    // `forced` depends on the split alone — so the two cannot ping-pong.
-    final forced = config.preferDockedLibrary && !solution.libraryDocked;
-    final wasForced = ref.read(mixerLibraryForcedDrawerProvider);
-    ref.read(mixerLibraryForcedDrawerProvider.notifier).set(forced);
-    if (wasForced && !forced && ref.read(libraryDrawerOpenProvider)) {
-      ref.read(libraryDrawerOpenProvider.notifier).set(false);
+        ..updateSize(MixerPaneIds.center, PaneSize.pixel(width));
     }
   }
 
