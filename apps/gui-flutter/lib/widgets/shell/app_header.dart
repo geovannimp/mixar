@@ -7,6 +7,7 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/widgets/shell/app_back_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_pages_menu.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
@@ -90,35 +91,21 @@ class AppHeader extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // The way back from every page but the booth sits where the
-                // old hamburger did; it runs the same page switch, so a dirty
-                // Settings draft still asks before it closes.
-                if (tab != ShellTab.mixer)
-                  Positioned(
-                    left: usesMacOSTitleBarLayout
-                        ? kMacOSWindowControlsInset
-                        : 0,
-                    top: 0,
-                    bottom: 0,
-                    child: SizedBox(
-                      height: kAppHeaderHeight,
-                      child: AppButton(
-                        variant: .ghost,
-                        size: .sm,
-                        mainAxisSize: .min,
-                        semanticsLabel: 'Back to Booth',
-                        onPress: () => unawaited(onTabChanged(ShellTab.mixer)),
-                        child: const Row(
-                          mainAxisSize: .min,
-                          children: [
-                            Icon(LucideIcons.arrowLeft),
-                            SizedBox(width: 6),
-                            Text('Booth'),
-                          ],
-                        ),
-                      ),
+                // The way back sits where the old hamburger did, on every page
+                // that has one; the slot stays mounted so the button animates
+                // out as the page changes instead of snapping away.
+                Positioned(
+                  left: usesMacOSTitleBarLayout ? kMacOSWindowControlsInset : 0,
+                  top: 0,
+                  bottom: 0,
+                  child: SizedBox(
+                    height: kAppHeaderHeight,
+                    child: AppBackButton(
+                      visible: tab != ShellTab.mixer,
+                      onPress: () => unawaited(onTabChanged(ShellTab.mixer)),
                     ),
                   ),
+                ),
                 Positioned(
                   top: 0,
                   bottom: 0,

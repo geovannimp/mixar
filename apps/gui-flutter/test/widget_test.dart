@@ -40,6 +40,7 @@ import 'package:gui_flutter/widgets/mixer/waveform/vertical_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
+import 'package:gui_flutter/widgets/shell/app_back_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -1220,6 +1221,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsNothing);
     expect(find.byType(MixerStrip), findsOneWidget);
+  });
+
+  testWidgets('the back button leaves settings and animates out', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await openSettings(tester);
+
+    final back = find.descendant(
+      of: find.byType(AppHeader),
+      matching: find.byWidgetPredicate(
+        (w) => w is AppButton && w.semanticsLabel == 'Back to Booth',
+      ),
+    );
+    expect(back, findsOneWidget);
+
+    await tester.tap(back);
+    await tester.pump();
+
+    // The page has changed, but the chrome is still painting its exit out of
+    // the corner.
+    expect(find.byType(SettingsPage), findsNothing);
+    expect(back, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 90));
+    final opacity = tester.widget<Opacity>(
+      find
+          .descendant(
+            of: find.byType(AppBackButton),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(opacity.opacity, lessThan(1));
+
+    await tester.pumpAndSettle();
+    expect(back, findsNothing);
   });
 
   testWidgets('settings header marks the page with the settings glyph', (
