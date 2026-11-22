@@ -13,9 +13,9 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -123,14 +123,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// A menu row, addressed by the shared widget's own label rather than by
-  /// rendered text — the header shows the same words.
-  Finder rowFinder(String label) =>
-      find.byWidgetPredicate((w) => w is NavListItem && w.label == label);
-
-  MTappable row(WidgetTester tester, String label) => tester.widget<MTappable>(
-    find.descendant(of: rowFinder(label), matching: find.byType(MTappable)),
+  /// A menu row, addressed by its rendered label inside the panel: the header
+  /// shows the open page's name too, so a bare text finder is not unique.
+  Finder rowFinder(String label) => find.ancestor(
+    of: find.descendant(
+      of: find.byType(MixarMenuPanel),
+      matching: find.text(label),
+    ),
+    matching: find.byType(MixarMenuItem),
   );
+
+  MixarMenuItem row(WidgetTester tester, String label) =>
+      tester.widget<MixarMenuItem>(rowFinder(label));
 
   /// The preview's reference lights, if any were painted.
   Finder previewLights() => find.byWidgetPredicate(
@@ -221,6 +225,21 @@ void main() {
 
     expect(row(tester, 'Settings').selected, isTrue);
     expect(row(tester, 'Booth').selected, isFalse);
+    // Accent ink plus a check, the same mark every choice menu uses.
+    expect(
+      find.descendant(
+        of: rowFinder('Settings'),
+        matching: find.byIcon(LucideIcons.check),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: rowFinder('Booth'),
+        matching: find.byIcon(LucideIcons.check),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('picking a page reports it and closes the menu', (tester) async {

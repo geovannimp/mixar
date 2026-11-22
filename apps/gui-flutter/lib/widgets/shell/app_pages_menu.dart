@@ -9,19 +9,16 @@ import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The name a page carries in the header and in the pages menu.
 String shellPageLabel(ShellTab tab) => switch (tab) {
   ShellTab.mixer => 'Booth',
   ShellTab.settings => 'Settings',
-};
-
-IconData _shellPageIcon(ShellTab tab) => switch (tab) {
-  ShellTab.mixer => LucideIcons.play,
-  ShellTab.settings => LucideIcons.settings,
 };
 
 /// The shell's title control: the wordmark and the open page's name, opening a
@@ -94,8 +91,8 @@ class AppPagesMenu extends StatelessWidget {
   }
 }
 
-/// Rows for every page, the open one marked the way the settings sidebar marks
-/// its section.
+/// Rows for every page, one per `MixarMenuItem` so the list reads like every
+/// other dropdown in the app; the open page carries the accent label and check.
 class _PagesMenuBody extends StatelessWidget {
   const new({
     required this.current,
@@ -119,6 +116,7 @@ class _PagesMenuBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     // Escape is the desktop way out of a menu; the outside press is handled by
     // the overlay's backdrop.
     return CallbackShortcuts(
@@ -127,20 +125,45 @@ class _PagesMenuBody extends StatelessWidget {
       },
       child: Focus(
         autofocus: true,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final tab in ShellTab.values)
-              NavListItem(
-                icon: _shellPageIcon(tab),
-                label: shellPageLabel(tab),
-                selected: tab == current,
-                onPress: () => _pick(tab),
-              ),
+        child: MixarMenuBody(
+          groups: [
+            MixarMenuGroup(
+              children: [
+                for (final tab in ShellTab.values) _pageRow(theme, tab),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Same shape as the sort menu's choices: label, accent ink and a trailing
+  /// check on the active row.
+  Widget _pageRow(MixarThemeData theme, ShellTab tab) {
+    final active = tab == current;
+    return MixarMenuItem(
+      title: Row(
+        children: [
+          Expanded(
+            // One line per row: a wrapped label doubles the row height and
+            // breaks the menu's rhythm.
+            child: Text(
+              shellPageLabel(tab),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: active ? theme.colors.primary : theme.colors.foreground,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+          if (active)
+            Icon(LucideIcons.check, size: 14, color: theme.colors.primary),
+        ],
+      ),
+      selected: active,
+      onPress: () => _pick(tab),
     );
   }
 }

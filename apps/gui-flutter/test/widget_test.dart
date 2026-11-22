@@ -43,10 +43,10 @@ import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -199,10 +199,12 @@ void main() {
     }
   }
 
-  /// A pages-menu row, addressed by the shared widget's own label: the header
-  /// shows the open page's name too, so the rendered text is not unique.
-  Finder pageRow(String label) =>
-      find.byWidgetPredicate((w) => w is NavListItem && w.label == label);
+  /// A pages-menu row's label. Scoped to the panel: the header shows the open
+  /// page's name too, so a bare text finder is not unique.
+  Finder pageRow(String label) => find.descendant(
+    of: find.byType(MixarMenuPanel),
+    matching: find.text(label),
+  );
 
   /// The title control holds the wordmark and the open page's name, so the
   /// label alone is not the hit target: press the button.
