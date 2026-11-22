@@ -416,32 +416,7 @@ fn track_metadata_from_file_tags(path: &Path, tags: FileTags) -> TrackMetadata {
     metadata
 }
 
-/// Convert Camelot/Open Key codes to musical notation; pass through other values.
-///
-/// The pass-through is part of the contract, not an accident: anything that is
-/// not a Camelot/Open Key code (`1A`..`12B`) is returned **unchanged**, so the
-/// caller decides what to do with unknown input. `deck_data.rs` relies on this
-/// — a value it accepted earlier survives here verbatim, which is why the edit
-/// drawer validates keys against `camelotSlotForKey` before storing them.
-pub(crate) fn normalize_key_notation(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.len() < 2 {
-        return trimmed.to_string();
-    }
-    let upper = trimmed.to_uppercase();
-    let Some(code) = upper.strip_suffix('A').or_else(|| upper.strip_suffix('B')) else {
-        return trimmed.to_string();
-    };
-    let Ok(num) = code.parse::<usize>() else {
-        return trimmed.to_string();
-    };
-    if !(1..=12).contains(&num) {
-        return trimmed.to_string();
-    }
-    // Mixed In Key: A = minor, B = major.
-    let minor = upper.ends_with('A');
-    library_core::camelot_code_to_musical(num, minor).unwrap_or_else(|| trimmed.to_string())
-}
+pub(crate) use library_core::normalize_key_notation;
 
 fn io_backend(message: String) -> library_core::LibraryError {
     library_core::LibraryError::Backend {

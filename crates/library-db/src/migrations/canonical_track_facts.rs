@@ -3,19 +3,20 @@
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
 use super::beat_grid_backfill::usable_bpm;
-use super::{Migration, MigrationError};
-use crate::beat_grid::{self, CanonicalBeatGrid, SOURCE_ANALYSIS, SOURCE_IMPORT, SOURCE_MANUAL};
+use super::MigrationError;
 use crate::db::{
     TRACKS_TABLE, TRACK_ANALYSIS_TABLE, TRACK_BEAT_GRID_TABLE, TRACK_BEAT_SEGMENT_TABLE,
 };
-use crate::TrackId;
-
-const VERSION: &str = "2026111901_canonical_track_facts";
-
-pub(crate) const MIGRATION: Migration = Migration {
-    version: VERSION,
-    up,
+use library_core::TrackId;
+use library_core::{
+    align_segmented_bpm, from_analysis_json, is_family_mismatch, BeatSegment, CanonicalBeatGrid,
+    GridError, SOURCE_ANALYSIS, SOURCE_IMPORT, SOURCE_MANUAL,
 };
+
+const VERSION: &str = super::CANONICAL_FACTS_VERSION;
+pub(crate) struct CanonicalTrackFacts;
+
+migration!(CanonicalTrackFacts, VERSION);
 
 fn migration_error(err: impl std::fmt::Display) -> MigrationError {
     super::migration_error(VERSION, err)
@@ -31,7 +32,13 @@ struct Facts {
     analysis_completed_at: Option<String>,
 }
 
-fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
+fn up_impl(conn: &DatabaseConnection) -> Result<(), MigrationError> {
+    use sea_orm::ColumnTrait;
+
+    let beat_grid_json = crate::entity::track_analysis::Column::BeatGridJson
+        .as_column_ref()
+        .1
+        .to_string();
     let rows = conn
         .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
@@ -42,7 +49,8 @@ fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
                    COALESCE(t.metadata_edited, 0) AS metadata_edited,
                    g.track_id IS NOT NULL AS has_grid,
                    a.id AS analysis_id, a.bpm AS detector_bpm, a.analyzed_at,
-                   a.sample_rate AS raw_sample_rate, a.loudness_lufs AS raw_loudness
+                   a.sample_rate AS raw_sample_rate, a.loudness_lufs AS raw_loudness,
+                   a.{beat_grid_json} AS {beat_grid_json}
             FROM {TRACKS_TABLE} t
             LEFT JOIN {TRACK_BEAT_GRID_TABLE} g ON g.track_id = t.id
             LEFT JOIN {TRACK_ANALYSIS_TABLE} a ON a.id = (
@@ -99,19 +107,16 @@ fn up(conn: &DatabaseConnection) -> Result<(), MigrationError> {
         if has_grid {
             let track_id: TrackId = track_id.as_str().into();
             if let Some(grid) =
-                beat_grid::get_track_beat_grid_tx(conn, &track_id).map_err(migration_error)?
+                super::grid_io::load_grid(conn, VERSION, &track_id).map_err(migration_error)?
             {
-                let analysis_id = row.try_get("", "analysis_id").map_err(migration_error)?;
-                let detector_bpm = row.try_get("", "detector_bpm").map_err(migration_error)?;
-                reconcile_grid(
-                    conn,
-                    &track_id,
-                    grid,
-                    &mut facts,
-                    metadata_edited,
-                    analysis_id,
-                    detector_bpm,
-                )?;
+                let analysis = AnalysisInput {
+                    id: row.try_get("", "analysis_id").map_err(migration_error)?,
+                    detector_bpm: row.try_get("", "detector_bpm").map_err(migration_error)?,
+                    beat_grid_json: row
+                        .try_get("", beat_grid_json.as_str())
+                        .map_err(migration_error)?,
+                };
+                reconcile_grid(conn, &track_id, grid, &mut facts, metadata_edited, analysis)?;
             }
         }
         infer_source(&mut facts.bpm_source, facts.bpm.is_some(), metadata_edited);
@@ -156,14 +161,20 @@ fn infer_source(source: &mut Option<String>, has_value: bool, metadata_edited: b
     }
 }
 
+/// The newest audit row's inputs for one track.
+struct AnalysisInput {
+    id: Option<i64>,
+    detector_bpm: Option<f64>,
+    beat_grid_json: Option<String>,
+}
+
 fn reconcile_grid(
     conn: &DatabaseConnection,
     track_id: &TrackId,
     grid: CanonicalBeatGrid,
     facts: &mut Facts,
     metadata_edited: bool,
-    analysis_id: Option<i64>,
-    detector_bpm: Option<f64>,
+    analysis: AnalysisInput,
 ) -> Result<(), MigrationError> {
     let owned = matches!(grid.source.as_str(), SOURCE_MANUAL | SOURCE_IMPORT);
     if let Err(err) = grid.validate() {
@@ -171,7 +182,7 @@ fn reconcile_grid(
         return if owned {
             Ok(())
         } else {
-            beat_grid::delete_track_beat_grid_tx(conn, track_id).map_err(migration_error)
+            super::grid_io::delete_grid(conn, VERSION, track_id).map_err(migration_error)
         };
     }
 
@@ -201,12 +212,11 @@ fn reconcile_grid(
 
     let original_first = first.clone();
     let updated_first = if grid.segments.len() == 1 {
-        let repaired = if let Some(analysis_id) = analysis_id {
+        let repaired = if analysis.id.is_some() {
             repaired_phase(
-                conn,
                 track_id,
-                analysis_id,
-                detector_bpm,
+                analysis.beat_grid_json,
+                analysis.detector_bpm,
                 preferred_bpm,
                 grid.covered_to_ms,
             )?
@@ -222,7 +232,7 @@ fn reconcile_grid(
         if first.bpm == preferred_bpm {
             return Ok(());
         }
-        let Some(aligned) = beat_grid::align_segmented_bpm(grid, preferred_bpm) else {
+        let Some(aligned) = align_segmented_bpm(grid, preferred_bpm) else {
             return skip_automated_grid(conn, track_id, "segmented grid contradicts track BPM");
         };
         aligned
@@ -257,49 +267,36 @@ fn reconcile_grid(
 }
 
 fn repaired_phase(
-    conn: &DatabaseConnection,
     track_id: &TrackId,
-    analysis_id: i64,
+    raw_json: Option<String>,
     detector_bpm: Option<f64>,
     preferred_bpm: f64,
     covered_to_ms: Option<i64>,
-) -> Result<Option<beat_grid::BeatSegment>, MigrationError> {
-    let row = conn
-        .query_one_raw(Statement::from_sql_and_values(
-            DatabaseBackend::Sqlite,
-            format!("SELECT beat_grid_json FROM {TRACK_ANALYSIS_TABLE} WHERE id = ?"),
-            [analysis_id.into()],
-        ))
-        .map_err(migration_error)?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    let json: Option<String> = row.try_get("", "beat_grid_json").map_err(migration_error)?;
-    let Some(json) = json.filter(|json| !matches!(json.as_str(), "null" | "")) else {
+) -> Result<Option<BeatSegment>, MigrationError> {
+    let Some(json) = raw_json.filter(|json| !matches!(json.as_str(), "null" | "")) else {
         return Ok(None);
     };
 
     // Recognize the mismatch from the measured BPM, or from the raw geometry
     // when the estimate does not describe it. Do not use unrelated raw phase.
-    let repair = || -> Result<Option<beat_grid::BeatSegment>, beat_grid::GridError> {
-        let detector = if let Some(bpm) = detector_bpm
-            .filter(|&bpm| usable_bpm(bpm) && beat_grid::is_family_mismatch(bpm, preferred_bpm))
+    let repair = || -> Result<Option<BeatSegment>, GridError> {
+        let detector = if let Some(bpm) =
+            detector_bpm.filter(|&bpm| usable_bpm(bpm) && is_family_mismatch(bpm, preferred_bpm))
         {
             Some(bpm)
         } else {
-            let Some(detected) = beat_grid::from_analysis_json(&json, None, None, covered_to_ms)?
-            else {
+            let Some(detected) = from_analysis_json(&json, None, None, covered_to_ms)? else {
                 return Ok(None);
             };
             if detected.segments.len() != 1
-                || !beat_grid::is_family_mismatch(detected.segments[0].bpm, preferred_bpm)
+                || !is_family_mismatch(detected.segments[0].bpm, preferred_bpm)
             {
                 return Ok(None);
             }
             None
         };
         Ok(
-            beat_grid::from_analysis_json(&json, detector, Some(preferred_bpm), covered_to_ms)?
+            from_analysis_json(&json, detector, Some(preferred_bpm), covered_to_ms)?
                 .filter(|grid| grid.segments.len() == 1)
                 .and_then(|grid| grid.segments.into_iter().next()),
         )
@@ -323,7 +320,7 @@ fn skip_automated_grid(
         reason,
         "legacy automated grid removed"
     );
-    beat_grid::delete_track_beat_grid_tx(conn, track_id).map_err(migration_error)
+    super::grid_io::delete_grid(conn, VERSION, track_id).map_err(migration_error)
 }
 
 #[cfg(test)]
@@ -335,6 +332,7 @@ mod tests {
         beat_grid_backfill, legacy_collection_tracks, legacy_track_stem_cache,
         track_analysis_append_only,
     };
+    use library_core::from_constant;
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Value};
 
     const FAMILY_JSON: &str = r#"{"beats":[1.0,1.5128205,2.025641,2.5384615,3.051282,3.5641026,4.076923,4.5897436,5.102564],"bars":[1.5128205],"downbeats":[1.5128205,3.5641026],"beats_per_bar":4}"#;
@@ -471,7 +469,7 @@ mod tests {
     }
 
     fn grid(conn: &DatabaseConnection, id: &str) -> Option<CanonicalBeatGrid> {
-        beat_grid::get_track_beat_grid_tx(conn, &id.into()).unwrap()
+        crate::migrations::grid_io::load_grid(conn, VERSION, &id.into()).unwrap()
     }
 
     fn segments(conn: &DatabaseConnection, id: &str) -> Vec<track_beat_segment::Model> {
@@ -538,12 +536,12 @@ mod tests {
             seed_grid(
                 conn,
                 "family",
-                &beat_grid::from_constant(117.0, 2000, 4, 4, 2000, Some(9000), SOURCE_ANALYSIS),
+                &from_constant(117.0, 2000, 4, 4, 2000, Some(9000), SOURCE_ANALYSIS),
             );
             seed_grid(
                 conn,
                 "constant",
-                &beat_grid::from_constant(120.0, 500, 4, 4, 1000, Some(9000), SOURCE_ANALYSIS),
+                &from_constant(120.0, 500, 4, 4, 1000, Some(9000), SOURCE_ANALYSIS),
             );
             seed_track(conn, "mirrored", Some(78.0), false);
             seed_raw(
@@ -557,7 +555,7 @@ mod tests {
             seed_grid(
                 conn,
                 "mirrored",
-                &beat_grid::from_constant(78.0, 2000, 4, 4, 2000, Some(9000), SOURCE_ANALYSIS),
+                &from_constant(78.0, 2000, 4, 4, 2000, Some(9000), SOURCE_ANALYSIS),
             );
         } else {
             // Manual audit BPM wins over the stale track BPM in the first migration.
@@ -579,7 +577,7 @@ mod tests {
             seed_grid(
                 conn,
                 id,
-                &beat_grid::from_constant(125.0, 123, 3, 8, 603, None, source),
+                &from_constant(125.0, 123, 3, 8, 603, None, source),
             );
         }
         execute(
@@ -592,7 +590,7 @@ mod tests {
             seed_grid(
                 conn,
                 id,
-                &beat_grid::from_constant(125.0, 123, 3, 8, 603, None, SOURCE_IMPORT),
+                &from_constant(125.0, 123, 3, 8, 603, None, SOURCE_IMPORT),
             );
         }
         execute(
@@ -610,21 +608,21 @@ mod tests {
         seed_grid(
             conn,
             "bad-compact",
-            &beat_grid::from_constant(117.0, 530, 3, 8, 1043, Some(3200), SOURCE_ANALYSIS),
+            &from_constant(117.0, 530, 3, 8, 1043, Some(3200), SOURCE_ANALYSIS),
         );
         let old_bad_compact = segments(conn, "bad-compact");
         seed_track(conn, "no-raw", None, false);
         seed_grid(
             conn,
             "no-raw",
-            &beat_grid::from_constant(123.0, 417, 3, 8, 417, None, SOURCE_ANALYSIS),
+            &from_constant(123.0, 417, 3, 8, 417, None, SOURCE_ANALYSIS),
         );
         seed_track(conn, "clear", None, true);
         seed_raw(conn, "clear", SOURCE_ANALYSIS, 117.0, 48_000, FAMILY_JSON);
         seed_grid(
             conn,
             "clear",
-            &beat_grid::from_constant(117.0, 0, 4, 4, 0, None, SOURCE_ANALYSIS),
+            &from_constant(117.0, 0, 4, 4, 0, None, SOURCE_ANALYSIS),
         );
         seed_track(conn, "clear-no-grid", None, true);
         seed_raw(
@@ -641,14 +639,13 @@ mod tests {
             seed_grid(
                 conn,
                 "invalid",
-                &beat_grid::from_constant(117.0, 0, 4, 4, 0, None, SOURCE_ANALYSIS),
+                &from_constant(117.0, 0, 4, 4, 0, None, SOURCE_ANALYSIS),
             );
         }
 
-        let mut segmented =
-            beat_grid::from_constant(120.1, 0, 4, 4, 0, Some(7000), SOURCE_ANALYSIS);
+        let mut segmented = from_constant(120.1, 0, 4, 4, 0, Some(7000), SOURCE_ANALYSIS);
         segmented.segments[0].beats_to_next = Some(4);
-        segmented.segments.push(beat_grid::BeatSegment {
+        segmented.segments.push(BeatSegment {
             segment_index: 1,
             start_time_ms: 2000,
             bpm: 100.0,
@@ -694,7 +691,7 @@ mod tests {
         assert_eq!(family_grid.covered_to_ms, Some(9000));
         assert_eq!(
             Some(&family_grid),
-            beat_grid::from_analysis_json(FAMILY_JSON, Some(117.0), Some(78.0), Some(9000))
+            from_analysis_json(FAMILY_JSON, Some(117.0), Some(78.0), Some(9000))
                 .unwrap()
                 .as_ref(),
         );
@@ -823,6 +820,7 @@ mod tests {
             [
                 legacy_collection_tracks::VERSION,
                 legacy_track_stem_cache::VERSION,
+                crate::migrations::BASELINE_VERSION,
                 beat_grid_backfill::VERSION,
                 track_analysis_append_only::VERSION,
                 VERSION,

@@ -549,17 +549,19 @@ fn a_deleted_or_moved_track_skips_the_write() {
         let guard = lib.db.conn().unwrap();
         let other = dir.path().join("other.wav");
         write_tagged_wav(&other, &id3_tag(&[]));
-        tracks::ActiveModel {
-            id: Set(id.as_str().to_string()),
-            source_ref: Set(other.to_string_lossy().into_owned()),
-            ..Default::default()
-        }
-        .update(guard.as_connection())
-        .unwrap();
-        assert!(TrackEntity::find_by_id(id.as_str())
-            .one(guard.as_connection())
-            .unwrap()
-            .is_some());
+        {
+            tracks::ActiveModel {
+                id: Set(id.as_str().to_string()),
+                source_ref: Set(other.to_string_lossy().into_owned()),
+                ..Default::default()
+            }
+            .update(guard.as_connection())
+            .unwrap();
+            assert!(TrackEntity::find_by_id(id.as_str())
+                .one(guard.as_connection())
+                .unwrap()
+                .is_some());
+        };
     }
     assert!(plan.execute_with_library(&lib).is_none());
     assert_eq!(std::fs::read(&path).unwrap(), before);

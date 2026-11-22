@@ -6,6 +6,37 @@ use crate::analysis::{
 use bus_api::Command;
 use std::io::Write;
 
+/// Run one raw statement on the library's connection.
+fn exec_raw(db: &crate::db::Db, sql: impl Into<String>) {
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+
+    db.conn()
+        .unwrap()
+        .as_connection()
+        .execute_raw(Statement::from_string(DatabaseBackend::Sqlite, sql.into()))
+        .unwrap();
+}
+
+/// Drop `drops` columns and forget only the baseline ledger row, so reopening
+/// runs the baseline again while later migrations stay recorded.
+pub(crate) fn emulate_prebaseline(db_path: &Path, drops: &[(String, String)]) {
+    let ledger = crate::db::SEAQL_MIGRATIONS_TABLE;
+    let version = crate::migrations::VERSION_COLUMN;
+    let conn = rusqlite::Connection::open(db_path).unwrap();
+    let mut sql = String::new();
+    for (table, column) in drops {
+        sql.push_str(&format!("ALTER TABLE {table} DROP COLUMN {column};\n"));
+    }
+    sql.push_str(&format!(
+        "DELETE FROM {ledger} WHERE {version} = '{}';",
+        crate::migrations::BASELINE_VERSION
+    ));
+    conn.execute_batch(&sql).unwrap();
+}
+
+/// Trigger the rollback test installs on `track_hot_cue`.
+const REJECT_HOT_CUE_TRIGGER: &str = "reject_hot_cue_insert";
+
 pub(crate) fn write_minimal_wav(path: &Path) {
     let mut file = std::fs::File::create(path).unwrap();
     let data_size: u32 = 16;
@@ -3005,8 +3036,6 @@ fn off_mutex_folder_sync_imports_embedded_data() {
 
 #[test]
 fn database_errors_roll_back_the_whole_new_track() {
-    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("atomic.wav");
     write_tagged_wav(&wav, &tea_leaves_tag());
@@ -3016,16 +3045,13 @@ fn database_errors_roll_back_the_whole_new_track() {
     {
         use sea_orm::EntityName;
         let cues = crate::entity::track_hot_cue::Entity.table_name();
-        let conn = lib.db.conn().unwrap();
-        conn.as_connection()
-            .execute_raw(Statement::from_string(
-                DatabaseBackend::Sqlite,
-                format!(
-                    "CREATE TRIGGER reject_hot_cue_insert BEFORE INSERT ON {cues} \
-                     BEGIN SELECT RAISE(ABORT, 'injected cue failure'); END;"
-                ),
-            ))
-            .unwrap();
+        exec_raw(
+            &lib.db,
+            format!(
+                "CREATE TRIGGER {REJECT_HOT_CUE_TRIGGER} BEFORE INSERT ON {cues} \
+                 BEGIN SELECT RAISE(ABORT, 'injected cue failure'); END;"
+            ),
+        );
     }
 
     let err = lib
@@ -3043,15 +3069,7 @@ fn database_errors_roll_back_the_whole_new_track() {
         .unwrap()
         .is_none());
 
-    {
-        let conn = lib.db.conn().unwrap();
-        conn.as_connection()
-            .execute_raw(Statement::from_string(
-                DatabaseBackend::Sqlite,
-                "DROP TRIGGER reject_hot_cue_insert".to_string(),
-            ))
-            .unwrap();
-    }
+    exec_raw(&lib.db, format!("DROP TRIGGER {REJECT_HOT_CUE_TRIGGER}"));
     let source = lib.import_file_path(&wav).unwrap();
     assert_eq!(source.id(), &id);
     assert_eq!(list_hot_cues(&lib.db, &id).unwrap().len(), 8);
@@ -3078,8 +3096,6 @@ fn discovery_and_playback_leave_the_source_file_untouched() {
 
 #[test]
 fn legacy_databases_gain_the_nullable_colour_column() {
-    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("legacy.db");
     let wav = dir.path().join("labelled.wav");
@@ -3098,19 +3114,13 @@ fn legacy_databases_gain_the_nullable_colour_column() {
             .clone();
     }
     {
-        // Emulate a database written before the column existed. Both names come
-        // from the entity, so a rename surfaces at compile time.
+        // Emulate a database written before the column existed. Raw SQLite drops
+        // the column and forgets only the baseline, so the baseline runs again on
+        // reopen while the already-applied beat-grid backfill stays recorded.
         use sea_orm::ColumnTrait;
+
         let (table, column) = crate::entity::tracks::Column::ColorRgb.as_column_ref();
-        let db = crate::db::open(&db_path).unwrap();
-        db.conn()
-            .unwrap()
-            .as_connection()
-            .execute_raw(Statement::from_string(
-                DatabaseBackend::Sqlite,
-                format!("ALTER TABLE {table} DROP COLUMN {column}"),
-            ))
-            .unwrap();
+        emulate_prebaseline(&db_path, &[(table.to_string(), column.to_string())]);
     }
 
     let lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
@@ -3118,9 +3128,31 @@ fn legacy_databases_gain_the_nullable_colour_column() {
     assert_eq!(
         stored.metadata().color_label,
         Some(library_core::ColorLabel::Aqua),
-        "the existing label survives the schema sync"
+        "the existing label survives the baseline migration"
     );
     assert_eq!(stored.metadata().color_rgb, None);
+    drop(lib);
+
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    let count_sql = format!(
+        "SELECT COUNT(*) FROM {} WHERE {} = ?1",
+        crate::db::SEAQL_MIGRATIONS_TABLE,
+        crate::migrations::VERSION_COLUMN
+    );
+    let ledger_count = |version: &str| -> i64 {
+        conn.query_row(&count_sql, [version], |row| row.get(0))
+            .unwrap()
+    };
+    assert_eq!(
+        ledger_count(crate::migrations::BASELINE_VERSION),
+        1,
+        "the baseline is recorded again"
+    );
+    assert_eq!(
+        ledger_count(crate::migrations::BACKFILL_VERSION),
+        1,
+        "the applied backfill row is kept"
+    );
 }
 
 #[test]

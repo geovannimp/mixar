@@ -4,27 +4,34 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use library_core::{LibraryError, Result};
-use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
+use sea_orm::{
+    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr,
+    Statement,
+};
 
-pub(crate) const SEAQL_MIGRATIONS_TABLE: &str = "seaql_migrations";
-pub(crate) const TRACKS_TABLE: &str = "tracks";
-pub(crate) const TRACK_ANALYSIS_TABLE: &str = "track_analysis";
-pub(crate) const TRACK_BEAT_GRID_TABLE: &str = "track_beat_grid";
+pub const SEAQL_MIGRATIONS_TABLE: &str = "seaql_migrations";
+pub const TRACKS_TABLE: &str = "tracks";
+pub const TRACK_ANALYSIS_TABLE: &str = "track_analysis";
+pub const TRACK_BEAT_GRID_TABLE: &str = "track_beat_grid";
 #[allow(dead_code)]
-pub(crate) const TRACK_BEAT_SEGMENT_TABLE: &str = "track_beat_segment";
+pub const TRACK_BEAT_SEGMENT_TABLE: &str = "track_beat_segment";
 
 /// Wrapper so `Db` can satisfy `Library: Send + Sync`.
 ///
 /// SeaORM sync's `DatabaseConnection` is `!Send` because of an optional metric
 /// callback type; we never register one, and all access is serialized through
 /// the mutex around the rusqlite-backed connection.
-pub(crate) struct SyncConnection(DatabaseConnection);
+pub struct SyncConnection(DatabaseConnection);
 
 unsafe impl Send for SyncConnection {}
 unsafe impl Sync for SyncConnection {}
 
 pub struct Db {
     conn: Mutex<SyncConnection>,
+    /// Thread currently inside [`Db::transaction`], so its own re-entry reports
+    /// the mistake while another thread simply waits its turn.
+    tx_owner: Mutex<Option<std::thread::ThreadId>>,
+    tx_free: std::sync::Condvar,
 }
 
 impl Db {
@@ -44,16 +51,17 @@ impl Db {
     }
 
     fn connect(url: &str) -> Result<Self> {
+        Self::connect_with(url, crate::migrations::run_pending_migrations)
+    }
+
+    /// Bootstrap `url`, hand the connection to `phase`, then wrap it.
+    fn connect_with(
+        url: &str,
+        phase: fn(&sea_orm::DatabaseConnection) -> Result<()>,
+    ) -> Result<Self> {
         let conn = Self::open_connection(url)?;
-        crate::migrations::run_pending_migrations(conn.as_connection()).map_err(|err| {
-            LibraryError::Backend {
-                backend: "library",
-                message: err.to_string(),
-            }
-        })?;
-        Ok(Self {
-            conn: Mutex::new(conn),
-        })
+        phase(conn.as_connection())?;
+        Ok(Self::from_connection(conn))
     }
 
     /// Shared connection bootstrap: options, schema sync, and the Send+Sync
@@ -65,45 +73,88 @@ impl Db {
         opts.max_connections(1).sqlx_logging(false);
 
         let conn = Database::connect(opts).map_err(db_err)?;
-        sync_schema(&conn).map_err(db_err)?;
+        // Each pragma answers with a row, so it is queried, not executed.
+        for pragma in [
+            "PRAGMA foreign_keys = ON;",
+            // Another process opening the same file may hold the migration
+            // write lock; wait for it instead of failing with SQLITE_BUSY.
+            "PRAGMA busy_timeout = 5000;",
+            // Reading `journal_mode` returns the mode it settled on.
+            "PRAGMA journal_mode = WAL;",
+        ] {
+            Self::run_pragma(&conn, pragma)?;
+        }
         Ok(SyncConnection(conn))
     }
 
-    /// Open an in-memory database without running the data migrations.
+    /// Open an in-memory database with the schema pragmas and only the schema
+    /// phase of the chain.
     ///
-    /// Migration tests need to insert legacy rows before the runner sees them.
-    /// The schema-compatibility phase has already run, so such a test resets
-    /// the ledger and replaces the table it wants to simulate.
+    /// Tests use it to seed a legacy layout before the data phase runs.
     #[allow(dead_code)]
-    pub(crate) fn open_in_memory_unmigrated() -> Result<Self> {
-        Self::connect_unmigrated("sqlite::memory:")
+    pub fn open_in_memory_unmigrated() -> Result<Self> {
+        Self::connect_with("sqlite::memory:", crate::migrations::run_schema_migrations)
     }
 
-    #[allow(dead_code)]
-    fn connect_unmigrated(url: &str) -> Result<Self> {
-        Ok(Self {
-            conn: Mutex::new(Self::open_connection(url)?),
-        })
+    fn run_pragma(conn: &DatabaseConnection, sql: &str) -> Result<()> {
+        conn.query_one_raw(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            sql.to_string(),
+        ))
+        .map(|_| ())
+        .map_err(db_err)
     }
 
-    pub(crate) fn conn(&self) -> Result<std::sync::MutexGuard<'_, SyncConnection>> {
-        self.conn.lock().map_err(|_| LibraryError::Backend {
-            backend: "library",
-            message: "library database lock poisoned".into(),
-        })
+    /// Wrap a bootstrapped connection in the shared handle every constructor uses.
+    fn from_connection(conn: SyncConnection) -> Self {
+        Self {
+            conn: Mutex::new(conn),
+            tx_owner: Mutex::new(None),
+            tx_free: std::sync::Condvar::new(),
+        }
+    }
+
+    pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, SyncConnection>> {
+        Ok(lock(&self.conn))
     }
 
     /// Run `f` inside one `BEGIN IMMEDIATE` transaction on the single connection.
     ///
     /// The connection is acquired once, so `f` must use only the connection it
-    /// is given: calling back into [`Db`] would deadlock on the lock and
-    /// starting a nested transaction would fail. A closure or commit error
-    /// rolls the whole transaction back and the original error is returned, so
-    /// a partially written import can never be observed.
-    pub(crate) fn transaction<T>(
-        &self,
-        f: impl FnOnce(&DatabaseConnection) -> Result<T>,
-    ) -> Result<T> {
+    /// is given; a nested call returns an error instead of deadlocking. A
+    /// closure or commit error rolls the whole transaction back and the
+    /// original error is returned, so a partially written import can never be
+    /// observed.
+    pub fn transaction<T>(&self, f: impl FnOnce(&DatabaseConnection) -> Result<T>) -> Result<T> {
+        let me = std::thread::current().id();
+        {
+            let mut owner = lock(&self.tx_owner);
+            while let Some(current) = *owner {
+                if current == me {
+                    return Err(LibraryError::Backend {
+                        backend: "library",
+                        message: "nested transactions are not supported".into(),
+                    });
+                }
+                owner = self
+                    .tx_free
+                    .wait(owner)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+            *owner = Some(me);
+        }
+        let mut slot = TransactionSlot {
+            conn: &self.conn,
+            owner: &self.tx_owner,
+            free: &self.tx_free,
+            finished: false,
+        };
+        let outcome = self.run_transaction(f);
+        slot.finished = true;
+        outcome
+    }
+
+    fn run_transaction<T>(&self, f: impl FnOnce(&DatabaseConnection) -> Result<T>) -> Result<T> {
         let guard = self.conn()?;
         let conn = guard.as_connection();
         begin(conn)?;
@@ -123,7 +174,36 @@ impl Db {
     }
 }
 
-pub(crate) fn begin(conn: &DatabaseConnection) -> Result<()> {
+/// Take a lock, recovering one poisoned by a panic: the data behind it is still
+/// valid, and an unwound transaction is rolled back before it is reused.
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Releases the transaction slot on drop, rolling back a transaction that
+/// unwound before anyone else may take it.
+struct TransactionSlot<'a> {
+    conn: &'a Mutex<SyncConnection>,
+    owner: &'a Mutex<Option<std::thread::ThreadId>>,
+    free: &'a std::sync::Condvar,
+    finished: bool,
+}
+
+impl Drop for TransactionSlot<'_> {
+    fn drop(&mut self) {
+        if !self.finished {
+            let guard = lock(self.conn);
+            rollback(guard.as_connection());
+        }
+        let mut owner = lock(self.owner);
+        *owner = None;
+        self.free.notify_one();
+    }
+}
+
+pub fn begin(conn: &DatabaseConnection) -> Result<()> {
     conn.execute_raw(Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
         "BEGIN IMMEDIATE".to_string(),
@@ -132,7 +212,7 @@ pub(crate) fn begin(conn: &DatabaseConnection) -> Result<()> {
     .map_err(db_err)
 }
 
-pub(crate) fn commit(conn: &DatabaseConnection) -> Result<()> {
+pub fn commit(conn: &DatabaseConnection) -> Result<()> {
     conn.execute_raw(Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
         "COMMIT".to_string(),
@@ -141,7 +221,7 @@ pub(crate) fn commit(conn: &DatabaseConnection) -> Result<()> {
     .map_err(db_err)
 }
 
-pub(crate) fn rollback(conn: &DatabaseConnection) {
+pub fn rollback(conn: &DatabaseConnection) {
     let _ = conn.execute_raw(Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
         "ROLLBACK".to_string(),
@@ -149,7 +229,7 @@ pub(crate) fn rollback(conn: &DatabaseConnection) {
 }
 
 impl SyncConnection {
-    pub(crate) fn as_connection(&self) -> &DatabaseConnection {
+    pub fn as_connection(&self) -> &DatabaseConnection {
         &self.0
     }
 }
@@ -163,30 +243,8 @@ pub fn open_in_memory() -> Result<Db> {
 }
 
 #[allow(dead_code)]
-pub(crate) fn open_in_memory_unmigrated() -> Result<Db> {
+pub fn open_in_memory_unmigrated() -> Result<Db> {
     Db::open_in_memory_unmigrated()
-}
-
-/// Prepare the schema: connection pragmas, legacy-layout migrations, then the
-/// SeaORM entity registry.
-///
-/// The compatibility migrations must run before the registry, which creates and
-/// extends tables but cannot rename one, drop one, or change a primary key.
-fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
-    conn.execute_raw(Statement::from_string(
-        sea_orm::DatabaseBackend::Sqlite,
-        "PRAGMA foreign_keys = ON;".to_string(),
-    ))?;
-    // journal_mode returns a row; execute_raw would fail with "did you mean to call query?"
-    conn.query_one_raw(Statement::from_string(
-        sea_orm::DatabaseBackend::Sqlite,
-        "PRAGMA journal_mode = WAL;".to_string(),
-    ))?;
-
-    crate::migrations::run_schema_compatibility_migrations(conn)
-        .map_err(|err| DbErr::Custom(err.to_string()))?;
-
-    conn.get_schema_registry("library::entity::*").sync(conn)
 }
 
 pub fn db_err(err: DbErr) -> LibraryError {
@@ -442,5 +500,56 @@ mod tests {
         assert_eq!(has_path, 1);
         let rows = count_rows(&db, "SELECT COUNT(*) AS count FROM track_stem");
         assert_eq!(rows, 0, "legacy stem rows should be dropped with the table");
+    }
+
+    #[test]
+    fn concurrent_transactions_take_their_turn() {
+        use std::sync::{Arc, Barrier};
+
+        let db = Arc::new(Db::open_in_memory().unwrap());
+        let barrier = Arc::new(Barrier::new(2));
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let db = Arc::clone(&db);
+            let barrier = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                db.transaction(|_conn| Ok(()))
+            }));
+        }
+
+        for handle in handles {
+            handle
+                .join()
+                .unwrap()
+                .expect("a second thread waits instead of reporting a nesting error");
+        }
+    }
+
+    #[test]
+    fn a_panicking_transaction_releases_the_connection() {
+        let db = Db::open_in_memory().unwrap();
+
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = db.transaction(|_conn| -> Result<()> { panic!("boom") });
+        }));
+        assert!(panicked.is_err());
+
+        db.transaction(|_conn| Ok(()))
+            .expect("the next transaction runs");
+    }
+
+    #[test]
+    fn nested_transaction_is_rejected_instead_of_deadlocking() {
+        let db = Db::open_in_memory().unwrap();
+
+        let error = db
+            .transaction(|_conn| db.transaction(|_| Ok(())))
+            .unwrap_err();
+
+        assert!(
+            error.to_string().contains("nested transactions"),
+            "unexpected error: {error}"
+        );
     }
 }
