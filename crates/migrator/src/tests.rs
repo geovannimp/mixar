@@ -162,51 +162,6 @@ fn status_converts_an_integer_applied_at_to_rfc3339() {
 }
 
 #[test]
-fn utc_rfc3339_matches_chronos_auto_precision() {
-    let stamp = |nanos| jiff::Timestamp::new(1_700_000_000, nanos).unwrap();
-    assert_eq!(utc_rfc3339(stamp(0)), "2023-11-14T22:13:20+00:00");
-    assert_eq!(
-        utc_rfc3339(stamp(100_000_000)),
-        "2023-11-14T22:13:20.100+00:00"
-    );
-    assert_eq!(
-        utc_rfc3339(stamp(123_400_000)),
-        "2023-11-14T22:13:20.123400+00:00"
-    );
-    assert_eq!(
-        utc_rfc3339(stamp(123_456_789)),
-        "2023-11-14T22:13:20.123456789+00:00"
-    );
-}
-
-#[test]
-fn epoch_rfc3339_keeps_chronos_calendar_range() {
-    assert_eq!(
-        epoch_rfc3339(0).as_deref(),
-        Some("1970-01-01T00:00:00+00:00")
-    );
-    assert_eq!(
-        epoch_rfc3339(253_402_300_800).as_deref(),
-        Some("+10000-01-01T00:00:00+00:00")
-    );
-    assert_eq!(
-        epoch_rfc3339(-62_167_219_201).as_deref(),
-        Some("-0001-12-31T23:59:59+00:00")
-    );
-    assert_eq!(
-        epoch_rfc3339(8_210_266_876_799).as_deref(),
-        Some("+262142-12-31T23:59:59+00:00")
-    );
-    assert_eq!(epoch_rfc3339(8_210_266_876_800), None);
-    assert_eq!(
-        epoch_rfc3339(-8_334_601_228_800).as_deref(),
-        Some("-262143-01-01T00:00:00+00:00")
-    );
-    assert_eq!(epoch_rfc3339(-8_334_601_228_801), None);
-    assert_eq!(epoch_rfc3339(i64::MAX), None);
-}
-
-#[test]
 fn report_lists_only_versions_this_call_applied() {
     let conn = connection();
     let migrator = Migrator::new().push(CreateFirst);

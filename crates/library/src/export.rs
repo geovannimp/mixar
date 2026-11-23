@@ -131,7 +131,11 @@ impl LibraryManager {
         let Some(row) = row else {
             return Ok(None);
         };
-        Ok(row.added_at.parse::<i64>().ok().and_then(epoch_date))
+        Ok(row.added_at.parse::<i64>().ok().and_then(|secs| {
+            jiff::Timestamp::from_second(secs)
+                .ok()
+                .map(|instant| instant.to_zoned(jiff::tz::TimeZone::UTC).date().to_string())
+        }))
     }
 
     /// Hot cues, then saved loops, in the shape device formats store them.
@@ -432,69 +436,9 @@ fn detail_buckets(audio: &audio_core::LoadedAudio) -> usize {
     (seconds * f64::from(EXPORT_WAVEFORM_ENTRIES_PER_SECOND)).round() as usize
 }
 
-/// Unix seconds as a UTC `YYYY-MM-DD` date, using chrono's proleptic
-/// Gregorian range and signed/expanded year formatting.
-fn epoch_date(secs: i64) -> Option<String> {
-    let (year, month, day, ..) = civil_from_unix(secs);
-    (-262_143..=262_142)
-        .contains(&year)
-        .then(|| format!("{}-{month:02}-{day:02}", chrono_year(year)))
-}
-
-fn chrono_year(year: i64) -> String {
-    if year < 0 {
-        format!("-{:04}", -year)
-    } else if year > 9_999 {
-        format!("+{year}")
-    } else {
-        format!("{year:04}")
-    }
-}
-
-/// Howard Hinnant's `civil_from_days`, extended with the time of day.
-fn civil_from_unix(secs: i64) -> (i64, u32, u32, u32, u32, u32) {
-    let days = secs.div_euclid(86_400);
-    let sod = secs.rem_euclid(86_400);
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    (
-        year,
-        month as u32,
-        day as u32,
-        (sod / 3_600) as u32,
-        ((sod % 3_600) / 60) as u32,
-        (sod % 60) as u32,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn epoch_date_keeps_chronos_calendar_range() {
-        assert_eq!(epoch_date(0).as_deref(), Some("1970-01-01"));
-        assert_eq!(epoch_date(253_402_300_800).as_deref(), Some("+10000-01-01"));
-        assert_eq!(epoch_date(-62_167_219_201).as_deref(), Some("-0001-12-31"));
-        assert_eq!(
-            epoch_date(8_210_266_876_799).as_deref(),
-            Some("+262142-12-31")
-        );
-        assert_eq!(epoch_date(8_210_266_876_800), None);
-        assert_eq!(
-            epoch_date(-8_334_601_228_800).as_deref(),
-            Some("-262143-01-01")
-        );
-        assert_eq!(epoch_date(-8_334_601_228_801), None);
-        assert_eq!(epoch_date(i64::MAX), None);
-    }
 
     use std::io::Write;
 
