@@ -577,6 +577,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     child: SilkySingleChildScrollView(
                       key: kSettingsContentScrollKey,
                       physics: mixarScrollPhysics(context),
+                      decayLogFactor: kMixarSilkyDecayLogFactor,
                       // Full-bleed width: the panel owns the header inset and
                       // lets its cards run to the pane edges.
                       padding: const EdgeInsets.symmetric(vertical: 24),

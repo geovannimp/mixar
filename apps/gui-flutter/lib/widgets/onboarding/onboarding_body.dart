@@ -64,6 +64,7 @@ class OnboardingBody extends StatelessWidget {
         if (!wide) {
           return SilkySingleChildScrollView(
             physics: mixarScrollPhysics(context),
+            decayLogFactor: kMixarSilkyDecayLogFactor,
             padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,6 +92,7 @@ class OnboardingBody extends StatelessWidget {
                       child: Center(
                         child: SilkySingleChildScrollView(
                           physics: mixarScrollPhysics(context),
+                          decayLogFactor: kMixarSilkyDecayLogFactor,
                           child: content,
                         ),
                       ),

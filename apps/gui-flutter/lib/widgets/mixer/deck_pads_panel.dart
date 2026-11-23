@@ -414,6 +414,7 @@ class DeckPadsPanel extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 240),
                 child: SilkySingleChildScrollView(
                   physics: mixarScrollPhysics(menuContext),
+                  decayLogFactor: kMixarSilkyDecayLogFactor,
                   child: MixarMenuGroup(
                     children: [
                       for (final bank in samplerBanks)

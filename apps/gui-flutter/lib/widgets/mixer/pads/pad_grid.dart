@@ -62,6 +62,7 @@ class _PadGridState extends State<PadGrid> {
               return SilkySingleChildScrollView(
                 controller: _controller,
                 physics: mixarScrollPhysics(context),
+                decayLogFactor: kMixarSilkyDecayLogFactor,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(

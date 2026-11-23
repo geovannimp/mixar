@@ -441,6 +441,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     return SilkyScroll(
       controller: _scroll,
       physics: mixarScrollPhysics(context),
+      decayLogFactor: kMixarSilkyDecayLogFactor,
       builder: (context, controller, physics, _) {
         if (onReorder == null) {
           return ListView.builder(

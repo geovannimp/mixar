@@ -109,6 +109,7 @@ class FxBar extends ConsumerWidget {
             child: LayoutBuilder(
               builder: (context, constraints) => SilkySingleChildScrollView(
                 physics: mixarScrollPhysics(context),
+                decayLogFactor: kMixarSilkyDecayLogFactor,
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: _pad),
                 child: ConstrainedBox(

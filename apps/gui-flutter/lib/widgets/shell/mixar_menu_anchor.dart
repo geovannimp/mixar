@@ -171,6 +171,7 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
             constraints: BoxConstraints(maxHeight: _menuMaxHeight(context)),
             child: SilkySingleChildScrollView(
               physics: mixarScrollPhysics(context),
+              decayLogFactor: kMixarSilkyDecayLogFactor,
               child: widget.menuBuilder(context, _anchorController),
             ),
           ),
