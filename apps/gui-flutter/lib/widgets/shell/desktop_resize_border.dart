@@ -2,6 +2,20 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// Re-reads the maximized state for an event that can change it.
+///
+/// `WindowRestoredEvent` covers both un-maximize and deiconify. On Linux the
+/// latter does not clear the maximized bit (`cnativeapi` 0.6.0), so inferring
+/// "restored means not maximized" would re-enable the handles on a still
+/// maximized window. Returns null when [event] cannot change the state.
+@visibleForTesting
+bool? maximizedAfterEvent(WindowEvent event, {required bool Function() read}) {
+  if (event is WindowMaximizedEvent || event is WindowRestoredEvent) {
+    return read();
+  }
+  return null;
+}
+
 /// Edge and corner resize handles for the app's undecorated desktop window.
 ///
 /// The Linux runner turns GTK decorations off (see
@@ -26,20 +40,15 @@ class _DesktopResizeBorderState extends State<DesktopResizeBorder> {
   void initState() {
     super.initState();
     // A test override replaces the native window entirely.
-    if (debugOverrideWindowMaximized != null) {
+    if (!isDesktopWindow || debugOverrideWindowMaximized != null) {
       return;
     }
-    final window = currentNativeWindow();
-    if (window == null) {
-      return;
-    }
-    _maximized = window.isMaximized;
+    _maximized = currentNativeWindow()?.isMaximized ?? false;
     _listener = WindowManager.instance.addListener((event) {
-      final maximized = switch (event) {
-        WindowMaximizedEvent() => true,
-        WindowRestoredEvent() => false,
-        _ => null,
-      };
+      final maximized = maximizedAfterEvent(
+        event,
+        read: () => currentNativeWindow()?.isMaximized ?? false,
+      );
       if (maximized != null && mounted && maximized != _maximized) {
         setState(() => _maximized = maximized);
       }
@@ -58,6 +67,12 @@ class _DesktopResizeBorderState extends State<DesktopResizeBorder> {
   @override
   Widget build(BuildContext context) {
     if (!isDesktopWindow) {
+      return widget.child;
+    }
+    // A host without a native window (widget tests, future embed points) has
+    // nothing to resize; the package's opaque handles would only intercept
+    // edge presses. The explicit test override stands in for a window.
+    if (debugOverrideWindowMaximized == null && currentNativeWindow() == null) {
       return widget.child;
     }
     return DragToResizeArea(

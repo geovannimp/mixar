@@ -31,6 +31,29 @@ Future<void> _asHost({
 }
 
 void main() {
+  test('a restore event refetches instead of assuming unmaximized', () {
+    var reads = 0;
+    final maximized = maximizedAfterEvent(
+      const WindowRestoredEvent(windowId: 1),
+      read: () {
+        reads += 1;
+        return true;
+      },
+    );
+    expect(reads, 1);
+    expect(maximized, isTrue);
+  });
+
+  test('unrelated events do not refetch the state', () {
+    expect(
+      maximizedAfterEvent(
+        const WindowMinimizedEvent(windowId: 1),
+        read: () => true,
+      ),
+      isNull,
+    );
+  });
+
   testWidgets('desktop windows get edge resize handles', (tester) async {
     await _asHost(
       desktop: true,
@@ -64,6 +87,19 @@ void main() {
   testWidgets('non-desktop hosts keep their child untouched', (tester) async {
     await _asHost(
       desktop: false,
+      body: () async {
+        await _pumpBorder(tester);
+        expect(find.byType(DragToResizeArea), findsNothing);
+        expect(find.byWidget(_child), findsOneWidget);
+      },
+    );
+  });
+
+  testWidgets('a desktop host without a native window gets no handles', (
+    tester,
+  ) async {
+    await _asHost(
+      desktop: true,
       body: () async {
         await _pumpBorder(tester);
         expect(find.byType(DragToResizeArea), findsNothing);
