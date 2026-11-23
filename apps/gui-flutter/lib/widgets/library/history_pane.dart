@@ -96,6 +96,8 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
               return SilkyListView.builder(
                 physics: mixarScrollPhysics(context),
                 decayLogFactor: kMixarSilkyDecayLogFactor,
+                blockWebOverscrollBehaviorX:
+                    kMixarSilkyBlockWebOverscrollBehaviorX,
                 itemCount: rows.length,
                 itemBuilder: (context, index) {
                   final row = rows[index];

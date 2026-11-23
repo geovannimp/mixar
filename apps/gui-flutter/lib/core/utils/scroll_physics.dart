@@ -16,3 +16,8 @@ ScrollPhysics mixarScrollPhysics(BuildContext context) =>
 /// Doubling it settles the glide in about half the time, which keeps the
 /// motion closer to a constant-speed scroll instead of a long ease-out tail.
 const double kMixarSilkyDecayLogFactor = 24;
+
+/// SilkyScroll writes `overscroll-behavior-x: none` on `html` and `body` while
+/// any view with this enabled is mounted. Mixar's routes own their browser
+/// gestures, so the converted views keep the page's normal overscroll policy.
+const bool kMixarSilkyBlockWebOverscrollBehaviorX = false;

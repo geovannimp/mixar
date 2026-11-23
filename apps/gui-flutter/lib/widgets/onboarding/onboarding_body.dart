@@ -63,8 +63,10 @@ class OnboardingBody extends StatelessWidget {
         final note = footnote;
         if (!wide) {
           return SilkySingleChildScrollView(
+            controller: PrimaryScrollController.maybeOf(context),
             physics: mixarScrollPhysics(context),
             decayLogFactor: kMixarSilkyDecayLogFactor,
+            blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
             padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,8 +93,11 @@ class OnboardingBody extends StatelessWidget {
                       // content fills and scrolls.
                       child: Center(
                         child: SilkySingleChildScrollView(
+                          controller: PrimaryScrollController.maybeOf(context),
                           physics: mixarScrollPhysics(context),
                           decayLogFactor: kMixarSilkyDecayLogFactor,
+                          blockWebOverscrollBehaviorX:
+                              kMixarSilkyBlockWebOverscrollBehaviorX,
                           child: content,
                         ),
                       ),

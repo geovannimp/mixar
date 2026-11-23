@@ -361,6 +361,49 @@ void main() {
     expect(padLabel('Sample (Bank 2)'), findsOneWidget);
   });
 
+  testWidgets('wheel over a short bank list scrolls the outer menu', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.sampler,
+      size: const Size(360, 260),
+    );
+    await tester.tap(find.bySemanticsLabel('Sample settings'));
+    await tester.pumpAndSettle();
+
+    // The bank list fits, so its own scrollable cannot move. The wheel over a
+    // bank row must fall through to the overflowing outer menu.
+    final ancestorScrollables = find.ancestor(
+      of: find.text('Bank 1'),
+      matching: find.byType(Scrollable),
+    );
+    final positions = tester
+        .stateList<ScrollableState>(ancestorScrollables)
+        .map((state) => state.position)
+        .toList();
+    final outer = positions.singleWhere(
+      (position) => position.maxScrollExtent > 0,
+    );
+    expect(outer.pixels, 0);
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.text('Bank 1')),
+        scrollDelta: const Offset(0, 120),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(outer.pixels, greaterThan(0));
+  });
+
   /// keep main's Keyboard / Key Shift coverage, driven through the dropdown
   testWidgets('keyboard and key shift select renders their own pad grids', (
     tester,

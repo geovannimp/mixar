@@ -661,6 +661,8 @@ class _TrackEditPanel extends HookConsumerWidget {
                 child: SilkySingleChildScrollView(
                   physics: mixarScrollPhysics(context),
                   decayLogFactor: kMixarSilkyDecayLogFactor,
+                  blockWebOverscrollBehaviorX:
+                      kMixarSilkyBlockWebOverscrollBehaviorX,
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

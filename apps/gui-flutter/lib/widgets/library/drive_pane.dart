@@ -133,6 +133,8 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                     return SilkyListView(
                       physics: mixarScrollPhysics(context),
                       decayLogFactor: kMixarSilkyDecayLogFactor,
+                      blockWebOverscrollBehaviorX:
+                          kMixarSilkyBlockWebOverscrollBehaviorX,
                       children: [
                         LibraryNavRow(
                           title: currentName,
@@ -284,6 +286,8 @@ class _VolumeDropdown extends StatelessWidget {
             child: SilkyListView(
               physics: mixarScrollPhysics(context),
               decayLogFactor: kMixarSilkyDecayLogFactor,
+              blockWebOverscrollBehaviorX:
+                  kMixarSilkyBlockWebOverscrollBehaviorX,
               shrinkWrap: true,
               children: [
                 for (final v in volumes)
@@ -343,6 +347,7 @@ class _VolumeList extends StatelessWidget {
     return SilkyListView(
       physics: mixarScrollPhysics(context),
       decayLogFactor: kMixarSilkyDecayLogFactor,
+      blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
       children: [
         for (final v in volumes)
           LibraryNavRow(

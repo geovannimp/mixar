@@ -172,6 +172,8 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
             child: SilkySingleChildScrollView(
               physics: mixarScrollPhysics(context),
               decayLogFactor: kMixarSilkyDecayLogFactor,
+              blockWebOverscrollBehaviorX:
+                  kMixarSilkyBlockWebOverscrollBehaviorX,
               child: widget.menuBuilder(context, _anchorController),
             ),
           ),

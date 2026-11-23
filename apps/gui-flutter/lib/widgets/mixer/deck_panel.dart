@@ -117,6 +117,9 @@ class DeckPanel extends ConsumerWidget {
           builder: (context, constraints) => SilkySingleChildScrollView(
             physics: mixarScrollPhysics(context),
             decayLogFactor: kMixarSilkyDecayLogFactor,
+            blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
+            mouseWheelVerticalDeltaBehavior:
+                MouseWheelVerticalDeltaBehavior.shiftOnly,
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),

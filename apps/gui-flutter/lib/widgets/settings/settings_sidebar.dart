@@ -40,6 +40,7 @@ class SettingsSidebar extends StatelessWidget {
         child: SilkySingleChildScrollView(
           physics: mixarScrollPhysics(context),
           decayLogFactor: kMixarSilkyDecayLogFactor,
+          blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

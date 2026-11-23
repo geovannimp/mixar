@@ -177,6 +177,8 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
               return SilkyListView(
                 physics: mixarScrollPhysics(context),
                 decayLogFactor: kMixarSilkyDecayLogFactor,
+                blockWebOverscrollBehaviorX:
+                    kMixarSilkyBlockWebOverscrollBehaviorX,
                 children: [
                   for (final c in items)
                     if (c.kind == _playlistKind)

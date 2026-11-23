@@ -2170,6 +2170,90 @@ void main() {
     expect(find.byType(SilkyScroll), findsOneWidget);
   });
 
+  testWidgets('a mouse wheel glides the track viewport', (tester) async {
+    final tracks = [
+      for (var i = 0; i < 40; i++)
+        LibraryTrackSummary(
+          id: 't$i',
+          displayName: 'Track ${i.toString().padLeft(2, '0')}',
+          title: 'Track ${i.toString().padLeft(2, '0')}',
+          path: '/tmp/track-$i.wav',
+        ),
+    ];
+    await pumpList(tester, tracks: tracks, height: 400);
+
+    final position = tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    expect(position.pixels, 0);
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(ListView)),
+        scrollDelta: const Offset(0, 240),
+      ),
+    );
+    await tester.pump();
+    final firstFrame = position.pixels;
+    expect(
+      firstFrame,
+      greaterThan(0),
+      reason: 'the wheel did not reach the list',
+    );
+    expect(
+      firstFrame,
+      lessThan(240),
+      reason: 'the list jumped instead of gliding',
+    );
+
+    await tester.pumpAndSettle();
+    expect(
+      position.pixels,
+      greaterThan(firstFrame),
+      reason: 'the glide stopped after one frame',
+    );
+  });
+
+  testWidgets('End after a wheel glide keeps the last row in view', (
+    tester,
+  ) async {
+    final tracks = [
+      for (var i = 0; i < 40; i++)
+        LibraryTrackSummary(
+          id: 't$i',
+          displayName: 'Track ${i.toString().padLeft(2, '0')}',
+          title: 'Track ${i.toString().padLeft(2, '0')}',
+          path: '/tmp/track-$i.wav',
+        ),
+    ];
+    await pumpList(tester, tracks: tracks, height: 400);
+    // Clicking a row grants the list keyboard focus.
+    await tester.tap(find.text('Track 00'));
+    await tester.pumpAndSettle();
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(ListView)),
+        scrollDelta: const Offset(0, 120),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.pumpAndSettle();
+
+    final list = tester.getRect(find.byType(ListView));
+    final lastRow = tester.getRect(find.text('Track 39'));
+    expect(lastRow.top, greaterThanOrEqualTo(list.top - 0.5));
+    expect(lastRow.bottom, lessThanOrEqualTo(list.bottom + 0.5));
+  });
+
   testWidgets('the list surface is flush and borderless', (tester) async {
     // The list fills its pane edge to edge: removing the card chrome means no
     // border or radius insets it from the panel edges, so the row fill runs

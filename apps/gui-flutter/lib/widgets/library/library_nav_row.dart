@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -166,6 +167,8 @@ class _ScrollFocusedIntoViewState extends State<_ScrollFocusedIntoView> {
         if (!mounted || !widget.focused) {
           return;
         }
+        // A wheel glide still ticking would pull the row back out of view.
+        cancelSilkyGlideFor(context);
         Scrollable.ensureVisible(
           context,
           duration: const Duration(milliseconds: 120),

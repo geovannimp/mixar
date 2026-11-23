@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
@@ -115,6 +116,9 @@ class TrackListView<T> extends ConsumerStatefulWidget {
 
 class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   final ScrollController _scroll = ScrollController();
+
+  /// Lets keyboard/programmatic jumps stop an in-flight wheel glide.
+  final GlobalKey _silkyKey = GlobalKey();
 
   /// Owned explicitly so the list can hold keyboard focus without relying on
   /// `autofocus`, and so a pane can hand the node to tests.
@@ -385,6 +389,9 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     if (!_scroll.hasClients) {
       return;
     }
+    // A wheel glide can still be ticking toward its previous target; stop it
+    // before jumping, or it would pull the focused row back out of view.
+    cancelSilkyGlide(_silkyKey);
     final height = ref.read(libraryRowDensityProvider).height;
     final target = index * height;
     final position = _scroll.position;
@@ -438,40 +445,47 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
 
     final onReorder = widget.onReorder;
-    return SilkyScroll(
-      controller: _scroll,
-      physics: mixarScrollPhysics(context),
-      decayLogFactor: kMixarSilkyDecayLogFactor,
-      builder: (context, controller, physics, _) {
-        if (onReorder == null) {
-          return ListView.builder(
+    return Listener(
+      // A press (row drag, scrollbar thumb, deck drop) must win over a glide.
+      onPointerDown: (_) => cancelSilkyGlide(_silkyKey),
+      child: SilkyScroll(
+        key: _silkyKey,
+        controller: _scroll,
+        physics: mixarScrollPhysics(context),
+        decayLogFactor: kMixarSilkyDecayLogFactor,
+        blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
+        builder: (context, controller, physics, _) {
+          if (onReorder == null) {
+            return ListView.builder(
+              controller: controller,
+              physics: physics,
+              itemExtent: density.height,
+              padding: EdgeInsets.zero,
+              itemCount: items.length,
+              itemBuilder: buildRow,
+            );
+          }
+          // The widgets-layer list, not Material's `ReorderableListView`: the
+          // app's Material bridge is material_ui, and the Flutter list insists
+          // on Flutter's own `MaterialLocalizations`. This one owns the
+          // scrollable itself, so the existing controller and fixed item extent
+          // still apply.
+          return ReorderableList(
             controller: controller,
             physics: physics,
             itemExtent: density.height,
             padding: EdgeInsets.zero,
+            // Rows already paint their own card fill; a raised proxy would
+            // draw a second surface over it.
+            proxyDecorator: (child, index, animation) => child,
+            onReorderStart: (_) => cancelSilkyGlide(_silkyKey),
+            onReorderItem: (oldIndex, newIndex) =>
+                unawaited(onReorder(oldIndex, newIndex)),
             itemCount: items.length,
             itemBuilder: buildRow,
           );
-        }
-        // The widgets-layer list, not Material's `ReorderableListView`: the
-        // app's Material bridge is material_ui, and the Flutter list insists
-        // on Flutter's own `MaterialLocalizations`. This one owns the
-        // scrollable itself, so the existing controller and fixed item extent
-        // still apply.
-        return ReorderableList(
-          controller: controller,
-          physics: physics,
-          itemExtent: density.height,
-          padding: EdgeInsets.zero,
-          // Rows already paint their own card fill; a raised proxy would draw
-          // a second surface over it.
-          proxyDecorator: (child, index, animation) => child,
-          onReorderItem: (oldIndex, newIndex) =>
-              unawaited(onReorder(oldIndex, newIndex)),
-          itemCount: items.length,
-          itemBuilder: buildRow,
-        );
-      },
+        },
+      ),
     );
   }
 
