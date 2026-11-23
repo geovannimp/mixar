@@ -1,7 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// Width at which a setup step switches from the stacked (narrow window) form
 /// to the two-column booth layout.
@@ -62,11 +60,7 @@ class OnboardingBody extends StatelessWidget {
         );
         final note = footnote;
         if (!wide) {
-          return SilkySingleChildScrollView(
-            controller: PrimaryScrollController.maybeOf(context),
-            physics: mixarScrollPhysics(context),
-            decayLogFactor: kMixarSilkyDecayLogFactor,
-            blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
+          return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,14 +86,7 @@ class OnboardingBody extends StatelessWidget {
                       // Centre short content against the headline; taller
                       // content fills and scrolls.
                       child: Center(
-                        child: SilkySingleChildScrollView(
-                          controller: PrimaryScrollController.maybeOf(context),
-                          physics: mixarScrollPhysics(context),
-                          decayLogFactor: kMixarSilkyDecayLogFactor,
-                          blockWebOverscrollBehaviorX:
-                              kMixarSilkyBlockWebOverscrollBehaviorX,
-                          child: content,
-                        ),
+                        child: SingleChildScrollView(child: content),
                       ),
                     ),
                   ],

@@ -361,9 +361,7 @@ void main() {
     expect(padLabel('Sample (Bank 2)'), findsOneWidget);
   });
 
-  testWidgets('wheel over a short bank list scrolls the outer menu', (
-    tester,
-  ) async {
+  testWidgets('wheel over the bank list scrolls the menu', (tester) async {
     tester.view.physicalSize = const Size(800, 180);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -378,8 +376,8 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Sample settings'));
     await tester.pumpAndSettle();
 
-    // The bank list fits, so its own scrollable cannot move. The wheel over a
-    // bank row must fall through to the overflowing outer menu.
+    // The bank rows have no scroll view of their own; the wheel must move the
+    // single menu viewport.
     final ancestorScrollables = find.ancestor(
       of: find.text('Bank 1'),
       matching: find.byType(Scrollable),

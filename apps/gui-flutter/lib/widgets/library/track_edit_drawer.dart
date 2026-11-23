@@ -6,7 +6,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
@@ -20,7 +19,6 @@ import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// Drawer width; clamped to the viewport on narrow windows.
 const trackEditDrawerWidth = 420.0;
@@ -658,11 +656,7 @@ class _TrackEditPanel extends HookConsumerWidget {
                 ),
               ),
               Expanded(
-                child: SilkySingleChildScrollView(
-                  physics: mixarScrollPhysics(context),
-                  decayLogFactor: kMixarSilkyDecayLogFactor,
-                  blockWebOverscrollBehaviorX:
-                      kMixarSilkyBlockWebOverscrollBehaviorX,
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

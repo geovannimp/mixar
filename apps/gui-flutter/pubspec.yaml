@@ -49,8 +49,9 @@ dependencies:
   # Move once file_picker 14.0.0 lands (vicajilau/flutter_file_picker#2224).
   desktop_drop: ^0.8.4
   skeletonizer: ^3.0.0
-  # Smooth, animated mouse-wheel/trackpad scrolling for lists and panes.
-  silky_scroll: ^2.6.4
+  # Pinned: the glide-cancellation adapter relies on 2.6.4's internal state
+  # shape until upstream exposes a public cancellation API.
+  silky_scroll: 2.6.4
   lucide_icons_flutter: ^3.1.17
   hint_kit: ^1.3.0
   panes: ^1.3.0

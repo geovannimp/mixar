@@ -42,13 +42,15 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(controller.offset, greaterThan(0));
+    final beforeCancel = controller.offset;
+    expect(beforeCancel, greaterThan(0));
 
     cancelSilkyGlide(scrollKey);
-    await tester.pump(const Duration(milliseconds: 16));
-    final stopped = controller.offset;
-    await tester.pump(const Duration(milliseconds: 300));
+    // Sample several short frames so an uncancelled ticker keeps moving.
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
 
-    expect(controller.offset, closeTo(stopped, 0.01));
+    expect(controller.offset, closeTo(beforeCancel, 0.01));
   });
 }

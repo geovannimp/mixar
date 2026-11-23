@@ -408,33 +408,25 @@ class DeckPadsPanel extends StatelessWidget {
             if (samplerBanks.isEmpty)
               const MixarMenuItem(title: Text('No banks'), enabled: false)
             else
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                // Native here: the outer menu is already a Silky scroll view,
-                // and two nested Silky handlers swallow wheel input when this
-                // short bank list cannot scroll.
-                child: SingleChildScrollView(
-                  child: MixarMenuGroup(
-                    children: [
-                      for (final bank in samplerBanks)
-                        MixarMenuItem(
-                          title: Row(
-                            children: [
-                              Expanded(child: Text(bank.name)),
-                              ?_selectionCheck(
-                                theme,
-                                selected: bank.id == active?.id,
-                              ),
-                            ],
+              MixarMenuGroup(
+                children: [
+                  for (final bank in samplerBanks)
+                    MixarMenuItem(
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(bank.name)),
+                          ?_selectionCheck(
+                            theme,
+                            selected: bank.id == active?.id,
                           ),
-                          onPress: () {
-                            controller.hide();
-                            onSelectBank(bank.id);
-                          },
-                        ),
-                    ],
-                  ),
-                ),
+                        ],
+                      ),
+                      onPress: () {
+                        controller.hide();
+                        onSelectBank(bank.id);
+                      },
+                    ),
+                ],
               ),
           ],
         ),
