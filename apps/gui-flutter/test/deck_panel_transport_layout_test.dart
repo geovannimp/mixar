@@ -11,6 +11,7 @@ import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cue_button.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_performance_panel.dart';
+import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart' show Scaffold;
@@ -18,10 +19,13 @@ import 'package:material_ui/material_ui.dart' show Scaffold;
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
-class _RunningEngineUi extends EngineUi {
+class _EngineUi extends EngineUi {
+  new(this.snapshot);
+
+  final EngineUiSnapshot snapshot;
+
   @override
-  EngineUiSnapshot build() =>
-      const EngineUiSnapshot(running: true, trackPaths: {});
+  EngineUiSnapshot build() => snapshot;
 }
 
 /// Tolerance for sub-pixel layout rounding.
@@ -32,7 +36,10 @@ void main() {
     WidgetTester tester, {
     required Size size,
     int deckId = 0,
+    EngineUiSnapshot? seed,
   }) async {
+    final snapshot =
+        seed ?? const EngineUiSnapshot(running: true, trackPaths: {});
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
     tester.view.physicalSize = size;
@@ -43,7 +50,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          engineUiProvider.overrideWith(_RunningEngineUi.new),
+          engineUiProvider.overrideWith(() => _EngineUi(snapshot)),
           engineTransportProvider.overrideWith(
             (ref) async => FakeEngineTransport(),
           ),
@@ -73,26 +80,117 @@ void main() {
     play: tester.getRect(find.byIcon(LucideIcons.play)),
   );
 
-  testWidgets('short deck stacks transport beside the panel at full height', (
+  testWidgets('compact deck stacks circular transport beside the panel', (
     tester,
   ) async {
-    await pumpDeck(tester, size: const Size(370, 316));
+    await pumpDeck(tester, size: const Size(370, 300));
 
     final (:panel, :cue, :play) = rects(tester);
+    final playTile = tester.getRect(
+      find
+          .ancestor(
+            of: find.byIcon(LucideIcons.play),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
 
     // Beside the pads, not under them.
     expect(cue.left, greaterThanOrEqualTo(panel.right - _kEpsilon));
-    // Top to bottom: the pair splits the pads area, no dead strip below.
-    expect(cue.top, closeTo(panel.top, _kEpsilon));
-    expect(cue.height, closeTo((panel.height - 8) / 2, _kEpsilon));
-    // Only the width is capped.
-    expect(cue.width, lessThanOrEqualTo(72));
-    // Stacked: same column, play below cue. The play glyph carries a 1px
-    // optical nudge, hence the looser tolerance.
+    // The pair keeps the deck's side gutter on the outside edge.
+    final board = tester.getRect(find.byType(DeckTrackInfo));
+    expect(cue.right, board.right - 10);
+    expect(
+      cue.left - panel.right,
+      board.right - cue.right,
+      reason: 'the gap to the pads matches the gap to the deck edge',
+    );
+    // Both tiles are perfect circles, square to their cap.
+    expect(cue.width, closeTo(cue.height, _kEpsilon));
+    expect(playTile.width, closeTo(playTile.height, _kEpsilon));
+    expect(cue.width, closeTo(playTile.width, _kEpsilon));
+    expect(cue.width, 72, reason: 'the width cap sets the diameter here');
+    expect(
+      playTile.top - cue.bottom,
+      closeTo(8, _kEpsilon),
+      reason: 'the pair keeps its fixed gap',
+    );
+    // Stacked as a pair, centred in the pads area.
+    expect(
+      cue.top - panel.top,
+      closeTo(panel.bottom - playTile.bottom, _kEpsilon),
+    );
+    expect(playTile.top, greaterThan(cue.bottom - _kEpsilon));
+    // Same column; the play glyph carries a 1px optical nudge.
     expect((cue.center.dx - play.center.dx).abs(), lessThan(1.5));
     expect(play.center.dy, greaterThan(cue.center.dy));
-    // The row's height now belongs to the pads.
+    // The pads keep the space the pair gives up.
     expect(panel.height, greaterThan(120));
+  });
+
+  testWidgets('a narrow compact deck keeps the panel usable', (tester) async {
+    await pumpDeck(tester, size: const Size(205, 300));
+
+    expect(tester.takeException(), isNull);
+
+    final panel = tester.getRect(find.byType(DeckPerformancePanel));
+    final cue = tester.getRect(find.byType(DeckCueButton));
+
+    // Too narrow for the side column: the transport takes the bottom row and
+    // the panel keeps the deck's full width minus its margins.
+    expect(cue.top, greaterThanOrEqualTo(panel.bottom - _kEpsilon));
+    expect(panel.width, greaterThan(96));
+  });
+
+  testWidgets('a width-limited deck shrinks the circles to keep the pads', (
+    tester,
+  ) async {
+    await pumpDeck(tester, size: const Size(294, 300));
+
+    final rect = rects(tester);
+    final panel = rect.panel;
+    final cue = rect.cue;
+    final playTile = tester.getRect(
+      find
+          .ancestor(
+            of: find.byIcon(LucideIcons.play),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+
+    // The width budget, not the height cap, sets the circles here: the pads
+    // keep their 120 px floor and their full height instead of a bottom row.
+    expect(cue.left, greaterThanOrEqualTo(panel.right - _kEpsilon));
+    expect(panel.width, greaterThanOrEqualTo(120 - _kEpsilon));
+    expect(cue.width, closeTo(60, _kEpsilon));
+    expect(cue.width, closeTo(cue.height, _kEpsilon));
+    expect(cue.width, closeTo(playTile.width, _kEpsilon));
+  });
+
+  testWidgets('a loaded narrow deck keeps its time row inside', (tester) async {
+    await pumpDeck(
+      tester,
+      size: const Size(205, 300),
+      seed: const EngineUiSnapshot(
+        running: true,
+        trackPaths: {0: '/song.wav'},
+        durationMs: {0: 205000},
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('-3:25'),
+      findsOneWidget,
+      reason: 'the narrow row keeps whole seconds and drops the total',
+    );
+    expect(find.text('3:25.0'), findsNothing);
+    expect(
+      tester.widget<Text>(find.text('-3:25')).style?.fontSize,
+      MixarThemeData.dark().typography.body.xs.fontSize,
+      reason: 'the compact readout steps down a size so it paints in full',
+    );
   });
 
   testWidgets('tall deck keeps the full-width transport row under the panel', (
@@ -107,6 +205,16 @@ void main() {
     expect(play.top, greaterThanOrEqualTo(panel.bottom - _kEpsilon));
     expect(cue.left, lessThan(panel.right));
     expect(play.right, greaterThan(panel.center.dx));
+    // The buttons keep a side gutter inside the full-bleed deck body.
+    final playSurface = find
+        .ancestor(
+          of: find.byIcon(LucideIcons.play),
+          matching: find.byType(DecoratedBox),
+        )
+        .first;
+    expect(cue.left, 10);
+    final board = tester.getRect(find.byType(DeckTrackInfo));
+    expect(tester.getRect(playSurface).right, board.right - 10);
     // Half-width each, not squares.
     expect(cue.width, greaterThan(cue.height * 1.5));
   });

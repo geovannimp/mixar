@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/pad_format.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/artwork_cache.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -13,15 +14,33 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_key_lock_button.dart';
+import 'package:gui_flutter/widgets/mixer/deck_toggles.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Square cover thumbnail size in the deck track-info card.
 const _artworkThumbSize = 64.0;
+
+/// Horizontal padding inside the card's text column.
+const _titleRowPadding = 8.0;
+
+/// Narrowest the title/artist gets before the toggle cluster starts scrolling.
+const _minTitleWidth = 56.0;
+
+/// Narrowest the toggle cluster viewport may get before the title gives way.
+/// Below this the key chip and a neighbour cannot both be reached; at that
+/// point the cluster is more useful than a title that has nothing to say.
+/// Keep this low enough that the supported 1024px window (four decks, mixer
+/// open, ~300px per deck) still gets its 56px title.
+const _kMinClusterViewport = 48.0;
+
+/// Space between the title column and the toggle cluster.
+const _titleClusterGap = 8.0;
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerStatefulWidget {
@@ -99,89 +118,150 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
     // In-bounds border (not an outward glow) so ClipRect cannot eat an edge.
     // Blinks as a whole once the track is about to end; a gentler floor than
     // the waveform's keeps the title and times readable through the blink.
-    return TrackEndBlink(
-      deckId: widget.deckId,
-      minOpacity: 0.7,
-      child: MCard(
-        clipBehavior: .antiAlias,
-        borderColor: dropHover ? theme.colors.primary : null,
-        child: Column(
-          mainAxisSize: .min,
-          children: [
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: .stretch,
-                children: [
-                  // Square cover — the deck's load surface. Fixed size so a
-                  // large decoded image's intrinsic size cannot expand the row.
-                  SizedBox.square(
-                    dimension: _artworkThumbSize,
-                    child: DeckCover(
-                      deckId: widget.deckId,
-                      hasTrack: widget.hasTrack,
-                      artwork: artwork,
-                    ),
-                  ),
-                  MDivider(
-                    axis: .vertical,
-                    padding: .zero,
-                    color: theme.colors.border,
-                    thickness: theme.style.borderWidth,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const .symmetric(horizontal: 8, vertical: 4),
-                      child: Column(
-                        crossAxisAlignment: .stretch,
-                        mainAxisAlignment: .spaceBetween,
-                        children: [
-                          Row(
-                            spacing: 8,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Room the toggle cluster may take before it starts scrolling; the
+        // title keeps a readable minimum. Measured here because the card's
+        // title row sits inside an [IntrinsicHeight], which cannot host a
+        // LayoutBuilder of its own. The three hairlines are the card's own
+        // inset on both sides plus the cover's divider; the gap separates the
+        // title from the cluster.
+        final contentWidth =
+            constraints.maxWidth -
+            _artworkThumbSize -
+            theme.style.borderWidth * 3 -
+            _titleRowPadding * 2;
+        final clusterRoom = contentWidth - _titleClusterGap;
+        // The title keeps its floor only while the cluster still gets a
+        // usable viewport. On a deck too narrow for both, the cluster takes
+        // the row and the title degrades first: a zero-width scroller would
+        // make every moved control unreachable.
+        final titleFloor =
+            (clusterRoom - _minTitleWidth) >= _kMinClusterViewport
+            ? _minTitleWidth
+            : 0.0;
+        final controlsMax = (clusterRoom - titleFloor).clamp(
+          0.0,
+          constraints.maxWidth,
+        );
+        final compactTime = contentWidth < _kTimeRowFullMinWidth;
+        return TrackEndBlink(
+          deckId: widget.deckId,
+          minOpacity: 0.7,
+          child: MCard(
+            clipBehavior: .antiAlias,
+            sideBorders: false,
+            topBorder: false,
+            borderColor: dropHover ? theme.colors.primary : null,
+            child: Column(
+              mainAxisSize: .min,
+              children: [
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: .stretch,
+                    children: [
+                      // Square cover — the deck's load surface. Fixed size so a
+                      // large decoded image's intrinsic size cannot expand the
+                      // row.
+                      SizedBox.square(
+                        dimension: _artworkThumbSize,
+                        child: DeckCover(
+                          deckId: widget.deckId,
+                          hasTrack: widget.hasTrack,
+                          artwork: artwork,
+                        ),
+                      ),
+                      MDivider(
+                        axis: .vertical,
+                        padding: .zero,
+                        color: theme.colors.border,
+                        thickness: theme.style.borderWidth,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const .symmetric(
+                            horizontal: _titleRowPadding,
+                            vertical: 4,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: .stretch,
+                            mainAxisAlignment: .spaceBetween,
                             children: [
-                              Expanded(
-                                child: _DeckTitleArtist(
-                                  hasTrack: widget.hasTrack,
-                                  title: widget.title,
-                                  artist: artist,
-                                  skeleton: skeleton,
-                                ),
+                              Row(
+                                spacing: _titleClusterGap,
+                                children: [
+                                  Expanded(
+                                    child: _DeckTitleArtist(
+                                      key: const ValueKey('deck-title-artist'),
+                                      hasTrack: widget.hasTrack,
+                                      title: widget.title,
+                                      artist: artist,
+                                      skeleton: skeleton,
+                                    ),
+                                  ),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: controlsMax,
+                                    ),
+                                    child: SilkySingleChildScrollView(
+                                      physics: mixarScrollPhysics(context),
+                                      decayLogFactor: kMixarSilkyDecayLogFactor,
+                                      blockWebOverscrollBehaviorX:
+                                          kMixarSilkyBlockWebOverscrollBehaviorX,
+                                      mouseWheelVerticalDeltaBehavior:
+                                          MouseWheelVerticalDeltaBehavior
+                                              .shiftOnly,
+                                      scrollDirection: Axis.horizontal,
+                                      reverse: true,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        spacing: 4,
+                                        children: [
+                                          DeckToggles(deckId: widget.deckId),
+                                          // Harmonic ref flips on play/pause — keep
+                                          // it off the parent so artwork / title do
+                                          // not rebuild.
+                                          _DeckKeyLockControl(
+                                            deckId: widget.deckId,
+                                            hasTrack: widget.hasTrack,
+                                            rawKey: lib?.key,
+                                            keyMode: keyMode,
+                                            keyColorMode: keyColorMode,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              // Harmonic ref flips on play/pause — keep it off
-                              // the parent so artwork / title do not rebuild.
-                              _DeckKeyLockControl(
-                                deckId: widget.deckId,
-                                hasTrack: widget.hasTrack,
-                                rawKey: lib?.key,
-                                keyMode: keyMode,
-                                keyColorMode: keyColorMode,
+                              // Playhead ticks must not rebuild artwork / title / key.
+                              RepaintBoundary(
+                                child: _DeckTimeRow(
+                                  deckId: widget.deckId,
+                                  hasTrack: widget.hasTrack,
+                                  compact: compactTime,
+                                ),
                               ),
                             ],
                           ),
-                          // Playhead ticks must not rebuild artwork / title / key.
-                          RepaintBoundary(
-                            child: _DeckTimeRow(
-                              deckId: widget.deckId,
-                              hasTrack: widget.hasTrack,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                MDivider(
+                  padding: .zero,
+                  color: theme.colors.border,
+                  thickness: theme.style.borderWidth,
+                ),
+                RepaintBoundary(
+                  child: OverviewStrip(deckId: widget.deckId, height: 36),
+                ),
+              ],
             ),
-            MDivider(
-              padding: .zero,
-              color: theme.colors.border,
-              thickness: theme.style.borderWidth,
-            ),
-            RepaintBoundary(
-              child: OverviewStrip(deckId: widget.deckId, height: 36),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -192,6 +272,7 @@ class _DeckTitleArtist extends StatelessWidget {
     required this.skeleton,
     this.title,
     this.artist,
+    super.key,
   });
 
   final bool hasTrack;
@@ -236,11 +317,22 @@ class _DeckTitleArtist extends StatelessWidget {
   }
 }
 
+/// Content width below which the deck's total time gives way to the remaining
+/// time, so a narrow deck keeps its readout inside the card.
+const _kTimeRowFullMinWidth = 108.0;
+
 class _DeckTimeRow extends ConsumerWidget {
-  const new({required this.deckId, required this.hasTrack});
+  const new({
+    required this.deckId,
+    required this.hasTrack,
+    required this.compact,
+  });
 
   final int deckId;
   final bool hasTrack;
+
+  /// No room for the total next to the remaining time.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -249,26 +341,42 @@ class _DeckTimeRow extends ConsumerWidget {
     final durationMs = ref.watch(deckDurationMsProvider(deckId));
     return Row(
       children: [
-        Text(
-          formatDeckRemainingDisplay(hasTrack ? positionMs : null, durationMs),
-          style: theme.typography.body.sm.copyWith(
-            fontFamily: MixarFonts.notoSansMono,
-            fontWeight: .w700,
-            fontFeatures: const [
-              FontFeature.tabularFigures(),
-              FontFeature.slashedZero(),
-            ],
+        Expanded(
+          child: Text(
+            compact
+                ? formatDeckRemainingCompact(
+                    hasTrack ? positionMs : null,
+                    durationMs,
+                  )
+                : formatDeckRemainingDisplay(
+                    hasTrack ? positionMs : null,
+                    durationMs,
+                  ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+                (compact ? theme.typography.body.xs : theme.typography.body.sm)
+                    .copyWith(
+                      fontFamily: MixarFonts.notoSansMono,
+                      fontWeight: .w700,
+                      fontFeatures: const [
+                        FontFeature.tabularFigures(),
+                        FontFeature.slashedZero(),
+                      ],
+                    ),
           ),
         ),
-        const Spacer(),
-        Text(
-          formatDeckTotalDisplay(durationMs),
-          style: theme.typography.body.xs.copyWith(
-            fontFamily: MixarFonts.notoSansMono,
-            color: theme.colors.mutedForeground,
-            fontFeatures: const [FontFeature.tabularFigures()],
+        if (!compact) ...[
+          const SizedBox(width: 4),
+          Text(
+            formatDeckTotalDisplay(durationMs),
+            style: theme.typography.body.xs.copyWith(
+              fontFamily: MixarFonts.notoSansMono,
+              color: theme.colors.mutedForeground,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

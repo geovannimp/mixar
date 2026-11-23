@@ -205,7 +205,7 @@ class EngineUiSnapshot {
   final Map<int, bool> quantize;
   final Map<int, bool> slipEnabled;
 
-  /// Per-deck: the EQ knobs drive the stem EQ (deck header toggle).
+  /// Per-deck: the EQ knobs drive the stem EQ (track-info toggle).
   final Map<int, bool> stemEqEnabled;
   final Map<int, bool> jogTouching;
   final Map<int, double> loudnessLufs;

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_key_lock_button.dart';
@@ -43,6 +44,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The chip's rendered surface, so a chrome-tree change is handled once.
+  BoxDecoration keyLockChrome(WidgetTester tester) {
+    final box = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byType(MixerButton),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    return box.decoration as BoxDecoration;
+  }
+
   testWidgets('shows lock when key lock on and lockOpen when off', (
     tester,
   ) async {
@@ -54,6 +68,57 @@ void main() {
     await pumpButton(tester, keyLock: false);
     expect(find.byIcon(LucideIcons.lockOpen), findsOneWidget);
     expect(find.byIcon(LucideIcons.lock), findsNothing);
+  });
+
+  testWidgets('key lock uses the deck toggle chrome', (tester) async {
+    await pumpButton(tester, keyLock: true);
+
+    final button = tester.widget<MixerButton>(
+      find.descendant(
+        of: find.byType(DeckKeyLockButton),
+        matching: find.byType(MixerButton),
+      ),
+    );
+    expect(button.variant, MixarButtonVariant.outline);
+    expect(button.selected, isTrue);
+  });
+
+  testWidgets('key lock renders the deck toggle chrome', (tester) async {
+    final theme = MixarThemeData.dark();
+
+    await pumpButton(tester, keyLock: true);
+    final locked = keyLockChrome(tester);
+    expect(locked.color, theme.colors.primaryTint);
+    expect(locked.borderRadius, theme.style.borderRadius.pill);
+    expect(locked.border!.top.color, theme.colors.border);
+    expect(locked.border!.top.width, theme.style.borderWidth);
+    expect(
+      tester.widget<Icon>(find.byIcon(LucideIcons.lock)).color,
+      theme.colors.primary,
+    );
+
+    await pumpButton(tester, keyLock: false);
+    final unlocked = keyLockChrome(tester);
+    expect(unlocked.color, theme.colors.card);
+    expect(unlocked.borderRadius, theme.style.borderRadius.pill);
+    expect(unlocked.border!.top.color, theme.colors.border);
+    expect(
+      tester.widget<Icon>(find.byIcon(LucideIcons.lockOpen)).color,
+      theme.colors.mutedForeground,
+    );
+  });
+
+  testWidgets('a disabled locked chip does not read as active', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpButton(tester, keyLock: true, enabled: false);
+
+    final chrome = keyLockChrome(tester);
+    expect(chrome.color, theme.colors.disable(theme.colors.card));
+    expect(
+      tester.widget<Icon>(find.byIcon(LucideIcons.lock)).color,
+      theme.colors.mutedForeground,
+      reason: 'the glyph stays a lock but takes the disabled ink',
+    );
   });
 
   testWidgets('whole button emits absolute desired key lock', (tester) async {

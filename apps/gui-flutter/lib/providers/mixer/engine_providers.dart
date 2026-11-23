@@ -284,9 +284,9 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
   }
 
   /// Optimistic unload: drop everything that identifies a loaded track, so the
-  /// cover and the deck header stop claiming a track before the engine's own
-  /// empty snapshot arrives. Mirrors what `DeckUpdated` with a null duration
-  /// clears.
+  /// cover and the track-info card stop claiming a track before the engine's
+  /// own empty snapshot arrives. Mirrors what `DeckUpdated` with a null
+  /// duration clears.
   void clearDeck(int deckId) {
     final trackPaths = Map<int, String>.from(state.trackPaths)..remove(deckId);
     final trackIds = Map<int, String>.from(state.trackIds)..remove(deckId);
@@ -805,7 +805,7 @@ final ProviderFamily<bool, int> deckSlipEnabledProvider =
           ref.watch(engineUiProvider.select((s) => s.slipEnabledFor(deckId))),
     );
 
-/// True while the deck's EQ knobs drive the stem EQ (deck header toggle).
+/// True while the deck's EQ knobs drive the stem EQ (track-info toggle).
 final ProviderFamily<bool, int> deckStemEqEnabledProvider =
     Provider.family<bool, int>(
       (ref, deckId) =>
@@ -822,18 +822,6 @@ final ProviderFamily<bool, int> deckJogTouchingProvider =
     Provider.family<bool, int>(
       (ref, deckId) =>
           ref.watch(engineUiProvider.select((s) => s.jogTouchingFor(deckId))),
-    );
-
-final ProviderFamily<double?, int> deckLoudnessLufsProvider =
-    Provider.family<double?, int>(
-      (ref, deckId) =>
-          ref.watch(engineUiProvider.select((s) => s.loudnessLufsFor(deckId))),
-    );
-
-final ProviderFamily<double, int> deckAutoGainDbProvider =
-    Provider.family<double, int>(
-      (ref, deckId) =>
-          ref.watch(engineUiProvider.select((s) => s.autoGainDbFor(deckId))),
     );
 
 final ProviderFamily<LibraryTrackSummary?, int> deckLibraryTrackProvider =
@@ -1370,21 +1358,6 @@ Future<void> setDeckStemEqEnabled(
     write: (ui, value) => ui.setStemEqEnabled(deckId, value),
     send: (engine) => engine.setStemEqEnabled(deckId: deckId, enabled: enabled),
   );
-}
-
-Future<void> beginDeckCueHold(WidgetRef ref, int deckId) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.beginCueHold(deckId: deckId);
-}
-
-Future<void> endDeckCueHold(WidgetRef ref, int deckId) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.endCueHold(deckId: deckId);
-}
-
-Future<void> setDeckCuePoint(WidgetRef ref, int deckId) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setCuePoint(deckId: deckId);
 }
 
 Future<void> jogTouch(WidgetRef ref, int deckId, bool touching) async {

@@ -18,18 +18,12 @@ abstract final class MixerPaneIds {
 
 /// Spacing vocabulary shared by the rectangles, the solver and the plan.
 ///
-/// The deck cards keep only [deckInset] against the window; the mixer strip
-/// owns [mixerBleed] on each side, so its rule and endpoint cells reach the
-/// deck card borders. No other module hardcodes these.
+/// The deck cards run edge to edge; the mixer strip owns [mixerBleed] on each
+/// side, so its rule and endpoint cells reach the deck card borders. No other
+/// module hardcodes these.
 abstract final class MixerPaneMetrics {
-  /// Deck body inset against the window edge.
-  static const double deckInset = 10;
-
-  /// Space the old slot frame kept around the strip; now part of [mixerBleed].
-  static const double slotGap = 8;
-
   /// Gutter the mixer strip owns on each side, up to the deck card borders.
-  static const double mixerBleed = deckInset + slotGap;
+  static const double mixerBleed = 18;
 
   /// Waveform band's starting height.
   static const double bandDefault = 160;
