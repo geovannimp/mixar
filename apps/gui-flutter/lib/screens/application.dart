@@ -12,6 +12,7 @@ import 'package:gui_flutter/screens/app_shell.dart';
 import 'package:gui_flutter/screens/onboarding_page.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/desktop_chrome.dart';
+import 'package:gui_flutter/widgets/shell/desktop_resize_border.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -82,10 +83,12 @@ class Application extends ConsumerWidget {
         // Theme first: the window chrome paints its frame from Mixar tokens.
         return MixarTheme(
           data: MixarThemeData.of(palette, brightness),
-          child: DesktopChrome(
-            child: ShadTheme(
-              data: _shadTheme(palette, brightness),
-              child: child!,
+          child: DesktopResizeBorder(
+            child: DesktopChrome(
+              child: ShadTheme(
+                data: _shadTheme(palette, brightness),
+                child: child!,
+              ),
             ),
           ),
         );
