@@ -1,11 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// The settings nav column: one row per section the header's search matches.
 class SettingsSidebar extends StatelessWidget {
@@ -37,10 +35,7 @@ class SettingsSidebar extends StatelessWidget {
       ),
       child: SizedBox(
         width: 176,
-        child: SilkySingleChildScrollView(
-          physics: mixarScrollPhysics(context),
-          decayLogFactor: kMixarSilkyDecayLogFactor,
-          blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
+        child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

@@ -39,8 +39,22 @@ void _cancelSilkyState(State? state) {
   if (state == null) return;
   try {
     // silky_scroll 2.6.4 keeps its cancellable state on the private State.
+    final dynamic silkyState = (state as dynamic).silkyScrollState;
+    // The state and its controller are only reachable dynamically.
     // ignore: avoid_dynamic_calls
-    (state as dynamic).silkyScrollState.cancelSilkyScroll();
+    silkyState.cancelSilkyScroll();
+    // The client controller is exposed on that same internal state.
+    // ignore: avoid_dynamic_calls
+    final ScrollController? controller =
+        silkyState.clientController as ScrollController?;
+    if (controller != null && controller.hasClients) {
+      final position = controller.position;
+      if (position is ScrollPositionWithSingleContext && position.outOfRange) {
+        // cancel() stops the ticker; hand the overscrolled position back to
+        // the platform physics so a click does not freeze it out of bounds.
+        position.goBallistic(0);
+      }
+    }
     // The package's internal field is untyped to us, so a shape change
     // surfaces as NoSuchMethodError rather than a compile error.
     // ignore: avoid_catching_errors

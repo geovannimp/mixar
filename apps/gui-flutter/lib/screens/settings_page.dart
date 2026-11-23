@@ -4,9 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
-import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -34,12 +32,11 @@ import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// Scroll view holding the active section's panel.
 ///
 /// The sidebar scrolls on its own, so tests that measure or drive the page
-/// content target this key instead of the first scroll view.
+/// content target this key instead of the first `SingleChildScrollView`.
 const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 
 /// Height of the Settings page's own header band (glyph, title, search, save).
@@ -85,9 +82,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late SettingsSection _section = widget.initialSection;
   late var _highlightPreviewBus = widget.scrollToPreviewBus;
   final _previewBusCardKey = GlobalKey();
-
-  /// Stops an in-flight content glide before `ensureVisible` or a press.
-  final _contentScrollKey = GlobalKey();
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
@@ -296,7 +290,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
     _didSchedulePreviewScroll = true;
-    cancelSilkyGlide(_contentScrollKey);
     Scrollable.ensureVisible(
       ctx,
       alignment: 0.1,
@@ -579,59 +572,44 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     }),
                   ),
                   Expanded(
-                    child: KeyedSubtree(
+                    child: SingleChildScrollView(
                       key: kSettingsContentScrollKey,
-                      child: Listener(
-                        onPointerDown: (_) =>
-                            cancelSilkyGlide(_contentScrollKey),
-                        child: SilkySingleChildScrollView(
-                          key: _contentScrollKey,
-                          physics: mixarScrollPhysics(context),
-                          decayLogFactor: kMixarSilkyDecayLogFactor,
-                          blockWebOverscrollBehaviorX:
-                              kMixarSilkyBlockWebOverscrollBehaviorX,
-                          // Full-bleed width: the panel owns the header inset
-                          // and lets its cards run to the pane edges.
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: noSectionMatches
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Text(
-                                    l10n.settingsSearchNoResultsFor(
-                                      searchQuery,
-                                    ),
-                                    style: theme.typography.body.sm.copyWith(
-                                      color: theme.colors.mutedForeground,
-                                    ),
-                                  ),
-                                )
-                              : SettingsSearchScope(
-                                  query: _searchQuery,
-                                  child: _SettingsSectionPanel(
-                                    section: _section,
-                                    draft: draft,
-                                    baseline: baseline,
-                                    highlightPreviewBus: _highlightPreviewBus,
-                                    previewBusCardKey: _previewBusCardKey,
-                                    realtimeStemsCapability:
-                                        benchmark.capability,
-                                    benchmarkRunning: benchmark.running,
-                                    benchmarkFraction: benchmark.fraction,
-                                    benchmarkError: benchmark.error,
-                                    onRunRealtimeStemsBenchmark: () => ref
-                                        .read(
-                                          realtimeStemsBenchmarkProvider
-                                              .notifier,
-                                        )
-                                        .run(),
-                                    onChanged: (next) =>
-                                        setState(() => _draft = next),
-                                  ),
+                      // Full-bleed width: the panel owns the header inset and
+                      // lets its cards run to the pane edges.
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: noSectionMatches
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                l10n.settingsSearchNoResultsFor(searchQuery),
+                                style: theme.typography.body.sm.copyWith(
+                                  color: theme.colors.mutedForeground,
                                 ),
-                        ),
-                      ),
+                              ),
+                            )
+                          : SettingsSearchScope(
+                              query: _searchQuery,
+                              child: _SettingsSectionPanel(
+                                section: _section,
+                                draft: draft,
+                                baseline: baseline,
+                                highlightPreviewBus: _highlightPreviewBus,
+                                previewBusCardKey: _previewBusCardKey,
+                                realtimeStemsCapability: benchmark.capability,
+                                benchmarkRunning: benchmark.running,
+                                benchmarkFraction: benchmark.fraction,
+                                benchmarkError: benchmark.error,
+                                onRunRealtimeStemsBenchmark: () => ref
+                                    .read(
+                                      realtimeStemsBenchmarkProvider.notifier,
+                                    )
+                                    .run(),
+                                onChanged: (next) =>
+                                    setState(() => _draft = next),
+                              ),
+                            ),
                     ),
                   ),
                 ],

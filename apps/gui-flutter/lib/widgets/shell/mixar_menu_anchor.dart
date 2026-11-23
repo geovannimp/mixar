@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:anchor_ui/anchor_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
@@ -13,7 +12,6 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_controller.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// Fallback share of the window height for an anchored menu.
 ///
@@ -169,11 +167,7 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
           minWidth: widget.minWidth,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: _menuMaxHeight(context)),
-            child: SilkySingleChildScrollView(
-              physics: mixarScrollPhysics(context),
-              decayLogFactor: kMixarSilkyDecayLogFactor,
-              blockWebOverscrollBehaviorX:
-                  kMixarSilkyBlockWebOverscrollBehaviorX,
+            child: SingleChildScrollView(
               child: widget.menuBuilder(context, _anchorController),
             ),
           ),

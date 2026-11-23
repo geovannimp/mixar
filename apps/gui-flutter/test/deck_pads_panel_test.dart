@@ -372,23 +372,23 @@ void main() {
       hasTrack: true,
       padMode: PadMode.sampler,
       size: const Size(360, 260),
+      samplerBanks: [
+        for (var i = 0; i < 20; i++)
+          SamplerBank(id: 'bank-$i', name: 'Bank $i'),
+      ],
     );
     await tester.tap(find.bySemanticsLabel('Sample settings'));
     await tester.pumpAndSettle();
 
     // The bank rows have no scroll view of their own; the wheel must move the
-    // single menu viewport.
+    // single menu viewport. Twenty banks overflow the old 240 px inner cap.
     final ancestorScrollables = find.ancestor(
       of: find.text('Bank 1'),
       matching: find.byType(Scrollable),
     );
-    final positions = tester
-        .stateList<ScrollableState>(ancestorScrollables)
-        .map((state) => state.position)
-        .toList();
-    final outer = positions.singleWhere(
-      (position) => position.maxScrollExtent > 0,
-    );
+    expect(ancestorScrollables, findsOneWidget);
+    final outer = tester.state<ScrollableState>(ancestorScrollables).position;
+    expect(outer.maxScrollExtent, greaterThan(0));
     expect(outer.pixels, 0);
 
     await tester.sendEventToBinding(
