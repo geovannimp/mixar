@@ -132,12 +132,9 @@ impl LibraryManager {
             return Ok(None);
         };
         Ok(row.added_at.parse::<i64>().ok().and_then(|secs| {
-            jiff::Timestamp::from_second(secs).ok().map(|instant| {
-                instant
-                    .to_zoned_datetime(jiff::tz::TimeZone::UTC)
-                    .date()
-                    .to_string()
-            })
+            jiff::Timestamp::from_second(secs)
+                .ok()
+                .map(|instant| instant.to_zoned(jiff::tz::TimeZone::UTC).date().to_string())
         }))
     }
 

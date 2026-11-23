@@ -11,7 +11,7 @@ sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "sync",
     "rusqlite",
 ] }
-jiff = { version = "1.0", default-features = false, features = ["std"] }
+jiff.workspace = true
 tracing.workspace = true
 
 [lints]

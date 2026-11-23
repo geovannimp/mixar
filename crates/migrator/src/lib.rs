@@ -271,10 +271,7 @@ impl Migrator {
         if self.ledger_applied_at_is_integer(conn)? {
             Ok(jiff::Timestamp::now().as_second().into())
         } else {
-            Ok(jiff::Timestamp::now()
-                .display_with_offset(jiff::tz::Offset::UTC)
-                .to_string()
-                .into())
+            Ok(utc_rfc3339(jiff::Timestamp::now()).into())
         }
     }
 
@@ -396,6 +393,24 @@ struct LedgerRow {
     applied_at: String,
 }
 
+/// RFC 3339 in UTC with chrono's `AutoSi` precision: 0, 3, 6 or 9 fractional
+/// digits, chosen from the instant's nanosecond value.
+fn utc_rfc3339(ts: jiff::Timestamp) -> String {
+    let precision = match ts.subsec_nanosecond() {
+        0 => 0,
+        ns if ns % 1_000_000 == 0 => 3,
+        ns if ns % 1_000 == 0 => 6,
+        _ => 9,
+    };
+    let ts = ts.display_with_offset(jiff::tz::Offset::UTC);
+    match precision {
+        0 => format!("{ts:.0}"),
+        3 => format!("{ts:.3}"),
+        6 => format!("{ts:.6}"),
+        _ => format!("{ts:.9}"),
+    }
+}
+
 /// `applied_at` is text in ledgers this crate writes, but a ledger created by
 /// SeaORM's migrator holds an integer epoch; both decode, and status reports
 /// whichever is stored.
@@ -405,11 +420,7 @@ fn applied_at_text(row: &sea_orm::QueryResult) -> Result<String, sea_orm::DbErr>
     }
     let epoch = row.try_get::<i64>("", APPLIED_AT_COLUMN)?;
     jiff::Timestamp::from_second(epoch)
-        .map(|moment| {
-            moment
-                .display_with_offset(jiff::tz::Offset::UTC)
-                .to_string()
-        })
+        .map(utc_rfc3339)
         .map_err(|_| sea_orm::DbErr::Custom(format!("applied_at epoch {epoch} is out of range")))
 }
 

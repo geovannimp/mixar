@@ -482,5 +482,10 @@ fn export_error(path: &Path, err: std::io::Error) -> LibraryError {
 
 /// Today's date in the `YYYY-MM-DD` form the device database stores.
 fn today() -> String {
-    jiff::ZonedDateTime::now().strftime("%Y-%m-%d").to_string()
+    local_date(jiff::Timestamp::now(), jiff::tz::TimeZone::system())
+}
+
+/// The calendar date an instant falls on in `tz`, not in UTC.
+fn local_date(ts: jiff::Timestamp, tz: jiff::tz::TimeZone) -> String {
+    ts.to_zoned(tz).date().to_string()
 }

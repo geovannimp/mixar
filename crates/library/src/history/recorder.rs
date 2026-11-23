@@ -680,7 +680,7 @@ fn minutes_since(iso: &str) -> f64 {
 
 fn parse_rfc3339_ms(iso: &str) -> i64 {
     iso.parse::<jiff::Timestamp>()
-        .map(|ts| ts.as_millisecond())
+        .map(|ts| ts.as_nanosecond().div_euclid(1_000_000) as i64)
         .unwrap_or(0)
 }
 
@@ -714,6 +714,9 @@ mod tests {
             parse_rfc3339_ms("2026-11-23T17:26:04.123+00:00"),
             1_795_454_764_123
         );
+        // Pre-epoch instants floor (chrono's `timestamp_millis`), so a
+        // sub-millisecond value does not truncate toward zero.
+        assert_eq!(parse_rfc3339_ms("1969-12-31T23:59:59.999999999Z"), -1);
         assert_eq!(parse_rfc3339_ms("not a timestamp"), 0);
     }
 

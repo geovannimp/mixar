@@ -55,6 +55,7 @@ description = "Modular Rust Audio Engine for DJ applications"
 
 [workspace.dependencies]
 anyhow = "1.0"
+jiff = { version = "0.2", default-features = false, features = ["std"] }
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"

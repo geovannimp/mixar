@@ -162,6 +162,24 @@ fn status_converts_an_integer_applied_at_to_rfc3339() {
 }
 
 #[test]
+fn utc_rfc3339_matches_chronos_auto_precision() {
+    let stamp = |nanos| jiff::Timestamp::new(1_700_000_000, nanos).unwrap();
+    assert_eq!(utc_rfc3339(stamp(0)), "2023-11-14T22:13:20+00:00");
+    assert_eq!(
+        utc_rfc3339(stamp(100_000_000)),
+        "2023-11-14T22:13:20.100+00:00"
+    );
+    assert_eq!(
+        utc_rfc3339(stamp(123_400_000)),
+        "2023-11-14T22:13:20.123400+00:00"
+    );
+    assert_eq!(
+        utc_rfc3339(stamp(123_456_789)),
+        "2023-11-14T22:13:20.123456789+00:00"
+    );
+}
+
+#[test]
 fn report_lists_only_versions_this_call_applied() {
     let conn = connection();
     let migrator = Migrator::new().push(CreateFirst);

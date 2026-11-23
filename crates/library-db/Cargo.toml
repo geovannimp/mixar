@@ -12,8 +12,9 @@ migrator = { path = "../migrator" }
 sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "rusqlite",
     "macros",
+    "sqlite-use-returning-for-3_35",
 ] }
-jiff = { version = "1.0", default-features = false, features = ["std"] }
+jiff.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

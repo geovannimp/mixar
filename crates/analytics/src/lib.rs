@@ -140,7 +140,11 @@ fn build_mode() -> &'static str {
 
 /// RFC 3339 timestamp with second precision, which is what PostHog expects.
 fn now() -> String {
-    Timestamp::now().strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
+    format_rfc3339_secs(Timestamp::now())
+}
+
+fn format_rfc3339_secs(ts: Timestamp) -> String {
+    ts.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 /// The properties every Mixar event carries: build identity and nothing else.
@@ -386,10 +390,10 @@ mod tests {
 
     #[test]
     fn now_is_second_precision_rfc3339_utc() {
-        let stamp = now();
-        assert_eq!(stamp.len(), 20, "{stamp}");
-        assert!(stamp.ends_with('Z'), "{stamp}");
-        assert!(stamp.parse::<jiff::Timestamp>().is_ok(), "{stamp}");
+        let stamp = format_rfc3339_secs("2026-11-23T17:26:04.987654321Z".parse().unwrap());
+        assert_eq!(stamp, "2026-11-23T17:26:04Z");
+        let live = now();
+        assert_eq!(live.len(), 20, "{live}");
     }
 
     #[test]

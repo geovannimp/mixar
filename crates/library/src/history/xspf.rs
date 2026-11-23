@@ -61,9 +61,11 @@ impl HistoryDocument {
 }
 
 pub fn utc_now_rfc3339() -> String {
-    jiff::Timestamp::now()
-        .strftime("%Y-%m-%dT%H:%M:%SZ")
-        .to_string()
+    format_rfc3339_secs(jiff::Timestamp::now())
+}
+
+fn format_rfc3339_secs(ts: jiff::Timestamp) -> String {
+    ts.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 /// Unique on-disk name. Session id avoids collisions when two sessions start in the same second.
@@ -312,10 +314,10 @@ mod tests {
 
     #[test]
     fn utc_now_is_second_precision_with_z() {
-        let now = utc_now_rfc3339();
-        assert_eq!(now.len(), 20, "{now}");
-        assert!(now.ends_with('Z'), "{now}");
-        assert!(now.parse::<jiff::Timestamp>().is_ok(), "{now}");
+        let stamp = format_rfc3339_secs("2026-11-23T17:26:04.987654321Z".parse().unwrap());
+        assert_eq!(stamp, "2026-11-23T17:26:04Z");
+        let live = utc_now_rfc3339();
+        assert_eq!(live.len(), 20, "{live}");
     }
 
     #[test]

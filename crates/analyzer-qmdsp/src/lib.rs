@@ -368,9 +368,11 @@ mod time {
     /// RFC 3339 UTC timestamp, e.g. `2026-10-06T00:00:00Z` (matches
     /// `AnalysisRunMetadata::analyzed_at` and `library`'s history timestamps).
     pub fn now_rfc3339() -> String {
-        jiff::Timestamp::now()
-            .strftime("%Y-%m-%dT%H:%M:%SZ")
-            .to_string()
+        format_rfc3339_secs(jiff::Timestamp::now())
+    }
+
+    pub(super) fn format_rfc3339_secs(ts: jiff::Timestamp) -> String {
+        ts.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
     }
 }
 
@@ -378,6 +380,12 @@ mod time {
 mod tests {
     use super::*;
     use crate::key::GetKeyMode;
+
+    #[test]
+    fn analyzed_at_is_second_precision_rfc3339_utc() {
+        let stamp = time::format_rfc3339_secs("2026-10-06T12:34:56.987654321Z".parse().unwrap());
+        assert_eq!(stamp, "2026-10-06T12:34:56Z");
+    }
 
     /// The shared ×8 pass must hand the key path exactly the samples the
     /// per-block `Decimator` it replaced produced — including the filter's
