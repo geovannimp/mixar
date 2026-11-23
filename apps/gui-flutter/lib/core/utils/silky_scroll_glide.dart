@@ -114,18 +114,21 @@ void recoverSilkyBounds(GlobalKey key) {
   if (state == null) return;
   try {
     // silky_scroll 2.6.4 keeps its state on the private State.
-    // ignore: avoid_dynamic_calls
     final dynamic silkyState = (state as dynamic).silkyScrollState;
     // The client controller is exposed on that same internal state.
-    // ignore: avoid_dynamic_calls
     final ScrollController? controller =
+        // The client controller is only reachable dynamically.
+        // ignore: avoid_dynamic_calls
         silkyState.clientController as ScrollController?;
     if (controller == null || !controller.hasClients) return;
     final position = controller.position;
     if (position is! ScrollPositionWithSingleContext) return;
     if (!position.outOfRange) return;
-    // A drag, hold, or ballistic owns the position while this is true.
-    if (position.isScrollingNotifier.value) return;
+    // A drag, hold, or ballistic owns the position while this is not idle;
+    // `isScrollingNotifier` is false for a hold, so inspect the activity.
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    final activity = position.activity;
+    if (activity != null && activity is! IdleScrollActivity) return;
     position.goBallistic(0);
     // The package's internal field is untyped to us, so a shape change
     // surfaces as NoSuchMethodError rather than a compile error.
