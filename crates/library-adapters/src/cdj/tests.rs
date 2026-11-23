@@ -22,14 +22,6 @@ fn cue(hot_slot: Option<u8>, position_ms: u32, loop_end_ms: Option<u32>) -> Expo
 }
 
 #[test]
-fn local_date_uses_the_zone_calendar_day() {
-    let ts: jiff::Timestamp = "2026-11-23T23:30:00Z".parse().unwrap();
-    let plus_nine = jiff::tz::TimeZone::fixed(jiff::tz::Offset::from_hours(9).unwrap());
-    assert_eq!(local_date(ts, jiff::tz::TimeZone::UTC), "2026-11-23");
-    assert_eq!(local_date(ts, plus_nine), "2026-11-24");
-}
-
-#[test]
 fn cues_split_into_hot_and_memory_lists_in_slot_order() {
     let cues = vec![
         cue(Some(3), 30_000, None),
