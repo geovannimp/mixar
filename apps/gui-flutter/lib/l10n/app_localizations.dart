@@ -189,6 +189,12 @@ abstract class AppLocalizations {
   /// **'Save changes before closing?'**
   String get settingsUnsavedBody;
 
+  /// No description provided for @settingsSectionUnsavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes before leaving this section?'**
+  String get settingsSectionUnsavedBody;
+
   /// No description provided for @settingsCancel.
   ///
   /// In en, this message translates to:

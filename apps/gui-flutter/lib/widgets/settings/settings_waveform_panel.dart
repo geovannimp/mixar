@@ -22,8 +22,6 @@ class SettingsWaveformPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return SettingsSectionBody(
-      title: l10n.settingsSectionWaveform,
-      description: l10n.settingsWaveformDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsWaveformDisplayTitle,

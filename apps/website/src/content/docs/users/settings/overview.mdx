@@ -13,9 +13,9 @@ Saved settings live in `settings.json` inside Mixar's app-support folder. See [I
 
 ## Saving and applying
 
-**Save** appears in the header once the page has an unsaved edit, and reads **Saving…** while it writes. The line under the title reads: "Saving restarts the engine automatically if it's running."
+**Save** sits in the section header, on the right of the open section's title, and appears once there is an unsaved edit. It reads **Saving…** while it writes. While the section scrolls, that header stays pinned to the top of the pane and shrinks to its title row, so **Save** stays in view. The line under the page title reads: "Saving restarts the engine automatically if it's running."
 
-Leaving Settings with unsaved edits asks **Unsaved settings** / "Save changes before closing?" with **Cancel**, **Discard**, and **Save**. **Discard** throws the draft away. **Save** saves and only closes if the save applied.
+An unsaved draft asks **Unsaved settings** before it is left behind: picking another section asks "Save changes before leaving this section?", and closing the page asks "Save changes before closing?". Both offer **Cancel**, **Discard**, and **Save**. **Discard** throws the draft away, so the next section never inherits an edit made in the previous one. **Save** saves, and only switches or closes if the save applied.
 
 A normal save restarts the engine when it is running. It then reloads the tracks that were on the decks that still exist.
 

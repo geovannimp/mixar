@@ -34,8 +34,6 @@ class SettingsDeckPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionDeck,
-      description: l10n.settingsDeckDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsDeckJogTitle,

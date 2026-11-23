@@ -15,6 +15,7 @@
   "settingsSaveFailedToast": "Falha ao salvar",
   "settingsUnsavedTitle": "Configurações não salvas",
   "settingsUnsavedBody": "Salvar alterações antes de fechar?",
+  "settingsSectionUnsavedBody": "Salvar alterações antes de sair desta seção?",
   "settingsCancel": "Cancelar",
   "settingsDiscard": "Descartar",
   "commonLoading": "Carregando…",

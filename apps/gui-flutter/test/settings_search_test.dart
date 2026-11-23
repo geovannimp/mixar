@@ -8,9 +8,11 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_insets.dart';
 import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_sticky_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -196,8 +198,6 @@ void main() {
           body: SettingsSearchScope(
             query: 'fader',
             child: SettingsSectionBody(
-              title: 'Mixer',
-              description: '',
               cards: [
                 SettingsSectionCard(title: 'Fader curve', child: Text('curve')),
                 SettingsSectionCard(
@@ -275,7 +275,30 @@ void main() {
     );
   });
 
-  testWidgets('the save slot follows the ambient text scale', (tester) async {
+  testWidgets('the section header carries the Save button at the pane inset', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    expect(find.widgetWithText(AppButton, 'Save changes'), findsNothing);
+
+    await dirtyDraft(tester);
+
+    final save = find.widgetWithText(AppButton, 'Save changes');
+    expect(save, findsOneWidget);
+    final header = tester.getRect(find.byType(SettingsSectionStickyHeaderBody));
+    // It sits in the section's own header row, not in the page band.
+    final page = tester.getRect(find.byType(SettingsPage));
+    final saveRect = tester.getRect(save);
+    expect(saveRect.top, greaterThan(page.top + kSettingsHeaderHeight));
+    expect(saveRect.bottom, lessThanOrEqualTo(header.bottom));
+    // Flush with the pane's right edge, inset like the header's own copy.
+    expect(
+      page.right - saveRect.right,
+      moreOrLessEquals(settingsCardSideInset),
+    );
+  });
+
+  testWidgets('the save button follows the ambient text scale', (tester) async {
     // A scaled-up label is wider than raw font metrics; the slot must grow with
     // it instead of clipping the button (a real overflow on a scaled desktop).
     await tester.pumpWidget(
@@ -353,32 +376,32 @@ void main() {
     expect(find.byIcon(LucideIcons.settings), findsOneWidget);
   });
 
-  testWidgets('a dirtied draft opens the Save slot and shifts the controls', (
-    tester,
-  ) async {
-    await pumpSettings(tester);
-    final toggle = find.widgetWithIcon(AppButton, LucideIcons.search);
-    final closed = tester.getRect(toggle);
-    final headerRight = tester.getRect(find.byType(SettingsPage)).right;
-    // The control keeps its own square, inset into the band-tall cell so the
-    // circular wash keeps a margin from the header edges without shrinking the
-    // target to the glyph.
-    final inset = (kSettingsHeaderHeight - closed.width) / 2;
-    expect(closed.size, const Size(44, 44));
-    expect(closed.right, moreOrLessEquals(headerRight - inset));
-    expect(find.widgetWithText(AppButton, 'Save changes'), findsNothing);
+  testWidgets(
+    'a dirtied draft opens the Save button without moving the search',
+    (tester) async {
+      await pumpSettings(tester);
+      final toggle = find.widgetWithIcon(AppButton, LucideIcons.search);
+      final closed = tester.getRect(toggle);
+      final headerRight = tester.getRect(find.byType(SettingsPage)).right;
+      // The control keeps its own square, inset into the band-tall cell so the
+      // circular wash keeps a margin from the header edges without shrinking
+      // the target to the glyph.
+      final inset = (kSettingsHeaderHeight - closed.width) / 2;
+      expect(closed.size, const Size(44, 44));
+      expect(closed.right, moreOrLessEquals(headerRight - inset));
+      expect(find.widgetWithText(AppButton, 'Save changes'), findsNothing);
 
-    await dirtyDraft(tester);
+      await dirtyDraft(tester);
 
-    final save = tester.getRect(find.widgetWithText(AppButton, 'Save changes'));
-    final shifted = tester.getRect(toggle);
-    expect(
-      shifted,
-      closed,
-      reason: 'the circle keeps its seat; the slot opens beside it',
-    );
-    expect(save.right, moreOrLessEquals(closed.left - 8));
-  });
+      // Save lives in the section header now, so the page band does not reflow.
+      expect(
+        tester.getRect(toggle),
+        closed,
+        reason: 'the search keeps its seat; Save is not in this row',
+      );
+      expect(find.widgetWithText(AppButton, 'Save changes'), findsOneWidget);
+    },
+  );
 
   testWidgets('closing the search goes back to the section it hid', (
     tester,

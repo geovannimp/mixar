@@ -41,6 +41,7 @@
   "settingsSaveFailedToast": "Save failed",
   "settingsUnsavedTitle": "Unsaved settings",
   "settingsUnsavedBody": "Save changes before closing?",
+  "settingsSectionUnsavedBody": "Save changes before leaving this section?",
   "settingsCancel": "Cancel",
   "settingsDiscard": "Discard",
   "commonLoading": "Loading…",

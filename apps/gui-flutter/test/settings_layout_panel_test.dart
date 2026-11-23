@@ -202,7 +202,8 @@ void main() {
     tester,
   ) async {
     await pumpPanel(tester);
-    expect(find.text('Layout'), findsOneWidget);
+    // The section title lives in the page's pinned header, not in the panel.
+    expect(find.text('Layout'), findsNothing);
     expect(find.text('Presets'), findsOneWidget);
     expect(find.text('Deck layout'), findsOneWidget);
     expect(find.text('Mixer strip'), findsOneWidget);

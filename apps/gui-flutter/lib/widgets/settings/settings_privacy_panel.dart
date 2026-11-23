@@ -16,8 +16,6 @@ class SettingsPrivacyPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return SettingsSectionBody(
-      title: l10n.settingsSectionPrivacy,
-      description: l10n.settingsPrivacyDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsAnalyticsTitle,
