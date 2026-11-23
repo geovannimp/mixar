@@ -40,7 +40,9 @@ pub(crate) fn write_track_beat_grid_tx(
     bpm_source: &str,
 ) -> Result<()> {
     grid.validate().map_err(grid_error)?;
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = jiff::Timestamp::now()
+        .display_with_offset(jiff::tz::Offset::UTC)
+        .to_string();
 
     TrackBeatSegmentEntity::delete_many()
         .filter(track_beat_segment::Column::TrackId.eq(track_id.as_str()))

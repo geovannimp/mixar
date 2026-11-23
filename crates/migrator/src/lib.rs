@@ -269,9 +269,12 @@ impl Migrator {
     /// there would leave two shapes in one column.
     fn applied_at_value(&self, conn: &DatabaseConnection) -> Result<sea_orm::Value, Error> {
         if self.ledger_applied_at_is_integer(conn)? {
-            Ok(chrono::Utc::now().timestamp().into())
+            Ok(jiff::Timestamp::now().as_second().into())
         } else {
-            Ok(chrono::Utc::now().to_rfc3339().into())
+            Ok(jiff::Timestamp::now()
+                .display_with_offset(jiff::tz::Offset::UTC)
+                .to_string()
+                .into())
         }
     }
 
@@ -401,9 +404,13 @@ fn applied_at_text(row: &sea_orm::QueryResult) -> Result<String, sea_orm::DbErr>
         return Ok(text);
     }
     let epoch = row.try_get::<i64>("", APPLIED_AT_COLUMN)?;
-    chrono::DateTime::from_timestamp(epoch, 0)
-        .map(|moment| moment.to_rfc3339())
-        .ok_or_else(|| sea_orm::DbErr::Custom(format!("applied_at epoch {epoch} is out of range")))
+    jiff::Timestamp::from_second(epoch)
+        .map(|moment| {
+            moment
+                .display_with_offset(jiff::tz::Offset::UTC)
+                .to_string()
+        })
+        .map_err(|_| sea_orm::DbErr::Custom(format!("applied_at epoch {epoch} is out of range")))
 }
 
 fn validate_ledger(table: &str) -> Result<(), Error> {

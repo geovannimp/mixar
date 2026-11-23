@@ -7,8 +7,11 @@ repository.workspace = true
 description = "Versioned, single-direction SQLite migrations for sea-orm-sync"
 
 [dependencies]
-sea-orm-sync = { version = "2.0.4", features = ["rusqlite"] }
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sea-orm-sync = { version = "2.0.4", default-features = false, features = [
+    "sync",
+    "rusqlite",
+] }
+jiff.workspace = true
 tracing.workspace = true
 
 [lints]

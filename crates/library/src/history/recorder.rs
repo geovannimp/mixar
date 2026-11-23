@@ -679,8 +679,8 @@ fn minutes_since(iso: &str) -> f64 {
 }
 
 fn parse_rfc3339_ms(iso: &str) -> i64 {
-    chrono::DateTime::parse_from_rfc3339(iso)
-        .map(|dt| dt.timestamp_millis())
+    iso.parse::<jiff::Timestamp>()
+        .map(|ts| ts.as_millisecond())
         .unwrap_or(0)
 }
 
@@ -706,6 +706,16 @@ mod tests {
         active_session, get_session, history_dir_for_db, upsert_session_index,
     };
     use std::fs;
+
+    #[test]
+    fn parses_rfc3339_timestamps() {
+        assert_eq!(parse_rfc3339_ms("2026-11-23T17:26:04Z"), 1_795_454_764_000);
+        assert_eq!(
+            parse_rfc3339_ms("2026-11-23T17:26:04.123+00:00"),
+            1_795_454_764_123
+        );
+        assert_eq!(parse_rfc3339_ms("not a timestamp"), 0);
+    }
 
     /// Instant commits via `tick` (host settings reject 0; library allows it for tests).
     fn fast_settings() -> HistorySettings {

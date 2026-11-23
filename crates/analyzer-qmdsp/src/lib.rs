@@ -212,7 +212,7 @@ impl AudioAnalyzer for QmdspAnalyzer {
             metadata: AnalysisRunMetadata {
                 backend: self.name().to_string(),
                 backend_version: env!("CARGO_PKG_VERSION").to_string(),
-                analyzed_at: time::now_rfc3339(),
+                analyzed_at: now_rfc3339(),
                 sample_rate: sr,
                 duration_analyzed_ms,
             },
@@ -364,18 +364,25 @@ fn beat_regularity(beats: &[f32]) -> f64 {
     (1.0 - variance.sqrt() / mean).clamp(0.0, 1.0)
 }
 
-mod time {
-    /// RFC 3339 UTC timestamp, e.g. `2026-10-06T00:00:00Z` (matches
-    /// `AnalysisRunMetadata::analyzed_at` and `library`'s history timestamps).
-    pub fn now_rfc3339() -> String {
-        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
-    }
+/// RFC 3339 UTC timestamp, e.g. `2026-10-06T00:00:00Z` (matches
+/// `AnalysisRunMetadata::analyzed_at` and `library`'s history timestamps).
+fn now_rfc3339() -> String {
+    jiff::Timestamp::now()
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::key::GetKeyMode;
+
+    #[test]
+    fn now_rfc3339_is_second_precision_utc() {
+        let stamp = now_rfc3339();
+        assert_eq!(stamp.len(), 20, "{stamp}");
+        assert!(stamp.ends_with('Z'), "{stamp}");
+    }
 
     /// The shared ×8 pass must hand the key path exactly the samples the
     /// per-block `Decimator` it replaced produced — including the filter's

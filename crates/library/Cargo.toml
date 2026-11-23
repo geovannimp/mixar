@@ -19,9 +19,10 @@ zstd = "0.14"
 sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "rusqlite",
     "macros",
+    "sqlite-use-returning-for-3_35",
 ] }
 library-db = { path = "../library-db" }
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+jiff.workspace = true
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core" }

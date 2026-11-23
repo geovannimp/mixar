@@ -61,7 +61,9 @@ impl HistoryDocument {
 }
 
 pub fn utc_now_rfc3339() -> String {
-    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+    jiff::Timestamp::now()
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 /// Unique on-disk name. Session id avoids collisions when two sessions start in the same second.
@@ -307,6 +309,13 @@ fn parse_err(msg: impl ToString) -> LibraryError {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn utc_now_is_second_precision_with_z() {
+        let now = utc_now_rfc3339();
+        assert_eq!(now.len(), 20, "{now}");
+        assert!(now.ends_with('Z'), "{now}");
+    }
 
     #[test]
     fn roundtrip_document() {
