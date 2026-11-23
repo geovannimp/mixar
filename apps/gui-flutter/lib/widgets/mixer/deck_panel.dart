@@ -2,29 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/deck_cue_hold_session.dart';
-import 'package:gui_flutter/core/utils/mixer_live_color.dart';
-import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
 import 'package:gui_flutter/widgets/mixer/deck_cue_button.dart';
-import 'package:gui_flutter/widgets/mixer/deck_gain_popover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 import 'package:gui_flutter/widgets/mixer/deck_transport_shape.dart';
-import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:silky_scroll/silky_scroll.dart';
 
 /// Height of the transport buttons when they sit in their own row.
 const _kTransportButtonHeight = 36.0;
@@ -37,9 +31,21 @@ const _kStackedTransportHeight = _kTransportButtonHeight + 8;
 /// its space and moves beside the pads.
 const _kMinStackedPanelHeight = 150.0;
 
-/// Widest the side transport column gets. The buttons always take the full
-/// height of the pads area; only this width is capped.
-const _kMaxSideTransport = 72.0;
+/// Diameter cap for the compact transport circles beside the pads.
+const _kCompactTransportDiameter = 72.0;
+
+/// Fewest pixels the performance panel is worth beside the compact transport;
+/// under it the pads and their tab rail cannot lay out, so the transport row
+/// moves back under the panel.
+const _kMinCompactPanelWidth = 120.0;
+
+/// Smallest circle worth pressing; below it the transport takes the bottom
+/// row instead of shrinking the pads' side column any further.
+const _kMinCompactButtonDiameter = 48.0;
+
+/// Side gutter for the deck's inner chrome (performance panel, transport row)
+/// inside the full-bleed deck body.
+const _kDeckSideInset = 10.0;
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -58,18 +64,11 @@ class DeckPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
-    final accentColor = deckInk(accent, theme.colors.brightness);
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = ref.watch(deckHasTrackProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final engineRunning = ref.watch(engineRunningProvider);
     final loading = ref.watch(deckLoadingProvider(deckId));
-    final quantize = ref.watch(deckQuantizeProvider(deckId));
-    final fxRouted = ref.watch(deckFxRoutedProvider(deckId));
-    final slip = ref.watch(deckSlipEnabledProvider(deckId));
-    final stemsAudible = ref.watch(deckStemsAudibleProvider(deckId));
-    final stemEqEnabled = ref.watch(deckStemEqEnabledProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
     final loadDisabled = loading || !engineRunning;
     final transportDisabled = loadDisabled || !hasTrack;
@@ -113,163 +112,99 @@ class DeckPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 8,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) => SilkySingleChildScrollView(
-            physics: mixarScrollPhysics(context),
-            decayLogFactor: kMixarSilkyDecayLogFactor,
-            blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
-            mouseWheelVerticalDeltaBehavior:
-                MouseWheelVerticalDeltaBehavior.shiftOnly,
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: IntrinsicWidth(
-                child: Row(
-                  children: [
-                    Text(
-                      label.toUpperCase(),
-                      style: theme.typography.display.xs.copyWith(
-                        fontFamily: MixarFonts.spaceGrotesk,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                        height: 1,
-                        color: accentColor,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
-                    const Spacer(),
-                    _MasterButton(
-                      isMaster: isMaster,
-                      disabled: loadDisabled,
-                      onPress: () {
-                        unawaited(
-                          _engineCmd(context, () => setMasterDeck(ref, deckId)),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _QuantizeButton(
-                      quantize: quantize,
-                      disabled: loadDisabled,
-                      onPress: () {
-                        // Capture the desired state before the async command.
-                        final enabled = !quantize;
-                        unawaited(
-                          _engineCmd(
-                            context,
-                            () => setDeckQuantize(ref, deckId, enabled),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _SlipButton(
-                      slip: slip,
-                      disabled: loadDisabled,
-                      onPress: () {
-                        final enabled = !slip;
-                        unawaited(
-                          _engineCmd(
-                            context,
-                            () => setDeckSlip(ref, deckId, enabled),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _StemEqButton(
-                      stemsAudible: stemsAudible,
-                      stemEqOn: stemEqEnabled,
-                      disabled: !engineRunning,
-                      onPress: () {
-                        // Capture the desired state before the async command.
-                        final enabled = !stemEqEnabled;
-                        unawaited(
-                          _engineCmd(
-                            context,
-                            () => setDeckStemEqEnabled(ref, deckId, enabled),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _FxButton(
-                      routed: fxRouted,
-                      disabled: !engineRunning,
-                      onPress: () {
-                        // Capture the desired state before the async command.
-                        final routed = !fxRouted;
-                        unawaited(
-                          _engineCmd(
-                            context,
-                            () => setDeckFxRouted(ref, deckId, routed),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
         DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final performance = DeckPerformancePanel(
-                deckId: deckId,
-                hasTrack: hasTrack,
-                accent: accent,
-                // Engine-level only: pad mode must stay selectable while the
-                // deck is empty, and the per-surface panels already gate their
-                // controls on `hasTrack`.
-                disabled: loadDisabled,
+              final performance = Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _kDeckSideInset,
+                ),
+                child: DeckPerformancePanel(
+                  deckId: deckId,
+                  hasTrack: hasTrack,
+                  accent: accent,
+                  // Engine-level only: pad mode must stay selectable while the
+                  // deck is empty, and the per-surface panels already gate
+                  // their controls on `hasTrack`.
+                  disabled: loadDisabled,
+                ),
               );
               final available = constraints.maxHeight;
+              // Tiny heights: the pair's own gap and the fixed button height
+              // yield rather than overflow. The shell keeps decks far above
+              // this; the guard keeps a degenerate pane from throwing.
+              final pairGap = available >= 8 ? 8.0 : 0.0;
+              final widthBudget =
+                  (constraints.maxWidth -
+                          _kMinCompactPanelWidth -
+                          _kDeckSideInset * 3)
+                      .clamp(0.0, double.infinity);
+              // Fit the circles to the width the pads can spare before
+              // giving the controls a bottom row: a smaller circle keeps the
+              // panel's floor and the pads' full height.
+              final diameter = ((available - pairGap) / 2)
+                  .clamp(0.0, _kCompactTransportDiameter)
+                  .clamp(0.0, widthBudget);
+              final compactFits = diameter >= _kMinCompactButtonDiameter;
               // A short deck cannot spare a full-width transport row without
-              // squeezing the pads to an unusable strip. There, the same two
-              // controls stack beside the panel and the row's height goes to
-              // the pads.
+              // squeezing the pads to an unusable strip; a narrow one cannot
+              // spare the side column. In both cases the controls take the
+              // bottom row and the pads keep the room.
               if (available >=
-                  _kMinStackedPanelHeight + _kStackedTransportHeight) {
+                      _kMinStackedPanelHeight + _kStackedTransportHeight ||
+                  !compactFits) {
+                final buttonHeight = _kTransportButtonHeight.clamp(
+                  0.0,
+                  available,
+                );
+                final rowGap = available >= _kStackedTransportHeight
+                    ? 8.0
+                    : 0.0;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 8,
+                  spacing: rowGap,
                   children: [
                     Expanded(child: performance),
-                    SizedBox(
-                      height: _kTransportButtonHeight,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: 8,
-                        children: [
-                          for (final control in transport)
-                            Expanded(child: control),
-                        ],
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _kDeckSideInset,
+                      ),
+                      child: SizedBox(
+                        height: buttonHeight,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 8,
+                          children: [
+                            for (final control in transport)
+                              Expanded(child: control),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 );
               }
-              // Tight constraints from the column override the transport
-              // minimums, so both buttons fill the pads area top to bottom in
-              // equal halves; only their width is capped.
-              final side = (available / 2).clamp(0.0, _kMaxSideTransport);
+              // Compact: the two controls are perfect circles, capped by the
+              // column width and by the room a pair plus its gap needs. The
+              // pair is centred in the pads area, leaving the rest to the pads.
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(child: performance),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: side,
+                  // The panel's own side padding supplies the gap here, so the
+                  // pair sits the same distance from the pads as from the deck
+                  // edge; a row gap would make the inside gutter wider.
+                  Padding(
+                    // Mirror the performance panel's outer margin so the
+                    // pair does not run into the deck edge.
+                    padding: const EdgeInsets.only(right: _kDeckSideInset),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: 8,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: pairGap,
                       children: [
                         for (final control in transport)
-                          Expanded(child: control),
+                          SizedBox.square(dimension: diameter, child: control),
                       ],
                     ),
                   ),
@@ -281,23 +216,31 @@ class DeckPanel extends ConsumerWidget {
       ],
     );
 
-    return TrackDropZone(
-      deckId: deckId,
-      child: ClipRect(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-            Expanded(
-              // The tempo rail spans the full deck height; only the deck body
-              // keeps the inset.
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: body,
+    return Semantics(
+      container: true,
+      label: label,
+      child: TrackDropZone(
+        deckId: deckId,
+        child: ClipRect(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_tempoOnRight) tempo,
+              Expanded(
+                // The panes paint the divider above the deck row over the
+                // content's first pixel. Reserve it so the track-info outline
+                // is not half-covered, and keep the foot clearance below.
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: context.theme.style.borderWidth,
+                    bottom: 10,
+                  ),
+                  child: body,
+                ),
               ),
-            ),
-            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
-          ],
+              if (_tempoOnRight) tempo,
+            ],
+          ),
         ),
       ),
     );
@@ -321,6 +264,14 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
   EngineTransport? _engine;
   ProviderSubscription<AsyncValue<EngineTransport?>>? _engineListen;
 
+  // Bound when a hold is requested, so the release always reaches the same
+  // transport even if the provider publishes a replacement mid-hold.
+  EngineTransport? _holdEngine;
+  int? _holdDeckId;
+  // Set when a release throws; a dispose that only awaited an already-queued
+  // (swallowed) end uses it to retry that release once.
+  var _lastReleaseFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -330,38 +281,129 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
   }
 
   void _beginHold() {
+    final engine = _engine;
     final deckId = widget.deckId;
-    _session.begin(
-      () => _engineCmd(context, () => beginDeckCueHold(ref, deckId)),
-    );
+    if (engine == null || _holdEngine != null) {
+      return;
+    }
+    _holdEngine = engine;
+    _holdDeckId = deckId;
+    _session.begin(() async {
+      try {
+        await _runHold(() => engine.beginCueHold(deckId: deckId));
+      } on Object catch (_) {
+        // No hold to release for this pair.
+        _clearHold(engine, deckId);
+        rethrow;
+      }
+    });
   }
 
   void _endHold() {
-    final deckId = widget.deckId;
-    _session.end(() => _engineCmd(context, () => endDeckCueHold(ref, deckId)));
+    final engine = _holdEngine;
+    final deckId = _holdDeckId;
+    if (engine == null || deckId == null) {
+      return;
+    }
+    _session.end(() => _runRelease(engine, deckId));
+  }
+
+  /// Release bound to the hold's transport. Failures are rethrown so the
+  /// session keeps the hold active, and flagged so a dispose that only
+  /// awaited a swallowed queued end can still retry.
+  Future<void> _runRelease(EngineTransport engine, int deckId) async {
+    try {
+      await engine.endCueHold(deckId: deckId);
+      _lastReleaseFailed = false;
+      _clearHold(engine, deckId);
+    } on Object catch (e) {
+      _lastReleaseFailed = true;
+      _reportCueError(e);
+      rethrow;
+    }
+  }
+
+  void _clearHold(EngineTransport engine, int deckId) {
+    if (identical(_holdEngine, engine) && _holdDeckId == deckId) {
+      _holdEngine = null;
+      _holdDeckId = null;
+    }
+  }
+
+  /// Runs a hold command for the session: failures are surfaced and rethrown
+  /// so the session keeps the hold active and a later release can retry.
+  Future<void> _runHold(Future<void> Function() command) async {
+    try {
+      await command();
+    } on Object catch (e) {
+      _reportCueError(e);
+      rethrow;
+    }
   }
 
   void _setCue() {
-    unawaited(_engineCmd(context, () => setDeckCuePoint(ref, widget.deckId)));
+    final engine = _engine;
+    final deckId = widget.deckId;
+    if (engine == null) {
+      return;
+    }
+    unawaited(_setCuePoint(engine, deckId));
+  }
+
+  Future<void> _setCuePoint(EngineTransport engine, int deckId) async {
+    try {
+      await engine.setCuePoint(deckId: deckId);
+    } on Object catch (e) {
+      _reportCueError(e);
+    }
+  }
+
+  void _reportCueError(Object error) {
+    if (!mounted) {
+      return;
+    }
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$error'),
+    );
   }
 
   @override
   void dispose() {
-    final engine = _engine;
-    final deckId = widget.deckId;
-    // Fire-and-forget: dispose cannot await. Engine transport is kept alive
-    // for the app session, so this endCueHold should still land.
-    unawaited(
-      _session
-          .disposeEnd(() async {
-            await engine?.endCueHold(deckId: deckId);
-          })
-          .catchError((Object e) {
-            debugPrint('DeckCueControl: endCueHold failed during dispose: $e');
-          }),
-    );
+    final engine = _holdEngine;
+    final deckId = _holdDeckId;
+    // Fire-and-forget: dispose cannot await. The session retries once when
+    // the queued release failed, so a transient engine error cannot leave the
+    // deck auditioning with no control left.
+    unawaited(_releaseOnDispose(engine, deckId));
     _engineListen?.close();
     super.dispose();
+  }
+
+  Future<void> _releaseOnDispose(EngineTransport? engine, int? deckId) async {
+    if (engine == null || deckId == null) {
+      return;
+    }
+    Future<void> release() async {
+      await _session.disposeEnd(() => _runRelease(engine, deckId));
+      if (_lastReleaseFailed) {
+        throw StateError('cue release failed');
+      }
+    }
+
+    try {
+      await release();
+    } on Object catch (e) {
+      debugPrint('DeckCueControl: endCueHold failed during dispose: $e');
+      try {
+        await release();
+      } on Object catch (e) {
+        debugPrint(
+          'DeckCueControl: endCueHold retry failed during dispose: $e',
+        );
+      }
+    }
   }
 
   @override
@@ -436,228 +478,6 @@ class _DeckPlayButton extends ConsumerWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// Shared chrome for the five deck-header toggles. Callers supply only the
-/// state-dependent look and press handler.
-Widget _deckHeaderChip({
-  required BuildContext context,
-  required bool selected,
-  required VoidCallback? onPress,
-  required String semanticsLabel,
-  required Widget child,
-  Color? backgroundColor,
-}) {
-  return MixerButton(
-    variant: .outline,
-    size: .xs,
-    mainAxisSize: .min,
-    selected: selected,
-    borderRadius: context.theme.style.borderRadius.pill,
-    onPress: onPress,
-    semanticsLabel: semanticsLabel,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-    backgroundColor: backgroundColor,
-    child: child,
-  );
-}
-
-class _MasterButton extends StatelessWidget {
-  const new({
-    required this.onPress,
-    required this.isMaster,
-    this.disabled = false,
-  });
-
-  final VoidCallback onPress;
-  final bool isMaster;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final on = isMaster && !disabled;
-    final tip = isMaster ? 'Master' : 'Set master';
-    return AppTooltip(
-      tip: tip,
-      description: isMaster
-          ? 'This deck is the sync reference.'
-          : 'Make this deck the tempo reference for sync.',
-      child: _deckHeaderChip(
-        context: context,
-        selected: on,
-        onPress: (!disabled && !isMaster) ? onPress : null,
-        semanticsLabel: tip,
-        backgroundColor: on ? kMixerMasterFill : null,
-        child: Icon(
-          LucideIcons.crown,
-          size: 14,
-          color: on ? kMixerMasterOn : theme.colors.mutedForeground,
-        ),
-      ),
-    );
-  }
-}
-
-class _QuantizeButton extends StatelessWidget {
-  const new({
-    required this.onPress,
-    required this.quantize,
-    this.disabled = false,
-  });
-
-  final VoidCallback onPress;
-  final bool quantize;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final on = quantize && !disabled;
-    final tip = quantize ? 'Quantize on' : 'Quantize off';
-    return AppTooltip(
-      tip: tip,
-      description: "Snap cues, loops, and hot cues to the grid, and start in time with the playing deck.",
-      child: _deckHeaderChip(
-        context: context,
-        selected: on,
-        onPress: disabled ? null : onPress,
-        semanticsLabel: tip,
-        backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'Q',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SlipButton extends StatelessWidget {
-  const new({required this.onPress, required this.slip, this.disabled = false});
-
-  final VoidCallback onPress;
-  final bool slip;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    const slipOn = Color.fromARGB(191, 96, 165, 250);
-    const slipFill = Color.fromARGB(28, 96, 165, 250);
-    final on = slip && !disabled;
-    final tip = slip ? 'Slip on' : 'Slip off';
-    return AppTooltip(
-      tip: tip,
-      description: 'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
-      child: _deckHeaderChip(
-        context: context,
-        selected: on,
-        onPress: disabled ? null : onPress,
-        semanticsLabel: tip,
-        backgroundColor: on ? slipFill : null,
-        child: Text(
-          'S',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? slipOn : theme.colors.mutedForeground,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StemEqButton extends StatelessWidget {
-  const new({
-    required this.onPress,
-    required this.stemsAudible,
-    this.stemEqOn = false,
-    this.disabled = false,
-  });
-
-  final VoidCallback onPress;
-
-  /// The deck is really playing stems, so routing the knobs is meaningful.
-  final bool stemsAudible;
-
-  /// Current stem-EQ routing; lit while the EQ knobs drive the stems.
-  final bool stemEqOn;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    // Lit only while it is real: stems can drop out underneath a stored "on".
-    final on = stemEqOn && stemsAudible && !disabled;
-    final tip = !stemsAudible
-        ? 'Stem EQ unavailable'
-        : stemEqOn
-        ? 'Stem EQ on'
-        : 'Stem EQ off';
-    return AppTooltip(
-      tip: tip,
-      description: stemsAudible
-          ? 'Route the mixer EQ knobs to the stems instead of the channel: '
-                'VOC, B/O, DRM.'
-          : 'The deck is not playing stems right now, so the knobs stay on the '
-                'channel EQ.',
-      child: _deckHeaderChip(
-        context: context,
-        selected: on,
-        onPress: disabled || !stemsAudible ? null : onPress,
-        semanticsLabel: tip,
-        backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'ST',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FxButton extends StatelessWidget {
-  const new({
-    required this.onPress,
-    required this.routed,
-    this.disabled = false,
-  });
-
-  final VoidCallback onPress;
-  final bool routed;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final on = routed && !disabled;
-    final tip = routed ? 'FX on' : 'FX off';
-    return AppTooltip(
-      tip: tip,
-      description: 'Route this deck through the FX unit.',
-      child: _deckHeaderChip(
-        context: context,
-        selected: on,
-        onPress: disabled ? null : onPress,
-        semanticsLabel: tip,
-        backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'FX',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
       ),
     );
   }

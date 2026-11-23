@@ -28,6 +28,23 @@ class TrackDropZone extends ConsumerStatefulWidget {
 class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
   var _over = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Removing the targets does not guarantee an exit callback; clear the
+    // hover so a stopped engine cannot restore the outline on restart.
+    ref.listenManual(engineRunningProvider, (_, running) {
+      if (!running) {
+        _setOver(false);
+      }
+    }, fireImmediately: true);
+    ref.listenManual(engineTransportProvider, (_, transport) {
+      if (transport.asData?.value == null) {
+        _setOver(false);
+      }
+    }, fireImmediately: true);
+  }
+
   void _setOver(bool value) {
     if (_over == value) {
       return;

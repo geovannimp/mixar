@@ -50,13 +50,10 @@ GroupContent _groupOf(MixerContent? content) {
   return content! as GroupContent;
 }
 
-/// The strip owns the centre gutter, so both deck cards keep only the
-/// window-edge inset.
-void _expectWindowEdgeInset(MixerPlan plan) {
-  final left = plan.content!.left!.content as DeckContent;
-  final right = plan.content!.right!.content as DeckContent;
-  expect(left.padding, const EdgeInsets.only(left: 10));
-  expect(right.padding, const EdgeInsets.only(right: 10));
+/// The deck slots hold the cards directly, with no inset wrapper in the plan.
+void _expectDeckCards(MixerPlan plan) {
+  expect(plan.content!.left!.content, isA<DeckContent>());
+  expect(plan.content!.right!.content, isA<DeckContent>());
 }
 
 void main() {
@@ -95,14 +92,17 @@ void main() {
       expect(plan.bottom, isNull);
     });
 
-    test('decks keep only the window-edge inset', () {
-      _expectWindowEdgeInset(_plan(_config()));
+    test('decks keep their ids and left/right order', () {
+      final plan = _plan(_config());
+      final left = plan.content!.left!.content as DeckContent;
+      final right = plan.content!.right!.content as DeckContent;
+
+      expect(left.deckId, 0);
+      expect(right.deckId, 1);
     });
 
-    test('a waveform centre also keeps only the window-edge inset', () {
-      _expectWindowEdgeInset(
-        _plan(_config(kind: MixerLayoutKind.centreHorizontal)),
-      );
+    test('a waveform centre keeps the same deck slots', () {
+      _expectDeckCards(_plan(_config(kind: MixerLayoutKind.centreHorizontal)));
     });
 
     test('four decks stack in pairs without a divider inset', () {
@@ -201,28 +201,28 @@ void main() {
       expect(group.children.single.content, isA<VerticalLanesContent>());
     });
 
-    test('lanes take the mixer gutters, so the decks meet them flush', () {
-      _expectWindowEdgeInset(
-        _plan(_config(kind: MixerLayoutKind.centreVertical)),
-      );
+    test('a lanes centre keeps the deck slots', () {
+      _expectDeckCards(_plan(_config(kind: MixerLayoutKind.centreVertical)));
     });
   });
 
   group('no centre column', () {
     test('hiding the mixer leaves the decks on a seam', () {
       final plan = _plan(_config(showMixer: false));
-      _expectWindowEdgeInset(plan);
+      _expectDeckCards(plan);
 
       expect(plan.content!.center, isNull);
       expect(plan.content!.seam, isTrue);
       expect(plan.content!.centerWidth, 0);
     });
 
-    test('four decks keep only the window inset when the mixer is off', () {
+    test('four decks pair up in column order when the mixer is off', () {
       final plan = _plan(_config(showMixer: false, numDecks: 4));
       final left = plan.content!.left!.content as DeckPairContent;
+      final right = plan.content!.right!.content as DeckPairContent;
 
-      expect(left.padding, const EdgeInsets.only(left: 10));
+      expect((left.topId, left.bottomId), (0, 2));
+      expect((right.topId, right.bottomId), (1, 3));
     });
 
     test('the middle placements keep a centre even with the mixer off', () {

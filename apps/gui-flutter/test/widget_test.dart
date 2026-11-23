@@ -103,9 +103,12 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
       .any((s) => s.enabled);
 }
 
-Finder _deck(String label) => find.ancestor(
-  of: find.descendant(of: find.byType(DeckPanel), matching: find.text(label)),
-  matching: find.byType(DeckPanel),
+/// Decks are located by the key the content row puts on each one, so the
+/// finder no longer depends on the deck header carrying the deck's name.
+Finder _deck(String label) => find.byKey(
+  ValueKey(
+    'deck-${const ['DECK A', 'DECK B', 'DECK C', 'DECK D'].indexOf(label)}',
+  ),
 );
 
 List<Override> _settingsOverrides([AppSettings? settings]) => [
@@ -423,8 +426,8 @@ void main() {
     await pumpShell(tester);
 
     expect(find.bySemanticsLabel('Mixar'), findsOneWidget);
-    expect(find.text('DECK A'), findsWidgets);
-    expect(find.text('DECK B'), findsWidgets);
+    expect(_deck('DECK A'), findsOneWidget);
+    expect(_deck('DECK B'), findsOneWidget);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
     expect(find.text('COLLECTIONS'), findsOneWidget);
     expect(find.text('samples'), findsOneWidget);
@@ -564,6 +567,17 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('deck cards run to the window edges', (tester) async {
+    await pumpShell(tester);
+
+    final row = tester.getRect(mixerContentRow);
+    final deckA = tester.getRect(_deck('DECK A'));
+    final deckB = tester.getRect(_deck('DECK B'));
+
+    expect(deckA.left, row.left, reason: 'no gutter on the window edge');
+    expect(deckB.right, row.right, reason: 'no gutter on the window edge');
   });
 
   testWidgets('Levels Enable deep-links to Preview bus settings', (

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show Axis, EdgeInsets;
+import 'package:flutter/widgets.dart' show Axis;
 import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/layout/mixer_content.dart';
 import 'package:gui_flutter/widgets/mixer/layout/mixer_layout_config.dart';
@@ -99,9 +99,6 @@ MixerPlan mixerPlanFor(MixerLayoutConfig config, MixerLayoutSolution solution) {
       (config.kind == MixerLayoutKind.centreHorizontal ||
           config.kind == MixerLayoutKind.centreVertical);
   final mixerCentre = !lanes && config.showMixer;
-  // The mixer strip owns the deck gutter on each side, so the deck cards sit
-  // flush against the centre column and keep only the window-edge inset.
-  const inset = MixerPaneMetrics.deckInset;
 
   final top = config.kind == MixerLayoutKind.waveformTop && config.showWaveform
       ? const MixerSlotSpec(
@@ -110,17 +107,13 @@ MixerPlan mixerPlanFor(MixerLayoutConfig config, MixerLayoutSolution solution) {
         )
       : null;
 
-  const leftPadding = EdgeInsets.only(left: inset);
-  const rightPadding = EdgeInsets.only(right: inset);
-  MixerSlotSpec deckColumn(int topId, int bottomId, EdgeInsets padding) =>
-      config.fourDecks
-      ? MixerSlotSpec(
-          content: DeckPairContent(topId, bottomId, padding: padding),
-          minPx: 0,
-        )
-      : MixerSlotSpec(content: DeckContent(topId, padding: padding), minPx: 0);
-  final left = deckColumn(0, 2, leftPadding);
-  final right = deckColumn(1, 3, rightPadding);
+  // Deck cards run edge to edge: the window edge on the outside, the centre
+  // column on the inside.
+  MixerSlotSpec deckColumn(int topId, int bottomId) => config.fourDecks
+      ? MixerSlotSpec(content: DeckPairContent(topId, bottomId), minPx: 0)
+      : MixerSlotSpec(content: DeckContent(topId), minPx: 0);
+  final left = deckColumn(0, 2);
+  final right = deckColumn(1, 3);
 
   final MixerSlotSpec? center;
   final double centerWidth;

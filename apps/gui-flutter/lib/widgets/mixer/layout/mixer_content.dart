@@ -28,22 +28,20 @@ final class VerticalLanesContent extends MixerContent {
   const new();
 }
 
-/// One deck card, inset where it faces a neighbour rather than the window.
+/// One deck card.
 final class DeckContent extends MixerContent {
-  const new(this.deckId, {this.padding = EdgeInsets.zero});
+  const new(this.deckId);
 
   final int deckId;
-  final EdgeInsets padding;
 }
 
 /// Two deck cards stacked in one column, split by a hairline that spans the
 /// panes edge to edge.
 final class DeckPairContent extends MixerContent {
-  const new(this.topId, this.bottomId, {required this.padding});
+  const new(this.topId, this.bottomId);
 
   final int topId;
   final int bottomId;
-  final EdgeInsets padding;
 }
 
 /// The channel strip between the decks.
@@ -115,15 +113,11 @@ Widget buildMixerContent(BuildContext context, MixerContent? content) =>
       null => const SizedBox.shrink(),
       WaveformContent() => const WaveformSection(),
       VerticalLanesContent() => _lanes(context),
-      DeckContent(:final deckId, :final padding) => Padding(
-        padding: padding,
-        child: _deck(deckId),
-      ),
-      DeckPairContent(:final topId, :final bottomId, :final padding) => _split(
+      DeckContent(:final deckId) => _deck(deckId),
+      DeckPairContent(:final topId, :final bottomId) => _split(
         context,
         topId,
         bottomId,
-        padding: padding,
       ),
       MixerStripContent(:final width) => OverflowBox(
         minWidth: width,
@@ -183,15 +177,9 @@ Widget _lanes(BuildContext context) {
 /// edge. The top pane gives up the odd pixel so the split starts on a whole
 /// device pixel instead of antialiasing across two rows, including at
 /// fractional display scaling.
-Widget _split(
-  BuildContext context,
-  int topId,
-  int bottomId, {
-  required EdgeInsets padding,
-}) {
+Widget _split(BuildContext context, int topId, int bottomId) {
   final theme = context.theme;
   final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
-  Widget pane(int deckId) => Padding(padding: padding, child: _deck(deckId));
   return LayoutBuilder(
     builder: (_, constraints) {
       final half = (constraints.maxHeight - theme.style.borderWidth) / 2;
@@ -200,14 +188,14 @@ Widget _split(
         children: [
           SizedBox(
             height: floored.isNegative ? 0 : floored,
-            child: pane(topId),
+            child: _deck(topId),
           ),
           MDivider(
             key: ValueKey('deck-split-$topId'),
             padding: EdgeInsets.zero,
             color: theme.colors.border,
           ),
-          Expanded(child: pane(bottomId)),
+          Expanded(child: _deck(bottomId)),
         ],
       );
     },

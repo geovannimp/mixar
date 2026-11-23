@@ -29,7 +29,7 @@ Future<void> deckSetKeyLock(
   }
 }
 
-/// Ghost track-key control: musical/Camelot label + lock / lock-open icon.
+/// Track-key control: musical/Camelot label + lock / lock-open icon.
 class DeckKeyLockButton extends StatelessWidget {
   const new({
     required this.keyLabel,
@@ -60,9 +60,10 @@ class DeckKeyLockButton extends StatelessWidget {
       tip: tip,
       description: description,
       child: MixerButton(
-        variant: .ghost,
+        variant: .outline,
         size: .xs,
         mainAxisSize: .min,
+        selected: keyLock,
         onPress: enabled
             ? () {
                 // Capture absolute intent from chrome; do not re-read later.
@@ -70,8 +71,9 @@ class DeckKeyLockButton extends StatelessWidget {
               }
             : null,
         semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         borderRadius: theme.style.borderRadius.pill,
+        backgroundColor: keyLock && enabled ? theme.colors.primaryTint : null,
         child: Row(
           mainAxisSize: .min,
           children: [
@@ -87,7 +89,7 @@ class DeckKeyLockButton extends StatelessWidget {
             Icon(
               keyLock ? LucideIcons.lock : LucideIcons.lockOpen,
               size: 12,
-              color: muted,
+              color: keyLock && enabled ? theme.colors.primary : muted,
             ),
           ],
         ),

@@ -36,6 +36,71 @@ void main() {
     expect(find.byType(ClipRRect), findsNothing);
   });
 
+  testWidgets('MCard can paint only the horizontal hairlines', (tester) async {
+    final base = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(base),
+        builder: mixarMaterialAppBuilder(base),
+        home: const Scaffold(
+          body: MCard(
+            sideBorders: false,
+            child: SizedBox(width: 40, height: 40),
+          ),
+        ),
+      ),
+    );
+
+    final decorated = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: find.byType(MCard),
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    final decoration = decorated.decoration as BoxDecoration;
+    expect(
+      decoration.border,
+      Border.symmetric(
+        horizontal: BorderSide(
+          color: base.colors.border,
+          width: base.style.borderWidth,
+        ),
+      ),
+    );
+  });
+
+  testWidgets('a border color override closes every edge', (tester) async {
+    final base = MixarThemeData.dark();
+    const override = Color(0xFF2DD4BF);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(base),
+        builder: mixarMaterialAppBuilder(base),
+        home: const Scaffold(
+          body: MCard(
+            sideBorders: false,
+            topBorder: false,
+            borderColor: override,
+            child: SizedBox(width: 40, height: 40),
+          ),
+        ),
+      ),
+    );
+
+    final decorated = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: find.byType(MCard),
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    final decoration = decorated.decoration as BoxDecoration;
+    expect(
+      decoration.border,
+      Border.all(color: override, width: base.style.borderWidth),
+      reason: 'interaction chrome is never an open outline',
+    );
+  });
+
   testWidgets('MCard clips with ClipRRect when requested', (tester) async {
     final base = MixarThemeData.dark();
     await tester.pumpWidget(

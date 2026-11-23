@@ -22,6 +22,18 @@ String formatDeckRemainingDisplay(int? positionMs, int? durationMs) {
   return '-${formatDeckTimeTenth(remaining)}';
 }
 
+/// Remaining playhead as `-m:ss`, for a deck too narrow for tenths.
+String formatDeckRemainingCompact(int? positionMs, int? durationMs) {
+  if (positionMs == null || durationMs == null) {
+    return '—';
+  }
+  final remaining = math.max(0, durationMs - positionMs);
+  final totalSeconds = remaining ~/ 1000;
+  final minutes = totalSeconds ~/ 60;
+  final seconds = totalSeconds % 60;
+  return '-$minutes:${seconds.toString().padLeft(2, '0')}';
+}
+
 /// Total duration as `m:ss.t`.
 String formatDeckTotalDisplay(int? durationMs) =>
     formatDeckTimeTenth(durationMs);
