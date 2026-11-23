@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
@@ -26,6 +27,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_label.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Width of the gear cell in the pads header.
 ///
@@ -410,7 +412,8 @@ class DeckPadsPanel extends StatelessWidget {
             else
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
-                child: SingleChildScrollView(
+                child: SilkySingleChildScrollView(
+                  physics: mixarScrollPhysics(menuContext),
                   child: MixarMenuGroup(
                     children: [
                       for (final bank in samplerBanks)

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 const _kPadGap = 8.0;
 const _kPadMinSide = 24.0;
@@ -57,8 +59,9 @@ class _PadGridState extends State<PadGrid> {
                   ),
                 ),
               );
-              return SingleChildScrollView(
+              return SilkySingleChildScrollView(
                 controller: _controller,
+                physics: mixarScrollPhysics(context),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(

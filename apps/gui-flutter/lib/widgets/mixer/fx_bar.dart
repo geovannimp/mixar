@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/mixer/master_meter_bar.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
@@ -17,6 +18,7 @@ import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Status-bar-sized Beat FX strip under the library (`mixer_page.dart`).
 ///
@@ -105,7 +107,8 @@ class FxBar extends ConsumerWidget {
           ),
           Expanded(
             child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
+              builder: (context, constraints) => SilkySingleChildScrollView(
+                physics: mixarScrollPhysics(context),
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: _pad),
                 child: ConstrainedBox(

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
@@ -32,11 +33,12 @@ import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Scroll view holding the active section's panel.
 ///
 /// The sidebar scrolls on its own, so tests that measure or drive the page
-/// content target this key instead of the first `SingleChildScrollView`.
+/// content target this key instead of the first scroll view.
 const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 
 /// Height of the Settings page's own header band (glyph, title, search, save).
@@ -572,8 +574,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     }),
                   ),
                   Expanded(
-                    child: SingleChildScrollView(
+                    child: SilkySingleChildScrollView(
                       key: kSettingsContentScrollKey,
+                      physics: mixarScrollPhysics(context),
                       // Full-bleed width: the panel owns the header inset and
                       // lets its cards run to the pane edges.
                       padding: const EdgeInsets.symmetric(vertical: 24),

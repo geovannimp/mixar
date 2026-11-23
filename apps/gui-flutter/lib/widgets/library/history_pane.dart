@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
@@ -15,6 +16,7 @@ import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Sidebar list of performance history sessions.
 class HistoryPane extends ConsumerStatefulWidget {
@@ -91,7 +93,8 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                 data: (value) => value ? _resumableSessionId(rows) : null,
                 orElse: () => null,
               );
-              return ListView.builder(
+              return SilkyListView.builder(
+                physics: mixarScrollPhysics(context),
                 itemCount: rows.length,
                 itemBuilder: (context, index) {
                   final row = rows[index];

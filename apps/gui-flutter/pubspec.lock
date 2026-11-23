@@ -1026,6 +1026,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
+  silky_scroll:
+    dependency: "direct main"
+    description:
+      name: silky_scroll
+      sha256: "8595e55b763981dc6748f26d88596ed31c2169cd47bf04af39ee4ba9ab8544f6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.6.4"
   skeletonizer:
     dependency: "direct main"
     description:

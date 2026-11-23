@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -21,6 +22,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_label.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_segments.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Opacity applied to rows already committed in the open history session.
 const kSessionPlayedRowOpacity = 0.3;
@@ -401,7 +403,11 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// The list itself: a plain fixed-extent list, or the reorderable variant
   /// when the caller owns a manual order. Both paths share one row builder so
   /// selection, drag-to-deck and menu behaviour cannot drift between them.
-  Widget _buildList(List<T> items, LibraryRowDensity density) {
+  Widget _buildList(
+    BuildContext context,
+    List<T> items,
+    LibraryRowDensity density,
+  ) {
     Widget buildRow(BuildContext context, int index) {
       final item = items[index];
       return TrackListRow(
@@ -432,30 +438,39 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
 
     final onReorder = widget.onReorder;
-    if (onReorder == null) {
-      return ListView.builder(
-        controller: _scroll,
-        itemExtent: density.height,
-        padding: EdgeInsets.zero,
-        itemCount: items.length,
-        itemBuilder: buildRow,
-      );
-    }
-    // The widgets-layer list, not Material's `ReorderableListView`: the app's
-    // Material bridge is material_ui, and the Flutter list insists on
-    // Flutter's own `MaterialLocalizations`. This one owns the scrollable
-    // itself, so the existing controller and fixed item extent still apply.
-    return ReorderableList(
+    return SilkyScroll(
       controller: _scroll,
-      itemExtent: density.height,
-      padding: EdgeInsets.zero,
-      // Rows already paint their own card fill; a raised proxy would draw a
-      // second surface over it.
-      proxyDecorator: (child, index, animation) => child,
-      onReorderItem: (oldIndex, newIndex) =>
-          unawaited(onReorder(oldIndex, newIndex)),
-      itemCount: items.length,
-      itemBuilder: buildRow,
+      physics: mixarScrollPhysics(context),
+      builder: (context, controller, physics, _) {
+        if (onReorder == null) {
+          return ListView.builder(
+            controller: controller,
+            physics: physics,
+            itemExtent: density.height,
+            padding: EdgeInsets.zero,
+            itemCount: items.length,
+            itemBuilder: buildRow,
+          );
+        }
+        // The widgets-layer list, not Material's `ReorderableListView`: the
+        // app's Material bridge is material_ui, and the Flutter list insists
+        // on Flutter's own `MaterialLocalizations`. This one owns the
+        // scrollable itself, so the existing controller and fixed item extent
+        // still apply.
+        return ReorderableList(
+          controller: controller,
+          physics: physics,
+          itemExtent: density.height,
+          padding: EdgeInsets.zero,
+          // Rows already paint their own card fill; a raised proxy would draw
+          // a second surface over it.
+          proxyDecorator: (child, index, animation) => child,
+          onReorderItem: (oldIndex, newIndex) =>
+              unawaited(onReorder(oldIndex, newIndex)),
+          itemCount: items.length,
+          itemBuilder: buildRow,
+        );
+      },
     );
   }
 
@@ -551,7 +566,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
                   // arrow keys.
                   child: NotificationListener<ScrollMetricsNotification>(
                     onNotification: _onScrollMetricsNotification,
-                    child: _buildList(items, density),
+                    child: _buildList(context, items, density),
                   ),
                 ),
               ),

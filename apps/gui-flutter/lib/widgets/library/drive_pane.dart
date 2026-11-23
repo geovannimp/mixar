@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
@@ -10,6 +11,7 @@ import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
 class DrivePane extends ConsumerStatefulWidget {
@@ -128,7 +130,8 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                       dir.parent,
                       selectedVolume,
                     );
-                    return ListView(
+                    return SilkyListView(
+                      physics: mixarScrollPhysics(context),
                       children: [
                         LibraryNavRow(
                           title: currentName,
@@ -277,7 +280,8 @@ class _VolumeDropdown extends StatelessWidget {
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 220),
-            child: ListView(
+            child: SilkyListView(
+              physics: mixarScrollPhysics(context),
               shrinkWrap: true,
               children: [
                 for (final v in volumes)
@@ -334,7 +338,8 @@ class _VolumeList extends StatelessWidget {
         ),
       );
     }
-    return ListView(
+    return SilkyListView(
+      physics: mixarScrollPhysics(context),
       children: [
         for (final v in volumes)
           LibraryNavRow(

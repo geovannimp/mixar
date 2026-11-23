@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -16,6 +17,7 @@ import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
 class CollectionsPane extends ConsumerStatefulWidget {
@@ -172,7 +174,8 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                   ),
                 );
               }
-              return ListView(
+              return SilkyListView(
+                physics: mixarScrollPhysics(context),
                 children: [
                   for (final c in items)
                     if (c.kind == _playlistKind)

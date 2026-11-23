@@ -28,6 +28,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/border_helpers.dart';
@@ -2159,6 +2160,14 @@ void main() {
     );
     expect(sorted.map((t) => t.id), ['a', 'b']);
     expect(tracks.map((t) => t.id), ['b', 'a']);
+  });
+
+  testWidgets('the track list runs through the silky scroll layer', (
+    tester,
+  ) async {
+    await pumpList(tester, tracks: const [track, trackB]);
+
+    expect(find.byType(SilkyScroll), findsOneWidget);
   });
 
   testWidgets('the list surface is flush and borderless', (tester) async {

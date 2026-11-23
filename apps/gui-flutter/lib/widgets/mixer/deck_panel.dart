@@ -6,6 +6,7 @@ import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/deck_cue_hold_session.dart';
 import 'package:gui_flutter/core/utils/mixer_live_color.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -23,6 +24,7 @@ import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Height of the transport buttons when they sit in their own row.
 const _kTransportButtonHeight = 36.0;
@@ -112,7 +114,8 @@ class DeckPanel extends ConsumerWidget {
       spacing: 8,
       children: [
         LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
+          builder: (context, constraints) => SilkySingleChildScrollView(
+            physics: mixarScrollPhysics(context),
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
