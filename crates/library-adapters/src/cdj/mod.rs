@@ -482,5 +482,5 @@ fn export_error(path: &Path, err: std::io::Error) -> LibraryError {
 
 /// Today's date in the `YYYY-MM-DD` form the device database stores.
 fn today() -> String {
-    chrono::Local::now().format("%Y-%m-%d").to_string()
+    jiff::ZonedDateTime::now().strftime("%Y-%m-%d").to_string()
 }

@@ -13,7 +13,7 @@ sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "rusqlite",
     "macros",
 ] }
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+jiff = { version = "1.0", default-features = false, features = ["std"] }
 tracing.workspace = true
 
 [dev-dependencies]

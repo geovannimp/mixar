@@ -70,7 +70,9 @@ pub fn write_grid(
     bpm_source: &str,
 ) -> Result<(), MigrationError> {
     grid.validate().map_err(|e| err(version, e))?;
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = jiff::Timestamp::now()
+        .display_with_offset(jiff::tz::Offset::UTC)
+        .to_string();
 
     delete_segments(conn, version, track_id)?;
 

@@ -21,7 +21,7 @@ sea-orm-sync = { version = "2.0.4", default-features = false, features = [
     "macros",
 ] }
 library-db = { path = "../library-db" }
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+jiff = { version = "1.0", default-features = false, features = ["std"] }
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core" }

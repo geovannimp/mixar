@@ -368,7 +368,9 @@ mod time {
     /// RFC 3339 UTC timestamp, e.g. `2026-10-06T00:00:00Z` (matches
     /// `AnalysisRunMetadata::analyzed_at` and `library`'s history timestamps).
     pub fn now_rfc3339() -> String {
-        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+        jiff::Timestamp::now()
+            .strftime("%Y-%m-%dT%H:%M:%SZ")
+            .to_string()
     }
 }
 

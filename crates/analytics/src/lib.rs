@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::config::{APP_LAUNCHED_EVENT, APP_VERSION};
-use chrono::{SecondsFormat, Utc};
+use jiff::Timestamp;
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
@@ -140,7 +140,7 @@ fn build_mode() -> &'static str {
 
 /// RFC 3339 timestamp with second precision, which is what PostHog expects.
 fn now() -> String {
-    Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
+    Timestamp::now().strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 /// The properties every Mixar event carries: build identity and nothing else.
@@ -382,6 +382,14 @@ mod tests {
             distinct_id: "client-id".into(),
             recent_errors: Vec::new(),
         }
+    }
+
+    #[test]
+    fn now_is_second_precision_rfc3339_utc() {
+        let stamp = now();
+        assert_eq!(stamp.len(), 20, "{stamp}");
+        assert!(stamp.ends_with('Z'), "{stamp}");
+        assert!(stamp.parse::<jiff::Timestamp>().is_ok(), "{stamp}");
     }
 
     #[test]

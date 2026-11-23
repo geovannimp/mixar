@@ -9,7 +9,7 @@ description = "Third-party library adapters for Mixar (Mixxx, Rekordbox, Serato,
 [dependencies]
 library-core = { path = "../library-core" }
 rusqlite = { workspace = true, optional = true }
-chrono = { version = "0.4", optional = true }
+jiff = { version = "1.0", default-features = false, features = ["std", "tz-system"], optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { version = "1.0", optional = true }
 
@@ -18,7 +18,7 @@ default = ["mixxx", "cdj", "rekordbox"]
 # Third-party format adapters.
 mixxx = ["dep:rusqlite"]
 # Pioneer CDJ/XDJ USB export (DeviceSQL database + ANLZ analysis files).
-cdj = ["dep:chrono", "dep:serde", "dep:serde_json"]
+cdj = ["dep:jiff", "dep:serde", "dep:serde_json"]
 # Rekordbox 6/7 desktop library (`master.db`, read-only SQLCipher).
 rekordbox = ["dep:rusqlite"]
 # Future: serato = [], traktor = [], virtualdj = [], engine = []
