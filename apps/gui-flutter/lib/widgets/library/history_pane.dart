@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
+import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
@@ -15,6 +17,7 @@ import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Sidebar list of performance history sessions.
 class HistoryPane extends ConsumerStatefulWidget {
@@ -26,6 +29,9 @@ class HistoryPane extends ConsumerStatefulWidget {
 
 class _HistoryPaneState extends ConsumerState<HistoryPane> {
   var _creating = false;
+
+  /// Lets a thumb or row press stop an in-flight wheel glide.
+  final _listScrollKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -91,59 +97,67 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                 data: (value) => value ? _resumableSessionId(rows) : null,
                 orElse: () => null,
               );
-              return ListView.builder(
-                itemCount: rows.length,
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  return LibraryNavRow(
-                    title: row.title,
-                    subtitle:
-                        '${formatHistoryTimestamp(row.startedAt)} · ${row.entryCount} plays',
-                    selected: row.id == selectedId,
-                    focused: sidebarFocused && row.id == selectedId,
-                    onPress: () {
-                      ref
-                          .read(selectedHistorySessionIdProvider.notifier)
-                          .set(row.id);
-                      // Focus follows the pointer, the way a row press in the
-                      // track list does. On a narrow surface the press is a
-                      // page change, so focus goes to the track list page
-                      // instead of parking on the sidebar.
-                      if (LibraryLayoutScope.maybeOf(context)?.narrow ??
-                          false) {
+              return SilkyGlideHandoff(
+                scrollKey: _listScrollKey,
+                child: SilkyListView.builder(
+                  key: _listScrollKey,
+                  physics: mixarScrollPhysics(context),
+                  decayLogFactor: kMixarSilkyDecayLogFactor,
+                  blockWebOverscrollBehaviorX:
+                      kMixarSilkyBlockWebOverscrollBehaviorX,
+                  itemCount: rows.length,
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    return LibraryNavRow(
+                      title: row.title,
+                      subtitle:
+                          '${formatHistoryTimestamp(row.startedAt)} · ${row.entryCount} plays',
+                      selected: row.id == selectedId,
+                      focused: sidebarFocused && row.id == selectedId,
+                      onPress: () {
                         ref
-                            .read(libraryFocusZoneProvider.notifier)
-                            .set(LibraryFocusZone.trackList);
-                        ref
-                            .read(libraryNarrowPageProvider.notifier)
-                            .set(LibraryNarrowPage.content);
-                      } else {
-                        ref
-                            .read(libraryFocusZoneProvider.notifier)
-                            .set(LibraryFocusZone.sidebar);
-                      }
-                    },
-                    trailing: row.id == resumeSessionId
-                        ? MTappable.child(
-                            semanticsLabel: 'Resume ${row.title}',
-                            onPress: () => unawaited(_resumeSession()),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                LucideIcons.iterationCw,
-                                size: 14,
-                                color: colors.mutedForeground,
+                            .read(selectedHistorySessionIdProvider.notifier)
+                            .set(row.id);
+                        // Focus follows the pointer, the way a row press in the
+                        // track list does. On a narrow surface the press is a
+                        // page change, so focus goes to the track list page
+                        // instead of parking on the sidebar.
+                        if (LibraryLayoutScope.maybeOf(context)?.narrow ??
+                            false) {
+                          ref
+                              .read(libraryFocusZoneProvider.notifier)
+                              .set(LibraryFocusZone.trackList);
+                          ref
+                              .read(libraryNarrowPageProvider.notifier)
+                              .set(LibraryNarrowPage.content);
+                        } else {
+                          ref
+                              .read(libraryFocusZoneProvider.notifier)
+                              .set(LibraryFocusZone.sidebar);
+                        }
+                      },
+                      trailing: row.id == resumeSessionId
+                          ? MTappable.child(
+                              semanticsLabel: 'Resume ${row.title}',
+                              onPress: () => unawaited(_resumeSession()),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  LucideIcons.iterationCw,
+                                  size: 14,
+                                  color: colors.mutedForeground,
+                                ),
                               ),
+                            )
+                          : row.closed
+                          ? null
+                          : Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: _LiveBadge(theme: theme),
                             ),
-                          )
-                        : row.closed
-                        ? null
-                        : Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: _LiveBadge(theme: theme),
-                          ),
-                  );
-                },
+                    );
+                  },
+                ),
               );
             },
           ),

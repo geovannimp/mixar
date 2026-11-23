@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
+import 'package:gui_flutter/core/utils/scroll_physics.dart';
+import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
@@ -10,6 +12,7 @@ import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:silky_scroll/silky_scroll.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
 class DrivePane extends ConsumerStatefulWidget {
@@ -21,6 +24,10 @@ class DrivePane extends ConsumerStatefulWidget {
 
 class _DrivePaneState extends ConsumerState<DrivePane> {
   var _pickerOpen = false;
+
+  /// Let a thumb or row press stop an in-flight wheel glide.
+  final _folderScrollKey = GlobalKey();
+  final _volumeScrollKey = GlobalKey();
 
   void _openPath(String path) {
     setState(() => _pickerOpen = false);
@@ -103,6 +110,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                     focusedPath: focusedPath,
                     emptyColor: colors.mutedForeground,
                     style: theme.typography.body.sm,
+                    scrollKey: _volumeScrollKey,
                   ),
                 )
               else
@@ -128,7 +136,9 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                       dir.parent,
                       selectedVolume,
                     );
-                    return ListView(
+                    return _GlideList(
+                      key: const ValueKey('drive-folder-list'),
+                      scrollKey: _folderScrollKey,
                       children: [
                         LibraryNavRow(
                           title: currentName,
@@ -313,6 +323,7 @@ class _VolumeList extends StatelessWidget {
     required this.focusedPath,
     required this.emptyColor,
     required this.style,
+    required this.scrollKey,
   });
 
   final List<FsVolumeInfo> volumes;
@@ -322,6 +333,9 @@ class _VolumeList extends StatelessWidget {
   final String? focusedPath;
   final Color emptyColor;
   final TextStyle style;
+
+  /// Lets a thumb or row press stop an in-flight wheel glide.
+  final GlobalKey scrollKey;
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +348,9 @@ class _VolumeList extends StatelessWidget {
         ),
       );
     }
-    return ListView(
+    return _GlideList(
+      key: const ValueKey('drive-volume-list'),
+      scrollKey: scrollKey,
       children: [
         for (final v in volumes)
           LibraryNavRow(
@@ -345,6 +361,28 @@ class _VolumeList extends StatelessWidget {
             onPress: () => onSelect(v.path),
           ),
       ],
+    );
+  }
+}
+
+/// The drive pane's two Silky lists share one glide configuration.
+class _GlideList extends StatelessWidget {
+  const new({required this.scrollKey, required this.children, super.key});
+
+  final GlobalKey scrollKey;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return SilkyGlideHandoff(
+      scrollKey: scrollKey,
+      child: SilkyListView(
+        key: scrollKey,
+        physics: mixarScrollPhysics(context),
+        decayLogFactor: kMixarSilkyDecayLogFactor,
+        blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
+        children: children,
+      ),
     );
   }
 }

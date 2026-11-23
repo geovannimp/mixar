@@ -408,30 +408,25 @@ class DeckPadsPanel extends StatelessWidget {
             if (samplerBanks.isEmpty)
               const MixarMenuItem(title: Text('No banks'), enabled: false)
             else
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                child: SingleChildScrollView(
-                  child: MixarMenuGroup(
-                    children: [
-                      for (final bank in samplerBanks)
-                        MixarMenuItem(
-                          title: Row(
-                            children: [
-                              Expanded(child: Text(bank.name)),
-                              ?_selectionCheck(
-                                theme,
-                                selected: bank.id == active?.id,
-                              ),
-                            ],
+              MixarMenuGroup(
+                children: [
+                  for (final bank in samplerBanks)
+                    MixarMenuItem(
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(bank.name)),
+                          ?_selectionCheck(
+                            theme,
+                            selected: bank.id == active?.id,
                           ),
-                          onPress: () {
-                            controller.hide();
-                            onSelectBank(bank.id);
-                          },
-                        ),
-                    ],
-                  ),
-                ),
+                        ],
+                      ),
+                      onPress: () {
+                        controller.hide();
+                        onSelectBank(bank.id);
+                      },
+                    ),
+                ],
               ),
           ],
         ),
