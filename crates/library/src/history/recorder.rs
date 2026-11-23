@@ -679,9 +679,25 @@ fn minutes_since(iso: &str) -> f64 {
 }
 
 fn parse_rfc3339_ms(iso: &str) -> i64 {
-    iso.parse::<jiff::Timestamp>()
-        .map(|ts| ts.as_nanosecond().div_euclid(1_000_000) as i64)
-        .unwrap_or(0)
+    // chrono's RFC 3339 parser rejects the RFC 9557 `[TimeZone]` annotation,
+    // which jiff's parser accepts.
+    if iso.contains('[') || iso.contains(']') {
+        return 0;
+    }
+    let leap_second = iso.as_bytes().get(17..19) == Some(b"60");
+    match iso.parse::<jiff::Timestamp>() {
+        Ok(ts) => {
+            let millis = ts.as_nanosecond().div_euclid(1_000_000) as i64;
+            // jiff clamps `:60` to `:59`; chrono counts the leap second as the
+            // following instant.
+            if leap_second {
+                millis + 1_000
+            } else {
+                millis
+            }
+        }
+        Err(_) => 0,
+    }
 }
 
 fn history_err(msg: &str) -> library_core::LibraryError {
@@ -717,6 +733,17 @@ mod tests {
         // Pre-epoch instants floor (chrono's `timestamp_millis`), so a
         // sub-millisecond value does not truncate toward zero.
         assert_eq!(parse_rfc3339_ms("1969-12-31T23:59:59.999999999Z"), -1);
+        // chrono counts a leap second as the following instant; jiff clamps
+        // `:60` to `:59`, so the parser adds the second back.
+        assert_eq!(
+            parse_rfc3339_ms("2016-12-31T23:59:60Z"),
+            parse_rfc3339_ms("2017-01-01T00:00:00Z")
+        );
+        // chrono rejects RFC 9557 annotations; jiff would accept them.
+        assert_eq!(
+            parse_rfc3339_ms("2026-11-23T17:26:04Z[America/New_York]"),
+            0
+        );
         assert_eq!(parse_rfc3339_ms("not a timestamp"), 0);
     }
 

@@ -411,6 +411,52 @@ fn utc_rfc3339(ts: jiff::Timestamp) -> String {
     }
 }
 
+/// Unix seconds as RFC 3339 in UTC. jiff covers years 0..=9999; values outside
+/// its range use the same proleptic-Gregorian conversion chrono used,
+/// including its signed/expanded year formatting.
+fn epoch_rfc3339(secs: i64) -> Option<String> {
+    let (year, month, day, hour, minute, second) = civil_from_unix(secs);
+    (-262_144..=262_143).contains(&year).then(|| {
+        format!(
+            "{}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}+00:00",
+            chrono_year(year)
+        )
+    })
+}
+
+fn chrono_year(year: i64) -> String {
+    if year < 0 {
+        format!("-{:04}", -year)
+    } else if year > 9_999 {
+        format!("+{year}")
+    } else {
+        format!("{year:04}")
+    }
+}
+
+/// Howard Hinnant's `civil_from_days`, extended with the time of day.
+fn civil_from_unix(secs: i64) -> (i64, u32, u32, u32, u32, u32) {
+    let days = secs.div_euclid(86_400);
+    let sod = secs.rem_euclid(86_400);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    (
+        year,
+        month as u32,
+        day as u32,
+        (sod / 3_600) as u32,
+        ((sod % 3_600) / 60) as u32,
+        (sod % 60) as u32,
+    )
+}
+
 /// `applied_at` is text in ledgers this crate writes, but a ledger created by
 /// SeaORM's migrator holds an integer epoch; both decode, and status reports
 /// whichever is stored.
@@ -419,9 +465,8 @@ fn applied_at_text(row: &sea_orm::QueryResult) -> Result<String, sea_orm::DbErr>
         return Ok(text);
     }
     let epoch = row.try_get::<i64>("", APPLIED_AT_COLUMN)?;
-    jiff::Timestamp::from_second(epoch)
-        .map(utc_rfc3339)
-        .map_err(|_| sea_orm::DbErr::Custom(format!("applied_at epoch {epoch} is out of range")))
+    epoch_rfc3339(epoch)
+        .ok_or_else(|| sea_orm::DbErr::Custom(format!("applied_at epoch {epoch} is out of range")))
 }
 
 fn validate_ledger(table: &str) -> Result<(), Error> {
