@@ -15,6 +15,9 @@ Future<void> _pumpBorder(WidgetTester tester) async {
   );
 }
 
+DragToResizeArea _resizeArea(WidgetTester tester) =>
+    tester.widget<DragToResizeArea>(find.byType(DragToResizeArea));
+
 Future<void> _asHost({
   required bool desktop,
   required Future<void> Function() body,
@@ -60,9 +63,7 @@ void main() {
       maximized: false,
       body: () async {
         await _pumpBorder(tester);
-        final area = tester.widget<DragToResizeArea>(
-          find.byType(DragToResizeArea),
-        );
+        final area = _resizeArea(tester);
         expect(area.resizeEdgeSize, 8);
         expect(area.enableResizeEdges, isNull, reason: 'all edges enabled');
         expect(find.byWidget(_child), findsOneWidget);
@@ -76,9 +77,7 @@ void main() {
       maximized: true,
       body: () async {
         await _pumpBorder(tester);
-        final area = tester.widget<DragToResizeArea>(
-          find.byType(DragToResizeArea),
-        );
+        final area = _resizeArea(tester);
         expect(area.enableResizeEdges, isEmpty);
       },
     );
