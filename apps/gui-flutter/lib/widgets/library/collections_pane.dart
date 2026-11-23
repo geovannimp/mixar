@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
+import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -29,6 +30,9 @@ class CollectionsPane extends ConsumerStatefulWidget {
 
 class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
   var _adding = false;
+
+  /// Lets a thumb or row press stop an in-flight wheel glide.
+  final _listScrollKey = GlobalKey();
 
   Future<void> _addCollection() async {
     final result = await showCreateCollectionDialog(context);
@@ -174,35 +178,39 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                   ),
                 );
               }
-              return SilkyListView(
-                physics: mixarScrollPhysics(context),
-                decayLogFactor: kMixarSilkyDecayLogFactor,
-                blockWebOverscrollBehaviorX:
-                    kMixarSilkyBlockWebOverscrollBehaviorX,
-                children: [
-                  for (final c in items)
-                    if (c.kind == _playlistKind)
-                      DragTarget<TrackDragPayload>(
-                        onWillAcceptWithDetails: (details) =>
-                            trackLoadKind(details.data) ==
-                            TrackLoadKind.library,
-                        onAcceptWithDetails: (details) =>
-                            unawaited(_dropOnPlaylist(c, details.data)),
-                        builder: (_, candidate, _) => _row(
+              return SilkyGlideHandoff(
+                scrollKey: _listScrollKey,
+                child: SilkyListView(
+                  key: _listScrollKey,
+                  physics: mixarScrollPhysics(context),
+                  decayLogFactor: kMixarSilkyDecayLogFactor,
+                  blockWebOverscrollBehaviorX:
+                      kMixarSilkyBlockWebOverscrollBehaviorX,
+                  children: [
+                    for (final c in items)
+                      if (c.kind == _playlistKind)
+                        DragTarget<TrackDragPayload>(
+                          onWillAcceptWithDetails: (details) =>
+                              trackLoadKind(details.data) ==
+                              TrackLoadKind.library,
+                          onAcceptWithDetails: (details) =>
+                              unawaited(_dropOnPlaylist(c, details.data)),
+                          builder: (_, candidate, _) => _row(
+                            c,
+                            selectedId: selectedId,
+                            sidebarFocused: sidebarFocused,
+                            dropActive: candidate.isNotEmpty,
+                          ),
+                        )
+                      else
+                        _row(
                           c,
                           selectedId: selectedId,
                           sidebarFocused: sidebarFocused,
-                          dropActive: candidate.isNotEmpty,
+                          dropActive: false,
                         ),
-                      )
-                    else
-                      _row(
-                        c,
-                        selectedId: selectedId,
-                        sidebarFocused: sidebarFocused,
-                        dropActive: false,
-                      ),
-                ],
+                  ],
+                ),
               );
             },
           ),

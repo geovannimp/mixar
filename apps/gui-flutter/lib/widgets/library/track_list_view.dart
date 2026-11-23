@@ -445,9 +445,8 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
 
     final onReorder = widget.onReorder;
-    return Listener(
-      // A press (row drag, scrollbar thumb, deck drop) must win over a glide.
-      onPointerDown: (_) => cancelSilkyGlide(_silkyKey),
+    return SilkyGlideHandoff(
+      scrollKey: _silkyKey,
       child: SilkyScroll(
         key: _silkyKey,
         controller: _scroll,

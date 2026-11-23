@@ -19,6 +19,34 @@ void cancelSilkyGlide(GlobalKey key) {
   _cancelSilkyState(state);
 }
 
+/// Cancels an in-flight `SilkyScroll` glide when the user takes over.
+///
+/// A press stops the ticker before a row drag, scrollbar-thumb grab, or deck
+/// drop begins. A scroll drag notification covers the cases where the thumb
+/// starts its own drag without a pointer-down reaching this subtree.
+class SilkyGlideHandoff extends StatelessWidget {
+  const new({required this.scrollKey, required this.child, super.key});
+
+  final GlobalKey scrollKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollStartNotification>(
+      onNotification: (notification) {
+        if (notification.dragDetails != null) {
+          cancelSilkyGlide(scrollKey);
+        }
+        return false;
+      },
+      child: Listener(
+        onPointerDown: (_) => cancelSilkyGlide(scrollKey),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// Stops the nearest ancestor `SilkyScroll`'s wheel glide.
 ///
 /// Use this before a driven scroll (for example `Scrollable.ensureVisible`)
@@ -44,8 +72,9 @@ void _cancelSilkyState(State? state) {
     // ignore: avoid_dynamic_calls
     silkyState.cancelSilkyScroll();
     // The client controller is exposed on that same internal state.
-    // ignore: avoid_dynamic_calls
     final ScrollController? controller =
+        // The client controller is only reachable dynamically.
+        // ignore: avoid_dynamic_calls
         silkyState.clientController as ScrollController?;
     if (controller != null && controller.hasClients) {
       final position = controller.position;

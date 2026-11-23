@@ -43,8 +43,8 @@ class _PadGridState extends State<PadGrid> {
   @override
   Widget build(BuildContext context) {
     // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
-    return Listener(
-      onPointerDown: (_) => cancelSilkyGlide(_silkyKey),
+    return SilkyGlideHandoff(
+      scrollKey: _silkyKey,
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context)
             .copyWith(dragDevices: const {}),
