@@ -54,7 +54,7 @@ void main() {
     expect(controller.offset, closeTo(beforeCancel, 0.01));
   });
 
-  testWidgets('cancelling an overscrolled bounce returns to bounds', (
+  testWidgets('a press hands a wheel glide off to the scrollable', (
     tester,
   ) async {
     final controller = ScrollController();
@@ -67,15 +67,18 @@ void main() {
           body: SizedBox(
             width: 300,
             height: 200,
-            child: SilkySingleChildScrollView(
-              key: scrollKey,
-              controller: controller,
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  for (var i = 0; i < 50; i++)
-                    SizedBox(height: 40, child: Text('row $i')),
-                ],
+            child: SilkyGlideHandoff(
+              scrollKey: scrollKey,
+              child: SilkySingleChildScrollView(
+                key: scrollKey,
+                controller: controller,
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < 50; i++)
+                      SizedBox(height: 40, child: Text('row $i')),
+                  ],
+                ),
               ),
             ),
           ),
@@ -87,18 +90,22 @@ void main() {
     await tester.sendEventToBinding(
       PointerScrollEvent(
         position: tester.getCenter(find.byType(SilkySingleChildScrollView)),
-        scrollDelta: const Offset(0, 100000),
+        scrollDelta: const Offset(0, 300),
       ),
     );
-    final position = controller.position;
-    for (var i = 0; i < 60 && !position.outOfRange; i++) {
+    await tester.pump();
+    expect(controller.offset, greaterThan(0));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SilkySingleChildScrollView)),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    final pressed = controller.offset;
+    for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(position.outOfRange, isTrue);
 
-    cancelSilkyGlide(scrollKey);
-    await tester.pumpAndSettle();
-
-    expect(position.outOfRange, isFalse);
+    expect(controller.offset, closeTo(pressed, 0.01));
+    await gesture.up();
   });
 }
