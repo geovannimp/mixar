@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// How long the leading back button takes to leave.
@@ -111,6 +112,8 @@ class _AppBackButtonState extends State<AppBackButton>
         variant: .ghost,
         size: .sm,
         mainAxisSize: .min,
+        // Titlebar chrome stays square; the pill is for page-level buttons.
+        borderRadius: context.theme.style.borderRadius.md,
         semanticsLabel: 'Back to Booth',
         onPress: _leaving ? null : widget.onPress,
         child: const Row(

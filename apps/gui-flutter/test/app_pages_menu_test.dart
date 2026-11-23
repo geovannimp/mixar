@@ -189,6 +189,15 @@ void main() {
     );
   });
 
+  testWidgets('the header title control keeps the flat titlebar radius', (
+    tester,
+  ) async {
+    await pumpHeader(tester);
+
+    final button = tester.widget<AppButton>(pagesButton());
+    expect(button.borderRadius, MixarThemeData.dark().style.borderRadius.md);
+  });
+
   testWidgets('the hamburger is gone and the title control is the menu', (
     tester,
   ) async {

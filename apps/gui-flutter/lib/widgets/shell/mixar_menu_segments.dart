@@ -34,7 +34,7 @@ class MixarMenuSegment {
   final Color? color;
 }
 
-/// A segmented group of menu cells: one bordered square track split by
+/// A segmented group of menu cells: one bordered pill track split by
 /// hairlines, matching the shuffle/repeat button groups. Full width, so
 /// segments stay vertically aligned with the text actions around them.
 class MixarMenuSegments extends StatelessWidget {
@@ -54,7 +54,7 @@ class MixarMenuSegments extends StatelessWidget {
     }
     final theme = context.theme;
     final dialogChrome = MixarMenuDialogChrome.isActive(context);
-    final radius = theme.style.borderRadius.sm;
+    final radius = theme.style.borderRadius.pill;
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: dialogChrome ? 24 : _inset,

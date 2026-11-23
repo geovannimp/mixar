@@ -65,6 +65,23 @@ void main() {
     );
   });
 
+  testWidgets('it keeps the flat titlebar radius', (tester) async {
+    await pumpSlot(tester, visible: true);
+
+    final surface =
+        tester
+                .widgetList<DecoratedBox>(
+                  find.descendant(
+                    of: find.byType(AppButton),
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .last
+                .decoration
+            as BoxDecoration;
+    expect(surface.borderRadius, MixarThemeData.dark().style.borderRadius.md);
+  });
+
   testWidgets('it slides left and fades out when the page changes', (
     tester,
   ) async {

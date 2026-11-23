@@ -402,28 +402,26 @@ class _DeckPlayButton extends ConsumerWidget {
           final fill = playing ? theme.colors.accentTint : theme.colors.card;
           return Opacity(
             opacity: state.disabled ? 0.5 : 1,
-            child: LayoutBuilder(
-              builder: (context, constraints) => DecoratedBox(
-                decoration: BoxDecoration(
-                  color: fill,
-                  border: Border.all(
-                    color: borderColor,
-                    width: theme.style.borderWidth,
-                  ),
-                  borderRadius: deckTransportRadius(theme, constraints),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: fill,
+                border: Border.all(
+                  color: borderColor,
+                  width: theme.style.borderWidth,
                 ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 36),
-                  child: Center(
-                    // Optical nudge for the play triangle
-                    // (site translate-x-px).
-                    child: Transform.translate(
-                      offset: playing ? Offset.zero : const Offset(1, 0),
-                      child: Icon(
-                        playing ? LucideIcons.pause : LucideIcons.play,
-                        size: 18,
-                        color: fg,
-                      ),
+                borderRadius: deckTransportRadius(theme),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 36),
+                child: Center(
+                  // Optical nudge for the play triangle
+                  // (site translate-x-px).
+                  child: Transform.translate(
+                    offset: playing ? Offset.zero : const Offset(1, 0),
+                    child: Icon(
+                      playing ? LucideIcons.pause : LucideIcons.play,
+                      size: 18,
+                      color: fg,
                     ),
                   ),
                 ),

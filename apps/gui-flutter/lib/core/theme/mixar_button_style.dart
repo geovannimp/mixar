@@ -70,12 +70,9 @@ MixarButtonLook resolveMixarButtonLook({
   final colors = theme.colors;
   final style = theme.style;
   final light = colors.brightness == Brightness.light;
-  final radius =
-      borderRadius ??
-      switch (size) {
-        MixarButtonSize.xs => style.borderRadius.sm,
-        MixarButtonSize.sm || MixarButtonSize.md => style.borderRadius.md,
-      };
+  // Every labelled button wears the full pill; `size` only changes its
+  // height. Icon buttons paint a circle instead and ignore this.
+  final radius = borderRadius ?? style.borderRadius.pill;
 
   final (
     Color fill,
@@ -163,8 +160,8 @@ MixarButtonLook resolveMixarButtonLook({
       border: border == null
           ? null
           : Border.all(color: border, width: style.borderWidth),
-      // Single-icon buttons paint a circle; labeled buttons keep the theme
-      // corner radius.
+      // Single-icon buttons paint a circle; labeled buttons wear the pill
+      // radius.
       shape: icon ? BoxShape.circle : BoxShape.rectangle,
       borderRadius: icon ? null : radius,
     ),

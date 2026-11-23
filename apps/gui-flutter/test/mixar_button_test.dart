@@ -216,7 +216,7 @@ void main() {
     expect(presses, 2);
   });
 
-  testWidgets('MixerButton.icon is circular, labeled MixerButton is not', (
+  testWidgets('MixerButton.icon is circular, labeled MixerButton is a pill', (
     tester,
   ) async {
     final theme = MixarThemeData.dark();
@@ -248,7 +248,7 @@ void main() {
     );
     final labeledSurface = surfaceDecorations(tester, labeled).last;
     expect(labeledSurface.shape, BoxShape.rectangle);
-    expect(labeledSurface.borderRadius, theme.style.borderRadius.md);
+    expect(labeledSurface.borderRadius, theme.style.borderRadius.pill);
   });
 
   testWidgets('deck grid side cells are circular and still tap', (
@@ -293,7 +293,7 @@ void main() {
     );
     final nowSurface = surfaceDecorations(tester, now).last;
     expect(nowSurface.shape, BoxShape.rectangle);
-    expect(nowSurface.borderRadius, theme.style.borderRadius.sm);
+    expect(nowSurface.borderRadius, theme.style.borderRadius.pill);
 
     await tester.tap(mixerButton('Increase BPM'));
     await tester.pump();

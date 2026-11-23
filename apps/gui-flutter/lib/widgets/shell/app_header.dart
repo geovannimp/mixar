@@ -128,6 +128,8 @@ class AppHeader extends ConsumerWidget {
                             variant: .ghost,
                             size: .sm,
                             mainAxisSize: .min,
+                            // Titlebar chrome stays square.
+                            borderRadius: theme.style.borderRadius.md,
                             onPress: () => ref
                                 .read(libraryDrawerOpenProvider.notifier)
                                 .toggle(),
