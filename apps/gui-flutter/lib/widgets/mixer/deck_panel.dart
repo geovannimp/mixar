@@ -154,13 +154,15 @@ class DeckPanel extends ConsumerWidget {
               if (available >=
                       _kMinStackedPanelHeight + _kStackedTransportHeight ||
                   !compactFits) {
-                final buttonHeight = _kTransportButtonHeight.clamp(
-                  0.0,
-                  available,
-                );
                 final rowGap = available >= _kStackedTransportHeight
                     ? 8.0
                     : 0.0;
+                // The row never takes more than the deck's height: the pads
+                // get the non-negative remainder above it.
+                final buttonHeight = _kTransportButtonHeight.clamp(
+                  0.0,
+                  (available - rowGap).clamp(0.0, double.infinity),
+                );
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: rowGap,

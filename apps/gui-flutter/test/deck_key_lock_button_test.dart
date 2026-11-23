@@ -44,6 +44,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The chip's rendered surface, so a chrome-tree change is handled once.
+  BoxDecoration keyLockChrome(WidgetTester tester) {
+    final box = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byType(MixerButton),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    return box.decoration as BoxDecoration;
+  }
+
   testWidgets('shows lock when key lock on and lockOpen when off', (
     tester,
   ) async {
@@ -73,20 +86,8 @@ void main() {
   testWidgets('key lock renders the deck toggle chrome', (tester) async {
     final theme = MixarThemeData.dark();
 
-    BoxDecoration surface() {
-      final box = tester.widget<DecoratedBox>(
-        find
-            .descendant(
-              of: find.byType(MixerButton),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
-      );
-      return box.decoration as BoxDecoration;
-    }
-
     await pumpButton(tester, keyLock: true);
-    final locked = surface();
+    final locked = keyLockChrome(tester);
     expect(locked.color, theme.colors.primaryTint);
     expect(locked.borderRadius, theme.style.borderRadius.pill);
     expect(locked.border!.top.color, theme.colors.border);
@@ -97,7 +98,7 @@ void main() {
     );
 
     await pumpButton(tester, keyLock: false);
-    final unlocked = surface();
+    final unlocked = keyLockChrome(tester);
     expect(unlocked.color, theme.colors.card);
     expect(unlocked.borderRadius, theme.style.borderRadius.pill);
     expect(unlocked.border!.top.color, theme.colors.border);
@@ -111,15 +112,7 @@ void main() {
     final theme = MixarThemeData.dark();
     await pumpButton(tester, keyLock: true, enabled: false);
 
-    final box = tester.widget<DecoratedBox>(
-      find
-          .descendant(
-            of: find.byType(MixerButton),
-            matching: find.byType(DecoratedBox),
-          )
-          .first,
-    );
-    final chrome = box.decoration as BoxDecoration;
+    final chrome = keyLockChrome(tester);
     expect(chrome.color, theme.colors.disable(theme.colors.card));
     expect(
       tester.widget<Icon>(find.byIcon(LucideIcons.lock)).color,

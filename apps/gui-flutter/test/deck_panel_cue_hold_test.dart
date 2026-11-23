@@ -105,16 +105,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Presses the cue button past its hold threshold, leaving the pointer down.
+  Future<TestGesture> startCueHold(WidgetTester tester) async {
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(DeckCueButton)),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    return gesture;
+  }
+
   testWidgets(
     'an unmount during begin releases once and retries a failed end',
     (tester) async {
       final transport = _CueTransport();
       await pumpPanel(tester, engine: (_) => transport);
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(DeckCueButton)),
-      );
-      await tester.pump(const Duration(milliseconds: 200));
+      final gesture = await startCueHold(tester);
 
       // Unmount while the engine has not answered the hold yet.
       await tester.pumpWidget(const SizedBox());
@@ -144,10 +150,7 @@ void main() {
     container.read(_switchProvider.notifier).set(oldTransport);
     await tester.pumpAndSettle();
 
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(DeckCueButton)),
-    );
-    await tester.pump(const Duration(milliseconds: 200));
+    final gesture = await startCueHold(tester);
     expect(oldTransport.begins, 1);
 
     // A replacement transport lands while the hold is still down.

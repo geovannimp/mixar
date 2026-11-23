@@ -100,6 +100,24 @@ class DeckToggles extends ConsumerWidget {
   }
 }
 
+/// Label ink for the text toggles: the lit color only while the chip is on.
+Widget _chipLabel(
+  String label,
+  MixarThemeData theme, {
+  required bool on,
+  Color? onColor,
+}) {
+  return Text(
+    label,
+    style: TextStyle(
+      fontWeight: .w600,
+      color: on
+          ? (onColor ?? theme.colors.primary)
+          : theme.colors.mutedForeground,
+    ),
+  );
+}
+
 /// Shared chrome for the five deck toggles. Callers supply only the
 /// state-dependent look and press handler.
 Widget _deckHeaderChip({
@@ -188,13 +206,7 @@ class _QuantizeButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'Q',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
+        child: _chipLabel('Q', theme, on: on),
       ),
     );
   }
@@ -225,13 +237,7 @@ class _SlipButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         backgroundColor: on ? slipFill : null,
-        child: Text(
-          'S',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? slipOn : theme.colors.mutedForeground,
-          ),
-        ),
+        child: _chipLabel('S', theme, on: on, onColor: slipOn),
       ),
     );
   }
@@ -261,7 +267,7 @@ class _StemEqButton extends StatelessWidget {
     final on = stemEqOn && stemsAudible && !disabled;
     final tip = !stemsAudible
         ? 'Stem EQ unavailable'
-        : stemEqOn
+        : on
         ? 'Stem EQ on'
         : 'Stem EQ off';
     return AppTooltip(
@@ -277,13 +283,7 @@ class _StemEqButton extends StatelessWidget {
         onPress: disabled || !stemsAudible ? null : onPress,
         semanticsLabel: tip,
         backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'ST',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
+        child: _chipLabel('ST', theme, on: on),
       ),
     );
   }
@@ -314,13 +314,7 @@ class _FxButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         backgroundColor: on ? theme.colors.primaryTint : null,
-        child: Text(
-          'FX',
-          style: TextStyle(
-            fontWeight: .w600,
-            color: on ? theme.colors.primary : theme.colors.mutedForeground,
-          ),
-        ),
+        child: _chipLabel('FX', theme, on: on),
       ),
     );
   }
