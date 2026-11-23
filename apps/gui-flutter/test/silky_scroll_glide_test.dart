@@ -4,6 +4,32 @@ import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
+/// Drives a wheel glide through [target], cancels it, and asserts the ticker
+/// stopped. Shared so the cancellation contract stays in one place.
+Future<void> expectGlideCancelled(
+  WidgetTester tester, {
+  required Finder target,
+  required ScrollController controller,
+  required VoidCallback cancel,
+}) async {
+  await tester.sendEventToBinding(
+    PointerScrollEvent(
+      position: tester.getCenter(target),
+      scrollDelta: const Offset(0, 300),
+    ),
+  );
+  await tester.pump();
+  final beforeCancel = controller.offset;
+  expect(beforeCancel, greaterThan(0));
+
+  cancel();
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+
+  expect(controller.offset, closeTo(beforeCancel, 0.01));
+}
+
 void main() {
   testWidgets('cancelSilkyGlide stops a glide started through a preset', (
     tester,
@@ -35,23 +61,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.sendEventToBinding(
-      PointerScrollEvent(
-        position: tester.getCenter(find.byType(SilkySingleChildScrollView)),
-        scrollDelta: const Offset(0, 300),
-      ),
+    await expectGlideCancelled(
+      tester,
+      target: find.byType(SilkySingleChildScrollView),
+      controller: controller,
+      cancel: () => cancelSilkyGlide(scrollKey),
     );
-    await tester.pump();
-    final beforeCancel = controller.offset;
-    expect(beforeCancel, greaterThan(0));
-
-    cancelSilkyGlide(scrollKey);
-    // Sample several short frames so an uncancelled ticker keeps moving.
-    for (var i = 0; i < 20; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-
-    expect(controller.offset, closeTo(beforeCancel, 0.01));
   });
 
   testWidgets('a press hands a wheel glide off to the scrollable', (
@@ -141,22 +156,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.sendEventToBinding(
-      PointerScrollEvent(
-        position: tester.getCenter(find.byType(ListView)),
-        scrollDelta: const Offset(0, 300),
-      ),
+    await expectGlideCancelled(
+      tester,
+      target: find.byType(ListView),
+      controller: controller,
+      cancel: () => cancelSilkyGlide(silkyKey),
     );
-    await tester.pump();
-    final beforeCancel = controller.offset;
-    expect(beforeCancel, greaterThan(0));
-
-    cancelSilkyGlide(silkyKey);
-    for (var i = 0; i < 20; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-
-    expect(controller.offset, closeTo(beforeCancel, 0.01));
   });
 
   testWidgets('a click recovers an overscrolled handoff', (tester) async {

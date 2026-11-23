@@ -137,6 +137,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                       selectedVolume,
                     );
                     return _GlideList(
+                      key: const ValueKey('drive-folder-list'),
                       scrollKey: _folderScrollKey,
                       children: [
                         LibraryNavRow(
@@ -348,6 +349,7 @@ class _VolumeList extends StatelessWidget {
       );
     }
     return _GlideList(
+      key: const ValueKey('drive-volume-list'),
       scrollKey: scrollKey,
       children: [
         for (final v in volumes)
@@ -365,7 +367,7 @@ class _VolumeList extends StatelessWidget {
 
 /// The drive pane's two Silky lists share one glide configuration.
 class _GlideList extends StatelessWidget {
-  const new({required this.scrollKey, required this.children});
+  const new({required this.scrollKey, required this.children, super.key});
 
   final GlobalKey scrollKey;
   final List<Widget> children;
