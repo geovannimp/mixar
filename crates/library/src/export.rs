@@ -432,12 +432,11 @@ fn detail_buckets(audio: &audio_core::LoadedAudio) -> usize {
     (seconds * f64::from(EXPORT_WAVEFORM_ENTRIES_PER_SECOND)).round() as usize
 }
 
-/// Unix seconds as a UTC `YYYY-MM-DD` date. jiff covers years 0..=9999; values
-/// outside its range use the same proleptic-Gregorian conversion chrono used,
-/// including its signed/expanded year formatting.
+/// Unix seconds as a UTC `YYYY-MM-DD` date, using chrono's proleptic
+/// Gregorian range and signed/expanded year formatting.
 fn epoch_date(secs: i64) -> Option<String> {
     let (year, month, day, ..) = civil_from_unix(secs);
-    (-262_144..=262_143)
+    (-262_143..=262_142)
         .contains(&year)
         .then(|| format!("{}-{month:02}-{day:02}", chrono_year(year)))
 }
@@ -484,6 +483,16 @@ mod tests {
         assert_eq!(epoch_date(0).as_deref(), Some("1970-01-01"));
         assert_eq!(epoch_date(253_402_300_800).as_deref(), Some("+10000-01-01"));
         assert_eq!(epoch_date(-62_167_219_201).as_deref(), Some("-0001-12-31"));
+        assert_eq!(
+            epoch_date(8_210_266_876_799).as_deref(),
+            Some("+262142-12-31")
+        );
+        assert_eq!(epoch_date(8_210_266_876_800), None);
+        assert_eq!(
+            epoch_date(-8_334_601_228_800).as_deref(),
+            Some("-262143-01-01")
+        );
+        assert_eq!(epoch_date(-8_334_601_228_801), None);
         assert_eq!(epoch_date(i64::MAX), None);
     }
 

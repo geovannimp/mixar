@@ -411,12 +411,11 @@ fn utc_rfc3339(ts: jiff::Timestamp) -> String {
     }
 }
 
-/// Unix seconds as RFC 3339 in UTC. jiff covers years 0..=9999; values outside
-/// its range use the same proleptic-Gregorian conversion chrono used,
-/// including its signed/expanded year formatting.
+/// Unix seconds as RFC 3339 in UTC, using chrono's proleptic Gregorian range
+/// and signed/expanded year formatting.
 fn epoch_rfc3339(secs: i64) -> Option<String> {
     let (year, month, day, hour, minute, second) = civil_from_unix(secs);
-    (-262_144..=262_143).contains(&year).then(|| {
+    (-262_143..=262_142).contains(&year).then(|| {
         format!(
             "{}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}+00:00",
             chrono_year(year)

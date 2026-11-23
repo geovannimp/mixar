@@ -193,6 +193,16 @@ fn epoch_rfc3339_keeps_chronos_calendar_range() {
         epoch_rfc3339(-62_167_219_201).as_deref(),
         Some("-0001-12-31T23:59:59+00:00")
     );
+    assert_eq!(
+        epoch_rfc3339(8_210_266_876_799).as_deref(),
+        Some("+262142-12-31T23:59:59+00:00")
+    );
+    assert_eq!(epoch_rfc3339(8_210_266_876_800), None);
+    assert_eq!(
+        epoch_rfc3339(-8_334_601_228_800).as_deref(),
+        Some("-262143-01-01T00:00:00+00:00")
+    );
+    assert_eq!(epoch_rfc3339(-8_334_601_228_801), None);
     assert_eq!(epoch_rfc3339(i64::MAX), None);
 }
 
