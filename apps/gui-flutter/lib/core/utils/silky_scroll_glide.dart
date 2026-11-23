@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
@@ -24,24 +26,64 @@ void cancelSilkyGlide(GlobalKey key) {
 /// A press stops the ticker before a row drag, scrollbar-thumb grab, or deck
 /// drop begins. A scroll drag notification covers the cases where the thumb
 /// starts its own drag without a pointer-down reaching this subtree.
-class SilkyGlideHandoff extends StatelessWidget {
+///
+/// A click that starts no native scroll gets the overscrolled position back
+/// from the platform physics after a short delay. A drag or hold keeps
+/// ownership, so no ballistic is started underneath it.
+class SilkyGlideHandoff extends StatefulWidget {
   const new({required this.scrollKey, required this.child, super.key});
 
   final GlobalKey scrollKey;
   final Widget child;
 
   @override
+  State<SilkyGlideHandoff> createState() => _SilkyGlideHandoffState();
+}
+
+class _SilkyGlideHandoffState extends State<SilkyGlideHandoff> {
+  Timer? _recoveryTimer;
+  var _dragTakenOver = false;
+
+  @override
+  void dispose() {
+    _recoveryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _cancelGlide() {
+    cancelSilkyGlide(widget.scrollKey);
+  }
+
+  void _scheduleRecovery() {
+    _recoveryTimer?.cancel();
+    if (_dragTakenOver) return;
+    _recoveryTimer = Timer(const Duration(milliseconds: 100), () {
+      if (mounted && !_dragTakenOver) {
+        recoverSilkyBounds(widget.scrollKey);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollStartNotification>(
       onNotification: (notification) {
         if (notification.dragDetails != null) {
-          cancelSilkyGlide(scrollKey);
+          _dragTakenOver = true;
+          _recoveryTimer?.cancel();
+          _cancelGlide();
         }
         return false;
       },
       child: Listener(
-        onPointerDown: (_) => cancelSilkyGlide(scrollKey),
-        child: child,
+        onPointerDown: (_) {
+          _dragTakenOver = false;
+          _recoveryTimer?.cancel();
+          _cancelGlide();
+        },
+        onPointerUp: (_) => _scheduleRecovery(),
+        onPointerCancel: (_) => _scheduleRecovery(),
+        child: widget.child,
       ),
     );
   }
@@ -61,6 +103,36 @@ void cancelSilkyGlideFor(BuildContext context) {
     return true;
   });
   _cancelSilkyState(state);
+}
+
+/// Lets the platform physics settle an overscrolled position.
+///
+/// Only acts while the position is idle: a drag, hold, or ballistic owns the
+/// position otherwise, and replacing it would interrupt that gesture.
+void recoverSilkyBounds(GlobalKey key) {
+  final state = key.currentState ?? _silkyStateBelow(key.currentContext);
+  if (state == null) return;
+  try {
+    // silky_scroll 2.6.4 keeps its state on the private State.
+    // ignore: avoid_dynamic_calls
+    final dynamic silkyState = (state as dynamic).silkyScrollState;
+    // The client controller is exposed on that same internal state.
+    // ignore: avoid_dynamic_calls
+    final ScrollController? controller =
+        silkyState.clientController as ScrollController?;
+    if (controller == null || !controller.hasClients) return;
+    final position = controller.position;
+    if (position is! ScrollPositionWithSingleContext) return;
+    if (!position.outOfRange) return;
+    // A drag, hold, or ballistic owns the position while this is true.
+    if (position.isScrollingNotifier.value) return;
+    position.goBallistic(0);
+    // The package's internal field is untyped to us, so a shape change
+    // surfaces as NoSuchMethodError rather than a compile error.
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    // Upstream changed the internal state shape; leave the position alone.
+  }
 }
 
 void _cancelSilkyState(State? state) {
