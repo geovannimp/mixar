@@ -377,6 +377,13 @@ mod tests {
     use super::*;
     use crate::key::GetKeyMode;
 
+    #[test]
+    fn now_rfc3339_is_second_precision_utc() {
+        let stamp = now_rfc3339();
+        assert_eq!(stamp.len(), 20, "{stamp}");
+        assert!(stamp.ends_with('Z'), "{stamp}");
+    }
+
     /// The shared ×8 pass must hand the key path exactly the samples the
     /// per-block `Decimator` it replaced produced — including the filter's
     /// ring-out in the final chroma frame and the frames that only exist for a
