@@ -136,55 +136,47 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                       dir.parent,
                       selectedVolume,
                     );
-                    return SilkyGlideHandoff(
+                    return _GlideList(
                       scrollKey: _folderScrollKey,
-                      child: SilkyListView(
-                        key: _folderScrollKey,
-                        physics: mixarScrollPhysics(context),
-                        decayLogFactor: kMixarSilkyDecayLogFactor,
-                        blockWebOverscrollBehaviorX:
-                            kMixarSilkyBlockWebOverscrollBehaviorX,
-                        children: [
-                          LibraryNavRow(
-                            title: currentName,
-                            icon: LucideIcons.folder,
-                            selected: true,
-                            // The "up" row is the current folder, so it already
-                            // carries the selection fill; the cursor adds the
-                            // outline, exactly as it does in the other panes.
-                            // A volume root has no parent row, and a `null`
-                            // focused path must not match one.
-                            focused:
-                                parentOpenable && focusedPath == dir.parent,
-                            onPress: parentOpenable
-                                // Same contract as a subfolder press: park focus
-                                // on the sidebar and move the cursor onto the
-                                // parent row, or the next step starts from a row
-                                // the user never pressed.
-                                ? () => pressPath(dir.parent!)
-                                : null,
-                          ),
-                          if (dir.directories.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 8, 10, 8),
-                              child: Text(
-                                'No subfolders here.',
-                                style: theme.typography.body.sm.copyWith(
-                                  color: colors.mutedForeground,
-                                ),
+                      children: [
+                        LibraryNavRow(
+                          title: currentName,
+                          icon: LucideIcons.folder,
+                          selected: true,
+                          // The "up" row is the current folder, so it already
+                          // carries the selection fill; the cursor adds the
+                          // outline, exactly as it does in the other panes.
+                          // A volume root has no parent row, and a `null`
+                          // focused path must not match one.
+                          focused: parentOpenable && focusedPath == dir.parent,
+                          onPress: parentOpenable
+                              // Same contract as a subfolder press: park focus
+                              // on the sidebar and move the cursor onto the
+                              // parent row, or the next step starts from a row
+                              // the user never pressed.
+                              ? () => pressPath(dir.parent!)
+                              : null,
+                        ),
+                        if (dir.directories.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 10, 8),
+                            child: Text(
+                              'No subfolders here.',
+                              style: theme.typography.body.sm.copyWith(
+                                color: colors.mutedForeground,
                               ),
-                            )
-                          else
-                            for (final d in dir.directories)
-                              LibraryNavRow(
-                                title: d.name,
-                                icon: LucideIcons.folder,
-                                indented: true,
-                                focused: focusedPath == d.path,
-                                onPress: () => pressPath(d.path),
-                              ),
-                        ],
-                      ),
+                            ),
+                          )
+                        else
+                          for (final d in dir.directories)
+                            LibraryNavRow(
+                              title: d.name,
+                              icon: LucideIcons.folder,
+                              indented: true,
+                              focused: focusedPath == d.path,
+                              onPress: () => pressPath(d.path),
+                            ),
+                      ],
                     );
                   },
                 ),
@@ -355,6 +347,31 @@ class _VolumeList extends StatelessWidget {
         ),
       );
     }
+    return _GlideList(
+      scrollKey: scrollKey,
+      children: [
+        for (final v in volumes)
+          LibraryNavRow(
+            title: v.name,
+            subtitle: v.path,
+            icon: v.isRemovable ? LucideIcons.usb : LucideIcons.hardDrive,
+            focused: v.path == focusedPath,
+            onPress: () => onSelect(v.path),
+          ),
+      ],
+    );
+  }
+}
+
+/// The drive pane's two Silky lists share one glide configuration.
+class _GlideList extends StatelessWidget {
+  const new({required this.scrollKey, required this.children});
+
+  final GlobalKey scrollKey;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
     return SilkyGlideHandoff(
       scrollKey: scrollKey,
       child: SilkyListView(
@@ -362,16 +379,7 @@ class _VolumeList extends StatelessWidget {
         physics: mixarScrollPhysics(context),
         decayLogFactor: kMixarSilkyDecayLogFactor,
         blockWebOverscrollBehaviorX: kMixarSilkyBlockWebOverscrollBehaviorX,
-        children: [
-          for (final v in volumes)
-            LibraryNavRow(
-              title: v.name,
-              subtitle: v.path,
-              icon: v.isRemovable ? LucideIcons.usb : LucideIcons.hardDrive,
-              focused: v.path == focusedPath,
-              onPress: () => onSelect(v.path),
-            ),
-        ],
+        children: children,
       ),
     );
   }

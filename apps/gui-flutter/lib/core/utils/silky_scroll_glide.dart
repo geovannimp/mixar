@@ -135,6 +135,13 @@ void recoverSilkyBounds(GlobalKey key) {
     // ignore: avoid_catching_errors
   } on NoSuchMethodError {
     // Upstream changed the internal state shape; leave the position alone.
+    assert(() {
+      debugPrint(
+        'silky_scroll 2.6.4 bounds-recovery adapter failed; '
+        'the glide is left to settle on its own.',
+      );
+      return true;
+    }(), 'silky_scroll bounds recovery no longer matches 2.6.4');
   }
 }
 
@@ -151,6 +158,13 @@ void _cancelSilkyState(State? state) {
     // ignore: avoid_catching_errors
   } on NoSuchMethodError {
     // Upstream changed the internal state shape; let the glide finish.
+    assert(() {
+      debugPrint(
+        'silky_scroll 2.6.4 cancellation adapter failed; '
+        'the glide is left running.',
+      );
+      return true;
+    }(), 'silky_scroll cancellation no longer matches 2.6.4');
   }
 }
 

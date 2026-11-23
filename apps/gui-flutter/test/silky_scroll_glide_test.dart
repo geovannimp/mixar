@@ -109,6 +109,56 @@ void main() {
     await gesture.up();
   });
 
+  testWidgets('cancellation works with the key on SilkyScroll itself', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    final silkyKey = GlobalKey();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 200,
+            child: SilkyScroll(
+              key: silkyKey,
+              controller: controller,
+              physics: const ClampingScrollPhysics(),
+              builder: (context, scrollController, physics, _) =>
+                  ListView.builder(
+                    controller: scrollController,
+                    physics: physics,
+                    itemCount: 50,
+                    itemBuilder: (context, i) =>
+                        SizedBox(height: 40, child: Text('row $i')),
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(ListView)),
+        scrollDelta: const Offset(0, 300),
+      ),
+    );
+    await tester.pump();
+    final beforeCancel = controller.offset;
+    expect(beforeCancel, greaterThan(0));
+
+    cancelSilkyGlide(silkyKey);
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(controller.offset, closeTo(beforeCancel, 0.01));
+  });
+
   testWidgets('a click recovers an overscrolled handoff', (tester) async {
     final controller = ScrollController();
     addTearDown(controller.dispose);
