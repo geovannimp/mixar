@@ -111,7 +111,7 @@ void main() {
     expect(cue.width, greaterThan(cue.height * 1.5));
   });
 
-  testWidgets('transport chrome is rounded only while it is a square tile', (
+  testWidgets('transport chrome is fully rounded in both shapes', (
     tester,
   ) async {
     BorderRadius chromeOf(Finder surface) =>
@@ -134,8 +134,7 @@ void main() {
 
     final surfaces = [(cueSurface, 'Cue'), (playSurface, 'Play')];
 
-    // Short deck: the pair stacks beside the pads as square tiles, and only
-    // there they wear fully rounded ends.
+    // Short deck: the pair stacks beside the pads as square tiles.
     await pumpDeck(tester, size: const Size(370, 316));
     for (final (surface, what) in surfaces) {
       final radius = chromeOf(surface).topLeft.x;
@@ -147,14 +146,14 @@ void main() {
       );
     }
 
-    // Tall deck: the same pair spans the row as wide bars, which keep the
-    // theme's square chrome.
+    // Tall deck: the same pair spans the row as wide bars, still fully
+    // rounded.
     await pumpDeck(tester, size: const Size(370, 560));
     for (final (surface, what) in surfaces) {
       expect(
         chromeOf(surface),
-        MixarThemeData.dark().style.borderRadius.md,
-        reason: '$what stays square as a wide bar',
+        MixarThemeData.dark().style.borderRadius.pill,
+        reason: '$what stays fully rounded as a wide bar',
       );
       expect(
         tester.getSize(surface).width,

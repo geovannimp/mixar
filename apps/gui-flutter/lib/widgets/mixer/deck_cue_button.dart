@@ -125,28 +125,26 @@ class _DeckCueButtonState extends State<DeckCueButton> {
             opacity: enabled ? 1 : 0.5,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
-              child: LayoutBuilder(
-                builder: (context, constraints) => DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: fill,
-                    border: Border.all(
-                      color: borderColor,
-                      width: theme.style.borderWidth,
-                    ),
-                    borderRadius: deckTransportRadius(theme, constraints),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: fill,
+                  border: Border.all(
+                    color: borderColor,
+                    width: theme.style.borderWidth,
                   ),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Cue',
-                          style: theme.typography.body.sm.copyWith(
-                            color: fg,
-                            fontWeight: .w700,
-                            letterSpacing: 0.4,
-                          ),
+                  borderRadius: deckTransportRadius(theme),
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Cue',
+                        style: theme.typography.body.sm.copyWith(
+                          color: fg,
+                          fontWeight: .w700,
+                          letterSpacing: 0.4,
                         ),
                       ),
                     ),

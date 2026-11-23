@@ -26,6 +26,7 @@ class OnboardingSmallButton extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: colors.primary,
+              borderRadius: theme.style.borderRadius.pill,
               // Focus has to show: the fill is the same accent the stage uses.
               border: Border.all(
                 color: focused ? colors.foreground : colors.primary,

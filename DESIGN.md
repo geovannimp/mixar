@@ -111,7 +111,7 @@ components:
 
 **Creative North Star: "The Open Deck"**
 
-Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained neutrals — warm bone in the light theme, zinc in the dark — a single teal accent for action and live state, and deck identity colors (sky blue / rose on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift and crisp square chrome.
+Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained neutrals — warm bone in the light theme, zinc in the dark — a single teal accent for action and live state, and deck identity colors (sky blue / rose on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift, crisp square chrome, and full-round buttons.
 
 The marketing site (`apps/website`) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via `data-theme` — dark is the default canvas (the booth is dark, and the marketing references derive from dark sites); an explicit stored choice in either direction always wins. The desktop app (`apps/gui-flutter`) uses **MixarTheme** light/dark tokens (with an intentional **ShadTheme** bridge for Shad/Material widgets) plus domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest "in development" status when applicable, and deck semantics that must stay distinguishable under pressure.
 
@@ -119,7 +119,7 @@ The marketing site (`apps/website`) is the most fully custom expression of this 
 
 - Warm bone light / zinc dark surfaces with hairline borders; color earns its place
 - Teal accent for primary actions and brand signal; deck sky/rose for dual-deck semantics on web
-- Square chrome (buttons, inputs, cards, menus, marketing CTAs); app dialogs use a soft 12px corner and deck toggles / faders are pills
+- Square chrome (inputs, cards, menus, marketing CTAs); app buttons are full pills, app dialogs use a soft 12px corner, and deck toggles / faders are pills
 - Outfit + Space Grotesk on web; tabular figures for BPM/time via OpenType features
 - Soft hover lift on CTAs; scroll reveals respect `prefers-reduced-motion`
 - App UI: Mixar shell widgets + Shad-bridged controls, 40px custom title bar, 12px desktop window top radius (chrome stays square inside)
@@ -259,15 +259,15 @@ Mostly flat surfaces with **soft lift on interaction**. Depth comes from tonal l
 
 Mostly square, instrument-like geometry — hard corners on most chrome, with soft corners where touch targets read better.
 
-- **Square** (`0`): App buttons (other than deck toggles), inputs, selects, cards, menus, toasts, tabs, tooltips. Marketing CTAs, feature cards, theme toggle, icon tiles, and the hero tablet mockup use the same zero-radius token scale (`apps/website` `--radius-*` in `global.css`).
+- **Square** (`0`): Inputs, selects, cards, menus, toasts, tabs, tooltips. Marketing CTAs, feature cards, theme toggle, icon tiles, and the hero tablet mockup use the same zero-radius token scale (`apps/website` `--radius-*` in `global.css`).
 - **Dialog** (`12px`): `MixarDialog` shell and its full-bleed content (`MixarBorderRadius.dialog`).
 - **Window top** (`12px`): Undecorated desktop window clip only (`DesktopChrome`) — not a chrome-control radius.
-- **Full pill** (`9999px`): Deck header toggles (master, Q, S, ST, FX), fader tracks, and tiny status chips / badges (e.g. “In development”, compact metadata pills). Circular LED status dots stay full as geometry, not chrome.
+- **Full pill** (`9999px`): App buttons (`AppButton` / `MixerButton`, including the Cue / Play transport, onboarding actions, and segmented menu groups; the shell titlebar's back / pages / Library controls stay flat), deck header toggles (master, Q, S, ST, FX), fader tracks, and tiny status chips / badges (e.g. “In development”, compact metadata pills). Circular LED status dots stay full as geometry, not chrome.
 - **Fader plate** (`4px`): The grip knob keeps a soft rounded-rectangle corner rather than a full stadium cap, with a 1px hairline around the grip plate (zinc-800 in dark, a lighter zinc-300 highlight in light).
 
 Borders are 1px hairlines; hover slightly increases border contrast rather than adding fill weight. Icons: Lucide stroke icons at 16–18px in UI chrome, 64px for section hero icons.
 
-**App note:** `MixarBorderRadius` in `apps/gui-flutter/lib/core/theme/mixar_style.dart` is the runtime source of truth for the desktop app — every step except `pill` is `BorderRadius.zero`; targeted overrides supply the dialog's 12px corner, the pill deck toggles / fader tracks, and the fader node's 4px corner. The marketing site mirrors the square scale via Tailwind `--radius-*` tokens flattened to `0` (keeping `--radius-full` for status chips).
+**App note:** `MixarBorderRadius` in `apps/gui-flutter/lib/core/theme/mixar_style.dart` is the runtime source of truth for the desktop app — every step except `pill` is `BorderRadius.zero`. The shared button look resolves every labelled `AppButton` / `MixerButton` to `pill`, except the shell titlebar's controls, which pass the theme's square step; targeted overrides add the dialog's 12px corner, the pill deck toggles / fader tracks, and the fader node's 4px corner. The marketing site mirrors the square scale via Tailwind `--radius-*` tokens flattened to `0` (keeping `--radius-full` for status chips).
 
 ## Components
 
@@ -300,7 +300,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 
 - **Header:** 40px, card token with the hairline underside; the pages title is centred — wordmark plus the open page's name (`Mixar Booth`) — and pressing it opens a dropdown of every page; any page but the booth also carries `← Booth` in the leading corner, which leaves with a 180ms slide-left fade when the page changes, while the trailing side holds the Library toggle on the mixer and the window controls; macOS keeps its traffic lights in the leading corner, left of the back button
 - **Menus:** anchored dropdowns and the mobile dialog share one row band — 44px (`kMixarMenuRowHeight`), flat, hairlines between choices; a dropdown never grows past 80% of the window and scrolls past that, so long lists stay reachable; custom blocks (e.g. load-to-deck chips) keep their own look and height
-- **Controls:** Mixar / Shad-bridged buttons, switches, sliders — square corners via `MixarStyle` / Shad `radius`, except deck toggles and fader tracks (full pill), fader nodes (4px), and dialogs (12px); faders custom with deck accent grips
+- **Controls:** Mixar / Shad-bridged buttons, switches, sliders — buttons are full pills through the shared `MixarButtonBody` look; switches, sliders, and selects keep square corners via `MixarStyle` / Shad `radius`; fader nodes (4px) and dialogs (12px) are the only soft corners; faders custom with deck accent grips
 - **Control faces:** Dark theme uses one deepened neutral face for rotary and fader knobs; light theme uses a lighter warm blend for the rotary and zinc-400 for the fader grip plate
 - **Select menus:** Desktop `ShadSelect` opens with a top-anchored height grow + short fade (`selectTheme.effects` in `shadThemeFromMixar`)
 - **Tooltips:** `AppTooltip` — square bubble, no border radius; fill is the theme `card`, hairline `border` stroke, ink `foreground` / `mutedForeground` (follows light and dark)
@@ -337,4 +337,4 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Don't** fabricate social proof, star counts, or "available now" platform badges.
 - **Don't** invent an emerald/green brand ladder — teal is the brand signal; deck-a is sky blue.
 - **Don't** hide the in-development status on the landing hero until a real release ships.
-- **Don't** add radii beyond the documented ones (12px dialogs; pills for deck toggles, fader tracks, and status chips, plus the fader node's 4px corner) — square remains the default for buttons, cards, menus, toasts, and marketing CTAs.
+- **Don't** add radii beyond the documented ones (pills for app buttons, deck toggles, fader tracks, and status chips; 12px dialogs; the fader node's 4px corner) — square remains the default for inputs, cards, menus, toasts, and marketing CTAs.

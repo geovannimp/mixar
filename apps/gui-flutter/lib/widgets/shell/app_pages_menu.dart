@@ -104,6 +104,8 @@ class _AppPagesMenuState extends State<AppPagesMenu> {
           variant: .ghost,
           size: .sm,
           mainAxisSize: MainAxisSize.min,
+          // Titlebar chrome stays square; the pill is for page-level buttons.
+          borderRadius: theme.style.borderRadius.md,
           semanticsLabel: 'Pages, $label',
           onPress: () {
             if (!controller.isShowing) {
