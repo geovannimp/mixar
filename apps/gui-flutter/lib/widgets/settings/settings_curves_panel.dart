@@ -275,8 +275,6 @@ class _SettingsCurvesPanelState extends State<SettingsCurvesPanel> {
     final libraryError = curveLibraryValidationError(_library);
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionCurves,
-      description: l10n.settingsCurvesDescription,
       before: libraryError == null
           ? null
           : Text(

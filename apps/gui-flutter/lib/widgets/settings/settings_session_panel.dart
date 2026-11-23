@@ -20,8 +20,6 @@ class SettingsSessionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return SettingsSectionBody(
-      title: l10n.settingsSectionSession,
-      description: l10n.settingsSessionDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsSessionHistoryTitle,

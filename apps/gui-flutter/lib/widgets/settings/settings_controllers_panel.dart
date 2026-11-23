@@ -84,8 +84,6 @@ class _SettingsControllersPanelState
     final attachedIds = ref.watch(attachedMappingIdsProvider);
     final transport = ref.watch(controllerTransportProvider).value;
     return SettingsSectionBody(
-      title: l10n.settingsSectionControllers,
-      description: l10n.settingsControllersDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsControllersMappingsTitle,

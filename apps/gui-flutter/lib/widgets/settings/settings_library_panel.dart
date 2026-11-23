@@ -101,8 +101,6 @@ class SettingsLibraryPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionLibrary,
-      description: l10n.settingsLibraryDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsLibraryTagWriteBackTitle,

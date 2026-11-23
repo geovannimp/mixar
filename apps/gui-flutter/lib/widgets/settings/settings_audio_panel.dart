@@ -41,8 +41,6 @@ class SettingsAudioPanel extends ConsumerWidget {
     final previewRoute = effectivePreviewBus(draft);
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionAudio,
-      description: l10n.settingsAudioDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsAudioEngineTitle,

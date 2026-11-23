@@ -122,8 +122,6 @@ class SettingsLayoutPanel extends StatelessWidget {
             draft.waveformPosition == WaveformPositionSetting.middleVertical);
     final hasCrossfader = draft.showMixer || centeredWaveform;
     return SettingsSectionBody(
-      title: l10n.settingsSectionLayout,
-      description: l10n.settingsLayoutDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsLayoutPresetTitle,

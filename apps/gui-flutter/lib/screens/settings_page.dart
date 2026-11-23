@@ -21,6 +21,7 @@ import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_privacy_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_sticky_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_session_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_storage_panel.dart';
@@ -39,19 +40,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// content target this key instead of the first `SingleChildScrollView`.
 const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 
-/// Height of the Settings page's own header band (glyph, title, search, save).
+/// Height of the Settings page's own header band (glyph, title, search).
 const double kSettingsHeaderHeight = 60;
 
-/// Slack between the header's right cluster members.
-const double _kSettingsHeaderGap = 8;
-
-/// Side of the header's circular search control. It is inset inside the
-/// band-tall corner cell so its hover wash never touches the header edges while
-/// the target stays comfortably bigger than the glyph.
-const double _kSettingsHeaderButton = 44;
-
-/// How long the toggle takes to slide between its two seats, and how the Save
-/// slot opens under it.
+/// How long the search toggle takes to slide between its two seats.
 const Duration _kSettingsHeaderSlide = Duration(milliseconds: 200);
 const Curve _kSettingsHeaderCurve = Curves.easeOutCubic;
 
@@ -95,12 +87,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
 
+  /// Content pane scroll: a section change must open on the new section's own
+  /// top instead of inheriting the offset of the section the user left.
+  final _contentScroll = ScrollController();
+
   /// Section the user was on when the search first hid it. Clearing puts them
   /// back there instead of stranding them on a section the search picked.
   SettingsSection? _sectionBeforeSearch;
 
   /// Captured on mount: `ref` is unsafe to touch from [dispose].
   SettingsLeaveGuard? _leaveGuard;
+
+  /// A sidebar pick is being confirmed or saved; further picks wait for it.
+  var _selecting = false;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
@@ -184,6 +183,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
     _searchController.dispose();
     _searchFocus.dispose();
+    _contentScroll.dispose();
     super.dispose();
   }
 
@@ -260,6 +260,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// while another section owned the pane.
   void _selectFromSearch(SettingsSection section) {
     setState(() => _section = section);
+    _resetContentScroll();
     if (section != SettingsSection.audio ||
         !widget.scrollToPreviewBus ||
         _didSchedulePreviewScroll) {
@@ -269,6 +270,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     // the pane; restart the budget so this re-arm can actually reach the card.
     _previewScrollAttempts = 0;
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+  }
+
+  /// Opens the current section at its own top.
+  ///
+  /// Sections share one scroll view, so without this the next section would
+  /// start wherever the previous one was left. Called right after the section
+  /// swap: the offset belongs to the old content, and zero is valid in both.
+  void _resetContentScroll() {
+    if (!_contentScroll.hasClients) {
+      return;
+    }
+    final position = _contentScroll.position;
+    if (position.pixels != position.minScrollExtent) {
+      position.jumpTo(position.minScrollExtent);
+    }
   }
 
   /// Post-frame poll until the Preview bus card is mounted (settings may still
@@ -362,26 +378,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     // The toggle travels between the corner cell and the right
                     // end, so both ends are plain geometry: no key lookups and
                     // nothing to measure mid-animation.
-                    final saveLabel = _busy
-                        ? l10n.settingsSaving
-                        : l10n.settingsSaveChanges;
-                    final saveWidth = dirty
-                        ? _saveSlotWidth(context, theme, saveLabel)
-                        : 0.0;
-                    // The right edge is a square in both states — the search
-                    // toggle, then the clear button — with the Save slot
-                    // opening to its left. Open, the toggle becomes the corner
-                    // cell instead.
-                    final searchCell = headerHeight > _kSettingsHeaderButton
-                        ? _kSettingsHeaderButton
-                        : headerHeight;
-                    final searchInset = (headerHeight - searchCell) / 2;
-                    final rightCluster =
-                        searchInset +
-                        searchCell +
-                        (saveWidth == 0
-                            ? 0.0
-                            : saveWidth + 2 * _kSettingsHeaderGap);
                     final toggleLeft = _searchOpen
                         ? 0.0
                         : constraints.maxWidth - headerHeight;
@@ -476,13 +472,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                             ),
                             // Reserved so the title and the field never reflow
-                            // under the controls; the slots open with the
-                            // toggle's own animation.
-                            AnimatedContainer(
-                              duration: _kSettingsHeaderSlide,
-                              curve: _kSettingsHeaderCurve,
-                              width: rightCluster,
-                            ),
+                            // under the controls: the toggle's cell while the
+                            // bar is closed, the clear button's while it is
+                            // open.
+                            SizedBox(width: headerHeight),
                           ],
                         ),
                         AnimatedPositioned(
@@ -527,26 +520,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                             ),
                           ),
-                        if (dirty)
-                          AnimatedPositioned(
-                            duration: _kSettingsHeaderSlide,
-                            curve: _kSettingsHeaderCurve,
-                            right:
-                                searchInset + searchCell + _kSettingsHeaderGap,
-                            top: 0,
-                            bottom: 0,
-                            child: Center(
-                              child: SizedBox(
-                                width: saveWidth,
-                                child: AppButton(
-                                  size: .sm,
-                                  mainAxisSize: .min,
-                                  onPress: _busy ? null : () => _save(draft),
-                                  child: Text(saveLabel),
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     );
                   },
@@ -560,25 +533,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   SettingsSidebar(
                     active: _section,
                     query: _searchQuery,
-                    onSelect: (section) => setState(() {
-                      // An explicit pick is where the user wants to be, so it
-                      // survives the query clearing.
-                      _sectionBeforeSearch = null;
-                      if (section != _section) {
-                        // One-shot deep-link glow; don't kill on re-tap.
-                        _highlightPreviewBus = false;
-                      }
-                      _section = section;
-                    }),
+                    onSelect: _selectSection,
                   ),
                   Expanded(
-                    child: SingleChildScrollView(
-                      key: kSettingsContentScrollKey,
-                      // Full-bleed width: the panel owns the header inset and
-                      // lets its cards run to the pane edges.
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: noSectionMatches
-                          ? Padding(
+                    child: noSectionMatches
+                        ? SingleChildScrollView(
+                            key: kSettingsContentScrollKey,
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                               ),
@@ -588,29 +550,70 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   color: theme.colors.mutedForeground,
                                 ),
                               ),
-                            )
-                          : SettingsSearchScope(
-                              query: _searchQuery,
-                              child: _SettingsSectionPanel(
-                                section: _section,
-                                draft: draft,
-                                baseline: baseline,
-                                highlightPreviewBus: _highlightPreviewBus,
-                                previewBusCardKey: _previewBusCardKey,
-                                realtimeStemsCapability: benchmark.capability,
-                                benchmarkRunning: benchmark.running,
-                                benchmarkFraction: benchmark.fraction,
-                                benchmarkError: benchmark.error,
-                                onRunRealtimeStemsBenchmark: () => ref
-                                    .read(
-                                      realtimeStemsBenchmarkProvider.notifier,
-                                    )
-                                    .run(),
-                                onChanged: (next) =>
-                                    setState(() => _draft = next),
-                              ),
                             ),
-                    ),
+                          )
+                        // The section header is a pinned sliver: it names the
+                        // section and carries its Save button while the cards
+                        // scroll under it.
+                        : CustomScrollView(
+                            key: kSettingsContentScrollKey,
+                            controller: _contentScroll,
+                            slivers: [
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: SettingsSectionStickyHeader(
+                                  title: _section.label(l10n),
+                                  description: _section.description(l10n),
+                                  theme: theme,
+                                  textScaler: MediaQuery.textScalerOf(context),
+                                  action: dirty
+                                      ? AppButton(
+                                          size: .sm,
+                                          mainAxisSize: .min,
+                                          onPress: _busy
+                                              ? null
+                                              : () => _save(draft),
+                                          child: Text(
+                                            _busy
+                                                ? l10n.settingsSaving
+                                                : l10n.settingsSaveChanges,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              SliverPadding(
+                                // Full-bleed width: the panel insets only its
+                                // fields, so its cards run to the pane edges.
+                                padding: const EdgeInsets.only(bottom: 24),
+                                sliver: SliverToBoxAdapter(
+                                  child: SettingsSearchScope(
+                                    query: _searchQuery,
+                                    child: _SettingsSectionPanel(
+                                      section: _section,
+                                      draft: draft,
+                                      baseline: baseline,
+                                      highlightPreviewBus: _highlightPreviewBus,
+                                      previewBusCardKey: _previewBusCardKey,
+                                      realtimeStemsCapability:
+                                          benchmark.capability,
+                                      benchmarkRunning: benchmark.running,
+                                      benchmarkFraction: benchmark.fraction,
+                                      benchmarkError: benchmark.error,
+                                      onRunRealtimeStemsBenchmark: () => ref
+                                          .read(
+                                            realtimeStemsBenchmarkProvider
+                                                .notifier,
+                                          )
+                                          .run(),
+                                      onChanged: (next) =>
+                                          setState(() => _draft = next),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -697,44 +700,57 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  /// Width the Save button needs for [label].
+  /// Sidebar pick: a dirty section asks before it is left.
   ///
-  /// The toggle is seated left of it, so the slot has to be known before the
-  /// row lays out — and it changes with the label ("Save changes" /
-  /// "Saving…").
-  ///
-  /// Measured with the style the button paints with (the app density's weight,
-  /// a solid line height) *and* the ambient text scaler: a scaled-up label is
-  /// wider than the raw font metrics, and the slot clips what it cannot fit.
-  double _saveSlotWidth(
-    BuildContext context,
-    MixarThemeData theme,
-    String label,
-  ) {
-    final style = theme.typography.body.sm.copyWith(
-      fontWeight: FontWeight.w500,
-      height: 1,
-    );
-    final painter = TextPainter(
-      text: TextSpan(text: label, style: style),
-      textDirection: TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout();
-    // The sm button's own horizontal content padding, plus a little slack for
-    // font-metric rounding differences.
-    final width = painter.width + 20 + 6;
-    painter.dispose();
-    return width;
+  /// The draft follows the page, not the section, so a section is only ever
+  /// left clean: Save keeps the edits, Discard drops them, and neither leaves
+  /// the next section showing values the user cannot account for.
+  Future<void> _selectSection(SettingsSection section) async {
+    // The sidebar stays tappable while a confirm or the save it starts is in
+    // flight; a second continuation could otherwise land the pane on the
+    // section that was picked first.
+    if (_selecting) {
+      return;
+    }
+    final changing = section != _section;
+    _selecting = true;
+    try {
+      if (changing && !await _confirmSectionExit()) {
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        // An explicit pick is where the user wants to be, so it survives the
+        // query clearing.
+        _sectionBeforeSearch = null;
+        if (changing) {
+          // One-shot deep-link glow.
+          _highlightPreviewBus = false;
+        }
+        _section = section;
+      });
+      if (changing) {
+        _resetContentScroll();
+      }
+    } finally {
+      _selecting = false;
+    }
   }
 
-  /// Whether the shell may leave this page: true when nothing is unsaved, or
-  /// when the user discarded or saved the draft.
-  Future<bool> _confirmLeave() async {
-    if (!mounted) {
-      // The page is gone: nothing left to protect. This is also what a guard
-      // registered by an earlier mount answers before the next one lands.
-      return true;
-    }
+  /// Whether the open section may be left, saving or discarding first when it
+  /// has unsaved edits.
+  Future<bool> _confirmSectionExit() => _confirmUnsavedExit(
+    AppLocalizations.of(context)!.settingsSectionUnsavedBody,
+  );
+
+  /// Asks how to leave something that has unsaved edits.
+  ///
+  /// A section switch and shell navigation offer the same Cancel / Discard /
+  /// Save choices and answer them the same way; only [body] differs. Discarding
+  /// drops the draft, so whichever place is left, the next one opens clean.
+  Future<bool> _confirmUnsavedExit(String body) async {
     if (_busy) {
       return false;
     }
@@ -747,7 +763,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final choice = await showMixarConfirm<_CloseChoice>(
       context: context,
       title: l10n.settingsUnsavedTitle,
-      body: l10n.settingsUnsavedBody,
+      body: body,
       actions: [
         MixarDialogAction(
           label: l10n.settingsCancel,
@@ -770,15 +786,32 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       case _CloseChoice.cancel:
         return false;
       case _CloseChoice.discard:
+        setState(() => _draft = _baseline);
         return true;
       case _CloseChoice.save:
-        final draft = _draft;
-        if (draft == null) {
+        // Re-read the draft: settings saved elsewhere while the dialog was up
+        // are already folded into it, and saving the stale copy would undo
+        // them.
+        final pending = _draft;
+        if (pending == null) {
           return false;
         }
-        final savedAndApplied = await _save(draft);
+        final savedAndApplied = await _save(pending);
         return mounted && savedAndApplied;
     }
+  }
+
+  /// Whether the shell may leave this page: true when nothing is unsaved, or
+  /// when the user discarded or saved the draft.
+  Future<bool> _confirmLeave() async {
+    if (!mounted) {
+      // The page is gone: nothing left to protect. This is also what a guard
+      // registered by an earlier mount answers before the next one lands.
+      return true;
+    }
+    return _confirmUnsavedExit(
+      AppLocalizations.of(context)!.settingsUnsavedBody,
+    );
   }
 }
 

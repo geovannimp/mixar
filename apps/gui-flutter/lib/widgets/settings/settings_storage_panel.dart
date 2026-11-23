@@ -192,8 +192,6 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
     final clearEnabled = ready && !_busy;
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionStorage,
-      description: l10n.settingsStorageDescription,
       before: _error == null
           ? null
           : Text(

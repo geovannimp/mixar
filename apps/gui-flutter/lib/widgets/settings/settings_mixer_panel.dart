@@ -88,8 +88,6 @@ class SettingsMixerPanel extends StatelessWidget {
           );
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionMixer,
-      description: l10n.settingsMixerDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsMixerCrossfaderTitle,

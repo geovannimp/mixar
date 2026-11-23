@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/curve_import_export_card.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
@@ -16,10 +15,7 @@ class SettingsIntegrationsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     return SettingsSectionBody(
-      title: l10n.settingsSectionIntegrations,
-      description: l10n.settingsIntegrationsDescription,
       cards: [
         const MixxxImportPanel(),
         const RekordboxImportPanel(),

@@ -42,8 +42,6 @@ class SettingsAnalysisPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionBody(
-      title: l10n.settingsSectionAnalysis,
-      description: l10n.settingsAnalysisDescription,
       cards: [
         SettingsSectionCard(
           title: l10n.settingsLibraryAnalysisTitle,

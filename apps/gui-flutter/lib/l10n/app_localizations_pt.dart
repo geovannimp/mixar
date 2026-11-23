@@ -59,6 +59,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsUnsavedBody => 'Salvar alterações antes de fechar?';
 
   @override
+  String get settingsSectionUnsavedBody =>
+      'Salvar alterações antes de sair desta seção?';
+
+  @override
   String get settingsCancel => 'Cancelar';
 
   @override

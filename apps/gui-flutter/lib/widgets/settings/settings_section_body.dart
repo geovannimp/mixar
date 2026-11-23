@@ -3,30 +3,23 @@ import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/widgets/settings/settings_insets.dart';
 import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
 import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 
-/// Full-bleed settings section: an inset header above cards that run to the
-/// pane edges, each card carrying its own top and bottom hairline.
+/// Full-bleed settings section: the cards of one section, run to the pane
+/// edges with their own top and bottom hairlines.
+///
+/// The section's title and description are not here: they live in the pinned
+/// header above this body (see `SettingsSectionStickyHeader`), which stays on
+/// screen while these cards scroll under it.
 class SettingsSectionBody extends StatelessWidget {
-  const new({
-    required this.title,
-    required this.description,
-    required this.cards,
-    this.before,
-    super.key,
-  });
-
-  /// Matches the page's vertical scroll inset, so the header sits visually
-  /// centred between the line above it and the first card.
-  static const _headerGap = 24.0;
+  const new({required this.cards, this.before, super.key});
 
   /// Gap between stacked card bands.
   static const _cardGap = 16.0;
 
-  final String title;
-  final String description;
+  /// Gap under a [before] slot, so it never breaks the card rhythm.
+  static const _beforeGap = 24.0;
 
-  /// Placed under the header, above the first card (e.g. a load error).
+  /// Placed above the first card (e.g. a load error).
   final Widget? before;
 
   final List<Widget> cards;
@@ -59,21 +52,13 @@ class SettingsSectionBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Only the header keeps the horizontal inset; the cards are full-bleed.
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: settingsCardSideInset,
-          ),
-          child: SettingsSectionHeader(title: title, description: description),
-        ),
-        const SizedBox(height: _headerGap),
         if (before != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               settingsCardSideInset,
               0,
               settingsCardSideInset,
-              _headerGap,
+              _beforeGap,
             ),
             child: before,
           ),

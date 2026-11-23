@@ -967,6 +967,11 @@ void main() {
 
     await tester.tap(find.text('Controllers'));
     await tester.pumpAndSettle();
+    // The switch left Audio dirty, so the sidebar asks before moving on; the
+    // discard path is the cheap way through.
+    expect(find.text('Unsaved settings'), findsOneWidget);
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
     expect(find.text('Update All'), findsOneWidget);
   }, semanticsEnabled: false);
 

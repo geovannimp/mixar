@@ -34,8 +34,9 @@ void main() {
 
   testWidgets('Privacy panel hosts the analytics consent card', (tester) async {
     await pumpPanel(tester);
-    expect(find.text('Privacy'), findsOneWidget);
-    expect(find.text('Anonymous app usage data.'), findsOneWidget);
+    // The section title lives in the page's pinned header, not in the panel.
+    expect(find.text('Privacy'), findsNothing);
+    expect(find.text('Anonymous app usage data.'), findsNothing);
     expect(find.text('Analytics'), findsOneWidget);
     expect(find.text('Share anonymous app data.'), findsOneWidget);
   }, semanticsEnabled: false);

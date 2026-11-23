@@ -11,7 +11,7 @@ import 'package:gui_flutter/widgets/settings/settings_integrations_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_sticky_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
@@ -72,11 +72,9 @@ void main() {
     tester,
   ) async {
     await pumpIntegrations(tester);
-    expect(find.text('Integrations'), findsOneWidget);
-    expect(
-      find.text("Read another DJ application's library and curve settings."),
-      findsOneWidget,
-    );
+    // The section title and description live in the page's pinned header, not
+    // in the panel: the panel is only its cards.
+    expect(find.byType(SettingsSectionStickyHeaderBody), findsNothing);
     expect(find.text('Import from Mixxx'), findsOneWidget);
     expect(find.text('Import from Rekordbox'), findsOneWidget);
     expect(find.text('Import & export'), findsOneWidget);
@@ -216,10 +214,12 @@ void main() {
     expect(card.right, 1600);
     expect(card.left, sidebar.right);
 
-    // The section title/subtitle sit centred in the band above the first card.
+    // The section title/subtitle are pinned above the first card: the header
+    // tops the pane and the cards start where its own bottom padding ends.
     final scroll = tester.getRect(find.byKey(kSettingsContentScrollKey));
-    final header = tester.getRect(find.byType(SettingsSectionHeader).first);
-    expect(header.top - scroll.top, card.top - header.bottom);
+    final header = tester.getRect(find.byType(SettingsSectionStickyHeaderBody));
+    expect(header.top, scroll.top);
+    expect(card.top, moreOrLessEquals(header.bottom));
 
     // The bands have no side chrome, so the inset is the only breathing room:
     // the section header and the card's fields share it.
@@ -231,7 +231,7 @@ void main() {
     expectCardInset(find.text('Theme'));
     expectCardInset(
       find.descendant(
-        of: find.byType(SettingsSectionHeader).first,
+        of: find.byType(SettingsSectionStickyHeaderBody),
         matching: find.text('UI'),
       ),
     );
@@ -245,8 +245,6 @@ void main() {
         theme: MixarThemeData.dark(),
         home: const Scaffold(
           body: SettingsSectionBody(
-            title: 'Storage',
-            description: 'Disk use.',
             before: Text('usage unavailable'),
             cards: [
               SettingsSectionCard(title: 'Overview'),
@@ -257,10 +255,8 @@ void main() {
       ),
     );
 
-    final header = tester.getRect(find.byType(SettingsSectionHeader).first);
     final error = tester.getRect(find.text('usage unavailable'));
     final cards = find.byType(SettingsSectionCard);
-    expect(header.bottom, lessThan(error.top));
     expect(error.bottom, lessThan(tester.getRect(cards.first).top));
     // The error does not break the card rhythm.
     expect(
