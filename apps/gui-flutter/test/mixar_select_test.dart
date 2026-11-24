@@ -74,6 +74,17 @@ void main() {
                 : widget.decoration?.border?.bottom == ShadBorderSide.none),
       );
 
+  /// The select trigger's decorator, whose border and fill carry the chrome.
+  ShadDecorator triggerDecorator(WidgetTester tester) =>
+      tester.widget<ShadDecorator>(
+        find
+            .descendant(
+              of: find.byType(ShadSelect<String>),
+              matching: find.byType(ShadDecorator),
+            )
+            .first,
+      );
+
   /// The background painted by one option row.
   Color optionFill(WidgetTester tester, String label) {
     // The trigger also shows the selected label; the option row is the later
@@ -199,14 +210,7 @@ void main() {
   testWidgets('closed select wears the full pill border', (tester) async {
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
 
-    final decorator = tester.widget<ShadDecorator>(
-      find
-          .descendant(
-            of: find.byType(ShadSelect<String>),
-            matching: find.byType(ShadDecorator),
-          )
-          .first,
-    );
+    final decorator = triggerDecorator(tester);
     final pill = MixarThemeData.dark().style.borderRadius.pill;
     expect(decorator.decoration?.border?.radius, pill);
     expect(decorator.decoration?.secondaryFocusedBorder?.radius, pill);
@@ -217,14 +221,7 @@ void main() {
     await openMenu(tester);
 
     final theme = MixarThemeData.dark();
-    final trigger = tester.widget<ShadDecorator>(
-      find
-          .descendant(
-            of: find.byType(ShadSelect<String>),
-            matching: find.byType(ShadDecorator),
-          )
-          .first,
-    );
+    final trigger = triggerDecorator(tester);
     // The panel is the decorator whose join edge is borderless.
     final popoverFinder = popoverDecoratorFinder(borderlessTop: true);
     final popover = tester.widget<ShadDecorator>(popoverFinder);
@@ -273,14 +270,7 @@ void main() {
     await openMenu(tester);
 
     final theme = MixarThemeData.dark();
-    final trigger = tester.widget<ShadDecorator>(
-      find
-          .descendant(
-            of: find.byType(ShadSelect<String>),
-            matching: find.byType(ShadDecorator),
-          )
-          .first,
-    );
+    final trigger = triggerDecorator(tester);
     final popoverFinder = popoverDecoratorFinder(borderlessTop: false);
     final popover = tester.widget<ShadDecorator>(popoverFinder);
     final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
@@ -336,14 +326,7 @@ void main() {
     );
     await openMenu(tester);
 
-    final trigger = tester.widget<ShadDecorator>(
-      find
-          .descendant(
-            of: find.byType(ShadSelect<String>),
-            matching: find.byType(ShadDecorator),
-          )
-          .first,
-    );
+    final trigger = triggerDecorator(tester);
     final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
     final popoverFinder = popoverDecoratorFinder(borderlessTop: true);
     final popoverRect = tester.getRect(popoverFinder);
@@ -367,14 +350,7 @@ void main() {
     await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
 
-    final trigger = tester.widget<ShadDecorator>(
-      find
-          .descendant(
-            of: find.byType(ShadSelect<String>),
-            matching: find.byType(ShadDecorator),
-          )
-          .first,
-    );
+    final trigger = triggerDecorator(tester);
     expect(
       trigger.decoration?.border?.radius,
       MixarThemeData.dark().style.borderRadius.pill,

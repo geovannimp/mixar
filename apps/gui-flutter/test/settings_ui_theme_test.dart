@@ -126,7 +126,7 @@ void main() {
     // A stadium's widest point is tangent, so its outermost raster column is
     // antialiased; allow a few levels of channel drift there.
     expect(
-      _hasColor(
+      _hasColorNear(
         capture.rgba,
         capture.stride,
         leftColumn,
@@ -140,7 +140,13 @@ void main() {
           '${rect.left - capture.origin.dx}',
     );
     expect(
-      _hasColor(capture.rgba, capture.stride, leftColumn + 1, midRow, primary),
+      _hasColorNear(
+        capture.rgba,
+        capture.stride,
+        leftColumn + 1,
+        midRow,
+        primary,
+      ),
       isTrue,
       reason: 'the ring stroke is 2px wide',
     );
@@ -181,12 +187,12 @@ Future<({Uint8List rgba, int stride, Offset origin})> _capturePanel(
   return (rgba: raster!.rgba, stride: raster.width * 4, origin: origin);
 }
 
-/// Whether the pixel at ([x], [y]) matches [color], allowing [tolerance] levels
-/// per channel for antialiased edges.
+/// Whether the pixel at ([x], [y]) approximately matches [color] within
+/// [tolerance] levels per channel for antialiased edges.
 ///
 /// [tolerance] of 0 requires an exact match; 12 covers the few levels of
 /// channel drift a stadium's tangent edge picks up from antialiasing.
-bool _hasColor(
+bool _hasColorNear(
   Uint8List rgba,
   int stride,
   int x,
