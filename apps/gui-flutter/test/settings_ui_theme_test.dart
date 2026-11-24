@@ -123,8 +123,17 @@ void main() {
     final primary = MixarThemeData.dark().colors.primary;
     final midRow = (rect.center.dy - capture.origin.dy).round();
     final leftColumn = (rect.left - capture.origin.dx).round() - 4;
+    // A stadium's widest point is tangent, so its outermost raster column is
+    // antialiased; allow a few levels of channel drift there.
     expect(
-      _hasColor(capture.rgba, capture.stride, leftColumn, midRow, primary),
+      _hasColor(
+        capture.rgba,
+        capture.stride,
+        leftColumn,
+        midRow,
+        primary,
+        tolerance: 12,
+      ),
       isTrue,
       reason:
           'the ring paints at x=$leftColumn, 4px left of the control edge '
@@ -172,11 +181,19 @@ Future<({Uint8List rgba, int stride, Offset origin})> _capturePanel(
   return (rgba: raster!.rgba, stride: raster.width * 4, origin: origin);
 }
 
-/// Whether the pixel at ([x], [y]) matches [color].
-bool _hasColor(Uint8List rgba, int stride, int x, int y, Color color) {
+/// Whether the pixel at ([x], [y]) matches [color], allowing [tolerance] levels
+/// per channel for antialiased edges.
+bool _hasColor(
+  Uint8List rgba,
+  int stride,
+  int x,
+  int y,
+  Color color, {
+  int tolerance = 0,
+}) {
   final argb = color.toARGB32();
   final i = y * stride + x * 4;
-  return rgba[i] == ((argb >> 16) & 0xFF) &&
-      rgba[i + 1] == ((argb >> 8) & 0xFF) &&
-      rgba[i + 2] == (argb & 0xFF);
+  return (rgba[i] - ((argb >> 16) & 0xFF)).abs() <= tolerance &&
+      (rgba[i + 1] - ((argb >> 8) & 0xFF)).abs() <= tolerance &&
+      (rgba[i + 2] - (argb & 0xFF)).abs() <= tolerance;
 }

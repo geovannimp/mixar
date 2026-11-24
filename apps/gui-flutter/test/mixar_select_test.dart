@@ -23,6 +23,8 @@ void main() {
     String Function(String value)? labelBuilder,
     String Function(String value)? subtitleBuilder,
     double width = 220,
+    bool bottomAligned = false,
+    bool topAligned = false,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -30,7 +32,12 @@ void main() {
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
-          body: Center(
+          body: Align(
+            alignment: topAligned
+                ? Alignment.topCenter
+                : bottomAligned
+                ? Alignment.bottomCenter
+                : Alignment.center,
             child: SizedBox(
               width: width,
               child: MixarSelect<String>(
@@ -57,9 +64,14 @@ void main() {
 
   /// The `Container` decoration painted behind one option row.
   Color optionFill(WidgetTester tester, String label) {
+    // The trigger also shows the selected label; the option row is the later
+    // occurrence in the open menu.
     final containers = tester
         .widgetList<Container>(
-          find.ancestor(of: find.text(label), matching: find.byType(Container)),
+          find.ancestor(
+            of: find.text(label).last,
+            matching: find.byType(Container),
+          ),
         )
         .where((c) {
           final decoration = c.decoration;
@@ -130,6 +142,204 @@ void main() {
   testWidgets('desktop style still uses ShadSelect', (tester) async {
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
     expect(find.byType(ShadSelect<String>), findsOneWidget);
+  });
+
+  testWidgets('closed select wears the full pill border', (tester) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+
+    final decorator = tester.widget<ShadDecorator>(
+      find
+          .descendant(
+            of: find.byType(ShadSelect<String>),
+            matching: find.byType(ShadDecorator),
+          )
+          .first,
+    );
+    final pill = MixarThemeData.dark().style.borderRadius.pill;
+    expect(decorator.decoration?.border?.radius, pill);
+    expect(decorator.decoration?.secondaryFocusedBorder?.radius, pill);
+  });
+
+  testWidgets('open menu joins the trigger into one card', (tester) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    await openMenu(tester);
+
+    final theme = MixarThemeData.dark();
+    final trigger = tester.widget<ShadDecorator>(
+      find
+          .descendant(
+            of: find.byType(ShadSelect<String>),
+            matching: find.byType(ShadDecorator),
+          )
+          .first,
+    );
+    // The panel is the decorator whose join edge is borderless.
+    final popoverFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is ShadDecorator &&
+          widget.decoration?.border?.top == ShadBorderSide.none,
+    );
+    final popover = tester.widget<ShadDecorator>(popoverFinder);
+    final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
+    final popoverRect = tester.getRect(popoverFinder);
+
+    // The trigger squares off at the join and keeps the closed pill's top half
+    // as the card's cap.
+    expect(
+      trigger.decoration?.border?.radius,
+      BorderRadius.vertical(top: Radius.circular(triggerRect.height / 2)),
+    );
+    expect(trigger.decoration?.color, theme.colors.card);
+    // The panel rounds only its bottom corners; the trigger's bottom stroke
+    // draws the divider.
+    expect(
+      popover.decoration?.border?.radius,
+      BorderRadius.vertical(bottom: theme.style.borderRadius.dialog.topLeft),
+    );
+    expect(popover.decoration?.border?.top, ShadBorderSide.none);
+
+    // The panel starts exactly at the trigger's bottom edge and its side
+    // strokes line up with the trigger's.
+    expect(popoverRect.top, moreOrLessEquals(triggerRect.bottom, epsilon: 0.5));
+    expect(popoverRect.left, moreOrLessEquals(triggerRect.left, epsilon: 0.5));
+    expect(
+      popoverRect.width,
+      moreOrLessEquals(triggerRect.width, epsilon: 0.5),
+    );
+  });
+
+  testWidgets('menu near the window bottom joins above the trigger', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (_) {},
+      bottomAligned: true,
+    );
+    final labelBefore = tester.getRect(find.text('low').first);
+    await openMenu(tester);
+
+    final theme = MixarThemeData.dark();
+    final trigger = tester.widget<ShadDecorator>(
+      find
+          .descendant(
+            of: find.byType(ShadSelect<String>),
+            matching: find.byType(ShadDecorator),
+          )
+          .first,
+    );
+    final popoverFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is ShadDecorator &&
+          widget.decoration?.border?.bottom == ShadBorderSide.none,
+    );
+    final popover = tester.widget<ShadDecorator>(popoverFinder);
+    final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
+    final popoverRect = tester.getRect(popoverFinder);
+
+    // The trigger keeps its bottom cap; the menu rounds its top corners.
+    expect(
+      trigger.decoration?.border?.radius,
+      BorderRadius.vertical(bottom: Radius.circular(triggerRect.height / 2)),
+    );
+    expect(
+      popover.decoration?.border?.radius,
+      BorderRadius.vertical(top: theme.style.borderRadius.dialog.topLeft),
+    );
+    expect(popover.decoration?.border?.bottom, ShadBorderSide.none);
+    expect(popover.decoration?.border?.top, isNot(ShadBorderSide.none));
+
+    // Flush above, same width, and the trigger content did not move.
+    expect(popoverRect.bottom, moreOrLessEquals(triggerRect.top, epsilon: 0.5));
+    expect(popoverRect.left, moreOrLessEquals(triggerRect.left, epsilon: 0.5));
+    expect(
+      popoverRect.width,
+      moreOrLessEquals(triggerRect.width, epsilon: 0.5),
+    );
+    expect(tester.getRect(find.text('low').first), labelBefore);
+  });
+
+  testWidgets('opening the menu does not move the trigger label or chevron', (
+    tester,
+  ) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+
+    final labelBefore = tester.getRect(find.text('low').first);
+    final chevron = find.byIcon(LucideIcons.chevronDown).first;
+    final chevronBefore = tester.getRect(chevron);
+
+    await openMenu(tester);
+
+    expect(tester.getRect(find.text('low').first), labelBefore);
+    expect(tester.getRect(chevron), chevronBefore);
+  });
+
+  testWidgets('a scrolled long list keeps the join below the trigger', (
+    tester,
+  ) async {
+    final options = [for (var i = 0; i < 40; i++) 'option $i'];
+    await pumpSelect(
+      tester,
+      value: options.last,
+      options: options,
+      topAligned: true,
+      onChanged: (_) {},
+    );
+    await openMenu(tester);
+
+    final trigger = tester.widget<ShadDecorator>(
+      find
+          .descendant(
+            of: find.byType(ShadSelect<String>),
+            matching: find.byType(ShadDecorator),
+          )
+          .first,
+    );
+    final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
+    final popoverFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is ShadDecorator &&
+          widget.decoration?.border?.top == ShadBorderSide.none,
+    );
+    final popoverRect = tester.getRect(popoverFinder);
+
+    // The selected last row scrolled the first row above the trigger; the
+    // panel's own top still sits below it, so the trigger keeps its top cap.
+    expect(
+      tester.getRect(find.text('option 0')).top,
+      lessThan(triggerRect.top),
+    );
+    expect(
+      trigger.decoration?.border?.radius,
+      BorderRadius.vertical(top: Radius.circular(triggerRect.height / 2)),
+    );
+    expect(popoverRect.top, moreOrLessEquals(triggerRect.bottom, epsilon: 0.5));
+  });
+
+  testWidgets('closing the menu restores the trigger pill', (tester) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    await openMenu(tester);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    final trigger = tester.widget<ShadDecorator>(
+      find
+          .descendant(
+            of: find.byType(ShadSelect<String>),
+            matching: find.byType(ShadDecorator),
+          )
+          .first,
+    );
+    expect(
+      trigger.decoration?.border?.radius,
+      MixarThemeData.dark().style.borderRadius.pill,
+    );
+    expect(trigger.decoration?.color, isNull);
   });
 
   testWidgets('mobile style opens a dialog of options and selects', (
