@@ -126,17 +126,43 @@ class _SelectOptionRow extends StatefulWidget {
 
 class _SelectOptionRowState extends State<_SelectOptionRow> {
   bool _hovered = false;
+  FocusNode? _focusNode;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final node = Focus.maybeOf(context);
+    if (node == _focusNode) return;
+    _focusNode?.removeListener(_onFocusChanged);
+    _focusNode = node;
+    _focusNode?.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _focusNode?.removeListener(_onFocusChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    // Mouse hover always shows the wash; keyboard focus only on unselected
+    // rows, so the active choice keeps its ink-only look when the menu opens.
+    final focused = !widget.selected && (_focusNode?.hasFocus ?? false);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _hovered ? theme.colors.secondary : const Color(0x00000000),
+          color: _hovered || focused
+              ? theme.colors.secondary
+              : const Color(0x00000000),
           borderRadius: widget.radius,
         ),
         child: Padding(
@@ -260,6 +286,10 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   /// `null` until the first open frame is measured; then the join direction.
   bool? _openAbove;
 
+  /// Post-frame tries spent looking for the open panel, capped so an empty or
+  /// never-mounted list cannot schedule work for every frame.
+  int _directionAttempts = 0;
+
   @override
   void initState() {
     super.initState();
@@ -270,6 +300,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     // Keep the last direction while the panel animates out, but start each
     // open from the closed pill until the new direction is measured.
     if (!_popoverController.isOpen) return;
+    _directionAttempts = 0;
     if (_openAbove != null) setState(() => _openAbove = null);
     // The panel is laid out in the overlay after this frame; measure then.
     WidgetsBinding.instance.addPostFrameCallback((_) => _detectOpenDirection());
@@ -277,18 +308,25 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
 
   void _detectOpenDirection() {
     if (!mounted || !_popoverController.isOpen) return;
+    // A select with no rows (the mobile dialog keeps this list empty) has no
+    // panel to measure; leave the closed shape rather than retrying forever.
+    if (widget.options.isEmpty) return;
     final trigger = _triggerKey.currentContext?.findRenderObject();
     final panel = _panelRenderObject(_firstOptionKey.currentContext);
     if (trigger is! RenderBox ||
         panel is! RenderBox ||
         !trigger.hasSize ||
         !panel.hasSize) {
-      // The overlay may not be laid out on the first frame; try again.
+      // The overlay may not be laid out on the first frame; try again for a
+      // few frames, then fall back to the closed layout.
+      if (_directionAttempts >= 10) return;
+      _directionAttempts++;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _detectOpenDirection();
       });
       return;
     }
+    _directionAttempts = 0;
     // The panel's own top, not the first row's, stays reliable when a long
     // list scrolls the selected option into view.
     final triggerTop = trigger.localToGlobal(Offset.zero).dy;
@@ -458,9 +496,11 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   ShadTheme.of(context).selectTheme.padding ??
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
               final resolved = base.resolve(Directionality.of(context));
+              final left = resolved.left - theme.style.borderWidth;
+              final right = resolved.right - theme.style.borderWidth;
               openSelectPadding = resolved.copyWith(
-                left: resolved.left - theme.style.borderWidth,
-                right: resolved.right - theme.style.borderWidth,
+                left: left > 0 ? left : 0,
+                right: right > 0 ? right : 0,
               );
             }
             // Rows keep square inner corners; only the menu's outer end

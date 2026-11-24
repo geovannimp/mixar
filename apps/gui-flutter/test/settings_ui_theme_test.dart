@@ -183,6 +183,9 @@ Future<({Uint8List rgba, int stride, Offset origin})> _capturePanel(
 
 /// Whether the pixel at ([x], [y]) matches [color], allowing [tolerance] levels
 /// per channel for antialiased edges.
+///
+/// [tolerance] of 0 requires an exact match; 12 covers the few levels of
+/// channel drift a stadium's tangent edge picks up from antialiasing.
 bool _hasColor(
   Uint8List rgba,
   int stride,

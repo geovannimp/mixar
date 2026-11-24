@@ -64,6 +64,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Finds the open menu panel by the borderless edge at its join.
+  Finder popoverDecoratorFinder({required bool borderlessTop}) =>
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ShadDecorator &&
+            (borderlessTop
+                ? widget.decoration?.border?.top == ShadBorderSide.none
+                : widget.decoration?.border?.bottom == ShadBorderSide.none),
+      );
+
   /// The background painted by one option row.
   Color optionFill(WidgetTester tester, String label) {
     // The trigger also shows the selected label; the option row is the later
@@ -165,6 +175,22 @@ void main() {
     expect(optionFill(tester, 'high'), theme.colors.secondary);
   });
 
+  testWidgets('keyboard focus paints a dark-grey wash on an unselected row', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    await openMenu(tester);
+
+    final highLabel = find.text('high').last;
+    Focus.of(tester.element(highLabel)).requestFocus();
+    await tester.pumpAndSettle();
+
+    expect(optionFill(tester, 'high'), theme.colors.secondary);
+    // The selected row stays ink-only even while it owns focus on open.
+    expect(optionFill(tester, 'low'), const Color(0x00000000));
+  });
+
   testWidgets('desktop style still uses ShadSelect', (tester) async {
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
     expect(find.byType(ShadSelect<String>), findsOneWidget);
@@ -200,11 +226,7 @@ void main() {
           .first,
     );
     // The panel is the decorator whose join edge is borderless.
-    final popoverFinder = find.byWidgetPredicate(
-      (widget) =>
-          widget is ShadDecorator &&
-          widget.decoration?.border?.top == ShadBorderSide.none,
-    );
+    final popoverFinder = popoverDecoratorFinder(borderlessTop: true);
     final popover = tester.widget<ShadDecorator>(popoverFinder);
     final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
     final popoverRect = tester.getRect(popoverFinder);
@@ -259,11 +281,7 @@ void main() {
           )
           .first,
     );
-    final popoverFinder = find.byWidgetPredicate(
-      (widget) =>
-          widget is ShadDecorator &&
-          widget.decoration?.border?.bottom == ShadBorderSide.none,
-    );
+    final popoverFinder = popoverDecoratorFinder(borderlessTop: false);
     final popover = tester.widget<ShadDecorator>(popoverFinder);
     final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
     final popoverRect = tester.getRect(popoverFinder);
@@ -327,11 +345,7 @@ void main() {
           .first,
     );
     final triggerRect = tester.getRect(find.byType(ShadSelect<String>));
-    final popoverFinder = find.byWidgetPredicate(
-      (widget) =>
-          widget is ShadDecorator &&
-          widget.decoration?.border?.top == ShadBorderSide.none,
-    );
+    final popoverFinder = popoverDecoratorFinder(borderlessTop: true);
     final popoverRect = tester.getRect(popoverFinder);
 
     // The selected last row scrolled the first row above the trigger; the
