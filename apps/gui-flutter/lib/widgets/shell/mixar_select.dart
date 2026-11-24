@@ -9,6 +9,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -17,9 +18,8 @@ enum MixarBorderSide { top, right, bottom, left }
 
 /// Full-width left-aligned option row for the mobile select dialog.
 ///
-/// Avoids `AppButton`'s centered shrink-wrap layout. Rows are a flat list
-/// separated by hairlines — no per-row frame — and the selected row uses the
-/// Mixar `MixarColors.selection` teal tint (same wash as desktop options).
+/// Mirrors `MixarMenuItem`: a flat band separated by hairlines, dark-grey
+/// hover, and accent ink plus a trailing check on the active choice.
 class _MobileSelectOption extends StatelessWidget {
   const new({
     required this.label,
@@ -42,49 +42,143 @@ class _MobileSelectOption extends StatelessWidget {
       selected: selected,
       semanticsLabel: subtitle == null ? label : '$label. $subtitle',
       builder: (context, state) {
-        final fill = selected
-            ? theme.colors.selection
-            : state.active
+        final fill = state.hovered || state.pressed
             ? theme.colors.secondary
             : theme.colors.card;
         final labelColor = selected
-            ? theme.colors.selectionForeground
+            ? theme.colors.primary
             : theme.colors.foreground;
-        final subtitleColor = selected
-            ? theme.colors.selectionForeground.withValues(alpha: 0.75)
-            : theme.colors.mutedForeground;
         return DecoratedBox(
           decoration: BoxDecoration(color: fill),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Text(
-                  label,
-                  textAlign: TextAlign.start,
-                  style: theme.typography.body.sm.copyWith(
-                    color: labelColor,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        textAlign: TextAlign.start,
+                        style: theme.typography.body.sm.copyWith(
+                          color: labelColor,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          textAlign: TextAlign.start,
+                          style: theme.typography.body.xs.copyWith(
+                            color: theme.colors.mutedForeground,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    textAlign: TextAlign.start,
-                    style: theme.typography.body.xs.copyWith(
-                      color: subtitleColor,
-                      height: 1.25,
+                if (selected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: 14,
+                      color: theme.colors.primary,
                     ),
                   ),
-                ],
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Desktop select row. Mirrors `MixarMenuItem`: a 44px full-bleed band with a
+/// dark-grey mouse hover, accent ink and a trailing check on the active choice.
+///
+/// The hover lives here rather than in [ShadOptionTheme] because Shad treats
+/// keyboard focus as hover; the selected row is focused to scroll it into view
+/// and must stay unfilled until the pointer actually lands on it.
+class _SelectOptionRow extends StatefulWidget {
+  const new({
+    required this.label,
+    required this.selected,
+    this.subtitle,
+    this.radius,
+  });
+
+  final String label;
+  final String? subtitle;
+  final bool selected;
+  final BorderRadius? radius;
+
+  @override
+  State<_SelectOptionRow> createState() => _SelectOptionRowState();
+}
+
+class _SelectOptionRowState extends State<_SelectOptionRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _hovered ? theme.colors.secondary : const Color(0x00000000),
+          borderRadius: widget.radius,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: kMixarMenuRowHeight),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: widget.subtitle == null
+                        ? Text(widget.label)
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(widget.label),
+                              Text(
+                                widget.subtitle!,
+                                style: theme.typography.body.xs.copyWith(
+                                  color: theme.colors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                if (widget.selected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: 14,
+                      color: theme.colors.primary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -297,27 +391,27 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     final theme = context.theme;
     final mobile = style == SelectStyleSetting.mobile;
 
-    Widget buildOption(T option) {
+    Widget buildOption(T option, {BorderRadius? radius}) {
       final optionLabel = (widget.optionLabelBuilder ?? widget.labelBuilder)(
         option,
       );
-      final label = Text(optionLabel);
-      final child = widget.subtitleBuilder == null
-          ? label
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                label,
-                Text(
-                  widget.subtitleBuilder!(option),
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
-                ),
-              ],
-            );
-      final selectOption = ShadOption<T>(value: option, child: child);
+      final selectOption = ShadOption<T>(
+        value: option,
+        // The trigger uses the theme's normal ink; only the open list's active
+        // row takes the accent label.
+        selectedTextStyle: theme.typography.body.sm.copyWith(
+          color: theme.colors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+        // The row draws its own accent check; leave Shad's built-in icon out.
+        selectedIcon: const SizedBox.shrink(),
+        child: _SelectOptionRow(
+          label: optionLabel,
+          subtitle: widget.subtitleBuilder?.call(option),
+          selected: option == widget.value,
+          radius: radius,
+        ),
+      );
       if (!widget.unfocusAfterPointerSelection) {
         return selectOption;
       }
@@ -369,6 +463,35 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                 right: resolved.right - theme.style.borderWidth,
               );
             }
+            // Rows keep square inner corners; only the menu's outer end
+            // follows the panel radius, so a hovered end row stays inside the
+            // rounded card.
+            final outerInset =
+                theme.style.borderRadius.dialog.topLeft.x -
+                theme.style.borderWidth;
+            final outerCorners = Radius.circular(
+              outerInset > 0 ? outerInset : 0,
+            );
+            BorderRadius optionRadius(int index) {
+              final last = widget.options.length - 1;
+              if (index == 0 && index == last) {
+                return above
+                    ? BorderRadius.vertical(top: outerCorners)
+                    : BorderRadius.vertical(bottom: outerCorners);
+              }
+              if (index == 0) {
+                return above
+                    ? BorderRadius.vertical(top: outerCorners)
+                    : BorderRadius.zero;
+              }
+              if (index == last) {
+                return above
+                    ? BorderRadius.zero
+                    : BorderRadius.vertical(bottom: outerCorners);
+              }
+              return BorderRadius.zero;
+            }
+
             // The popover theme is global; nest one so this select can round
             // the menu's outer end on whichever side it actually opened.
             final baseShad = ShadTheme.of(context);
@@ -429,14 +552,21 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   options: mobile
                       ? const <Widget>[]
                       : [
-                          for (final (index, option) in widget.options.indexed)
-                            if (index == 0)
-                              SizedBox(
-                                key: _firstOptionKey,
-                                child: buildOption(option),
-                              )
-                            else
-                              buildOption(option),
+                          for (final (index, option)
+                              in widget.options.indexed) ...[
+                            if (index > 0)
+                              MDivider(
+                                padding: EdgeInsets.zero,
+                                color: theme.colors.border,
+                              ),
+                            SizedBox(
+                              key: index == 0 ? _firstOptionKey : null,
+                              child: buildOption(
+                                option,
+                                radius: optionRadius(index),
+                              ),
+                            ),
+                          ],
                         ],
                 ),
               ),

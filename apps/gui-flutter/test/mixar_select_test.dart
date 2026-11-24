@@ -4,6 +4,8 @@ import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -62,60 +64,84 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The `Container` decoration painted behind one option row.
+  /// The background painted by one option row.
   Color optionFill(WidgetTester tester, String label) {
     // The trigger also shows the selected label; the option row is the later
     // occurrence in the open menu.
-    final containers = tester
-        .widgetList<Container>(
-          find.ancestor(
+    final box = tester.widget<DecoratedBox>(
+      find
+          .ancestor(
             of: find.text(label).last,
-            matching: find.byType(Container),
-          ),
-        )
-        .where((c) {
-          final decoration = c.decoration;
-          return decoration is BoxDecoration && decoration.color != null;
-        })
-        .toList();
-    expect(
-      containers,
-      isNotEmpty,
-      reason: 'no decorated option row found for "$label"',
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
     );
-    final decoration = containers.first.decoration;
+    final decoration = box.decoration;
     expect(decoration, isA<BoxDecoration>());
-    return (decoration! as BoxDecoration).color!;
+    return (decoration as BoxDecoration).color!;
   }
 
-  testWidgets('the selected option uses the Mixar selection tint, not a solid '
-      'accent block', (tester) async {
-    final theme = MixarThemeData.dark();
-    await pumpSelect(tester, value: 'low', onChanged: (_) {});
-    await openMenu(tester);
-
-    expect(optionFill(tester, 'low'), theme.colors.selection);
-    // The stock Shad default was `colorScheme.accent`, a solid teal block.
-    expect(optionFill(tester, 'low'), isNot(theme.colors.accent));
-  });
-
-  testWidgets('the selected option text is legible over the tint', (
+  testWidgets('the selected option is accent ink only, not a filled block', (
     tester,
   ) async {
     final theme = MixarThemeData.dark();
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
     await openMenu(tester);
 
+    // The focused selected row keeps the card; only the label and check take
+    // the accent.
+    expect(optionFill(tester, 'low'), const Color(0x00000000));
     final text = tester.widget<Text>(find.text('low').last);
     final style =
         text.style ??
         DefaultTextStyle.of(tester.element(find.text('low').last)).style;
-    expect(style.color, theme.colors.selectionForeground);
+    expect(style.color, theme.colors.primary);
+    // The trigger's selected value stays in normal ink; accent is list-only.
+    final triggerLabel = find.text('low').first;
+    final triggerStyle = DefaultTextStyle.of(tester.element(triggerLabel))
+        .style;
+    expect(triggerStyle.color, theme.colors.foreground);
+    final check = tester.widget<Icon>(
+      find.descendant(
+        of: find.byType(ShadOption<String>).first,
+        matching: find.byIcon(LucideIcons.check),
+      ),
+    );
+    expect(check.color, theme.colors.primary);
+    expect(check.size, 14);
   });
 
-  testWidgets('hovering an option paints the same quiet selection tint', (
+  testWidgets('desktop options are menu bands with hairline dividers', (
     tester,
   ) async {
+    final theme = MixarThemeData.dark();
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    await openMenu(tester);
+
+    // One rule between each pair of choices, full-bleed like MixarMenuGroup.
+    expect(find.byType(MDivider), findsNWidgets(2));
+    for (final divider in tester.widgetList<MDivider>(find.byType(MDivider))) {
+      expect(divider.color, theme.colors.border);
+      expect(divider.padding, EdgeInsets.zero);
+    }
+
+    final row = tester.getRect(
+      find
+          .ancestor(
+            of: find.text('high').last,
+            matching: find.byType(ShadOption<String>),
+          )
+          .first,
+    );
+    expect(row.height, kMixarMenuRowHeight);
+
+    final label = find.text('high').last;
+    final style = DefaultTextStyle.of(tester.element(label)).style;
+    expect(style.fontSize, theme.typography.body.sm.fontSize);
+    expect(style.color, theme.colors.foreground);
+  });
+
+  testWidgets('hovering an option paints a dark-grey wash', (tester) async {
     final theme = MixarThemeData.dark();
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
     await openMenu(tester);
@@ -126,17 +152,17 @@ void main() {
     await tester.pump();
 
     // Baseline: 'high' is neither selected nor hovered, so it must not carry
-    // the tint before the pointer lands on it.
+    // the wash before the pointer lands on it.
     expect(
       optionFill(tester, 'high'),
-      isNot(theme.colors.selection),
+      const Color(0x00000000),
       reason: 'a non-selected, non-hovered option must stay untinted',
     );
 
     await gesture.moveTo(tester.getCenter(find.text('high')));
     await tester.pumpAndSettle();
 
-    expect(optionFill(tester, 'high'), theme.colors.selection);
+    expect(optionFill(tester, 'high'), theme.colors.secondary);
   });
 
   testWidgets('desktop style still uses ShadSelect', (tester) async {
@@ -489,15 +515,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final subtitle = tester.widget<Text>(find.text('Dialog picker'));
-    expect(
-      subtitle.style?.color,
-      theme.colors.selectionForeground.withValues(alpha: 0.75),
-    );
+    expect(subtitle.style?.color, theme.colors.mutedForeground);
     expect(subtitle.textAlign, TextAlign.start);
 
     final title = tester.widget<Text>(find.text('Mobile').last);
     expect(title.textAlign, TextAlign.start);
-    expect(title.style?.color, theme.colors.selectionForeground);
+    expect(title.style?.color, theme.colors.primary);
+    expect(title.style?.fontWeight, FontWeight.w600);
 
     final selectedRow = tester.widget<DecoratedBox>(
       find
@@ -508,6 +532,16 @@ void main() {
           .first,
     );
     final decoration = selectedRow.decoration as BoxDecoration;
-    expect(decoration.color, theme.colors.selection);
+    expect(decoration.color, theme.colors.card);
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Dialog picker'),
+          matching: find.byType(MTappable),
+        ),
+        matching: find.byIcon(LucideIcons.check),
+      ),
+      findsOneWidget,
+    );
   });
 }

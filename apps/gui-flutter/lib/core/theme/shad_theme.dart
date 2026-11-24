@@ -88,20 +88,27 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,
-    // Shad's stock option theme fills a selected/hovered row with `accent`, a
-    // solid teal block that glares against the dark menu. Use the quiet Mixar
-    // selection wash and keep the row text in Mixar's foreground.
+    // Options read as MixarMenuItem rows: full-bleed bands, 44px tall, a
+    // hairline between choices, and a dark-grey hover. Selection is ink-only —
+    // the label and trailing check take the accent; the row keeps the card.
+    // The hover paint lives in `_SelectOptionRow` because Shad treats keyboard
+    // focus as hover; this theme only supplies the row typography.
     optionTheme: ShadOptionTheme(
-      hoveredBackgroundColor: c.selection,
-      selectedBackgroundColor: c.selection,
-      selectedTextStyle: theme.typography.body.sm.copyWith(
-        color: c.selectionForeground,
-      ),
-      selectedIconColor: c.selectionForeground,
+      hoveredBackgroundColor: const Color(0x00000000),
+      selectedBackgroundColor: const Color(0x00000000),
+      backgroundColor: const Color(0x00000000),
+      textStyle: theme.typography.body.sm.copyWith(color: c.foreground),
+      // The trigger reads this style for its selected value; the accent is for
+      // the open list's active row only, supplied per ShadOption.
+      selectedTextStyle: theme.typography.body.sm.copyWith(color: c.foreground),
+      padding: EdgeInsets.zero,
+      radius: BorderRadius.zero,
     ),
     selectTheme: ShadSelectTheme(
       effects: mixarSelectOpenEffects(),
       popoverReverseDuration: const Duration(milliseconds: 120),
+      // The rows and their rules span the panel like a Mixar menu body.
+      optionsPadding: EdgeInsets.zero,
       // Sit flush against the trigger so the open select reads as one card.
       // The fallback stays above the trigger when there is no room below.
       anchor: const ShadAnchorAuto(
