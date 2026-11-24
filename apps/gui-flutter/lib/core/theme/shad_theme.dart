@@ -3,31 +3,57 @@ import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-/// Select menu opens by growing height from the top edge.
+/// Select menu reveals by clipping a full-size panel, not by shrinking its
+/// layout height.
 ///
-/// `Align.heightFactor` alone under unbounded overlay width collapses to the
-/// child's intrinsic width and shifts the follower. `widthFactor: 1` keeps the
-/// select's laid-out width so the portal anchor stays aligned.
-final _mixarSelectOpenEffects = <AnimateEffect<dynamic>>[
-  CustomEffect(
-    duration: const Duration(milliseconds: 160),
-    curve: Curves.easeOutCubic,
-    builder: (context, value, child) {
-      return ClipRect(
-        child: Align(
-          alignment: Alignment.topCenter,
-          heightFactor: value.clamp(0.0, 1.0),
-          widthFactor: 1,
+/// The portal anchors the overlay using the panel's measured size. Animating
+/// the layout height makes an upward-opening menu anchor to a half-grown size
+/// and overlap the trigger. A clip keeps the full size from the first frame,
+/// so the fallback anchor can seat the panel flush against the trigger.
+List<AnimateEffect<dynamic>> mixarSelectOpenEffects({
+  Alignment alignment = Alignment.topCenter,
+}) {
+  return <AnimateEffect<dynamic>>[
+    CustomEffect(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return ClipRect(
+          clipper: _MixarSelectRevealClipper(
+            alignment: alignment,
+            factor: value.clamp(0.0, 1.0),
+          ),
           child: child,
-        ),
-      );
-    },
-  ),
-  const FadeEffect(
-    duration: Duration(milliseconds: 120),
-    curve: Curves.easeOut,
-  ),
-];
+        );
+      },
+    ),
+    const FadeEffect(
+      duration: Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+    ),
+  ];
+}
+
+/// Reveals a panel from its top ([Alignment.topCenter]) or bottom
+/// ([Alignment.bottomCenter]) edge without changing its layout size.
+class _MixarSelectRevealClipper extends CustomClipper<Rect> {
+  const new({required this.alignment, required this.factor});
+
+  final Alignment alignment;
+  final double factor;
+
+  @override
+  Rect getClip(Size size) {
+    final height = size.height * factor;
+    return alignment == Alignment.bottomCenter
+        ? Rect.fromLTWH(0, size.height - height, size.width, height)
+        : Rect.fromLTWH(0, 0, size.width, height);
+  }
+
+  @override
+  bool shouldReclip(_MixarSelectRevealClipper oldClipper) =>
+      oldClipper.alignment != alignment || oldClipper.factor != factor;
+}
 
 /// Map Mixar tokens into [ShadThemeData] so shadcn widgets match chrome.
 ///
@@ -62,20 +88,43 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,
-    // Shad's stock option theme fills a selected/hovered row with `accent`, a
-    // solid teal block that glares against the dark menu. Use the quiet Mixar
-    // selection wash and keep the row text in Mixar's foreground.
+    // Options read as MixarMenuItem rows: full-bleed bands, 44px tall, a
+    // hairline between choices, and a dark-grey hover. Selection is ink-only —
+    // the label and trailing check take the accent; the row keeps the card.
+    // The hover paint lives in `_SelectOptionRow` because Shad treats keyboard
+    // focus as hover; this theme only supplies the row typography.
     optionTheme: ShadOptionTheme(
-      hoveredBackgroundColor: c.selection,
-      selectedBackgroundColor: c.selection,
-      selectedTextStyle: theme.typography.body.sm.copyWith(
-        color: c.selectionForeground,
-      ),
-      selectedIconColor: c.selectionForeground,
+      hoveredBackgroundColor: const Color(0x00000000),
+      selectedBackgroundColor: const Color(0x00000000),
+      backgroundColor: const Color(0x00000000),
+      textStyle: theme.typography.body.sm.copyWith(color: c.foreground),
+      // The trigger reads this style for its selected value; the accent is for
+      // the open list's active row only, supplied per ShadOption.
+      selectedTextStyle: theme.typography.body.sm.copyWith(color: c.foreground),
+      padding: EdgeInsets.zero,
+      radius: BorderRadius.zero,
     ),
     selectTheme: ShadSelectTheme(
-      effects: _mixarSelectOpenEffects,
+      effects: mixarSelectOpenEffects(),
       popoverReverseDuration: const Duration(milliseconds: 120),
+      // The rows and their rules span the panel like a Mixar menu body.
+      optionsPadding: EdgeInsets.zero,
+      // Sit flush against the trigger so the open select reads as one card.
+      // The fallback stays above the trigger when there is no room below.
+      anchor: const ShadAnchorAuto(
+        fallback: ShadAnchorAuto(
+          followerAnchor: Alignment.topCenter,
+          targetAnchor: Alignment.topCenter,
+        ),
+      ),
+      // Selects wear the full pill like labelled app buttons. The base stroke
+      // and the focus ring share it so focus does not cut the stadium corners.
+      decoration: ShadDecoration(
+        border: ShadBorder(radius: theme.style.borderRadius.pill),
+        secondaryFocusedBorder: ShadBorder(
+          radius: theme.style.borderRadius.pill,
+        ),
+      ),
     ),
   );
 }
