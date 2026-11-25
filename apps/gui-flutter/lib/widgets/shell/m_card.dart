@@ -77,8 +77,15 @@ class MCard extends StatelessWidget {
         borderRadius: radius,
       ),
       // Inset so edge-flush fills (cover art, waveforms) cannot paint over the
-      // hairline — DecoratedBox draws the stroke behind its child.
-      child: Padding(padding: EdgeInsets.all(borderW), child: content),
+      // hairline — DecoratedBox draws the stroke behind its child. Only the
+      // sides that carry a hairline are reserved, so content sits flush where
+      // there is none (a card with `sideBorders`/`topBorder` off).
+      child: Padding(
+        padding: borderColor != null || sideBorders
+            ? EdgeInsets.all(borderW)
+            : EdgeInsets.only(top: topBorder ? borderW : 0, bottom: borderW),
+        child: content,
+      ),
     );
     // The Stack is always the root so toggling the interaction outline does
     // not remount the card body (and lose e.g. a scroll position). Passthrough

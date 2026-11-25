@@ -75,6 +75,50 @@ void main() {
     );
   });
 
+  testWidgets('MCard keeps content flush where no hairline is painted', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    await tester.pumpWidget(
+      _mixarApp(
+        base,
+        const MCard(
+          sideBorders: false,
+          topBorder: false,
+          child: SizedBox(width: 40, height: 40),
+        ),
+      ),
+    );
+
+    final padding = tester.widget<Padding>(
+      find.descendant(of: find.byType(MCard), matching: find.byType(Padding)),
+    );
+    expect(padding.padding, EdgeInsets.only(bottom: base.style.borderWidth));
+  });
+
+  testWidgets('MCard reserves the top hairline when the sides are off', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    await tester.pumpWidget(
+      _mixarApp(
+        base,
+        const MCard(sideBorders: false, child: SizedBox(width: 40, height: 40)),
+      ),
+    );
+
+    final padding = tester.widget<Padding>(
+      find.descendant(of: find.byType(MCard), matching: find.byType(Padding)),
+    );
+    expect(
+      padding.padding,
+      EdgeInsets.only(
+        top: base.style.borderWidth,
+        bottom: base.style.borderWidth,
+      ),
+    );
+  });
+
   testWidgets('a border color override closes every edge', (tester) async {
     final base = MixarThemeData.dark();
     await tester.pumpWidget(
