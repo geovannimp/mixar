@@ -125,4 +125,26 @@ void main() {
     );
     expect(find.text('Title'), findsOneWidget);
   });
+
+  testWidgets('a normal field wears the full pill border', (tester) async {
+    await pumpInput(tester, const MixarInput(hint: 'Search'));
+
+    final decorator = tester.widget<ShadDecorator>(
+      find.descendant(
+        of: find.byType(ShadInput),
+        matching: find.byType(ShadDecorator),
+      ),
+    );
+
+    expect(decorator.decoration?.border?.radius, theme.style.borderRadius.pill);
+    // The primary focus and error states fall back to that border, but the
+    // secondary focus ring is drawn from the global decoration theme, so it
+    // needs the pill radius explicitly or focus reads as a square.
+    expect(decorator.decoration?.focusedBorder, isNull);
+    expect(decorator.decoration?.errorBorder, isNull);
+    expect(
+      decorator.decoration?.secondaryFocusedBorder?.radius,
+      theme.style.borderRadius.pill,
+    );
+  });
 }

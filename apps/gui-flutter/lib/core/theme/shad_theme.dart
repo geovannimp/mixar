@@ -88,6 +88,19 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,
+    // Fields wear the full pill like selects and labelled app buttons. Only the
+    // radii are set here so the Shad default strokes keep their colour, width
+    // and focus offset; the error state falls back to the base border. The
+    // secondary focus ring is set explicitly because the global decoration
+    // theme draws it on the square radius.
+    inputTheme: ShadInputTheme(
+      decoration: ShadDecoration(
+        border: ShadBorder(radius: theme.style.borderRadius.pill),
+        secondaryFocusedBorder: ShadBorder(
+          radius: theme.style.borderRadius.pill,
+        ),
+      ),
+    ),
     // Options read as MixarMenuItem rows: full-bleed bands, 44px tall, a
     // hairline between choices, and a dark-grey hover. Selection is ink-only —
     // the label and trailing check take the accent; the row keeps the card.
