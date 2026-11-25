@@ -169,21 +169,26 @@ impl CpalBackend {
     /// advertises its own period as `Range { min == max }`). A range whose minimum is larger
     /// is refused with that minimum; `engine-core` turns it into a Buffer size error instead
     /// of over-requesting. `engine-core` decouples the callback period from the DSP chunk
-    /// through the ring buffer, so a smaller device period is fine.
+    /// through the ring buffer, so a smaller device period is fine. The granted period is
+    /// never zero: a range that admits no callback frames falls back to the configured one.
     fn negotiate_frames(
         supported: &SupportedBufferSize,
         requested: u32,
     ) -> std::result::Result<u32, u32> {
         match supported {
             SupportedBufferSize::Range { min, max } if min <= max => {
+                if *max == 0 {
+                    // No callback period is runnable in this range; never open Fixed(0).
+                    return Ok(requested.max(1));
+                }
                 if requested < *min {
                     // The driver cannot run one buffer's worth of samples. Refuse instead
                     // of asking the hardware for more than the buffer holds.
                     return Err(*min);
                 }
-                Ok(requested.min(*max))
+                Ok(requested.min(*max).max(1))
             }
-            _ => Ok(requested),
+            _ => Ok(requested.max(1)),
         }
     }
 
@@ -897,6 +902,29 @@ mod tests {
             max: 4096,
         };
         assert_eq!(CpalBackend::negotiate_frames(&supported, 512), Err(1024));
+    }
+
+    #[test]
+    fn negotiate_frames_never_grants_a_zero_period() {
+        // A range that admits no callback frames cannot run a stream; ask for the buffer.
+        let empty = SupportedBufferSize::Range { min: 0, max: 0 };
+        assert_eq!(CpalBackend::negotiate_frames(&empty, 512), Ok(512));
+
+        // Even a zero request never becomes Fixed(0) on the stream.
+        assert_eq!(CpalBackend::negotiate_frames(&empty, 0), Ok(1));
+        assert_eq!(
+            CpalBackend::negotiate_frames(&SupportedBufferSize::Unknown, 0),
+            Ok(1)
+        );
+    }
+
+    #[test]
+    fn negotiate_frames_refuses_a_fixed_period_longer_than_the_buffer() {
+        // 480 frames at 44.1 kHz is 10.9 ms, longer than a 512-frame 48 kHz buffer (10.7 ms).
+        // The engine asks for the converted 470 frames, which is below the device minimum:
+        // the time comparison and the frame comparison agree that it does not fit.
+        let fixed = SupportedBufferSize::Range { min: 480, max: 480 };
+        assert_eq!(CpalBackend::negotiate_frames(&fixed, 470), Err(480));
     }
 
     #[test]

@@ -215,11 +215,14 @@ pub struct DeviceBufferSizeError {
 
 impl std::fmt::Display for DeviceBufferSizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ms = if self.sample_rate == 0 {
-            f64::NAN
-        } else {
-            f64::from(self.min_frames) * 1_000.0 / f64::from(self.sample_rate)
-        };
+        if self.sample_rate == 0 {
+            return write!(
+                f,
+                "device needs a callback period of at least {} frames, but {} frames were requested",
+                self.min_frames, self.requested_frames
+            );
+        }
+        let ms = f64::from(self.min_frames) * 1_000.0 / f64::from(self.sample_rate);
         write!(
             f,
             "device needs a callback period of at least {} frames ({ms:.1} ms at {} Hz), but {} frames were requested",
@@ -502,5 +505,31 @@ mod tests {
         let duration = params.buffer_duration();
         let expected_ms = (512.0 / 48000.0 * 1000.0) as u64;
         assert_eq!(duration.as_millis(), expected_ms as u128);
+    }
+
+    #[test]
+    fn device_buffer_size_error_names_the_period() {
+        let error = DeviceBufferSizeError {
+            min_frames: 480,
+            requested_frames: 256,
+            sample_rate: 48_000,
+        };
+        assert_eq!(
+            error.to_string(),
+            "device needs a callback period of at least 480 frames (10.0 ms at 48000 Hz), but 256 frames were requested"
+        );
+    }
+
+    #[test]
+    fn device_buffer_size_error_without_a_rate_omits_the_duration() {
+        let error = DeviceBufferSizeError {
+            min_frames: 480,
+            requested_frames: 256,
+            sample_rate: 0,
+        };
+        let message = error.to_string();
+        assert!(!message.contains("NaN"), "{message}");
+        assert!(message.contains("at least 480 frames"), "{message}");
+        assert!(message.contains("256 frames were requested"), "{message}");
     }
 }
