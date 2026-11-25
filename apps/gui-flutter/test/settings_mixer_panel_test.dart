@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show CrossfaderBehaviorSetting;
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
@@ -32,6 +34,11 @@ Finder _inRealtimeSection(Finder matching) => find.descendant(
 
 Finder _realtimeSwitch() =>
     _inRealtimeSection(find.byType(SettingsHeaderSwitch));
+
+Finder _crossfaderCardSwitch() => find.descendant(
+  of: find.widgetWithText(SettingsSectionCard, 'Crossfader'),
+  matching: find.byType(SettingsHeaderSwitch),
+);
 
 Finder _benchmarkButton() => _inRealtimeSection(find.byType(AppButton));
 
@@ -278,12 +285,39 @@ void main() {
     expect(changed.last.crossfaderBehavior.hamster, isTrue);
     expect(changed.last.crossfaderBehavior.disabled, isFalse);
 
-    final disable = find.text('Disable the crossfader');
+    // The on/off lives in the card heading, next to the title, and reads on
+    // while the crossfader is active.
+    expect(find.text('Disable the crossfader'), findsNothing);
+    final disable = _crossfaderCardSwitch();
+    expect(disable, findsOneWidget);
+    expect(tester.widget<SettingsHeaderSwitch>(disable).value, isTrue);
     await tester.ensureVisible(disable);
     await tester.pumpAndSettle();
     await tester.tap(disable);
     await tester.pumpAndSettle();
     expect(changed.last.crossfaderBehavior.disabled, isTrue);
+  }, semanticsEnabled: false);
+
+  testWidgets('a disabled crossfader collapses the card body', (tester) async {
+    await _pumpPanel(
+      tester,
+      changed: [],
+      draft: copyAppSettings(
+        defaultAppSettings(),
+        crossfaderBehavior: const CrossfaderBehaviorSetting(
+          disabled: true,
+          hamster: false,
+        ),
+      ),
+    );
+
+    final crossfaderSwitch = _crossfaderCardSwitch();
+    expect(
+      tester.widget<SettingsHeaderSwitch>(crossfaderSwitch).value,
+      isFalse,
+    );
+    expect(find.byType(SettingsVisualChoice<String>), findsNothing);
+    expect(find.text('Invert (swap A and B)'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('the mixer panel offers the meter width as radio rows', (

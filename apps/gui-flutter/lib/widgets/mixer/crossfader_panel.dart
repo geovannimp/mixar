@@ -81,6 +81,7 @@ class _CrossfaderStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
+    final crossfaderDisabled = ref.watch(crossfaderDisabledProvider);
     final crossfader = ref.watch(crossfaderProvider) * 100;
     return SizedBox(
       height: _crossfaderFootHeight,
@@ -107,7 +108,7 @@ class _CrossfaderStrip extends ConsumerWidget {
                   showMarkers: true,
                   centerNotch: true,
                   crossfaderTrack: true,
-                  disabled: !enabled,
+                  disabled: !enabled || crossfaderDisabled,
                   onValueChange: (next) {
                     unawaited(
                       runMixerCommand(
@@ -139,7 +140,9 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(engineRunningProvider);
+    final enabled =
+        ref.watch(engineRunningProvider) &&
+        !ref.watch(crossfaderDisabledProvider);
     final theme = context.theme;
     final label = side == CrossfaderAssign.a ? 'A' : 'B';
     final commandContext = context;
@@ -187,7 +190,9 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
       ),
       menuBuilder: (_, _) => Consumer(
         builder: (context, menuRef, _) {
-          final menuEnabled = menuRef.watch(engineRunningProvider);
+          final menuEnabled =
+              menuRef.watch(engineRunningProvider) &&
+              !menuRef.watch(crossfaderDisabledProvider);
           final numDecks =
               menuRef.watch(appSettingsProvider).value?.numDecks ?? 2;
           return MixarMenuGroup(

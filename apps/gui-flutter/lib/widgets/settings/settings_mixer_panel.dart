@@ -92,61 +92,72 @@ class SettingsMixerPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsMixerCrossfaderTitle,
           subtitle: l10n.settingsMixerCrossfaderDescription,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 16,
-            children: [
-              SettingsField(
-                label: l10n.settingsMixerCrossfaderCurve,
-                child: SettingsVisualChoice<String>(
-                  value: draft.defaultCrossfaderCurve,
-                  options: [
-                    for (final id in _curveOptions(draft))
-                      SettingsVisualOption<String>(
-                        value: id,
-                        label: _curveLabel(draft, id, l10n),
-                        preview: _CurvePreview(
-                          channels: _previewChannels(draft, id),
-                          colors: [
-                            deckInk(DeckAccent.a, theme.colors.brightness),
-                            deckInk(DeckAccent.b, theme.colors.brightness),
-                          ],
+          trailing: SettingsHeaderSwitch(
+            value: !draft.crossfaderBehavior.disabled,
+            semanticsLabel: l10n.settingsMixerCrossfaderTitle,
+            onChanged: (value) => onChanged(
+              copyAppSettings(
+                draft,
+                crossfaderBehavior: CrossfaderBehaviorSetting(
+                  disabled: !value,
+                  hamster: draft.crossfaderBehavior.hamster,
+                ),
+              ),
+            ),
+          ),
+          child: draft.crossfaderBehavior.disabled
+              ? null
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 16,
+                  children: [
+                    SettingsField(
+                      label: l10n.settingsMixerCrossfaderCurve,
+                      child: SettingsVisualChoice<String>(
+                        value: draft.defaultCrossfaderCurve,
+                        options: [
+                          for (final id in _curveOptions(draft))
+                            SettingsVisualOption<String>(
+                              value: id,
+                              label: _curveLabel(draft, id, l10n),
+                              preview: _CurvePreview(
+                                channels: _previewChannels(draft, id),
+                                colors: [
+                                  deckInk(
+                                    DeckAccent.a,
+                                    theme.colors.brightness,
+                                  ),
+                                  deckInk(
+                                    DeckAccent.b,
+                                    theme.colors.brightness,
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                        onChanged: (selectedId) => onChanged(
+                          copyAppSettings(
+                            draft,
+                            defaultCrossfaderCurve: selectedId,
+                          ),
                         ),
                       ),
+                    ),
+                    SettingsCheckbox(
+                      label: l10n.settingsMixerCrossfaderInvert,
+                      value: draft.crossfaderBehavior.hamster,
+                      onChanged: (value) => onChanged(
+                        copyAppSettings(
+                          draft,
+                          crossfaderBehavior: CrossfaderBehaviorSetting(
+                            disabled: draft.crossfaderBehavior.disabled,
+                            hamster: value,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
-                  onChanged: (selectedId) => onChanged(
-                    copyAppSettings(draft, defaultCrossfaderCurve: selectedId),
-                  ),
                 ),
-              ),
-              SettingsCheckbox(
-                label: l10n.settingsMixerCrossfaderInvert,
-                value: draft.crossfaderBehavior.hamster,
-                onChanged: (value) => onChanged(
-                  copyAppSettings(
-                    draft,
-                    crossfaderBehavior: CrossfaderBehaviorSetting(
-                      disabled: draft.crossfaderBehavior.disabled,
-                      hamster: value,
-                    ),
-                  ),
-                ),
-              ),
-              SettingsCheckbox(
-                label: l10n.settingsMixerCrossfaderDisable,
-                value: draft.crossfaderBehavior.disabled,
-                onChanged: (value) => onChanged(
-                  copyAppSettings(
-                    draft,
-                    crossfaderBehavior: CrossfaderBehaviorSetting(
-                      disabled: value,
-                      hamster: draft.crossfaderBehavior.hamster,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         SettingsSectionCard(
           title: l10n.settingsLayoutMixerMeters,

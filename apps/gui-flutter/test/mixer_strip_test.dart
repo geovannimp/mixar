@@ -7,7 +7,8 @@ import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show DeckEq;
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show CrossfaderBehaviorSetting, DeckEq;
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
@@ -37,6 +38,7 @@ Future<({ProviderContainer container, _RoutingTransport engine})> _pumpStrip(
   WidgetTester tester, {
   int numDecks = 4,
   bool running = true,
+  bool crossfaderDisabled = false,
 }) async {
   final engine = _RoutingTransport();
   final container = ProviderContainer(
@@ -44,7 +46,14 @@ Future<({ProviderContainer container, _RoutingTransport engine})> _pumpStrip(
       engineTransportProvider.overrideWith((ref) async => engine),
       appSettingsProvider.overrideWith(
         (ref) async => normalizeAppSettings(
-          copyAppSettings(defaultAppSettings(), numDecks: numDecks),
+          copyAppSettings(
+            defaultAppSettings(),
+            numDecks: numDecks,
+            crossfaderBehavior: CrossfaderBehaviorSetting(
+              disabled: crossfaderDisabled,
+              hamster: false,
+            ),
+          ),
         ),
       ),
     ],
@@ -243,6 +252,30 @@ void main() {
     await tester.tap(_endpoint('B'));
     await tester.pumpAndSettle();
     expect(find.text('Deck B'), findsNothing);
+    expect(engine.assignments, isEmpty);
+    expect(container.read(crossfaderProvider), 0.35);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a disabled crossfader locks the fader and routing', (
+    tester,
+  ) async {
+    final (:container, :engine) = await _pumpStrip(
+      tester,
+      crossfaderDisabled: true,
+    );
+    final crossfader = tester.widget<FaderSlider>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is FaderSlider &&
+            widget.orientation == FaderOrientation.horizontal,
+      ),
+    );
+    expect(crossfader.disabled, isTrue);
+
+    await tester.tap(_endpoint('A'));
+    await tester.pumpAndSettle();
+    expect(find.text('Deck A'), findsNothing);
     expect(engine.assignments, isEmpty);
     expect(container.read(crossfaderProvider), 0.35);
     await tester.pumpWidget(const SizedBox.shrink());
