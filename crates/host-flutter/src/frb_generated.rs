@@ -9738,14 +9738,12 @@ impl SseDecode for crate::api::settings::BusRouteSettings {
         let mut var_rightChannel = <u16>::sse_decode(deserializer);
         let mut var_mode = <crate::api::settings::BusChannelMode>::sse_decode(deserializer);
         let mut var_sampleRate = <Option<u32>>::sse_decode(deserializer);
-        let mut var_lowLatency = <bool>::sse_decode(deserializer);
         return crate::api::settings::BusRouteSettings {
             device_id: var_deviceId,
             left_channel: var_leftChannel,
             right_channel: var_rightChannel,
             mode: var_mode,
             sample_rate: var_sampleRate,
-            low_latency: var_lowLatency,
         };
     }
 }
@@ -13820,7 +13818,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::BusRouteSettings {
             self.right_channel.into_into_dart().into_dart(),
             self.mode.into_into_dart().into_dart(),
             self.sample_rate.into_into_dart().into_dart(),
-            self.low_latency.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -16609,7 +16606,6 @@ impl SseEncode for crate::api::settings::BusRouteSettings {
         <u16>::sse_encode(self.right_channel, serializer);
         <crate::api::settings::BusChannelMode>::sse_encode(self.mode, serializer);
         <Option<u32>>::sse_encode(self.sample_rate, serializer);
-        <bool>::sse_encode(self.low_latency, serializer);
     }
 }
 

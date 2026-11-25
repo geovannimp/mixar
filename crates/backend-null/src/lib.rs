@@ -431,7 +431,7 @@ mod tests {
             .into_iter()
             .next()
             .unwrap();
-        let params = StreamParams::new(48000, 2, 512, false);
+        let params = StreamParams::new(48000, 2, 512);
         let callback = Box::new(TestCallback::new(48000).0);
 
         let mut stream = backend
@@ -462,7 +462,7 @@ mod tests {
             .into_iter()
             .next()
             .unwrap();
-        let params = StreamParams::new(48000, 2, 256, false);
+        let params = StreamParams::new(48000, 2, 256);
         let (callback, frames_processed) = TestCallback::new(48000);
 
         let mut stream = backend
@@ -508,7 +508,7 @@ mod tests {
             .next()
             .unwrap();
 
-        let zero_rate = StreamParams::new(0, 2, 512, false);
+        let zero_rate = StreamParams::new(0, 2, 512);
         assert!(
             backend
                 .open_output_stream(&device.id, &zero_rate, Box::new(TestCallback::new(48000).0))
@@ -516,7 +516,7 @@ mod tests {
             "a zero sample rate must be rejected at the boundary"
         );
 
-        let zero_channels = StreamParams::new(48000, 0, 512, false);
+        let zero_channels = StreamParams::new(48000, 0, 512);
         assert!(
             backend
                 .open_output_stream(
@@ -540,7 +540,7 @@ mod tests {
             .unwrap();
 
         // 1 << 20 frames x 2 channels exceeds the 1 << 20 sample cap.
-        let params = StreamParams::new(48_000, 2, 1 << 20, false);
+        let params = StreamParams::new(48_000, 2, 1 << 20);
         assert!(
             backend
                 .open_output_stream(&device.id, &params, Box::new(TestCallback::new(48_000).0))
@@ -560,7 +560,7 @@ mod tests {
             .into_iter()
             .next()
             .unwrap();
-        let params = StreamParams::new(48000, 2, 0, false); // Request 0 to use backend default
+        let params = StreamParams::new(48000, 2, 0); // Request 0 to use backend default
         let callback = Box::new(TestCallback::new(48000).0);
 
         let mut stream = backend

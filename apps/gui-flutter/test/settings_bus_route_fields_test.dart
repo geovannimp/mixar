@@ -82,7 +82,6 @@ void main() {
     leftChannel: 1,
     rightChannel: 2,
     mode: BusChannelMode.stereo,
-    lowLatency: false,
   );
 
   Future<void> pumpFields(
@@ -227,7 +226,6 @@ void main() {
         rightChannel: 2,
         mode: BusChannelMode.stereo,
         sampleRate: 96000,
-        lowLatency: false,
       ),
       onChanged: (route) => next = route,
     );
@@ -243,28 +241,10 @@ void main() {
     expect(next?.mode, BusChannelMode.mono);
   }, semanticsEnabled: false);
 
-  testWidgets('low latency is a bus flag and leaves the rate alone', (
-    tester,
-  ) async {
-    BusRouteSettings? next;
-    await pumpFields(
-      tester,
-      route: const BusRouteSettings(
-        deviceId: 'speakers',
-        leftChannel: 1,
-        rightChannel: 2,
-        mode: BusChannelMode.stereo,
-        sampleRate: 96000,
-        lowLatency: false,
-      ),
-      onChanged: (route) => next = route,
-    );
+  testWidgets('the bus card has no low-latency toggle', (tester) async {
+    await pumpFields(tester, onChanged: (_) {});
 
-    await tester.tap(find.text('Low latency'));
-    await tester.pumpAndSettle();
-
-    expect(next?.lowLatency, isTrue);
-    expect(next?.sampleRate, 96000);
+    expect(find.text('Low latency'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('switching device drops a rate the new device lacks', (
@@ -279,7 +259,6 @@ void main() {
         rightChannel: 2,
         mode: BusChannelMode.stereo,
         sampleRate: 96000,
-        lowLatency: false,
       ),
       onChanged: (route) => next = route,
     );
@@ -313,7 +292,6 @@ void main() {
         rightChannel: 2,
         mode: BusChannelMode.stereo,
         sampleRate: 96000,
-        lowLatency: false,
       ),
       onChanged: (route) => next = route,
     );
@@ -339,7 +317,6 @@ void main() {
           leftChannel: 3,
           rightChannel: 4,
           mode: BusChannelMode.stereo,
-          lowLatency: false,
         ),
         // Master on the same device pins 44.1 kHz, so the shared stream runs there
         // even though this bus follows the device default.
@@ -349,7 +326,6 @@ void main() {
           rightChannel: 2,
           mode: BusChannelMode.stereo,
           sampleRate: 44100,
-          lowLatency: false,
         ),
         onChanged: (_) {},
       );
@@ -366,7 +342,6 @@ void main() {
         leftChannel: 1,
         rightChannel: 2,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
       onChanged: (_) {},
     );
@@ -383,7 +358,6 @@ void main() {
         rightChannel: 2,
         mode: BusChannelMode.stereo,
         sampleRate: 96000,
-        lowLatency: false,
       ),
       onChanged: (route) => next = route,
     );

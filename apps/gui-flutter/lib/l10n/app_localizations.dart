@@ -1227,12 +1227,6 @@ abstract class AppLocalizations {
   /// **'Resampler and buffer size.'**
   String get settingsAudioEngineDescription;
 
-  /// No description provided for @settingsAudioLowLatency.
-  ///
-  /// In en, this message translates to:
-  /// **'Low latency'**
-  String get settingsAudioLowLatency;
-
   /// No description provided for @settingsAudioSampleRate.
   ///
   /// In en, this message translates to:

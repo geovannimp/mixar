@@ -596,13 +596,11 @@ fn test_engine_bus_operations() {
         DeviceId::new("default".to_string()),
         ChannelMapping::new(1, 2),
     )
-    .with_sample_rate(Some(48_000))
-    .with_low_latency(true);
+    .with_sample_rate(Some(48_000));
     assert!(engine.update_bus_config(&master_bus_id, new_config).is_ok());
 
     let updated = engine.get_bus_config(&master_bus_id).expect("bus");
     assert_eq!(updated.sample_rate, Some(48_000));
-    assert!(updated.low_latency);
 
     // A zero rate cannot open a stream and must not be stored.
     let zero_rate = BusConfig::new(
@@ -1487,4 +1485,80 @@ fn config_rejects_a_curve_library_with_duplicate_ids() {
         error.to_string().to_lowercase().contains("duplicate"),
         "{error}"
     );
+}
+
+#[test]
+fn required_buffer_size_rounds_up_to_the_slider_step() {
+    assert_eq!(required_buffer_size(1024, 48_000, 48_000), 1024);
+    // 480 frames at 44.1 kHz is 522.4 frames of the 48 kHz DSP chunk.
+    assert_eq!(required_buffer_size(480, 44_100, 48_000), 576);
+    assert_eq!(required_buffer_size(16, 48_000, 48_000), 64);
+}
+
+#[test]
+fn a_refused_period_names_the_buffer_size_to_raise() {
+    let error = buffer_size_error(
+        &DeviceId::new("bt-headset"),
+        &audio_core::DeviceBufferSizeError {
+            min_frames: 1024,
+            requested_frames: 512,
+            sample_rate: 48_000,
+        },
+        48_000,
+        512,
+    );
+    let message = error.to_string();
+    assert!(message.contains("at least 1024 frames"), "{message}");
+    assert!(
+        message.contains("Raise Buffer size to at least 1024 frames"),
+        "{message}"
+    );
+    assert!(message.contains("Settings → Audio"), "{message}");
+}
+
+#[test]
+fn a_device_beyond_the_largest_buffer_is_told_to_change_device() {
+    let error = buffer_size_error(
+        &DeviceId::new("hdmi"),
+        &audio_core::DeviceBufferSizeError {
+            min_frames: 4096,
+            requested_frames: 512,
+            sample_rate: 48_000,
+        },
+        48_000,
+        512,
+    );
+    let message = error.to_string();
+    assert!(
+        message.contains("no Buffer size up to 2048 frames"),
+        "{message}"
+    );
+    assert!(
+        !message.contains("Raise Buffer size to at least"),
+        "{message}"
+    );
+    assert!(message.contains("another output device"), "{message}");
+}
+
+#[test]
+fn required_buffer_size_saturates_instead_of_wrapping() {
+    // The product of frames and rates overflows u32; the helper must saturate, not wrap to 0.
+    assert!(required_buffer_size(u32::MAX, 192_000, 192_000) > 2048);
+}
+
+#[test]
+fn a_context_wrapped_period_error_keeps_its_typed_minimum() {
+    // `open_output_stream` may wrap the refusal (for an explicit device); the engine's
+    // downcast must still find it. A formatted `anyhow!` would lose it — hence this pin.
+    let error = anyhow::Error::new(audio_core::DeviceBufferSizeError {
+        min_frames: 1024,
+        requested_frames: 512,
+        sample_rate: 48_000,
+    })
+    .context("selected output device 'hdmi' cannot open this stream");
+
+    let limit = error
+        .downcast_ref::<audio_core::DeviceBufferSizeError>()
+        .expect("context must preserve the typed refusal");
+    assert_eq!(limit.min_frames, 1024);
 }

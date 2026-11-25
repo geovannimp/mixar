@@ -245,7 +245,6 @@
   "settingsAudioDescription": "Engine output and buses.",
   "settingsAudioEngineTitle": "Engine",
   "settingsAudioEngineDescription": "Resampler and buffer size.",
-  "settingsAudioLowLatency": "Low latency",
   "settingsAudioSampleRate": "Sample rate",
   "settingsAudioSampleRateHint": "Device default follows the rate the output device mixes at.",
   "settingsAudioSampleRateHz": "{rate} Hz",

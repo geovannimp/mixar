@@ -10,7 +10,7 @@ use crate::routing::{resolve_plan_rate, DeviceStreamPlan};
 use crate::sync::DeckControlState;
 use crate::transport::TransportEvent;
 use anyhow::Result;
-use audio_core::{AudioStream, Sample, StreamParams};
+use audio_core::{AudioStream, DeviceId, Sample, StreamParams};
 use bus_api::Command;
 use bus_api::Event;
 use engine_dsp::DspEngine;
@@ -350,22 +350,28 @@ impl Engine {
 
             let callback_count = Arc::new(AtomicU64::new(0));
             let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
-            let params = StreamParams::new(
-                requested_rate,
-                plan.channels,
-                self.config.buffer_size,
-                plan.low_latency,
-            );
+            // The device period is one buffer's worth at this stream's rate; a driver that
+            // cannot run it is refused rather than asked for more than the buffer holds.
+            let params = StreamParams::new(requested_rate, plan.channels, device_chunk_frames);
 
             // `preferred` keeps the `default` alias so the backend may fall back when
             // the current default device cannot run the stream.
             let stream = self
                 .backend
-                .open_output_stream(&plan.preferred, &params, callback)?;
+                .open_output_stream(&plan.preferred, &params, callback)
+                .map_err(
+                    |error| match error.downcast::<audio_core::DeviceBufferSizeError>() {
+                        Ok(limit) => buffer_size_error(
+                            &plan.device,
+                            &limit,
+                            dsp_rate,
+                            self.config.buffer_size,
+                        ),
+                        Err(error) => error,
+                    },
+                )?;
 
-            let device_frames = stream
-                .actual_buffer_size()
-                .unwrap_or(self.config.buffer_size);
+            let device_frames = stream.actual_buffer_size().unwrap_or(device_chunk_frames);
             let sample_rate = stream.actual_sample_rate().unwrap_or(requested_rate);
 
             tracing::info!(
@@ -559,19 +565,21 @@ impl Engine {
 
         let running = self.running.clone();
         let transport_events = Arc::clone(&self.transport_events);
-        let producer_thread = thread::spawn(move || {
-            producer_thread_loop(
-                dsp_engine,
-                device_producers,
-                converters,
-                running,
-                sample_rate,
-                dsp_chunk_frames,
-                callback_frames,
-                callback_counts,
-                transport_events,
-            );
-        });
+        let producer_thread = thread::Builder::new()
+            .name("mixar-dsp".into())
+            .spawn(move || {
+                producer_thread_loop(
+                    dsp_engine,
+                    device_producers,
+                    converters,
+                    running,
+                    sample_rate,
+                    dsp_chunk_frames,
+                    callback_frames,
+                    callback_counts,
+                    transport_events,
+                );
+            })?;
 
         // No warm-up sleep: `create_device_ring_buffer` already pre-fills the ring
         // with silence synchronously, and the producer is parked on `filled >=
@@ -691,6 +699,55 @@ impl Engine {
     }
 }
 
-#[cfg(test)]
+/// Largest Buffer size Settings offers (`settings_audio_panel.dart`). A device that needs
+/// more cannot be satisfied from that screen, and the error says so instead of naming an
+/// unreachable value.
+const MAX_BUFFER_SIZE: u32 = 2048;
+
+/// Smallest Buffer size (in DSP frames) whose device period meets `min_device_frames`.
+///
+/// Rounded up to the slider step so the value in the error is one the user can pick, and
+/// saturated at `u32::MAX` so extreme rates cannot wrap to 0.
+pub(crate) fn required_buffer_size(min_device_frames: u32, device_rate: u32, dsp_rate: u32) -> u32 {
+    let frames = u64::from(min_device_frames) * u64::from(dsp_rate);
+    let required = frames.div_ceil(u64::from(device_rate.max(1)));
+    let step = u64::from(crate::config::BUFFER_SIZE_MULTIPLE);
+    let remainder = required % step;
+    let rounded = if remainder == 0 {
+        required.max(step)
+    } else {
+        required.saturating_add(step - remainder)
+    };
+    u32::try_from(rounded).unwrap_or(u32::MAX)
+}
+
+/// Turn a backend refusal into the message Settings can act on.
+pub(crate) fn buffer_size_error(
+    device: &DeviceId,
+    limit: &audio_core::DeviceBufferSizeError,
+    dsp_rate: u32,
+    configured: u32,
+) -> anyhow::Error {
+    let ms = f64::from(limit.min_frames) * 1_000.0 / f64::from(limit.sample_rate.max(1));
+    let needed = required_buffer_size(limit.min_frames, limit.sample_rate, dsp_rate);
+    if needed > MAX_BUFFER_SIZE {
+        return anyhow::anyhow!(
+            "Device '{}' needs a callback period of at least {} frames ({ms:.1} ms at {} Hz), \
+             which no Buffer size up to {MAX_BUFFER_SIZE} frames can run. \
+             Choose another output device, or a rate it can open, in Settings → Audio.",
+            device.as_str(),
+            limit.min_frames,
+            limit.sample_rate,
+        );
+    }
+    anyhow::anyhow!(
+        "Device '{}' needs a callback period of at least {} frames ({ms:.1} ms at {} Hz); \
+         Buffer size is {configured} frames. Raise Buffer size to at least {needed} frames in Settings → Audio.",
+        device.as_str(),
+        limit.min_frames,
+        limit.sample_rate,
+    )
+}
+
 #[cfg(test)]
 mod tests;

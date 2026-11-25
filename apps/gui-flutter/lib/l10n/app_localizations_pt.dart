@@ -637,9 +637,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioEngineDescription => 'Resampler e tamanho do buffer.';
 
   @override
-  String get settingsAudioLowLatency => 'Baixa latência';
-
-  @override
   String get settingsAudioSampleRate => 'Taxa de amostragem';
 
   @override

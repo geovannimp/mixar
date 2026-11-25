@@ -74,7 +74,7 @@ The slider runs from 64 to 2048 frames in steps of 64, and the value must stay a
 
 **Buffer size** is one setting for the whole engine, not a per-device one. Each device still runs at its own pace, and Mixar absorbs the difference.
 
-**Low latency** is a per-bus checkbox. It applies when the driver reports a buffer-size range: Mixar then asks for the device's smallest period. That request is floored at 16 frames unless the whole range is smaller. Without a range the configured size stays in use. Leave it off if the sound breaks up.
+The device callback period follows your **Buffer size** at this bus's sample rate. A driver that can only run a smaller period gets that smaller period; a driver whose smallest period is larger than your buffer stops the engine with a message naming the Buffer size to set, so the hardware is never asked for more samples than one buffer holds. Mixar also asks the operating system for real-time priority on its audio threads; where the OS refuses, playback still runs at normal priority.
 
 ## Where to go next
 

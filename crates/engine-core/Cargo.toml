@@ -23,6 +23,7 @@ resampler = { path = "../resampler" }
 backend-null = { path = "../backend-null" }
 backend-cpal = { path = "../backend-cpal", optional = true }
 rtrb = "0.4.0"
+audio_thread_priority = "0.35"
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

@@ -188,7 +188,6 @@
   "settingsAudioDescription": "Saída do engine e barramentos.",
   "settingsAudioEngineTitle": "Engine",
   "settingsAudioEngineDescription": "Resampler e tamanho do buffer.",
-  "settingsAudioLowLatency": "Baixa latência",
   "settingsAudioSampleRate": "Taxa de amostragem",
   "settingsAudioSampleRateHint": "O padrão do dispositivo segue a taxa em que o dispositivo de saída mixa.",
   "settingsAudioSampleRateHz": "{rate} Hz",

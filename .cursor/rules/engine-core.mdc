@@ -19,7 +19,8 @@ Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.m
   - `callback.rs` — `ConsumerCallback` (ring-buffer consumer for the audio device callback)
 - **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path or raw `LoadedAudio` in `load_track`.
 - **Audio loading:** `LoadableAudio` / `LoadedAudio` come from `audio-core`. Concrete sources (`FileAudioSource`, `AudioSource`, …) live in `library-core`. Engine owns a PCM decode cache keyed by `TrackId`. Ad-hoc path loads use `AudioSource::File(FileAudioSource::from_path(...))`.
-- **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `sample_rate`, `buffer_size`, `low_latency`, `backend`, buses/devices, optional advanced/audio sections.
+- **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `buffer_size`, `backend`, buses/devices, optional advanced/audio sections. Each bus's `sample_rate` is optional.
+- **Realtime:** the producer thread is promoted to real-time priority where the OS allows it; CPAL's callback does the same through its `realtime`/`realtime-dbus` features. Promotion failure is logged, never fatal.
 - **Threading:** Producer thread (engine-controlled) runs DSP and writes interleaved stereo to a lock-free ring buffer. Consumer is the backend audio callback (`ConsumerCallback`). No allocations in the callback path.
 - **Ring buffer:** Preallocate; buffer at least N × frames_per_buffer (current multiplier is higher than the minimum N ≥ 8) to tolerate producer jitter.
 - **Backend selection:** Runtime choice via config (`auto` / `cpal` / `null`). All backends compiled in; no dynamic loading. Use `AudioBackend::list_names()` / `AudioBackend::new(name)` for discovery before constructing an engine.
