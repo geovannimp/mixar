@@ -83,6 +83,13 @@ final realtimeStemsEnabledProvider = Provider<bool>((ref) {
   return settings?.realtimeStems ?? false;
 });
 
+/// Crossfader bypass flag: the mixer foot fader and its A/B assignment chips
+/// stay inert while this is on.
+final crossfaderDisabledProvider = Provider<bool>((ref) {
+  final settings = ref.watch(appSettingsProvider).asData?.value;
+  return settings?.crossfaderBehavior.disabled ?? false;
+});
+
 /// Progress and result of the CPU capability benchmark.
 ///
 /// The capability is persisted by the host in app settings; this state carries
