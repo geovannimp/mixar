@@ -301,6 +301,13 @@ pub trait AudioBackend: Send + Sync {
 
     /// Open an output stream with the given parameters
     ///
+    /// # Errors
+    ///
+    /// A backend that cannot run [`StreamParams::frames_per_buffer`] as one device period
+    /// returns [`DeviceBufferSizeError`], optionally wrapped with context. The engine
+    /// downcasts the error chain to build the Buffer size message, so a wrapper must preserve
+    /// the source (use `anyhow::Context`, not a formatted `anyhow!`).
+    ///
     /// # Arguments
     /// * `device` - Device to open the stream on
     /// * `params` - Stream parameters (sample rate, channels, buffer size)

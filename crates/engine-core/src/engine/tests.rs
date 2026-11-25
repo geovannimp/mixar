@@ -1545,3 +1545,20 @@ fn required_buffer_size_saturates_instead_of_wrapping() {
     // The product of frames and rates overflows u32; the helper must saturate, not wrap to 0.
     assert!(required_buffer_size(u32::MAX, 192_000, 192_000) > 2048);
 }
+
+#[test]
+fn a_context_wrapped_period_error_keeps_its_typed_minimum() {
+    // `open_output_stream` may wrap the refusal (for an explicit device); the engine's
+    // downcast must still find it. A formatted `anyhow!` would lose it — hence this pin.
+    let error = anyhow::Error::new(audio_core::DeviceBufferSizeError {
+        min_frames: 1024,
+        requested_frames: 512,
+        sample_rate: 48_000,
+    })
+    .context("selected output device 'hdmi' cannot open this stream");
+
+    let limit = error
+        .downcast_ref::<audio_core::DeviceBufferSizeError>()
+        .expect("context must preserve the typed refusal");
+    assert_eq!(limit.min_frames, 1024);
+}

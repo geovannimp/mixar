@@ -3,7 +3,7 @@
 //! This backend uses the CPAL library for cross-platform audio I/O.
 //! On Linux and BSD, the native PipeWire host is preferred when available.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use audio_core::{
     AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, SampleRateRange, StreamParams,
 };
@@ -404,6 +404,17 @@ impl CpalBackend {
 
         Self::log_device_formats(&supported, default_config.as_ref(), &format, params);
 
+        // Validate the period here, not only at open time, so the `default` candidate
+        // walk can skip a device that cannot run one buffer's worth instead of failing
+        // a bus another enumerated output could host.
+        Self::negotiate_frames(format.range.buffer_size(), params.frames_per_buffer).map_err(
+            |min_frames| audio_core::DeviceBufferSizeError {
+                min_frames,
+                requested_frames: params.frames_per_buffer,
+                sample_rate: format.sample_rate,
+            },
+        )?;
+
         Ok(format)
     }
 
@@ -416,9 +427,11 @@ impl CpalBackend {
         // (or another enumerated device) after a format rejection would play the bus
         // on hardware the user did not choose.
         if let Ok(device) = self.find_device_by_id(preferred) {
-            let format = Self::select_stream_config(&device, params).map_err(|error| {
-                anyhow::anyhow!(
-                    "selected output device '{}' cannot open this stream: {error}",
+            // `context` (not a formatted `anyhow!`) keeps the typed refusal in the chain,
+            // so the engine can still turn it into the Buffer size message.
+            let format = Self::select_stream_config(&device, params).with_context(|| {
+                format!(
+                    "selected output device '{}' cannot open this stream",
                     Self::device_name(&device)
                 )
             })?;
