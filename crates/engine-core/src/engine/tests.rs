@@ -1515,3 +1515,33 @@ fn a_refused_period_names_the_buffer_size_to_raise() {
     );
     assert!(message.contains("Settings → Audio"), "{message}");
 }
+
+#[test]
+fn a_device_beyond_the_largest_buffer_is_told_to_change_device() {
+    let error = buffer_size_error(
+        &DeviceId::new("hdmi"),
+        &audio_core::DeviceBufferSizeError {
+            min_frames: 4096,
+            requested_frames: 512,
+            sample_rate: 48_000,
+        },
+        48_000,
+        512,
+    );
+    let message = error.to_string();
+    assert!(
+        message.contains("no Buffer size up to 2048 frames"),
+        "{message}"
+    );
+    assert!(
+        !message.contains("Raise Buffer size to at least"),
+        "{message}"
+    );
+    assert!(message.contains("another output device"), "{message}");
+}
+
+#[test]
+fn required_buffer_size_saturates_instead_of_wrapping() {
+    // The product of frames and rates overflows u32; the helper must saturate, not wrap to 0.
+    assert!(required_buffer_size(u32::MAX, 192_000, 192_000) > 2048);
+}

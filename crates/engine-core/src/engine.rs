@@ -699,13 +699,26 @@ impl Engine {
     }
 }
 
+/// Largest Buffer size Settings offers (`settings_audio_panel.dart`). A device that needs
+/// more cannot be satisfied from that screen, and the error says so instead of naming an
+/// unreachable value.
+const MAX_BUFFER_SIZE: u32 = 2048;
+
 /// Smallest Buffer size (in DSP frames) whose device period meets `min_device_frames`.
 ///
-/// Rounded up to the slider step so the value in the error is one the user can pick.
+/// Rounded up to the slider step so the value in the error is one the user can pick, and
+/// saturated at `u32::MAX` so extreme rates cannot wrap to 0.
 pub(crate) fn required_buffer_size(min_device_frames: u32, device_rate: u32, dsp_rate: u32) -> u32 {
     let frames = u64::from(min_device_frames) * u64::from(dsp_rate);
-    let required = frames.div_ceil(u64::from(device_rate.max(1))) as u32;
-    required.next_multiple_of(crate::config::BUFFER_SIZE_MULTIPLE)
+    let required = frames.div_ceil(u64::from(device_rate.max(1)));
+    let step = u64::from(crate::config::BUFFER_SIZE_MULTIPLE);
+    let remainder = required % step;
+    let rounded = if remainder == 0 {
+        required.max(step)
+    } else {
+        required.saturating_add(step - remainder)
+    };
+    u32::try_from(rounded).unwrap_or(u32::MAX)
 }
 
 /// Turn a backend refusal into the message Settings can act on.
@@ -717,6 +730,16 @@ pub(crate) fn buffer_size_error(
 ) -> anyhow::Error {
     let ms = f64::from(limit.min_frames) * 1_000.0 / f64::from(limit.sample_rate.max(1));
     let needed = required_buffer_size(limit.min_frames, limit.sample_rate, dsp_rate);
+    if needed > MAX_BUFFER_SIZE {
+        return anyhow::anyhow!(
+            "Device '{}' needs a callback period of at least {} frames ({ms:.1} ms at {} Hz), \
+             which no Buffer size up to {MAX_BUFFER_SIZE} frames can run. \
+             Choose another output device, or a rate it can open, in Settings → Audio.",
+            device.as_str(),
+            limit.min_frames,
+            limit.sample_rate,
+        );
+    }
     anyhow::anyhow!(
         "Device '{}' needs a callback period of at least {} frames ({ms:.1} ms at {} Hz); \
          Buffer size is {configured} frames. Raise Buffer size to at least {needed} frames in Settings → Audio.",

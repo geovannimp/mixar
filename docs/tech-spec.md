@@ -176,7 +176,7 @@ engine.load_prepared_track(0, prepared)?;
 
 - Implemented by the backend (`cpal` / `null`). The backend’s real-time callback invokes `AudioCallback::render`.
 - `ConsumerCallback` pops samples from the ring buffer into the device output buffer. On underrun it writes silence.
-- The callback frame count is the backend's business, not the DSP's: WASAPI shared mode always delivers its device period (480 frames at 48 kHz), so the ring buffer is what reconciles that with the 512-frame DSP chunk. Backends request the nearest size the device accepts rather than refusing to open it.
+- The callback frame count is the backend's business, not the DSP's: WASAPI shared mode always delivers its device period (480 frames at 48 kHz), so the ring buffer is what reconciles that with the 512-frame DSP chunk. A backend accepts a device period smaller than one buffer, but refuses a device minimum above it (`DeviceBufferSizeError`) so the hardware is never asked for more samples than the DSP produced.
 - **No heap allocations, no mutexes, no blocking** in the callback path.
 
 ### 3.2 Ring Buffer & Zero Allocations

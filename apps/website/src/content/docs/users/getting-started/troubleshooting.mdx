@@ -77,10 +77,10 @@ The cue tap sits before the channel fader, so a cued deck is audible in the head
 Clicks, crackle, and dropouts mean the engine ran out of time, not that a control is wrong.
 
 1. Raise **Buffer size** in **Settings → Audio → Engine**. A larger block gives the machine more room, at the cost of a little extra delay.
-2. Close other apps that hold the device or load the machine. Mixar already asks the OS for real-time priority on its audio threads; there is no separate low-latency switch to turn off.
+2. Close other apps that hold the device or load the machine. Mixar already asks the OS for real-time priority on its audio threads.
 3. Keep the value a multiple of 64 frames. The hint under the slider states the rule: *Must be a multiple of 64 frames (mixer graph chunk size).*
 4. If only one device breaks up, check whether other software is holding it. Two buses on one device share a single stream.
-5. If the engine refuses to start and names a minimum callback period, raise **Buffer size** to at least that value. The device cannot run one buffer's worth of samples, and Mixar will not over-request.
+5. If the engine refuses to start and names a minimum callback period, follow the **Raise Buffer size** recommendation in the message. It is already converted to the slider's frames, which can differ from the device's frame count when the two rates differ.
 
 For what the buffer actually does and what each size range buys you, see [Audio setup](/docs/users/getting-started/audio-setup#buffer-size-and-latency).
 
