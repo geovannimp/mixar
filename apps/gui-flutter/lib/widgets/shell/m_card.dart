@@ -16,10 +16,6 @@ class MCard extends StatelessWidget {
   final Widget child;
   final Clip clipBehavior;
 
-  /// Key on the inset interaction outline overlay, so tests and callers can
-  /// target it without hard-coding the value.
-  static const outlineKey = ValueKey('m-card-outline');
-
   /// When set, replaces the default hairline color and closes all four edges
   /// (e.g. the deck's drop-hover outline), regardless of [sideBorders].
   final Color? borderColor;
@@ -105,7 +101,6 @@ class MCard extends StatelessWidget {
               child: Padding(
                 padding: inset,
                 child: DecoratedBox(
-                  key: outlineKey,
                   decoration: BoxDecoration(
                     border: Border.all(color: color, width: borderW),
                     borderRadius: _deflateBorderRadius(radius, inset),
@@ -129,6 +124,8 @@ EdgeInsets _clampOutlineInset(EdgeInsets inset, double max) =>
       _clampInset(inset.bottom, max),
     );
 
+/// Keeps one side of the outline inset inside the card's hairline ring:
+/// negative values collapse to the edge and values past [max] stop at it.
 double _clampInset(double value, double max) => value < 0
     ? 0
     : value > max
@@ -149,10 +146,14 @@ BorderRadius _deflateBorderRadius(BorderRadius radius, EdgeInsets inset) =>
       ),
     );
 
+/// One corner of the outline: each radius axis gives up its adjacent inset,
+/// so the corner stays concentric with the card's on every side.
 Radius _deflateRadius(Radius radius, double dx, double dy) => Radius.elliptical(
   _deflateLength(radius.x, dx),
   _deflateLength(radius.y, dy),
 );
 
+/// A radius axis can shrink to zero but never past it, even when the inset
+/// meets or exceeds the radius.
 double _deflateLength(double value, double inset) =>
     value > inset ? value - inset : 0;

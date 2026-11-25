@@ -112,11 +112,23 @@ void main() {
     return (box.decoration as BoxDecoration).border! as Border;
   }
 
-  DecoratedBox outline(WidgetTester tester) =>
-      tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
+  Finder outlineFinder(MixarThemeData theme) => find.descendant(
+    of: find.byType(MCard),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).border is Border &&
+          ((widget.decoration as BoxDecoration).border! as Border).top.color ==
+              theme.colors.primary,
+    ),
+  );
 
-  Border outlineBorder(WidgetTester tester) =>
-      (outline(tester).decoration as BoxDecoration).border! as Border;
+  DecoratedBox outline(WidgetTester tester, MixarThemeData theme) =>
+      tester.widget<DecoratedBox>(outlineFinder(theme));
+
+  Border outlineBorder(WidgetTester tester, MixarThemeData theme) =>
+      (outline(tester, theme).decoration as BoxDecoration).border! as Border;
 
   testWidgets(
     'the track info card closes its border while a track hangs over',
@@ -130,7 +142,7 @@ void main() {
 
       expect(cardBorder(tester).top.style, BorderStyle.none);
       expect(cardBorder(tester).bottom.color, theme.colors.border);
-      expect(find.byKey(MCard.outlineKey), findsNothing);
+      expect(outlineFinder(theme), findsNothing);
 
       final gesture = await startRowDrag(
         tester,
@@ -139,10 +151,10 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
       await tester.pump();
       for (final side in [
-        outlineBorder(tester).top,
-        outlineBorder(tester).right,
-        outlineBorder(tester).bottom,
-        outlineBorder(tester).left,
+        outlineBorder(tester, theme).top,
+        outlineBorder(tester, theme).right,
+        outlineBorder(tester, theme).bottom,
+        outlineBorder(tester, theme).left,
       ]) {
         expect(side.color, theme.colors.primary);
         expect(side.width, theme.style.borderWidth);
@@ -151,7 +163,7 @@ void main() {
       // each side: the window frame owns the card's outermost column on the
       // outer decks and would otherwise crop the closed outline there.
       final cardRect = tester.getRect(find.byKey(_cardKey));
-      final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
+      final outlineRect = tester.getRect(outlineFinder(theme));
       expect(outlineRect.left, cardRect.left + theme.style.borderWidth);
       expect(outlineRect.right, cardRect.right - theme.style.borderWidth);
       expect(outlineRect.top, cardRect.top);
@@ -159,7 +171,7 @@ void main() {
 
       await gesture.moveTo(const Offset(380, 20));
       await tester.pump();
-      expect(find.byKey(MCard.outlineKey), findsNothing);
+      expect(outlineFinder(theme), findsNothing);
 
       await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
       await tester.pump();
@@ -184,12 +196,12 @@ void main() {
     );
     await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
     await tester.pump();
-    expect(find.byKey(MCard.outlineKey), findsOneWidget);
+    expect(outlineFinder(theme), findsOneWidget);
 
     container.read(_runningProvider.notifier).set(false);
     await tester.pumpAndSettle();
     expect(
-      find.byKey(MCard.outlineKey),
+      outlineFinder(theme),
       findsNothing,
       reason: 'the hover outline must not outlive the drop target',
     );
@@ -197,7 +209,7 @@ void main() {
     container.read(_runningProvider.notifier).set(true);
     await tester.pumpAndSettle();
     expect(
-      find.byKey(MCard.outlineKey),
+      outlineFinder(theme),
       findsNothing,
       reason: 'restarting the engine does not restore a hover nobody made',
     );

@@ -12,6 +12,19 @@ Widget _mixarApp(MixarThemeData base, Widget body) => mixarTestMaterialApp(
   home: Scaffold(body: body),
 );
 
+/// The hover outline: a decoration-only box painted in the override ink.
+Finder _outline() => find.descendant(
+  of: find.byType(MCard),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is DecoratedBox &&
+        widget.decoration is BoxDecoration &&
+        (widget.decoration as BoxDecoration).border is Border &&
+        ((widget.decoration as BoxDecoration).border! as Border).top.color ==
+            _override,
+  ),
+);
+
 void main() {
   testWidgets('MCard paints card fill + square border', (tester) async {
     final base = MixarThemeData.dark();
@@ -76,7 +89,7 @@ void main() {
       ),
     );
 
-    final decorated = tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
+    final decorated = tester.widget<DecoratedBox>(_outline());
     final decoration = decorated.decoration as BoxDecoration;
     expect(
       decoration.border,
@@ -112,7 +125,7 @@ void main() {
       ),
     );
 
-    final decorated = tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
+    final decorated = tester.widget<DecoratedBox>(_outline());
     final decoration = decorated.decoration as BoxDecoration;
     expect(
       decoration.border,
@@ -163,7 +176,7 @@ void main() {
     );
 
     final cardRect = tester.getRect(find.byType(MCard));
-    final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
+    final outlineRect = tester.getRect(_outline());
     expect(outlineRect.left, cardRect.left + 1);
     expect(outlineRect.right, cardRect.right - 1);
     expect(outlineRect.top, cardRect.top);
@@ -190,7 +203,7 @@ void main() {
     );
 
     final cardRect = tester.getRect(find.byType(MCard));
-    final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
+    final outlineRect = tester.getRect(_outline());
     expect(outlineRect.left, cardRect.left);
     expect(outlineRect.top, cardRect.top + borderW);
     expect(outlineRect.right, cardRect.right - borderW);
@@ -264,7 +277,7 @@ void main() {
       const Size(100, 60),
       reason: 'the card fill must span the box the outline fills',
     );
-    final outline = tester.getRect(find.byKey(MCard.outlineKey));
+    final outline = tester.getRect(_outline());
     expect(outline.size, const Size(98, 60));
   });
 }
