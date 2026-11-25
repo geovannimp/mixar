@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -8,9 +7,8 @@ import 'support/mixar_material_app.dart';
 
 const _override = Color(0xFF2DD4BF);
 
-Widget _mixarApp(MixarThemeData base, Widget body) => MaterialApp(
-  theme: materialUiThemeFromMixar(base),
-  builder: mixarMaterialAppBuilder(base),
+Widget _mixarApp(MixarThemeData base, Widget body) => mixarTestMaterialApp(
+  theme: base,
   home: Scaffold(body: body),
 );
 
