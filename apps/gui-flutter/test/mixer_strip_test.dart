@@ -96,6 +96,15 @@ Finder _endpoint(String side) => find
     .descendant(of: find.byType(MixerStrip), matching: find.text(side))
     .last;
 
+FaderSlider _crossfaderSlider(WidgetTester tester) =>
+    tester.widget<FaderSlider>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is FaderSlider &&
+            widget.orientation == FaderOrientation.horizontal,
+      ),
+    );
+
 bool _checked(WidgetTester tester, String deck) {
   final check = find
       .ancestor(
@@ -152,13 +161,7 @@ void main() {
     _route(container, 2, CrossfaderAssign.b);
     await tester.pumpAndSettle();
     expect(_checked(tester, 'C'), isTrue);
-    final crossfader = tester.widget<FaderSlider>(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is FaderSlider &&
-            widget.orientation == FaderOrientation.horizontal,
-      ),
-    );
+    final crossfader = _crossfaderSlider(tester);
     expect(
       crossfader.value,
       closeTo(35, 1e-6),
@@ -264,13 +267,7 @@ void main() {
       tester,
       crossfaderDisabled: true,
     );
-    final crossfader = tester.widget<FaderSlider>(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is FaderSlider &&
-            widget.orientation == FaderOrientation.horizontal,
-      ),
-    );
+    final crossfader = _crossfaderSlider(tester);
     expect(crossfader.disabled, isTrue);
 
     await tester.tap(_endpoint('A'));
