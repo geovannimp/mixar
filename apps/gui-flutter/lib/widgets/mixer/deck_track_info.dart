@@ -152,7 +152,14 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
             clipBehavior: .antiAlias,
             sideBorders: false,
             topBorder: false,
+            // The deck card runs flush to the window edge, where the window
+            // frame paints over the card's outermost column. Keep the closed
+            // hover outline one hairline inside so both outer decks show it
+            // whole.
             borderColor: dropHover ? theme.colors.primary : null,
+            outlineInset: EdgeInsets.symmetric(
+              horizontal: theme.style.borderWidth,
+            ),
             child: Column(
               mainAxisSize: .min,
               children: [
