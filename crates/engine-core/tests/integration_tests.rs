@@ -209,7 +209,7 @@ fn test_engine_with_auto_backend_requires_real_audio() -> Result<()> {
 
 #[test]
 fn test_config_serialization() -> Result<()> {
-    // A bus carries the per-stream rate and latency hint; both must survive the trip.
+    // A bus carries the per-stream rate; it must survive the trip.
     let config = EngineConfig {
         buses: vec![bus_with_rate(48_000)],
         ..EngineConfig::default()
@@ -219,14 +219,12 @@ fn test_config_serialization() -> Result<()> {
     let toml_string = toml::to_string(&config)?;
     assert!(toml_string.contains("backend = \"auto\""));
     assert!(toml_string.contains("sample_rate = 48000"));
-    assert!(toml_string.contains("low_latency = true"));
 
     // Test TOML deserialization
     let parsed_config: EngineConfig = toml::from_str(&toml_string)?;
     assert_eq!(parsed_config.buffer_size, config.buffer_size);
     assert_eq!(parsed_config.backend, config.backend);
     assert_eq!(parsed_config.buses[0].sample_rate, Some(48_000));
-    assert!(parsed_config.buses[0].low_latency);
 
     Ok(())
 }
@@ -239,7 +237,6 @@ fn bus_with_rate(sample_rate: u32) -> BusConfig {
         ChannelMapping::stereo(1, 2),
     )
     .with_sample_rate(Some(sample_rate))
-    .with_low_latency(true)
 }
 
 #[test]
@@ -259,7 +256,6 @@ fn test_config_file_operations() -> Result<()> {
     assert_eq!(loaded_config.buffer_size, config.buffer_size);
     assert_eq!(loaded_config.backend, config.backend);
     assert_eq!(loaded_config.buses[0].sample_rate, Some(44_100));
-    assert!(loaded_config.buses[0].low_latency);
 
     // `tempdir` removes the file even if an assertion above panics.
     Ok(())

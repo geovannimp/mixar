@@ -263,6 +263,29 @@ impl DeviceLiveness {
     }
 }
 
+/// Best-effort real-time scheduling for the thread that renders the mixer.
+///
+/// CPAL already promotes the device callback, but that callback only copies from the ring;
+/// this thread runs the DSP graph and is the one that must not be starved. Promotion failure
+/// (no permission, no session bus) is logged and playback continues at normal priority.
+fn promote_dsp_thread(
+    frames: u32,
+    sample_rate: u32,
+) -> Option<audio_thread_priority::RtPriorityHandle> {
+    match audio_thread_priority::promote_current_thread_to_real_time(frames, sample_rate) {
+        Ok(handle) => {
+            tracing::info!(
+                "DSP thread promoted to real-time priority ({frames} frames @ {sample_rate} Hz)"
+            );
+            Some(handle)
+        }
+        Err(error) => {
+            tracing::warn!("DSP thread stays at normal priority: {error}");
+            None
+        }
+    }
+}
+
 /// Producer thread loop (spec §5.1: writes decoded/resampled audio into per-device ring buffers).
 ///
 /// The DSP always runs in whole `dsp_chunk_frames` chunks (a multiple of `dasp_graph`'s buffer
@@ -351,6 +374,10 @@ pub(crate) fn producer_thread_loop(
         tracing::info!("No device streams; producer thread exiting");
         return;
     }
+
+    // Best-effort: the ring consumer only copies samples, so this thread is the one that
+    // must keep its deadline. Failure keeps normal priority and never blocks the start.
+    let realtime = promote_dsp_thread(dsp_chunk_frames as u32, sample_rate);
 
     // The producer writes each chunk to every device ring and reads `live`/`callback_counts`
     // positionally, so a length mismatch is a caller programming error that would silently
@@ -494,6 +521,12 @@ pub(crate) fn producer_thread_loop(
         }
     }
 
+    if let Some(handle) = realtime {
+        if let Err(error) = audio_thread_priority::demote_current_thread_from_real_time(handle) {
+            tracing::warn!("DSP thread could not be demoted from real-time priority: {error}");
+        }
+    }
+
     tracing::info!("Producer thread stopped");
 }
 
@@ -585,7 +618,6 @@ mod tests {
             preferred: DeviceId::new("pacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -597,7 +629,6 @@ mod tests {
             preferred: DeviceId::new("nonpacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("cue"),
                 left: 0,
@@ -711,7 +742,6 @@ mod tests {
             preferred: DeviceId::new("wasapi-shared"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -805,7 +835,6 @@ mod tests {
             preferred: DeviceId::new("wasapi-small-buffer"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -1017,7 +1046,6 @@ mod tests {
             preferred: DeviceId::new("master-device"),
             channels: CHANNELS,
             sample_rate: Some(DSP_RATE),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -1029,7 +1057,6 @@ mod tests {
             preferred: DeviceId::new("cue-device"),
             channels: CHANNELS,
             sample_rate: Some(CUE_RATE),
-            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("cue"),
                 left: 0,
@@ -1106,5 +1133,12 @@ mod tests {
             (ratio - expected).abs() < 0.03,
             "cue ran at {ratio:.3}x the DSP rate, expected {expected:.3}x"
         );
+    }
+
+    #[test]
+    fn promoting_a_thread_without_a_rate_is_not_fatal() {
+        // The platform call rejects a zero rate before touching the scheduler, so this is
+        // deterministic on every OS and proves failure yields no handle.
+        assert!(promote_dsp_thread(512, 0).is_none());
     }
 }

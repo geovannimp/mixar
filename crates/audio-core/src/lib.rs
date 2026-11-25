@@ -172,24 +172,22 @@ pub struct StreamParams {
     pub sample_rate: u32,
     /// Number of channels (e.g., 2 for stereo)
     pub channels: u16,
-    /// Requested frames per buffer (e.g., 512)
+    /// Requested device callback period, in frames at `sample_rate`.
+    ///
+    /// This is the configured buffer size converted to this stream's rate. A backend
+    /// never asks the hardware for more than one buffer's worth: it may grant a smaller
+    /// period when the driver's maximum is below it, and it refuses with
+    /// [`DeviceBufferSizeError`] when the driver's minimum is above it.
     pub frames_per_buffer: u32,
-    /// Hint for low-latency operation: a backend may request its smallest safe
-    /// device period instead of the configured one. CPAL uses the device's
-    /// minimum supported buffer when the driver reports a range (floored at 16
-    /// frames unless the whole range is smaller); a device that reports no range
-    /// keeps the configured size. Never changes the sample rate.
-    pub low_latency: bool,
 }
 
 impl StreamParams {
     /// Create new stream parameters
-    pub fn new(sample_rate: u32, channels: u16, frames_per_buffer: u32, low_latency: bool) -> Self {
+    pub fn new(sample_rate: u32, channels: u16, frames_per_buffer: u32) -> Self {
         Self {
             sample_rate,
             channels,
             frames_per_buffer,
-            low_latency,
         }
     }
 
@@ -199,6 +197,38 @@ impl StreamParams {
         Duration::from_secs_f64(seconds)
     }
 }
+
+/// A device cannot run the configured buffer as one callback period.
+///
+/// Returned by a backend when the driver's minimum period is larger than the requested
+/// buffer, so the engine can ask for a bigger buffer instead of requesting more samples
+/// per callback than the mixer produced.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeviceBufferSizeError {
+    /// Smallest callback period the device accepts, in frames at `sample_rate`.
+    pub min_frames: u32,
+    /// Period the stream asked for, in frames at `sample_rate`.
+    pub requested_frames: u32,
+    /// Rate of the device stream, in Hz.
+    pub sample_rate: u32,
+}
+
+impl std::fmt::Display for DeviceBufferSizeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ms = if self.sample_rate == 0 {
+            f64::NAN
+        } else {
+            f64::from(self.min_frames) * 1_000.0 / f64::from(self.sample_rate)
+        };
+        write!(
+            f,
+            "device needs a callback period of at least {} frames ({ms:.1} ms at {} Hz), but {} frames were requested",
+            self.min_frames, self.sample_rate, self.requested_frames
+        )
+    }
+}
+
+impl std::error::Error for DeviceBufferSizeError {}
 
 /// Audio callback trait for real-time audio processing
 ///
@@ -410,11 +440,6 @@ pub struct BusConfig {
     /// agree, since they share one stream.
     #[serde(default)]
     pub sample_rate: Option<u32>,
-    /// Ask the backend for a shorter stream path on this bus's device. A hint:
-    /// the backend may ignore it, and a device stream shared by several buses
-    /// runs with low latency when any of them asks for it.
-    #[serde(default)]
-    pub low_latency: bool,
 }
 
 impl BusConfig {
@@ -426,19 +451,12 @@ impl BusConfig {
             device,
             channels,
             sample_rate: None,
-            low_latency: false,
         }
     }
 
     /// Set the output rate for this bus (`None` follows the device mix rate).
     pub fn with_sample_rate(mut self, sample_rate: Option<u32>) -> Self {
         self.sample_rate = sample_rate;
-        self
-    }
-
-    /// Ask the backend for a shorter path on this bus's device.
-    pub fn with_low_latency(mut self, low_latency: bool) -> Self {
-        self.low_latency = low_latency;
         self
     }
 }
@@ -455,11 +473,10 @@ mod tests {
 
     #[test]
     fn test_stream_params() {
-        let params = StreamParams::new(48000, 2, 512, false);
+        let params = StreamParams::new(48000, 2, 512);
         assert_eq!(params.sample_rate, 48000);
         assert_eq!(params.channels, 2);
         assert_eq!(params.frames_per_buffer, 512);
-        assert!(!params.low_latency);
     }
 
     #[test]
@@ -481,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_buffer_duration() {
-        let params = StreamParams::new(48000, 2, 512, false);
+        let params = StreamParams::new(48000, 2, 512);
         let duration = params.buffer_duration();
         let expected_ms = (512.0 / 48000.0 * 1000.0) as u64;
         assert_eq!(duration.as_millis(), expected_ms as u128);

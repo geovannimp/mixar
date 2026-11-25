@@ -139,9 +139,9 @@ bool controllerAudioOverridesBus(AppSettings settings, {required bool master}) {
 
 /// Builds the live bus override for a controller mapping.
 ///
-/// The saved master/preview routes are only used for `lowLatency` and as the
-/// inactive side of a single-bus mapping. Returning `null` means the mapping
-/// declares no routes or they are already active.
+/// The saved master/preview routes are only used as the inactive side of a
+/// single-bus mapping. Returning `null` means the mapping declares no routes or
+/// they are already active.
 ControllerAudioOverride? buildControllerAudioOverride(
   AppSettings settings,
   ControllerAudioHints hints,
@@ -170,13 +170,13 @@ ControllerAudioOverride? buildControllerAudioOverride(
         ? (prior != null && prior.masterOverridden
               ? prior.masterBus
               : settings.masterBus)
-        : _routeTo(settings.masterBus, device, master, hints.sampleRate),
+        : _routeTo(device, master, hints.sampleRate),
     previewOverridden: headphone != null || (prior?.previewOverridden ?? false),
     previewBus: headphone == null
         ? (prior != null && prior.previewOverridden
               ? prior.previewBus
               : settings.previewBus)
-        : _routeTo(settings.previewBus, device, headphone, hints.sampleRate),
+        : _routeTo(device, headphone, hints.sampleRate),
   );
 }
 
@@ -241,7 +241,6 @@ AppSettings editControllerAudioBus(
 }
 
 BusRouteSettings _routeTo(
-  BusRouteSettings current,
   OutputDevice device,
   ControllerChannelPair channels,
   int? sampleRate,
@@ -251,5 +250,4 @@ BusRouteSettings _routeTo(
   rightChannel: channels.right,
   mode: BusChannelMode.stereo,
   sampleRate: sampleRate,
-  lowLatency: current.lowLatency,
 );

@@ -626,7 +626,25 @@ channels = { mode = "stereo", left = 1, right = 2 }
         config.validate().unwrap();
         assert_eq!(config.buses.len(), 1);
         assert_eq!(config.buses[0].sample_rate, None);
-        assert!(!config.buses[0].low_latency);
+    }
+
+    #[test]
+    fn retired_low_latency_toml_key_is_ignored() {
+        let toml = r#"
+buffer_size = 512
+backend = "null"
+analysis_duration = "precise"
+
+[[buses]]
+id = "master"
+name = "Master"
+device = "null-device"
+channels = { mode = "stereo", left = 1, right = 2 }
+low_latency = true
+"#;
+        let config: EngineConfig = toml::from_str(toml).unwrap();
+        config.validate().unwrap();
+        assert_eq!(config.buses.len(), 1);
     }
 
     #[test]

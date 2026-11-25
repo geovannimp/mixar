@@ -221,7 +221,6 @@ void main() {
         leftChannel: 1,
         rightChannel: 2,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
       previewEnabled: true,
       previewBus: const BusRouteSettings(
@@ -229,7 +228,6 @@ void main() {
         leftChannel: 3,
         rightChannel: 4,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
     );
     container.invalidate(appSettingsProvider);
@@ -270,7 +268,6 @@ void main() {
         leftChannel: 1,
         rightChannel: 2,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
     );
     container.invalidate(appSettingsProvider);

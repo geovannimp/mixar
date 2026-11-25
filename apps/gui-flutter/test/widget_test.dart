@@ -974,7 +974,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('BACKEND'), findsNothing);
     expect(find.text('SAMPLE RATE'), findsOneWidget);
-    expect(find.text('Low latency'), findsOneWidget);
     await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
     expect(find.text('Save changes'), findsOneWidget);

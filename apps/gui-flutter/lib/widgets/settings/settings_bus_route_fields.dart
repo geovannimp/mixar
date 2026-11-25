@@ -98,25 +98,9 @@ class SettingsBusRouteFields extends StatelessWidget {
                     route.sampleRate,
                     resolveAudioOutputDevice(devices, deviceId),
                   ),
-                  lowLatency: route.lowLatency,
                 ),
                 _maxChannelsFor(devices, deviceId),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SettingsCheckbox(
-          label: l10n.settingsAudioLowLatency,
-          value: route.lowLatency,
-          onChanged: (lowLatency) => onChanged(
-            BusRouteSettings(
-              deviceId: route.deviceId,
-              leftChannel: route.leftChannel,
-              rightChannel: route.rightChannel,
-              mode: route.mode,
-              sampleRate: route.sampleRate,
-              lowLatency: lowLatency,
             ),
           ),
         ),
@@ -141,7 +125,6 @@ class SettingsBusRouteFields extends StatelessWidget {
                 mode: route.mode,
                 // `0` is the "follow the device mix rate" token.
                 sampleRate: rate == 0 ? null : rate,
-                lowLatency: route.lowLatency,
               ),
             ),
           ),
@@ -163,7 +146,6 @@ class SettingsBusRouteFields extends StatelessWidget {
                 rightChannel: route.rightChannel,
                 mode: mode,
                 sampleRate: route.sampleRate,
-                lowLatency: route.lowLatency,
               ),
             ),
           ),
@@ -184,7 +166,6 @@ class SettingsBusRouteFields extends StatelessWidget {
                       rightChannel: route.rightChannel,
                       mode: route.mode,
                       sampleRate: route.sampleRate,
-                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -205,7 +186,6 @@ class SettingsBusRouteFields extends StatelessWidget {
                       rightChannel: v,
                       mode: route.mode,
                       sampleRate: route.sampleRate,
-                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -275,7 +255,6 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
     rightChannel: right,
     mode: mode,
     sampleRate: route.sampleRate,
-    lowLatency: route.lowLatency,
   );
 }
 

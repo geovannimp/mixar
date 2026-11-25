@@ -141,7 +141,6 @@ void main() {
           leftChannel: 5,
           rightChannel: 6,
           mode: BusChannelMode.stereo,
-          lowLatency: false,
         ),
         master: true,
       );
@@ -169,7 +168,6 @@ void main() {
           leftChannel: 5,
           rightChannel: 6,
           mode: BusChannelMode.stereo,
-          lowLatency: false,
         ),
         master: true,
       );
@@ -180,7 +178,6 @@ void main() {
           leftChannel: 3,
           rightChannel: 4,
           mode: BusChannelMode.stereo,
-          lowLatency: false,
         ),
         master: false,
       );
@@ -244,7 +241,6 @@ void main() {
           leftChannel: 1,
           rightChannel: 2,
           mode: BusChannelMode.stereo,
-          lowLatency: false,
         ),
       );
       // An older build may have persisted the controller into the saved route;

@@ -64,7 +64,7 @@ void main() {
     );
   });
 
-  test('a bus low-latency flag alone enables saving settings', () {
+  test('a bus channel mode alone enables saving settings', () {
     final baseline = defaultAppSettings();
     final bus = baseline.masterBus;
     final toggled = copyAppSettings(
@@ -73,9 +73,8 @@ void main() {
         deviceId: bus.deviceId,
         leftChannel: bus.leftChannel,
         rightChannel: bus.rightChannel,
-        mode: bus.mode,
+        mode: BusChannelMode.mono,
         sampleRate: bus.sampleRate,
-        lowLatency: !bus.lowLatency,
       ),
     );
     expect(appSettingsDirty(toggled, baseline), isTrue);

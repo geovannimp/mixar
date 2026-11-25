@@ -596,13 +596,11 @@ fn test_engine_bus_operations() {
         DeviceId::new("default".to_string()),
         ChannelMapping::new(1, 2),
     )
-    .with_sample_rate(Some(48_000))
-    .with_low_latency(true);
+    .with_sample_rate(Some(48_000));
     assert!(engine.update_bus_config(&master_bus_id, new_config).is_ok());
 
     let updated = engine.get_bus_config(&master_bus_id).expect("bus");
     assert_eq!(updated.sample_rate, Some(48_000));
-    assert!(updated.low_latency);
 
     // A zero rate cannot open a stream and must not be stored.
     let zero_rate = BusConfig::new(
@@ -1487,4 +1485,33 @@ fn config_rejects_a_curve_library_with_duplicate_ids() {
         error.to_string().to_lowercase().contains("duplicate"),
         "{error}"
     );
+}
+
+#[test]
+fn required_buffer_size_rounds_up_to_the_slider_step() {
+    assert_eq!(required_buffer_size(1024, 48_000, 48_000), 1024);
+    // 480 frames at 44.1 kHz is 522.4 frames of the 48 kHz DSP chunk.
+    assert_eq!(required_buffer_size(480, 44_100, 48_000), 576);
+    assert_eq!(required_buffer_size(16, 48_000, 48_000), 64);
+}
+
+#[test]
+fn a_refused_period_names_the_buffer_size_to_raise() {
+    let error = buffer_size_error(
+        &DeviceId::new("bt-headset"),
+        &audio_core::DeviceBufferSizeError {
+            min_frames: 1024,
+            requested_frames: 512,
+            sample_rate: 48_000,
+        },
+        48_000,
+        512,
+    );
+    let message = error.to_string();
+    assert!(message.contains("at least 1024 frames"), "{message}");
+    assert!(
+        message.contains("Raise Buffer size to at least 1024 frames"),
+        "{message}"
+    );
+    assert!(message.contains("Settings → Audio"), "{message}");
 }

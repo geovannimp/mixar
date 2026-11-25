@@ -20,7 +20,6 @@ AppSettings _overridden() {
     leftChannel: 1,
     rightChannel: 2,
     mode: BusChannelMode.stereo,
-    lowLatency: false,
   );
   return copyAppSettings(
     base,
@@ -37,7 +36,6 @@ AppSettings _overridden() {
         leftChannel: 3,
         rightChannel: 4,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
     ),
   );
@@ -83,7 +81,6 @@ void main() {
         leftChannel: 1,
         rightChannel: 2,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
     );
     await tester.pumpAndSettle();
@@ -102,7 +99,6 @@ void main() {
         leftChannel: 3,
         rightChannel: 4,
         mode: BusChannelMode.stereo,
-        lowLatency: false,
       ),
     );
     await tester.pumpAndSettle();

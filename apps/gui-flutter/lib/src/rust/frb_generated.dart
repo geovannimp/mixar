@@ -8407,15 +8407,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BusRouteSettings dco_decode_bus_route_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return BusRouteSettings(
       deviceId: dco_decode_String(arr[0]),
       leftChannel: dco_decode_u_16(arr[1]),
       rightChannel: dco_decode_u_16(arr[2]),
       mode: dco_decode_bus_channel_mode(arr[3]),
       sampleRate: dco_decode_opt_box_autoadd_u_32(arr[4]),
-      lowLatency: dco_decode_bool(arr[5]),
     );
   }
 
@@ -11061,14 +11060,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_rightChannel = sse_decode_u_16(deserializer);
     var var_mode = sse_decode_bus_channel_mode(deserializer);
     var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
-    var var_lowLatency = sse_decode_bool(deserializer);
     return BusRouteSettings(
       deviceId: var_deviceId,
       leftChannel: var_leftChannel,
       rightChannel: var_rightChannel,
       mode: var_mode,
       sampleRate: var_sampleRate,
-      lowLatency: var_lowLatency,
     );
   }
 
@@ -14256,7 +14253,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_16(self.rightChannel, serializer);
     sse_encode_bus_channel_mode(self.mode, serializer);
     sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
-    sse_encode_bool(self.lowLatency, serializer);
   }
 
   @protected

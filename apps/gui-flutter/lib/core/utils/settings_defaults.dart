@@ -128,7 +128,6 @@ const kDefaultMasterBus = BusRouteSettings(
   leftChannel: 1,
   rightChannel: 2,
   mode: BusChannelMode.stereo,
-  lowLatency: false,
 );
 
 const kDefaultPreviewBus = BusRouteSettings(
@@ -136,7 +135,6 @@ const kDefaultPreviewBus = BusRouteSettings(
   leftChannel: 3,
   rightChannel: 4,
   mode: BusChannelMode.stereo,
-  lowLatency: false,
 );
 
 /// Row fields a fresh install shows — today's layout: album/genre/length pills
@@ -283,7 +281,6 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
     // `null` means "follow the device's mix rate"; a non-positive rate cannot
     // open a stream, so it falls back to that too.
     sampleRate: rate == null || rate <= 0 ? null : rate,
-    lowLatency: route.lowLatency,
   );
 }
 

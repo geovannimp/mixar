@@ -451,16 +451,12 @@ class BusRouteSettings {
   /// mixes the device at (Settings → Audio shows it as "Device default").
   final int? sampleRate;
 
-  /// Ask the backend for a shorter path on this bus's device.
-  final bool lowLatency;
-
   const BusRouteSettings({
     required this.deviceId,
     required this.leftChannel,
     required this.rightChannel,
     required this.mode,
     this.sampleRate,
-    required this.lowLatency,
   });
 
   @override
@@ -469,8 +465,7 @@ class BusRouteSettings {
       leftChannel.hashCode ^
       rightChannel.hashCode ^
       mode.hashCode ^
-      sampleRate.hashCode ^
-      lowLatency.hashCode;
+      sampleRate.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -481,8 +476,7 @@ class BusRouteSettings {
           leftChannel == other.leftChannel &&
           rightChannel == other.rightChannel &&
           mode == other.mode &&
-          sampleRate == other.sampleRate &&
-          lowLatency == other.lowLatency;
+          sampleRate == other.sampleRate;
 }
 
 /// A controller mapping's live output override.
