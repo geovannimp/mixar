@@ -123,13 +123,14 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
         // Room the toggle cluster may take before it starts scrolling; the
         // title keeps a readable minimum. Measured here because the card's
         // title row sits inside an [IntrinsicHeight], which cannot host a
-        // LayoutBuilder of its own. The three hairlines are the card's own
-        // inset on both sides plus the cover's divider; the gap separates the
-        // title from the cluster.
+        // LayoutBuilder of its own. At rest the card paints one hairline (the
+        // cover's divider). Drop hover closes its side outline, so the card
+        // reserves both side hairlines too. The gap separates the title from
+        // the cluster.
         final contentWidth =
             constraints.maxWidth -
             _artworkThumbSize -
-            theme.style.borderWidth * 3 -
+            theme.style.borderWidth * (dropHover ? 3 : 1) -
             _titleRowPadding * 2;
         final clusterRoom = contentWidth - _titleClusterGap;
         // The title keeps its floor only while the cluster still gets a

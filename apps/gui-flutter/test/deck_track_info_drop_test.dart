@@ -169,6 +169,15 @@ void main() {
       expect(outlineRect.top, cardRect.top);
       expect(outlineRect.bottom, cardRect.bottom);
 
+      // The closed outline makes the card reserve its side hairlines; the
+      // title-row math must account for them or the cluster grows into the
+      // title and pushes it below its floor.
+      expect(
+        tester.getRect(find.byKey(const ValueKey('deck-title-artist'))).width,
+        56,
+        reason: 'the closed outline must not steal room from the title',
+      );
+
       await gesture.moveTo(const Offset(380, 20));
       await tester.pump();
       expect(outlineFinder(theme), findsNothing);
