@@ -19,6 +19,7 @@ import 'support/row_drag.dart';
 
 const _sourceKey = Key('drag-source');
 const _cardKey = Key('deck-info');
+const _outlineKey = ValueKey('m-card-outline');
 
 class _Running extends Notifier<bool> {
   @override
@@ -112,6 +113,12 @@ void main() {
     return (box.decoration as BoxDecoration).border! as Border;
   }
 
+  DecoratedBox outline(WidgetTester tester) =>
+      tester.widget<DecoratedBox>(find.byKey(_outlineKey));
+
+  Border outlineBorder(WidgetTester tester) =>
+      (outline(tester).decoration as BoxDecoration).border! as Border;
+
   testWidgets(
     'the track info card closes its border while a track hangs over',
     (tester) async {
@@ -124,6 +131,7 @@ void main() {
 
       expect(cardBorder(tester).top.style, BorderStyle.none);
       expect(cardBorder(tester).bottom.color, theme.colors.border);
+      expect(find.byKey(_outlineKey), findsNothing);
 
       final gesture = await startRowDrag(
         tester,
@@ -132,18 +140,27 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
       await tester.pump();
       for (final side in [
-        cardBorder(tester).top,
-        cardBorder(tester).right,
-        cardBorder(tester).bottom,
-        cardBorder(tester).left,
+        outlineBorder(tester).top,
+        outlineBorder(tester).right,
+        outlineBorder(tester).bottom,
+        outlineBorder(tester).left,
       ]) {
         expect(side.color, theme.colors.primary);
         expect(side.width, theme.style.borderWidth);
       }
+      // The card stays full-bleed, but the outline moves one hairline in on
+      // each side: the window frame owns the card's outermost column on the
+      // outer decks and would otherwise crop the closed outline there.
+      final cardRect = tester.getRect(find.byKey(_cardKey));
+      final outlineRect = tester.getRect(find.byKey(_outlineKey));
+      expect(outlineRect.left, cardRect.left + theme.style.borderWidth);
+      expect(outlineRect.right, cardRect.right - theme.style.borderWidth);
+      expect(outlineRect.top, cardRect.top);
+      expect(outlineRect.bottom, cardRect.bottom);
 
       await gesture.moveTo(const Offset(380, 20));
       await tester.pump();
-      expect(cardBorder(tester).top.style, BorderStyle.none);
+      expect(find.byKey(_outlineKey), findsNothing);
 
       await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
       await tester.pump();
@@ -168,21 +185,21 @@ void main() {
     );
     await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
     await tester.pump();
-    expect(cardBorder(tester).top.style, BorderStyle.solid);
+    expect(find.byKey(_outlineKey), findsOneWidget);
 
     container.read(_runningProvider.notifier).set(false);
     await tester.pumpAndSettle();
     expect(
-      cardBorder(tester).top.style,
-      BorderStyle.none,
+      find.byKey(_outlineKey),
+      findsNothing,
       reason: 'the hover outline must not outlive the drop target',
     );
 
     container.read(_runningProvider.notifier).set(true);
     await tester.pumpAndSettle();
     expect(
-      cardBorder(tester).top.style,
-      BorderStyle.none,
+      find.byKey(_outlineKey),
+      findsNothing,
       reason: 'restarting the engine does not restore a hover nobody made',
     );
 

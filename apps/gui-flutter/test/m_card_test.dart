@@ -88,10 +88,7 @@ void main() {
     );
 
     final decorated = tester.widget<DecoratedBox>(
-      find.descendant(
-        of: find.byType(MCard),
-        matching: find.byType(DecoratedBox),
-      ),
+      find.byKey(const ValueKey('m-card-outline')),
     );
     final decoration = decorated.decoration as BoxDecoration;
     expect(
@@ -136,10 +133,7 @@ void main() {
     );
 
     final decorated = tester.widget<DecoratedBox>(
-      find.descendant(
-        of: find.byType(MCard),
-        matching: find.byType(DecoratedBox),
-      ),
+      find.byKey(const ValueKey('m-card-outline')),
     );
     final decoration = decorated.decoration as BoxDecoration;
     expect(
@@ -174,4 +168,132 @@ void main() {
     expect(childRect.right, cardRect.right - inset);
     expect(childRect.bottom, cardRect.bottom - inset);
   });
+
+  testWidgets('an outline inset keeps the closed edge inside the card', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    const override = Color(0xFF2DD4BF);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(base),
+        builder: mixarMaterialAppBuilder(base),
+        home: const Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: MCard(
+              borderColor: override,
+              outlineInset: EdgeInsets.symmetric(horizontal: 1),
+              child: SizedBox(width: 40, height: 40),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardRect = tester.getRect(find.byType(MCard));
+    final outlineRect = tester.getRect(
+      find.byKey(const ValueKey('m-card-outline')),
+    );
+    expect(outlineRect.left, cardRect.left + 1);
+    expect(outlineRect.right, cardRect.right - 1);
+    expect(outlineRect.top, cardRect.top);
+    expect(outlineRect.bottom, cardRect.bottom);
+  });
+
+  testWidgets('toggling the outline does not remount the card body', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    const override = Color(0xFF2DD4BF);
+
+    Widget build({Color? border}) => MaterialApp(
+      theme: materialUiThemeFromMixar(base),
+      builder: mixarMaterialAppBuilder(base),
+      home: Scaffold(
+        body: MCard(
+          borderColor: border,
+          outlineInset: const EdgeInsets.symmetric(horizontal: 1),
+          child: const _Counter(),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(build());
+    final state = tester.state<_CounterState>(find.byType(_Counter));
+    await tester.tap(find.byType(_Counter));
+    await tester.pump();
+    expect(state.value, 1);
+
+    await tester.pumpWidget(build(border: override));
+    expect(tester.state<_CounterState>(find.byType(_Counter)), same(state));
+    expect(state.value, 1, reason: 'hover chrome must not reset card state');
+
+    await tester.pumpWidget(build());
+    expect(tester.state<_CounterState>(find.byType(_Counter)), same(state));
+    expect(state.value, 1);
+  });
+
+  testWidgets('a tight box keeps the card fill under the outline', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    const override = Color(0xFF2DD4BF);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(base),
+        builder: mixarMaterialAppBuilder(base),
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 100,
+              height: 60,
+              child: MCard(
+                borderColor: override,
+                outlineInset: EdgeInsets.symmetric(horizontal: 1),
+                child: SizedBox(width: 10, height: 10),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byType(MCard)), const Size(100, 60));
+    final fill = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(MCard),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    expect(
+      fill.size,
+      const Size(100, 60),
+      reason: 'the card fill must span the box the outline fills',
+    );
+    final outline = tester.getRect(
+      find.byKey(const ValueKey('m-card-outline')),
+    );
+    expect(outline.size, const Size(98, 60));
+  });
+}
+
+class _Counter extends StatefulWidget {
+  const new();
+
+  @override
+  State<_Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<_Counter> {
+  int value = 0;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () => setState(() => value++),
+    child: const SizedBox(width: 40, height: 40),
+  );
 }
