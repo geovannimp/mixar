@@ -16,6 +16,10 @@ class MCard extends StatelessWidget {
   final Widget child;
   final Clip clipBehavior;
 
+  /// Key on the inset interaction outline overlay, so tests and callers can
+  /// target it without hard-coding the value.
+  static const outlineKey = ValueKey('m-card-outline');
+
   /// When set, replaces the default hairline color and closes all four edges
   /// (e.g. the deck's drop-hover outline), regardless of [sideBorders].
   final Color? borderColor;
@@ -24,6 +28,11 @@ class MCard extends StatelessWidget {
   /// edges. The resting hairlines stay flush. Use it where the card runs into
   /// chrome painted over its edge — the window frame along a deck's outer
   /// edge, say — so the outline is not cropped there.
+  ///
+  /// Every side is clamped to `[0, borderWidth]`. The card reserves exactly
+  /// that hairline before its content, so the largest inset keeps the stroke
+  /// on the card but lets it sit over the content's first hairline; negative
+  /// sides resolve to the card edge.
   final EdgeInsetsGeometry outlineInset;
 
   /// Whether the hairline also runs down the left and right edges. Off, the
@@ -79,6 +88,12 @@ class MCard extends StatelessWidget {
     // not remount the card body (and lose e.g. a scroll position). Passthrough
     // keeps the parent's constraints on the card: a shrink-wrapping card must
     // keep its own size, not just let the overlay span a larger box.
+    final inset = borderColor == null
+        ? EdgeInsets.zero
+        : _clampOutlineInset(
+            outlineInset.resolve(Directionality.of(context)),
+            borderW,
+          );
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
@@ -88,12 +103,12 @@ class MCard extends StatelessWidget {
           Positioned.fill(
             child: IgnorePointer(
               child: Padding(
-                padding: outlineInset,
+                padding: inset,
                 child: DecoratedBox(
-                  key: const ValueKey('m-card-outline'),
+                  key: outlineKey,
                   decoration: BoxDecoration(
                     border: Border.all(color: color, width: borderW),
-                    borderRadius: radius,
+                    borderRadius: _deflateBorderRadius(radius, inset),
                   ),
                 ),
               ),
@@ -103,3 +118,41 @@ class MCard extends StatelessWidget {
     );
   }
 }
+
+/// The card reserves [max] of padding before its content, so the interaction
+/// outline may use that ring and no more.
+EdgeInsets _clampOutlineInset(EdgeInsets inset, double max) =>
+    EdgeInsets.fromLTRB(
+      _clampInset(inset.left, max),
+      _clampInset(inset.top, max),
+      _clampInset(inset.right, max),
+      _clampInset(inset.bottom, max),
+    );
+
+double _clampInset(double value, double max) => value < 0
+    ? 0
+    : value > max
+    ? max
+    : value;
+
+/// Keeps the outline's corners concentric with the card's while it is inset
+/// by a different amount on each side.
+BorderRadius _deflateBorderRadius(BorderRadius radius, EdgeInsets inset) =>
+    BorderRadius.only(
+      topLeft: _deflateRadius(radius.topLeft, inset.left, inset.top),
+      topRight: _deflateRadius(radius.topRight, inset.right, inset.top),
+      bottomLeft: _deflateRadius(radius.bottomLeft, inset.left, inset.bottom),
+      bottomRight: _deflateRadius(
+        radius.bottomRight,
+        inset.right,
+        inset.bottom,
+      ),
+    );
+
+Radius _deflateRadius(Radius radius, double dx, double dy) => Radius.elliptical(
+  _deflateLength(radius.x, dx),
+  _deflateLength(radius.y, dy),
+);
+
+double _deflateLength(double value, double inset) =>
+    value > inset ? value - inset : 0;

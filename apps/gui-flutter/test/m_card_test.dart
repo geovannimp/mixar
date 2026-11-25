@@ -6,18 +6,19 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
+const _override = Color(0xFF2DD4BF);
+
+Widget _mixarApp(MixarThemeData base, Widget body) => MaterialApp(
+  theme: materialUiThemeFromMixar(base),
+  builder: mixarMaterialAppBuilder(base),
+  home: Scaffold(body: body),
+);
+
 void main() {
   testWidgets('MCard paints card fill + square border', (tester) async {
     final base = MixarThemeData.dark();
-    final theme = base;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: MCard(child: SizedBox(width: 40, height: 40)),
-        ),
-      ),
+      _mixarApp(base, const MCard(child: SizedBox(width: 40, height: 40))),
     );
 
     final decorated = tester.widget<DecoratedBox>(
@@ -27,11 +28,11 @@ void main() {
       ),
     );
     final decoration = decorated.decoration as BoxDecoration;
-    expect(decoration.color, theme.colors.card);
-    expect(decoration.borderRadius, theme.style.borderRadius.lg);
+    expect(decoration.color, base.colors.card);
+    expect(decoration.borderRadius, base.style.borderRadius.lg);
     expect(
       decoration.border,
-      Border.all(color: theme.colors.border, width: theme.style.borderWidth),
+      Border.all(color: base.colors.border, width: base.style.borderWidth),
     );
     expect(find.byType(ClipRRect), findsNothing);
   });
@@ -39,15 +40,9 @@ void main() {
   testWidgets('MCard can paint only the horizontal hairlines', (tester) async {
     final base = MixarThemeData.dark();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: MCard(
-            sideBorders: false,
-            child: SizedBox(width: 40, height: 40),
-          ),
-        ),
+      _mixarApp(
+        base,
+        const MCard(sideBorders: false, child: SizedBox(width: 40, height: 40)),
       ),
     );
 
@@ -71,29 +66,23 @@ void main() {
 
   testWidgets('a border color override closes every edge', (tester) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF2DD4BF);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: MCard(
-            sideBorders: false,
-            topBorder: false,
-            borderColor: override,
-            child: SizedBox(width: 40, height: 40),
-          ),
+      _mixarApp(
+        base,
+        const MCard(
+          sideBorders: false,
+          topBorder: false,
+          borderColor: _override,
+          child: SizedBox(width: 40, height: 40),
         ),
       ),
     );
 
-    final decorated = tester.widget<DecoratedBox>(
-      find.byKey(const ValueKey('m-card-outline')),
-    );
+    final decorated = tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
     final decoration = decorated.decoration as BoxDecoration;
     expect(
       decoration.border,
-      Border.all(color: override, width: base.style.borderWidth),
+      Border.all(color: _override, width: base.style.borderWidth),
       reason: 'interaction chrome is never an open outline',
     );
   });
@@ -101,14 +90,11 @@ void main() {
   testWidgets('MCard clips with ClipRRect when requested', (tester) async {
     final base = MixarThemeData.dark();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: MCard(
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(width: 40, height: 40),
-          ),
+      _mixarApp(
+        base,
+        const MCard(
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(width: 40, height: 40),
         ),
       ),
     );
@@ -118,27 +104,21 @@ void main() {
 
   testWidgets('MCard accepts a border color override', (tester) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF2DD4BF);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: MCard(
-            borderColor: override,
-            child: SizedBox(width: 40, height: 40),
-          ),
+      _mixarApp(
+        base,
+        const MCard(
+          borderColor: _override,
+          child: SizedBox(width: 40, height: 40),
         ),
       ),
     );
 
-    final decorated = tester.widget<DecoratedBox>(
-      find.byKey(const ValueKey('m-card-outline')),
-    );
+    final decorated = tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
     final decoration = decorated.decoration as BoxDecoration;
     expect(
       decoration.border,
-      Border.all(color: override, width: base.style.borderWidth),
+      Border.all(color: _override, width: base.style.borderWidth),
     );
   });
 
@@ -148,14 +128,11 @@ void main() {
     final base = MixarThemeData.dark();
     const childKey = ValueKey('m-card-child');
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: MCard(child: SizedBox(key: childKey, width: 40, height: 40)),
-          ),
+      _mixarApp(
+        base,
+        const Align(
+          alignment: Alignment.topLeft,
+          child: MCard(child: SizedBox(key: childKey, width: 40, height: 40)),
         ),
       ),
     );
@@ -173,31 +150,52 @@ void main() {
     tester,
   ) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF2DD4BF);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: MCard(
-              borderColor: override,
-              outlineInset: EdgeInsets.symmetric(horizontal: 1),
-              child: SizedBox(width: 40, height: 40),
-            ),
+      _mixarApp(
+        base,
+        const Align(
+          alignment: Alignment.topLeft,
+          child: MCard(
+            borderColor: _override,
+            outlineInset: EdgeInsets.symmetric(horizontal: 1),
+            child: SizedBox(width: 40, height: 40),
           ),
         ),
       ),
     );
 
     final cardRect = tester.getRect(find.byType(MCard));
-    final outlineRect = tester.getRect(
-      find.byKey(const ValueKey('m-card-outline')),
-    );
+    final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
     expect(outlineRect.left, cardRect.left + 1);
     expect(outlineRect.right, cardRect.right - 1);
     expect(outlineRect.top, cardRect.top);
+    expect(outlineRect.bottom, cardRect.bottom);
+  });
+
+  testWidgets('an outline inset clamps to the card hairline', (tester) async {
+    final base = MixarThemeData.dark();
+    final borderW = base.style.borderWidth;
+    await tester.pumpWidget(
+      _mixarApp(
+        base,
+        const Align(
+          alignment: Alignment.topLeft,
+          child: MCard(
+            borderColor: _override,
+            // Negative and over-large sides stay on the card: the outline may
+            // use the hairline ring and no more.
+            outlineInset: EdgeInsets.fromLTRB(-4, 4, 40, 0),
+            child: SizedBox(width: 40, height: 40),
+          ),
+        ),
+      ),
+    );
+
+    final cardRect = tester.getRect(find.byType(MCard));
+    final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
+    expect(outlineRect.left, cardRect.left);
+    expect(outlineRect.top, cardRect.top + borderW);
+    expect(outlineRect.right, cardRect.right - borderW);
     expect(outlineRect.bottom, cardRect.bottom);
   });
 
@@ -205,17 +203,13 @@ void main() {
     tester,
   ) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF2DD4BF);
 
-    Widget build({Color? border}) => MaterialApp(
-      theme: materialUiThemeFromMixar(base),
-      builder: mixarMaterialAppBuilder(base),
-      home: Scaffold(
-        body: MCard(
-          borderColor: border,
-          outlineInset: const EdgeInsets.symmetric(horizontal: 1),
-          child: const _Counter(),
-        ),
+    Widget build({Color? border}) => _mixarApp(
+      base,
+      MCard(
+        borderColor: border,
+        outlineInset: const EdgeInsets.symmetric(horizontal: 1),
+        child: const _Counter(),
       ),
     );
 
@@ -225,7 +219,7 @@ void main() {
     await tester.pump();
     expect(state.value, 1);
 
-    await tester.pumpWidget(build(border: override));
+    await tester.pumpWidget(build(border: _override));
     expect(tester.state<_CounterState>(find.byType(_Counter)), same(state));
     expect(state.value, 1, reason: 'hover chrome must not reset card state');
 
@@ -238,21 +232,17 @@ void main() {
     tester,
   ) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF2DD4BF);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(base),
-        builder: mixarMaterialAppBuilder(base),
-        home: const Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 100,
-              height: 60,
-              child: MCard(
-                borderColor: override,
-                outlineInset: EdgeInsets.symmetric(horizontal: 1),
-                child: SizedBox(width: 10, height: 10),
-              ),
+      _mixarApp(
+        base,
+        const Center(
+          child: SizedBox(
+            width: 100,
+            height: 60,
+            child: MCard(
+              borderColor: _override,
+              outlineInset: EdgeInsets.symmetric(horizontal: 1),
+              child: SizedBox(width: 10, height: 10),
             ),
           ),
         ),
@@ -261,21 +251,22 @@ void main() {
 
     expect(tester.getSize(find.byType(MCard)), const Size(100, 60));
     final fill = tester.getRect(
-      find
-          .descendant(
-            of: find.byType(MCard),
-            matching: find.byType(DecoratedBox),
-          )
-          .first,
+      find.descendant(
+        of: find.byType(MCard),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).color == base.colors.card,
+        ),
+      ),
     );
     expect(
       fill.size,
       const Size(100, 60),
       reason: 'the card fill must span the box the outline fills',
     );
-    final outline = tester.getRect(
-      find.byKey(const ValueKey('m-card-outline')),
-    );
+    final outline = tester.getRect(find.byKey(MCard.outlineKey));
     expect(outline.size, const Size(98, 60));
   });
 }

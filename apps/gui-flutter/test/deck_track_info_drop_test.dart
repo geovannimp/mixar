@@ -19,7 +19,6 @@ import 'support/row_drag.dart';
 
 const _sourceKey = Key('drag-source');
 const _cardKey = Key('deck-info');
-const _outlineKey = ValueKey('m-card-outline');
 
 class _Running extends Notifier<bool> {
   @override
@@ -114,7 +113,7 @@ void main() {
   }
 
   DecoratedBox outline(WidgetTester tester) =>
-      tester.widget<DecoratedBox>(find.byKey(_outlineKey));
+      tester.widget<DecoratedBox>(find.byKey(MCard.outlineKey));
 
   Border outlineBorder(WidgetTester tester) =>
       (outline(tester).decoration as BoxDecoration).border! as Border;
@@ -131,7 +130,7 @@ void main() {
 
       expect(cardBorder(tester).top.style, BorderStyle.none);
       expect(cardBorder(tester).bottom.color, theme.colors.border);
-      expect(find.byKey(_outlineKey), findsNothing);
+      expect(find.byKey(MCard.outlineKey), findsNothing);
 
       final gesture = await startRowDrag(
         tester,
@@ -152,7 +151,7 @@ void main() {
       // each side: the window frame owns the card's outermost column on the
       // outer decks and would otherwise crop the closed outline there.
       final cardRect = tester.getRect(find.byKey(_cardKey));
-      final outlineRect = tester.getRect(find.byKey(_outlineKey));
+      final outlineRect = tester.getRect(find.byKey(MCard.outlineKey));
       expect(outlineRect.left, cardRect.left + theme.style.borderWidth);
       expect(outlineRect.right, cardRect.right - theme.style.borderWidth);
       expect(outlineRect.top, cardRect.top);
@@ -160,7 +159,7 @@ void main() {
 
       await gesture.moveTo(const Offset(380, 20));
       await tester.pump();
-      expect(find.byKey(_outlineKey), findsNothing);
+      expect(find.byKey(MCard.outlineKey), findsNothing);
 
       await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
       await tester.pump();
@@ -185,12 +184,12 @@ void main() {
     );
     await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
     await tester.pump();
-    expect(find.byKey(_outlineKey), findsOneWidget);
+    expect(find.byKey(MCard.outlineKey), findsOneWidget);
 
     container.read(_runningProvider.notifier).set(false);
     await tester.pumpAndSettle();
     expect(
-      find.byKey(_outlineKey),
+      find.byKey(MCard.outlineKey),
       findsNothing,
       reason: 'the hover outline must not outlive the drop target',
     );
@@ -198,7 +197,7 @@ void main() {
     container.read(_runningProvider.notifier).set(true);
     await tester.pumpAndSettle();
     expect(
-      find.byKey(_outlineKey),
+      find.byKey(MCard.outlineKey),
       findsNothing,
       reason: 'restarting the engine does not restore a hover nobody made',
     );
