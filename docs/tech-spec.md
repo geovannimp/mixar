@@ -76,8 +76,7 @@ pub struct DeviceInfo {
 pub struct StreamParams {
     pub sample_rate: u32,
     pub channels: u16,                 // e.g., 2 for stereo
-    pub frames_per_buffer: u32,        // requested frames (e.g., 512)
-    pub low_latency: bool,
+    pub frames_per_buffer: u32,        // one buffer at this rate (e.g., 512)
 }
 
 pub trait AudioCallback: Send {
@@ -208,17 +207,15 @@ name = "Focusrite USB"
 id = "hw:1,0"
 
 [[buses]]
-# BusConfig fields: id, name, device, channels, sample_rate, low_latency (see audio-core)
+# BusConfig fields: id, name, device, channels, sample_rate (see audio-core)
 # sample_rate is optional per bus: omit it to follow the device's mix rate.
-# low_latency is a per-bus backend hint: where the driver reports a buffer-size
-# range, CPAL asks for the device's minimum callback period (floored at 16 frames
-# unless the whole range is smaller); an unknown range keeps the configured size.
-# A device stream uses it when any bus asks.
 ```
 
-Each bus carries its own optional `sample_rate` and its own `low_latency` hint. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one, and the stream then runs at that rate for every bus on it), while `low_latency` is the union of what they ask for.
+Each bus carries its own optional `sample_rate`. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one, and the stream then runs at that rate for every bus on it).
 
-`buffer_size` stays global: it is the mixer chunk the DSP renders in one go, and it doubles as the stream-buffer size requested from each backend (`frames_per_buffer`), which a backend may clamp to the device's supported range. It is not per-device, because the device callback period belongs to the driver and the per-device ring absorbs the difference.
+`buffer_size` stays global: it is the mixer chunk the DSP renders in one go, and it doubles as the device callback period requested from each backend (`frames_per_buffer`), converted to the stream's rate. A driver that only accepts a smaller period grants that smaller period; a driver whose minimum period is larger than one buffer is refused with `DeviceBufferSizeError`, so the hardware is never asked for more samples than the mixer produced. It is not per-device, because the device callback period belongs to the driver and the per-device ring absorbs the difference.
+
+Backends enable realtime scheduling where the platform allows it (CPAL `realtime`/`realtime-dbus`), and `engine-core` promotes the DSP producer thread with `audio_thread_priority`; promotion is best-effort and never blocks a start.
 
 - `backend` is a headless/test selector only: the desktop app always boots the compiled-in real backend (CPAL) and never persists or shows a backend choice.
 - `backend = "auto"` resolves to CPAL when it is compiled in; it never falls back to `null`.
