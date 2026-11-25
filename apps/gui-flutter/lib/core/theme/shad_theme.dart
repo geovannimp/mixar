@@ -88,6 +88,8 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,
+    // Fields wear the full pill like select controls and labelled app buttons.
+    inputTheme: ShadInputTheme(decoration: _pillDecoration(theme)),
     // Options read as MixarMenuItem rows: full-bleed bands, 44px tall, a
     // hairline between choices, and a dark-grey hover. Selection is ink-only —
     // the label and trailing check take the accent; the row keeps the card.
@@ -117,14 +119,20 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
           targetAnchor: Alignment.topCenter,
         ),
       ),
-      // Selects wear the full pill like labelled app buttons. The base stroke
-      // and the focus ring share it so focus does not cut the stadium corners.
-      decoration: ShadDecoration(
-        border: ShadBorder(radius: theme.style.borderRadius.pill),
-        secondaryFocusedBorder: ShadBorder(
-          radius: theme.style.borderRadius.pill,
-        ),
-      ),
+      // Selects share the input pill, focus ring included.
+      decoration: _pillDecoration(theme),
     ),
   );
+}
+
+/// Border and focus ring shared by pill-shaped controls: text fields and
+/// selects.
+///
+/// Only the radii are set, so the Shad default strokes keep their colour,
+/// width, and focus offset; the error state falls back to the base border. The
+/// secondary ring is explicit because the global decoration theme draws it on
+/// the square radius.
+ShadDecoration _pillDecoration(MixarThemeData theme) {
+  final pill = ShadBorder(radius: theme.style.borderRadius.pill);
+  return ShadDecoration(border: pill, secondaryFocusedBorder: pill);
 }
