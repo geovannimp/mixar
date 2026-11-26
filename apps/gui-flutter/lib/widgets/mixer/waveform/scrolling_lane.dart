@@ -490,9 +490,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 _cancelScrub();
                 return;
               }
-              final ms = centerScrubMs(
-                anchorPosMs: _scrubAnchorMs,
-                deltaX: e.localPosition.dx - _scrubAnchorX,
+              final ms = _scrubTargetMs(
+                dx: e.localPosition.dx - _scrubAnchorX,
                 width: width,
                 spanMs: visibleSpanMs.toDouble(),
               );
@@ -524,9 +523,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 _finishScrub();
                 return;
               }
-              final raw = centerScrubMs(
-                anchorPosMs: _scrubAnchorMs,
-                deltaX: e.localPosition.dx - _scrubAnchorX,
+              final raw = _scrubTargetMs(
+                dx: e.localPosition.dx - _scrubAnchorX,
                 width: width,
                 spanMs: visibleSpanMs.toDouble(),
               );
@@ -736,21 +734,49 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// Queues one signed platter turn, capturing the platter on the first tick.
   ///
   /// A press keeps the same deck and transport for every turn and its release,
-  /// even if the lane later points at a different deck.
+  /// even if the lane later points at a different deck. Deltas that arrive
+  /// while a turn is already in flight merge into the next one: turns add up,
+  /// so the sent value is still the exact net movement and a high-rate pointer
+  /// cannot backlog the queue with round-trips.
   void _queueTurn(int delta) {
     final scratch = _scratch ?? _startScratch();
     if (scratch == null) {
       return;
     }
+    scratch.pendingTurn += delta;
+    if (scratch.turnQueued) {
+      return;
+    }
+    scratch.turnQueued = true;
     _queueScrubCommand(scratch.transport, (engine) async {
+      // Take the net movement now: a move that arrives during the call queues
+      // its own turn behind this one.
+      scratch.turnQueued = false;
+      final pending = scratch.pendingTurn;
+      scratch.pendingTurn = 0;
       // An invalidated press must not keep turning a deck that has since
       // changed track; a failed touch-on cannot own the platter either.
-      if (_seekEpoch != scratch.epoch || !scratch.touchSent) {
+      if (_seekEpoch != scratch.epoch || !scratch.touchSent || pending == 0) {
         return;
       }
-      await engine.jogTurn(deckId: scratch.deckId, delta: delta);
+      await engine.jogTurn(deckId: scratch.deckId, delta: pending);
     });
   }
+
+  /// Signed source position for a horizontal drag [dx] from the press anchor.
+  ///
+  /// The preview and the release target share it so both convert pixels with
+  /// the same zoom/tempo span.
+  double _scrubTargetMs({
+    required double dx,
+    required double width,
+    required double spanMs,
+  }) => centerScrubMs(
+    anchorPosMs: _scrubAnchorMs,
+    deltaX: dx,
+    width: width,
+    spanMs: spanMs,
+  );
 
   _WaveformScratch? _startScratch() {
     if (!mounted) {
@@ -829,6 +855,11 @@ class _WaveformScratch {
   bool touchAttempted = false;
   bool touchSent = false;
   bool touchReleased = false;
+
+  /// Tick deltas for this press that have not reached the engine yet, and
+  /// whether a turn is already queued to carry them.
+  int pendingTurn = 0;
+  bool turnQueued = false;
 }
 
 /// The windowed waveform picture, positioned so the playhead sits at center.

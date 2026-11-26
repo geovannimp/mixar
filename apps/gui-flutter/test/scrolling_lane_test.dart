@@ -161,6 +161,9 @@ class _RecordingTransport extends FakeEngineTransport {
   Completer<void>? touchOffGate;
   Completer<void>? turnGate;
 
+  /// Number of upcoming touch-on attempts that reject.
+  int touchOnFailures = 0;
+
   /// Number of upcoming touch-off attempts that reject.
   int touchOffFailures = 0;
 
@@ -169,6 +172,10 @@ class _RecordingTransport extends FakeEngineTransport {
     commands.add(('touch', deckId, touching ? 1 : 0));
     if (touching) {
       await touchOnGate?.future;
+      if (touchOnFailures > 0) {
+        touchOnFailures--;
+        throw StateError('jog touch-on failed');
+      }
     } else {
       if (touchOffFailures > 0) {
         touchOffFailures--;
@@ -302,6 +309,31 @@ Future<ProviderContainer> _pumpLane(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 16));
   return ProviderScope.containerOf(tester.element(find.byType(ScrollingLane)));
+}
+
+/// Presses the lane centre on a paused deck with a recording transport.
+///
+/// Returns the container, that transport and the live gesture, so a drag test
+/// only has to gate, move, release and assert.
+Future<(ProviderContainer, _RecordingTransport, TestGesture)> _startPausedScrub(
+  WidgetTester tester, {
+  int positionMs = 50000,
+  bool slip = false,
+}) async {
+  final engine = _RecordingTransport();
+  final container = await _pumpLane(
+    tester,
+    playing: false,
+    positionMs: positionMs,
+    strip: _strip,
+    engine: engine,
+    slip: slip,
+  );
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.byType(ScrollingLane)),
+  );
+  await tester.pump();
+  return (container, engine, gesture);
 }
 
 void _applyPosition(ProviderContainer container, int ms, {int deck = 0}) {
@@ -647,21 +679,10 @@ void main() {
   testWidgets(
     'waveform drag sends forward and reverse jog ticks then seeks once',
     (tester) async {
-      final engine = _RecordingTransport();
-      final container = await _pumpLane(
-        tester,
-        playing: false,
-        positionMs: 50000,
-        strip: _strip,
-        engine: engine,
-      );
+      final (container, engine, gesture) = await _startPausedScrub(tester);
       // A turn must not reach the transport before the platter reports that
       // it is touched.
       engine.touchOnGate = Completer<void>();
-
-      final center = tester.getCenter(find.byType(ScrollingLane));
-      final gesture = await tester.startGesture(center);
-      await tester.pump();
       expect(engine.commands, isEmpty, reason: 'a press alone is silent');
 
       // -10 px at 1x and the default 24 s span: +600 ms == +240 ticks.
@@ -749,18 +770,7 @@ void main() {
   testWidgets('a tap on the lane only seeks to the shown position', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (_, engine, gesture) = await _startPausedScrub(tester);
     await gesture.up();
     await tester.pump();
 
@@ -770,18 +780,8 @@ void main() {
   });
 
   testWidgets('cancel releases the platter without seeking', (tester) async {
-    final engine = _RecordingTransport();
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
+    final (_, engine, gesture) = await _startPausedScrub(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
@@ -819,18 +819,7 @@ void main() {
   testWidgets('unloading the track before release lands drops the seek', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    final container = await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (container, engine, gesture) = await _startPausedScrub(tester);
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
 
@@ -851,18 +840,7 @@ void main() {
   testWidgets('removing the lane mid-drag releases the platter', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (_, engine, gesture) = await _startPausedScrub(tester);
     engine.turnGate = Completer<void>();
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
@@ -890,18 +868,8 @@ void main() {
   testWidgets('a failed touch-off is retried once before the seek', (
     tester,
   ) async {
-    final engine = _RecordingTransport()..touchOffFailures = 1;
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (_, engine, gesture) = await _startPausedScrub(tester);
+    engine.touchOffFailures = 1;
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
     await gesture.up();
@@ -918,18 +886,8 @@ void main() {
   });
 
   testWidgets('a platter that will not release skips the seek', (tester) async {
-    final engine = _RecordingTransport()..touchOffFailures = 2;
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (_, engine, gesture) = await _startPausedScrub(tester);
+    engine.touchOffFailures = 2;
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
     await gesture.up();
@@ -951,18 +909,7 @@ void main() {
   testWidgets('starting a load while the release is in flight drops the seek', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    final container = await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (container, engine, gesture) = await _startPausedScrub(tester);
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
 
@@ -983,18 +930,7 @@ void main() {
   });
 
   testWidgets('an invalidated drag sends no stale turns', (tester) async {
-    final engine = _RecordingTransport();
-    final container = await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (container, engine, gesture) = await _startPausedScrub(tester);
     engine.turnGate = Completer<void>();
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
@@ -1022,20 +958,11 @@ void main() {
   testWidgets('a press invalidated before touch-on never lifts the platter', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    final container = await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
+    final (container, engine, first) = await _startPausedScrub(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
     // The first press holds the queue open at its touch-on.
     engine.touchOnGate = Completer<void>();
-    final first = await tester.startGesture(center);
-    await tester.pump();
     await first.moveBy(const Offset(-10, 0));
     await tester.pump();
     expect(engine.commands, [('touch', 0, 1)]);
@@ -1072,21 +999,66 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
+  testWidgets('moves that arrive during a turn merge into the next turn', (
+    tester,
+  ) async {
+    final (_, engine, gesture) = await _startPausedScrub(tester);
+
+    engine.turnGate = Completer<void>();
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
+
+    // Moves while that turn is in flight share one follow-up turn carrying
+    // their exact net movement, so a high-rate pointer cannot backlog the
+    // queue with round-trips.
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(10, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
+
+    engine.turnGate!.complete();
+    await tester.pump();
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('turn', 0, 240),
+      ('turn', 0, 240),
+    ]);
+
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('a rejected touch-on is still released and never turned', (
+    tester,
+  ) async {
+    final (_, engine, gesture) = await _startPausedScrub(tester);
+    engine.touchOnFailures = 1;
+
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1)]);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('touch', 0, 0),
+      ('seek', 0, 50600),
+    ]);
+    // The failure toast arms its own auto-close timer.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a platter hold that starts after the press wins', (
     tester,
   ) async {
-    final engine = _RecordingTransport();
-    final container = await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (container, engine, gesture) = await _startPausedScrub(tester);
 
     // A controller grabs the platter before the first waveform tick.
     _applyDeckUpdate(container, jogTouching: true);
@@ -1103,19 +1075,7 @@ void main() {
   });
 
   testWidgets('release seeks even with slip on', (tester) async {
-    final engine = _RecordingTransport();
-    await _pumpLane(
-      tester,
-      playing: false,
-      positionMs: 50000,
-      strip: _strip,
-      engine: engine,
-      slip: true,
-    );
-
-    final center = tester.getCenter(find.byType(ScrollingLane));
-    final gesture = await tester.startGesture(center);
-    await tester.pump();
+    final (_, engine, gesture) = await _startPausedScrub(tester, slip: true);
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
     await gesture.up();
