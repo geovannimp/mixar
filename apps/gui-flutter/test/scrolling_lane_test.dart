@@ -1305,8 +1305,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
-  testWidgets('a queued seek yields to a controller hold', (tester) async {
+  testWidgets('queued seeks yield to a controller hold', (tester) async {
     final (container, engine, first) = await _startScrubPress(tester);
+    final center = tester.getCenter(find.byType(ScrollingLane));
 
     await first.moveBy(const Offset(-10, 0));
     await tester.pump();
@@ -1314,10 +1315,16 @@ void main() {
     await first.up();
     await tester.pump();
 
-    // Our touch-on echo, then our release echo, then a controller takes the
-    // platter, all before the release command resolves.
+    // Our touch-on echo, then our release echo: the deck reads free, so a tap
+    // is accepted and queues its seek behind the unanswered release.
     await _setJogTouching(tester, container, true);
     await _setJogTouching(tester, container, false);
+    final tap = await tester.startGesture(center);
+    await tester.pump();
+    await tap.up();
+    await tester.pump();
+
+    // A controller takes the platter before the release resolves.
     await _setJogTouching(tester, container, true);
     engine.touchOffGate!.complete();
     await tester.pump();
@@ -1326,7 +1333,7 @@ void main() {
     expect(
       engine.seeks,
       isEmpty,
-      reason: 'no seek may run under a controller hold',
+      reason: 'neither the drag nor the tap may seek under a controller hold',
     );
     await tester.pump(const Duration(milliseconds: 400));
   });
