@@ -99,6 +99,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// may win a press. A set, not a count: a press and its retry are one claim.
   final _ownTouchDecks = <int>{};
 
+  /// Decks that reported nobody holding them after this lane submitted a
+  /// release. A hold reported after that is foreign, so a queued seek must
+  /// yield to it even while our own release command is still resolving.
+  final _releasedDecks = <int>{};
+
   var _disposed = false;
 
   /// Latest value of the deck's shared touch flag. Mirrored so a queued command
@@ -112,6 +117,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// The deck's touch flag is shared, so a hold this lane submitted itself
   /// explains it too: only a foreign hold may win a press. One predicate keeps
   /// the press, move and release paths on the same ownership rule.
+  /// True when the deck reported a free platter and then a hold: that hold is
+  /// foreign even if this lane's own release command is still resolving.
+  bool _holdsAfterRelease(int deckId) =>
+      _releasedDecks.contains(deckId) && _jogTouching;
+
   bool _hasExternalHold() =>
       !_ownsTouch(widget.deckId) &&
       ref.read(deckJogTouchingProvider(widget.deckId));
@@ -386,6 +396,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
       _jogTouching = next;
+      if (!next) {
+        _releasedDecks.add(widget.deckId);
+      }
       if (_scrubbing || durationMs <= 0) {
         return;
       }
@@ -704,6 +717,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
         if (positionMs == null || _seekEpoch != epoch) {
           return;
         }
+        if (_holdsAfterRelease(scratch.deckId)) {
+          _resyncFromEngine();
+          return;
+        }
         await engine.seek(deckId: scratch.deckId, positionMs: positionMs);
       });
       return;
@@ -717,6 +734,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       engine,
     ) async {
       if (_seekEpoch != epoch) {
+        return;
+      }
+      if (_releasedDecks.contains(deckId) && _jogTouching) {
+        _resyncFromEngine();
         return;
       }
       await engine.seek(deckId: deckId, positionMs: positionMs);
@@ -737,6 +758,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     if (!scratch.touchAttempted || scratch.touchReleased) {
       return;
     }
+    // From here a fresh release echo is due; until it lands, this lane's own
+    // stale hold still explains the deck's flag.
+    _releasedDecks.remove(scratch.deckId);
     try {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     } on Object catch (_) {

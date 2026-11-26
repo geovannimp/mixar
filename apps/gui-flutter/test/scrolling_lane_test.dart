@@ -1305,6 +1305,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
+  testWidgets('a queued seek yields to a controller hold', (tester) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    engine.touchOffGate = Completer<void>();
+    await first.up();
+    await tester.pump();
+
+    // Our touch-on echo, then our release echo, then a controller takes the
+    // platter, all before the release command resolves.
+    await _setJogTouching(tester, container, true);
+    await _setJogTouching(tester, container, false);
+    await _setJogTouching(tester, container, true);
+    engine.touchOffGate!.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      engine.seeks,
+      isEmpty,
+      reason: 'no seek may run under a controller hold',
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('a controller hold after our own release wins the deck', (
     tester,
   ) async {
@@ -1380,9 +1406,8 @@ void main() {
     );
     expect(
       engine.commands.where((c) => c.$1 == 'seek'),
-      hasLength(1),
-      reason:
-          'only the completed drag seeks; the yielded press gives the deck up',
+      isEmpty,
+      reason: 'a hold after the release echo takes the queued seeks with it',
     );
     await tester.pump(const Duration(milliseconds: 400));
   });
