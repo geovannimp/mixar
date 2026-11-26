@@ -289,6 +289,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       id: _audioToastId(portName),
       duration: null,
       title: Text('Switch audio outputs to $label?'),
+      icon: const Text('?'),
       description: const _EngineRestartWarning(),
       suffixBuilder: (context, dismiss) => StatefulBuilder(
         builder: (context, setLocal) => Row(
@@ -501,6 +502,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         }
       },
       title: Text('${offer.deviceName} connected'),
+      icon: const Text('?'),
       description: StatefulBuilder(
         builder: (context, setLocal) {
           return Column(
