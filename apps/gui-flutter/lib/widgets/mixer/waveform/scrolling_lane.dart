@@ -400,12 +400,6 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
       _jogTouching = next;
-      if (!next) {
-        // Nobody holds the deck, this lane included, so one release of ours has
-        // landed. End a single credit: a second scratch's touch may be the next
-        // one to be release-confirmed.
-        _ownTouchEnded(widget.deckId);
-      }
       if (_scrubbing || durationMs <= 0) {
         return;
       }
@@ -757,19 +751,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     if (!scratch.touchAttempted || scratch.touchReleased) {
       return;
     }
+    // From here the deck is told to drop this lane's touch, so the shared flag
+    // no longer needs explaining by this press: a hold seen afterwards is
+    // foreign, however late this lane's own echo may land.
+    _ownTouchEnded(scratch.deckId);
     try {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     } on Object catch (_) {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     }
     scratch.touchReleased = true;
-    // The credit stands while the deck can still be echoing this lane's touch:
-    // the future only means the command was published. Retire it as soon as
-    // the deck reports nobody holding it, and always once this lane shows
-    // another deck, so a stale credit can never excuse taking a foreign hold.
-    if (scratch.deckId != widget.deckId || !_jogTouching) {
-      _ownTouchEnded(scratch.deckId);
-    }
   }
 
   /// Stops the lane's interpolation when the platter could not be released.

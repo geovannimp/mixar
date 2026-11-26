@@ -1199,7 +1199,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('our own unreleased touch does not swallow the next tap', (
+  testWidgets('a tap waits for the release echo before seeking', (
     tester,
   ) async {
     final (container, engine, first) = await _startScrubPress(tester);
@@ -1212,29 +1212,33 @@ void main() {
     await tester.pump();
     expect(engine.commands.last, ('touch', 0, 0));
 
-    // The tap starts before the engine's echo of this lane's own touch-on,
-    // which lands while the tap is down and must not look like a controller.
+    // The deck still reports this lane's own touch. A tap cannot tell that from
+    // a controller's hold, so it waits instead of seeking under it.
+    await _setJogTouching(tester, container, true);
     final tap = await tester.startGesture(center);
     await tester.pump();
-    await _setJogTouching(tester, container, true);
-
     await tap.up();
     await tester.pump();
     engine.touchOffGate!.complete();
     await tester.pump();
     await tester.pump();
-
     expect(
       engine.commands.where((c) => c.$1 == 'seek'),
-      hasLength(2),
-      reason: 'the completed drag and the tap both seek',
+      hasLength(1),
+      reason: 'only the drag seeks while the deck still reports a hold',
     );
+
+    // Once the echo clears the flag, a tap seeks again.
+    await _setJogTouching(tester, container, false);
+    final again = await tester.startGesture(center);
+    await tester.pump();
+    await again.up();
+    await tester.pump();
+    expect(engine.commands.where((c) => c.$1 == 'seek'), hasLength(2));
     await tester.pump(const Duration(milliseconds: 400));
   });
 
-  testWidgets('a re-grab is not blocked by our own unreleased touch', (
-    tester,
-  ) async {
+  testWidgets('a re-grab waits for the release echo', (tester) async {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
@@ -1244,27 +1248,36 @@ void main() {
     await first.up();
     await tester.pump();
 
-    // The deck still reports this lane's own touch while its release lands.
     await _setJogTouching(tester, container, true);
-
     final second = await tester.startGesture(center);
     await tester.pump();
     await second.moveBy(const Offset(-10, 0));
     await tester.pump();
+    await second.up();
+    await tester.pump();
 
-    // The first release's future resolves before its echo lands: the re-grab
-    // must still be admitted and still submit its own touch-on.
     engine.touchOffGate!.complete();
     await tester.pump();
     await tester.pump();
     expect(
       engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
-      hasLength(2),
-      reason: 'the re-grab starts its own scratch despite the stale echo',
+      hasLength(1),
+      reason: 'a hold the lane cannot prove is its own must win',
     );
 
-    await second.up();
+    // The echo clears the deck; the next drag scratches.
+    await _setJogTouching(tester, container, false);
+    final third = await tester.startGesture(center);
     await tester.pump();
+    await third.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(2),
+      reason: 'with the deck free again the drag takes the platter',
+    );
+
+    await third.up();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
   });
