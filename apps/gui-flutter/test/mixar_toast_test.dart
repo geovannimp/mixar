@@ -611,8 +611,10 @@ void main() {
     );
   });
 
-  testWidgets('toast icon override replaces the variant glyph', (tester) async {
-    await pumpToastTriggers(tester, [
+  /// Mounts the "Show" trigger for the bare question-mark toast the icon
+  /// override tests exercise.
+  Future<void> pumpQuestionToast(WidgetTester tester) {
+    return pumpToastTriggers(tester, [
       (
         label: 'Show',
         onTap: (context) => showMixarToast(
@@ -623,6 +625,10 @@ void main() {
         ),
       ),
     ]);
+  }
+
+  testWidgets('toast icon override replaces the variant glyph', (tester) async {
+    await pumpQuestionToast(tester);
 
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
@@ -645,17 +651,7 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await pumpToastTriggers(tester, [
-      (
-        label: 'Show',
-        onTap: (context) => showMixarToast(
-          context: context,
-          duration: null,
-          title: const Text('Question toast'),
-          icon: const Text('?'),
-        ),
-      ),
-    ]);
+    await pumpQuestionToast(tester);
 
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
