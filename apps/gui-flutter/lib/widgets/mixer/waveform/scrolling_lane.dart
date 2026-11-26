@@ -412,7 +412,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
           return;
         }
         if (_scrubbing || _scratch != null) {
-          _cancelScrub();
+          _cancelScrub(invalidate: true);
         } else {
           _invalidateScrub();
         }
@@ -516,6 +516,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 return;
               }
               if (shiftKeyPressed()) {
+                _cancelScrub();
+                return;
+              }
+              // A tap has no move to notice a platter hold that started after
+              // the press, so yield here rather than seeking under that hold.
+              if (_scratch == null &&
+                  ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
               }
@@ -658,7 +665,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       _queueScrubCommand(scratch.transport, (engine) async {
         // Release before any seek, even for a stale press: a deck left holding
         // its platter would not respond to the next jog.
-        await _releaseScratch(engine, scratch);
+        try {
+          await _releaseScratch(engine, scratch);
+        } on Object {
+          _freezeAfterFailedRelease();
+          rethrow;
+        }
         if (positionMs == null || _seekEpoch != epoch) {
           return;
         }
@@ -703,6 +715,18 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     scratch.touchReleased = true;
   }
 
+  /// Stops the lane's interpolation when the platter could not be released.
+  ///
+  /// A deck that still reports the hold is not advancing, so a playing lane
+  /// must not scroll on past a position the engine never reached.
+  void _freezeAfterFailedRelease() {
+    if (_disposed) {
+      return;
+    }
+    _playing = false;
+    _syncClockAttachment();
+  }
+
   /// Drops the press without seeking and invalidates any queued final seek.
   void _invalidateScrub() {
     _seekEpoch++;
@@ -710,12 +734,20 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   }
 
   /// Drops the press and puts the playhead back where the engine says it is.
-  void _cancelScrub() {
-    if (!_scrubbing && _scratch == null) {
-      return;
+  ///
+  /// A plain cancel supersedes only this press: an earlier press's already
+  /// queued seek belongs to a different drag and still lands. [invalidate] is
+  /// for the callers whose deck content changed, which do drop those seeks.
+  void _cancelScrub({bool invalidate = false}) {
+    final active = _scrubbing || _scratch != null;
+    if (invalidate) {
+      _seekEpoch++;
     }
-    _invalidateScrub();
-    if (!mounted) {
+    // This press never seeks, so superseding it drops only its not-yet-sent
+    // touch-on and turns.
+    _scratch?.superseded = true;
+    _finishScrub();
+    if (!active || !mounted) {
       return;
     }
     final deckId = widget.deckId;
@@ -756,7 +788,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       scratch.pendingTurn = 0;
       // An invalidated press must not keep turning a deck that has since
       // changed track; a failed touch-on cannot own the platter either.
-      if (_seekEpoch != scratch.epoch || !scratch.touchSent || pending == 0) {
+      if (_seekEpoch != scratch.epoch ||
+          scratch.superseded ||
+          !scratch.touchSent ||
+          pending == 0) {
         return;
       }
       await engine.jogTurn(deckId: scratch.deckId, delta: pending);
@@ -790,7 +825,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     _scratch = scratch;
     _queueScrubCommand(scratch.transport, (engine) async {
       // Never start owning the platter for a press that was already dropped.
-      if (_seekEpoch != scratch.epoch) {
+      if (_seekEpoch != scratch.epoch || scratch.superseded) {
         return;
       }
       // From here on the engine may hold the platter, so the release owes it a
@@ -855,6 +890,10 @@ class _WaveformScratch {
   bool touchAttempted = false;
   bool touchSent = false;
   bool touchReleased = false;
+
+  /// True when this press was canceled: its not-yet-sent commands are dropped
+  /// without invalidating any other press's queued seek.
+  bool superseded = false;
 
   /// Tick deltas for this press that have not reached the engine yet, and
   /// whether a turn is already queued to carry them.
