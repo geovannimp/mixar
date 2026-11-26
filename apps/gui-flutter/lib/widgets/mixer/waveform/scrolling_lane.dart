@@ -751,15 +751,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     if (!scratch.touchAttempted || scratch.touchReleased) {
       return;
     }
-    // From here the deck is told to drop this lane's touch, so the shared flag
-    // no longer needs explaining by this press: a hold seen afterwards is
-    // foreign, however late this lane's own echo may land.
-    _ownTouchEnded(scratch.deckId);
     try {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     } on Object catch (_) {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     }
+    // The deck was told to drop this lane's touch, so a hold reported from here
+    // on is foreign, however late this lane's own echo lands. A release that
+    // never published keeps the credit: the deck may still be holding this
+    // lane's touch, and a later drag has to be able to retry and free it.
+    _ownTouchEnded(scratch.deckId);
     scratch.touchReleased = true;
   }
 

@@ -897,7 +897,7 @@ void main() {
   });
 
   testWidgets('a platter that will not release skips the seek', (tester) async {
-    final (_, engine, gesture) = await _startScrubPress(tester);
+    final (container, engine, gesture) = await _startScrubPress(tester);
     engine.touchOffFailures = 2;
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
@@ -911,6 +911,22 @@ void main() {
       ('touch', 0, 0),
     ]);
     expect(engine.seeks, isEmpty);
+
+    // The deck still holds this lane's touch, so a later drag keeps its claim
+    // and can retry the release instead of being locked out.
+    await _setJogTouching(tester, container, true);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final retry = await tester.startGesture(center);
+    await tester.pump();
+    await retry.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(2),
+      reason: 'the lane may retry the platter it could not release',
+    );
+    await retry.up();
+    await tester.pump();
 
     // The failure toast arms its own auto-close timer.
     await tester.pump(const Duration(seconds: 6));
@@ -1207,20 +1223,16 @@ void main() {
 
     await first.moveBy(const Offset(-10, 0));
     await tester.pump();
-    engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
-    expect(engine.commands.last, ('touch', 0, 0));
+    expect(engine.commands.where((c) => c.$1 == 'seek'), hasLength(1));
 
-    // The deck still reports this lane's own touch. A tap cannot tell that from
-    // a controller's hold, so it waits instead of seeking under it.
+    // The release published, but the deck still reports this lane's own touch.
+    // A tap cannot tell that from a controller's hold, so it waits.
     await _setJogTouching(tester, container, true);
     final tap = await tester.startGesture(center);
     await tester.pump();
     await tap.up();
-    await tester.pump();
-    engine.touchOffGate!.complete();
-    await tester.pump();
     await tester.pump();
     expect(
       engine.commands.where((c) => c.$1 == 'seek'),
@@ -1244,20 +1256,16 @@ void main() {
 
     await first.moveBy(const Offset(-10, 0));
     await tester.pump();
-    engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
 
+    // The deck still reports the touch this lane just released.
     await _setJogTouching(tester, container, true);
     final second = await tester.startGesture(center);
     await tester.pump();
     await second.moveBy(const Offset(-10, 0));
     await tester.pump();
     await second.up();
-    await tester.pump();
-
-    engine.touchOffGate!.complete();
-    await tester.pump();
     await tester.pump();
     expect(
       engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
