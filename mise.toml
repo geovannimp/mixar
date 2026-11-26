@@ -49,7 +49,7 @@ run_windows = "echo kache-setup skipped on Windows"
 [tasks.rust-patch]
 description = "Materialize the CPAL 0.18.2 backport under crates/target/patch"
 run = "bash scripts/patch-crates.sh"
-run_windows = "cd crates && cargo patch-crate"
+run_windows = "cd crates && cargo patch-crate --force"
 
 # `mise install` runs both tasks. Failures only warn, so a machine without
 # kache (or a Windows host) still completes the install.
