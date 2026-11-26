@@ -404,10 +404,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     // A load request bumps the generation before the engine sees it, so this
     // drops a queued release seek that would otherwise land on the replacement
     // track (or on this same track reloaded) before its DeckUpdated arrives.
+    // An active press also has to stop previewing the old track's position.
     ref.listen(
       deckLoadGenerationProvider.select((m) => m[widget.deckId] ?? 0),
       (prev, next) {
-        if (prev != next) {
+        if (prev == next) {
+          return;
+        }
+        if (_scrubbing || _scratch != null) {
+          _cancelScrub();
+        } else {
           _invalidateScrub();
         }
       },
@@ -652,8 +658,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
 
     if (scratch != null) {
       _queueScrubCommand(scratch.transport, (engine) async {
-        // Always attempt the captured release, even for a stale press: a deck
-        // left holding its platter would not respond to the next jog.
+        // Release before any seek, even for a stale press: a deck left holding
+        // its platter would not respond to the next jog.
         await _releaseScratch(engine, scratch);
         if (positionMs == null || _seekEpoch != epoch) {
           return;
@@ -679,14 +685,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
 
   /// Releases the platter captured at press, retrying once.
   ///
-  /// A second rejection propagates to the queue node's error handling, which
-  /// skips the final seek: a disconnected engine cannot be guaranteed to
-  /// release, and the queue must still advance.
+  /// Only a touch this press actually submitted is released: a press dropped
+  /// before its touch-on ran never owned the deck-wide touch flag, and lifting
+  /// it would break a controller's hold. A second rejection propagates to the
+  /// queue node's error handling, which skips the final seek: a disconnected
+  /// engine cannot be guaranteed to release, and the queue must still advance.
   Future<void> _releaseScratch(
     EngineTransport engine,
     _WaveformScratch scratch,
   ) async {
-    if (scratch.touchReleased) {
+    if (!scratch.touchAttempted || scratch.touchReleased) {
       return;
     }
     try {
@@ -759,6 +767,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       if (_seekEpoch != scratch.epoch) {
         return;
       }
+      // From here on the engine may hold the platter, so the release owes it a
+      // touch-off even if this call rejects.
+      scratch.touchAttempted = true;
       await engine.jogTouch(deckId: scratch.deckId, touching: true);
       scratch.touchSent = true;
     });
@@ -811,6 +822,11 @@ class _WaveformScratch {
   /// Seek epoch at capture: a change drops this press's not-yet-sent commands.
   final int epoch;
   final Future<EngineTransport?> transport;
+
+  /// True once touch-on has been submitted, so the release owes a touch-off
+  /// even if that call rejected. A press invalidated before submission never
+  /// attempted a touch and must not lift a hold it does not own.
+  bool touchAttempted = false;
   bool touchSent = false;
   bool touchReleased = false;
 }

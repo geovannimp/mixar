@@ -1019,6 +1019,59 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
+  testWidgets('a press invalidated before touch-on never lifts the platter', (
+    tester,
+  ) async {
+    final engine = _RecordingTransport();
+    final container = await _pumpLane(
+      tester,
+      playing: false,
+      positionMs: 50000,
+      strip: _strip,
+      engine: engine,
+    );
+    final center = tester.getCenter(find.byType(ScrollingLane));
+
+    // The first press holds the queue open at its touch-on.
+    engine.touchOnGate = Completer<void>();
+    final first = await tester.startGesture(center);
+    await tester.pump();
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1)]);
+    await first.up();
+    await tester.pump();
+
+    // The second press queues behind it. Invalidating before its touch-on runs
+    // must send neither its touch-on nor an unmatched touch-off.
+    final second = await tester.startGesture(center);
+    await tester.pump();
+    await second.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    container.read(engineUiProvider.notifier).clearDeck(0);
+    await tester.pump();
+
+    engine.touchOnGate!.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(1),
+      reason: 'the invalidated press must not touch the platter',
+    );
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 0),
+      hasLength(1),
+      reason: 'only the touch that was attempted is released',
+    );
+    expect(engine.commands.where((c) => c.$1 == 'turn'), isEmpty);
+    expect(engine.seeks, isEmpty);
+
+    await second.up();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('a platter hold that starts after the press wins', (
     tester,
   ) async {
