@@ -401,6 +401,17 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
         _invalidateScrub();
       }
     });
+    // A load request bumps the generation before the engine sees it, so this
+    // drops a queued release seek that would otherwise land on the replacement
+    // track (or on this same track reloaded) before its DeckUpdated arrives.
+    ref.listen(
+      deckLoadGenerationProvider.select((m) => m[widget.deckId] ?? 0),
+      (prev, next) {
+        if (prev != next) {
+          _invalidateScrub();
+        }
+      },
+    );
 
     return TrackEndBlink(
       deckId: widget.deckId,
@@ -463,6 +474,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 return;
               }
               if (shiftKeyPressed()) {
+                _cancelScrub();
+                return;
+              }
+              // A platter hold that started after this press owns the deck now:
+              // yielding here keeps this lane from lifting it on release.
+              if (_scratch == null &&
+                  ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
               }
@@ -620,6 +638,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// A null [positionMs] is release-only: Shift, cancel, an unload, a deck
   /// change and teardown all use it. Everything the release needs is captured
   /// here, so a queued command never reads `ref` after unmount.
+  ///
+  /// The release seek is a permanent waveform destination even with slip on:
+  /// slip retimes the platter while it is held, it does not move where a
+  /// waveform drag lands.
   void _finishScrub({int? positionMs}) {
     final scratch = _scratch;
     _scratch = null;
@@ -713,8 +735,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       return;
     }
     _queueScrubCommand(scratch.transport, (engine) async {
-      // A failed touch-on cannot own the platter, so it must not be turned.
-      if (!scratch.touchSent) {
+      // An invalidated press must not keep turning a deck that has since
+      // changed track; a failed touch-on cannot own the platter either.
+      if (_seekEpoch != scratch.epoch || !scratch.touchSent) {
         return;
       }
       await engine.jogTurn(deckId: scratch.deckId, delta: delta);
@@ -727,10 +750,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     }
     final scratch = _WaveformScratch(
       deckId: widget.deckId,
+      epoch: _seekEpoch,
       transport: ref.read(engineTransportProvider.future),
     );
     _scratch = scratch;
     _queueScrubCommand(scratch.transport, (engine) async {
+      // Never start owning the platter for a press that was already dropped.
+      if (_seekEpoch != scratch.epoch) {
+        return;
+      }
       await engine.jogTouch(deckId: scratch.deckId, touching: true);
       scratch.touchSent = true;
     });
@@ -776,9 +804,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
 
 /// Platter state captured on the first nonzero tick of one waveform drag.
 class _WaveformScratch {
-  new({required this.deckId, required this.transport});
+  new({required this.deckId, required this.epoch, required this.transport});
 
   final int deckId;
+
+  /// Seek epoch at capture: a change drops this press's not-yet-sent commands.
+  final int epoch;
   final Future<EngineTransport?> transport;
   bool touchSent = false;
   bool touchReleased = false;

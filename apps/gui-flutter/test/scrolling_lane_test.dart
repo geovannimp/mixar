@@ -49,6 +49,7 @@ class _SeededEngineUi extends EngineUi {
     this.jogTouching = false,
     this.cuePointMs,
     this.playbackRatio = 1.0,
+    this.slip = false,
   });
 
   final bool playing;
@@ -57,6 +58,8 @@ class _SeededEngineUi extends EngineUi {
 
   /// Actual playback ratio, tempo-sync override included.
   final double playbackRatio;
+
+  final bool slip;
 
   @override
   EngineUiSnapshot build() {
@@ -70,6 +73,7 @@ class _SeededEngineUi extends EngineUi {
           tempoRange: 0.08,
           playbackRatio: playbackRatio,
           cuePointMs: cuePointMs,
+          slipEnabled: slip,
         ),
       ),
     );
@@ -250,6 +254,7 @@ Future<ProviderContainer> _pumpLane(
   int? cuePointMs,
   int positionMs = 0,
   double playbackRatio = 1.0,
+  bool slip = false,
   FakeEngineTransport? engine,
   BeatGridData? beatGrid,
 }) async {
@@ -272,6 +277,7 @@ Future<ProviderContainer> _pumpLane(
             jogTouching: jogTouching,
             cuePointMs: cuePointMs,
             playbackRatio: playbackRatio,
+            slip: slip,
           ),
         ),
         deckPlayheadsProvider.overrideWith(
@@ -940,6 +946,135 @@ void main() {
     // The failure toast arms its own auto-close timer.
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('starting a load while the release is in flight drops the seek', (
+    tester,
+  ) async {
+    final engine = _RecordingTransport();
+    final container = await _pumpLane(
+      tester,
+      playing: false,
+      positionMs: 50000,
+      strip: _strip,
+      engine: engine,
+    );
+
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+
+    engine.touchOffGate = Completer<void>();
+    await gesture.up();
+    await tester.pump();
+    expect(engine.commands.last, ('touch', 0, 0));
+
+    // A load request bumps the generation before the engine hears about it, so
+    // the seek must not land on the replacement track when it completes.
+    container.read(deckLoadGenerationProvider.notifier).begin(0);
+    await tester.pump();
+    engine.touchOffGate!.complete();
+    await tester.pump();
+
+    expect(engine.commands.where((c) => c.$1 == 'seek'), isEmpty);
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('an invalidated drag sends no stale turns', (tester) async {
+    final engine = _RecordingTransport();
+    final container = await _pumpLane(
+      tester,
+      playing: false,
+      positionMs: 50000,
+      strip: _strip,
+      engine: engine,
+    );
+
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+    engine.turnGate = Completer<void>();
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
+
+    // The second turn queues behind the gated one, then the track goes away.
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    container.read(engineUiProvider.notifier).clearDeck(0);
+    await tester.pump();
+
+    engine.turnGate!.complete();
+    await tester.pump();
+
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('turn', 0, 240),
+      ('touch', 0, 0),
+    ]);
+    expect(engine.seeks, isEmpty);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('a platter hold that starts after the press wins', (
+    tester,
+  ) async {
+    final engine = _RecordingTransport();
+    final container = await _pumpLane(
+      tester,
+      playing: false,
+      positionMs: 50000,
+      strip: _strip,
+      engine: engine,
+    );
+
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+
+    // A controller grabs the platter before the first waveform tick.
+    _applyDeckUpdate(container, jogTouching: true);
+    await tester.pump();
+
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(engine.commands, isEmpty);
+
+    await gesture.up();
+    await tester.pump();
+    expect(engine.commands, isEmpty, reason: 'the lane must not seek either');
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('release seeks even with slip on', (tester) async {
+    final engine = _RecordingTransport();
+    await _pumpLane(
+      tester,
+      playing: false,
+      positionMs: 50000,
+      strip: _strip,
+      engine: engine,
+      slip: true,
+    );
+
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('turn', 0, 240),
+      ('touch', 0, 0),
+      ('seek', 0, 50600),
+    ]);
+    await tester.pump(const Duration(milliseconds: 400));
   });
   // Drift is a slow accumulation: the engine clock and the lane's
   // interpolation clock run at slightly different rates, so the residual creeps
