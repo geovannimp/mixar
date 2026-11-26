@@ -1017,15 +1017,21 @@ void main() {
     await tester.pump();
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
+    // Release while the turn is still in flight: the merged turn was queued
+    // before the release, so it must land before the touch-off and the seek.
+    await gesture.up();
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
+
     engine.turnGate!.complete();
     await tester.pump();
     expect(engine.commands, [
       ('touch', 0, 1),
       ('turn', 0, 240),
       ('turn', 0, 240),
+      ('touch', 0, 0),
+      ('seek', 0, 51200),
     ]);
-
-    await gesture.up();
     await tester.pump(const Duration(milliseconds: 400));
   });
 
