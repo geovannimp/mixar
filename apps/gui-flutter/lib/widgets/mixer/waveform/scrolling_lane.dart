@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart' show PointerScrollEvent, kPrimaryButton;
@@ -7,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/jog_ticks.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
@@ -17,6 +17,7 @@ import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
@@ -26,19 +27,13 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
-  const new({required this.deckId, this.label, this.nowMs, super.key});
+  const new({required this.deckId, this.label, super.key});
 
   final int deckId;
 
   /// Deck letter painted in the lane's leading corner. Vertical lanes leave it
   /// null: the text would be rotated with the lane and unreadable.
   final String? label;
-
-  /// Monotonic millisecond clock for the scrub-seek throttle.
-  ///
-  /// Defaults to a real wall clock. Tests inject a controllable clock so the
-  /// 32 ms window does not depend on how fast the runner pumps events.
-  final int Function()? nowMs;
 
   @override
   ConsumerState<ScrollingLane> createState() => _ScrollingLaneState();
@@ -74,11 +69,62 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   final ValueNotifier<double?> _outsideMs = ValueNotifier<double?>(null);
 
   var _scrubbing = false;
+
+  /// Pointer that owns the current scratch drag, null when none is active.
+  int? _scrubPointer;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
-  final _seekClock = Stopwatch()..start();
-  int? _lastSeekMs;
-  var _suppressSeek = false;
+
+  /// Last preview target that was finite, so a release with non-finite
+  /// coordinates still lands somewhere the lane was already showing.
+  var _lastScrubMs = 0.0;
+
+  /// Cumulative jog ticks already queued for the current press. Absolute, so
+  /// sub-tick moves and reversals keep their precise net difference.
+  var _lastQueuedTicks = 0;
+
+  /// Platter touch state captured on the press's first nonzero tick.
+  _WaveformScratch? _scratch;
+
+  /// One serial command tail per lane: touch-on, turns and the release seek go
+  /// out in submission order, and cleanup still works after unmount.
+  Future<void> _scrubQueue = Future<void>.value();
+
+  /// Bumped whenever the target track can no longer be trusted, so a queued
+  /// seek that has not been published yet is dropped.
+  int _seekEpoch = 0;
+
+  /// Decks this lane has submitted a touch-on for and not yet released. The
+  /// deck's touch flag is shared, so only a hold of a deck that is not in here
+  /// may win a press. A set, not a count: a press and its retry are one claim.
+  final _ownTouchDecks = <int>{};
+
+  /// Decks that reported nobody holding them after this lane submitted a
+  /// release. A hold reported after that is foreign, so a queued seek must
+  /// yield to it even while our own release command is still resolving.
+  final _releasedDecks = <int>{};
+
+  var _disposed = false;
+
+  /// Latest value of the deck's shared touch flag. Mirrored so a queued command
+  /// can recheck ownership without reading `ref` after unmount.
+  var _jogTouching = false;
+
+  bool _ownsTouch(int deckId) => _ownTouchDecks.contains(deckId);
+
+  /// True when a platter hold that is not this lane's owns this deck now.
+  ///
+  /// The deck's touch flag is shared, so a hold this lane submitted itself
+  /// explains it too: only a foreign hold may win a press. One predicate keeps
+  /// the press, move and release paths on the same ownership rule.
+  /// True when the deck reported a free platter and then a hold: that hold is
+  /// foreign even if this lane's own release command is still resolving.
+  bool _holdsAfterRelease(int deckId) =>
+      _releasedDecks.contains(deckId) && _jogTouching;
+
+  bool _hasExternalHold() =>
+      !_ownsTouch(widget.deckId) &&
+      ref.read(deckJogTouchingProvider(widget.deckId));
 
   @override
   void initState() {
@@ -88,7 +134,23 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   }
 
   @override
+  void didUpdateWidget(ScrollingLane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deckId != widget.deckId) {
+      // Credits explain that deck's touch flag; this lane no longer presses
+      // there, and a hold on the deck it now shows must not be mistaken for
+      // one of ours when the user comes back.
+      _ownTouchDecks.clear();
+      _seekEpoch++;
+      _finishScrub();
+    }
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
+    _seekEpoch++;
+    _finishScrub();
     _clock.removeListener(_onClockTick);
     if (_attached) {
       _clock.detach();
@@ -267,9 +329,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final jogTouching = ref.watch(deckJogTouchingProvider(widget.deckId));
+    _jogTouching = jogTouching;
     final advancing = playheadAdvancing(
       playing: ref.watch(deckPlayingProvider(widget.deckId)),
-      jogTouching: ref.watch(deckJogTouchingProvider(widget.deckId)),
+      jogTouching: jogTouching,
     );
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
@@ -331,6 +395,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       );
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
+      _jogTouching = next;
+      if (!next && _ownsTouch(widget.deckId)) {
+        // A free report while this lane still holds the deck is its own
+        // release landing. A controller releasing its own hold is not.
+        _releasedDecks.add(widget.deckId);
+      }
       if (_scrubbing || durationMs <= 0) {
         return;
       }
@@ -360,6 +430,36 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
         speed: next,
       );
     });
+    // A different track or a lost duration invalidates the gesture and any
+    // final seek still waiting in the queue; display reinit is left to the
+    // lane's build and the listeners above.
+    ref.listen(deckTrackIdProvider(widget.deckId), (prev, next) {
+      if (prev != next) {
+        _invalidateScrub();
+      }
+    });
+    ref.listen(deckDurationMsProvider(widget.deckId), (prev, next) {
+      if ((next ?? 0) <= 0) {
+        _invalidateScrub();
+      }
+    });
+    // A load request bumps the generation before the engine sees it, so this
+    // drops a queued release seek that would otherwise land on the replacement
+    // track (or on this same track reloaded) before its DeckUpdated arrives.
+    // An active press also has to stop previewing the old track's position.
+    ref.listen(
+      deckLoadGenerationProvider.select((m) => m[widget.deckId] ?? 0),
+      (prev, next) {
+        if (prev == next) {
+          return;
+        }
+        if (_scrubbing || _scratch != null) {
+          _cancelScrub(invalidate: true);
+        } else {
+          _invalidateScrub();
+        }
+      },
+    );
 
     return TrackEndBlink(
       deckId: widget.deckId,
@@ -389,7 +489,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
             onPointerDown: durationMs <= 0
                 ? null
                 : (e) {
-                    if (e.buttons != kPrimaryButton) {
+                    if (e.buttons != kPrimaryButton || _scrubbing) {
+                      return;
+                    }
+                    if (ref.read(deckTrackIdProvider(widget.deckId)) == null) {
+                      return;
+                    }
+                    // An external platter hold already owns this deck. A touch
+                    // this lane still owes the deck explains the flag too.
+                    if (_hasExternalHold()) {
                       return;
                     }
                     // Pin the displayed position, then stop: a held pointer
@@ -402,59 +510,86 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                       playing: false,
                     );
                     _scrubbing = true;
+                    _scrubPointer = e.pointer;
                     _scrubAnchorX = e.localPosition.dx;
                     _scrubAnchorMs = _displayMs(durationMs);
+                    _lastScrubMs = _scrubAnchorMs;
+                    _lastQueuedTicks = 0;
                   },
             onPointerMove: (e) {
-              if (!_scrubbing || durationMs <= 0) {
+              if (!_scrubbing ||
+                  e.pointer != _scrubPointer ||
+                  durationMs <= 0) {
                 return;
               }
-              final ms = centerScrubMs(
-                anchorPosMs: _scrubAnchorMs,
-                deltaX: e.localPosition.dx - _scrubAnchorX,
+              if (shiftKeyPressed()) {
+                _cancelScrub();
+                return;
+              }
+              // A platter hold that started after this press owns the deck now:
+              // yielding keeps this lane from lifting it on release.
+              if (_scratch == null && _hasExternalHold()) {
+                _cancelScrub();
+                return;
+              }
+              final ms = _scrubTargetMs(
+                dx: e.localPosition.dx - _scrubAnchorX,
                 width: width,
                 spanMs: visibleSpanMs.toDouble(),
               );
+              if (!ms.isFinite) {
+                return;
+              }
               _showMs(ms, durationMs: durationMs);
-              _throttledSeek(ms.round());
+              _lastScrubMs = ms;
+              // Absolute tick count from the press anchor: its difference from
+              // what is already queued carries sub-tick moves and reversals.
+              final cumulative = ((ms - _scrubAnchorMs) / vinylMsPerTick())
+                  .round();
+              final delta = cumulative - _lastQueuedTicks;
+              if (delta == 0) {
+                return;
+              }
+              _lastQueuedTicks = cumulative;
+              _queueTurn(delta);
             },
             onPointerUp: (e) {
-              if (_suppressSeek || shiftKeyPressed()) {
-                _suppressSeek = false;
-                _scrubbing = false;
+              if (!_scrubbing || e.pointer != _scrubPointer) {
                 return;
               }
-              if (!_scrubbing) {
+              if (shiftKeyPressed()) {
+                _cancelScrub();
                 return;
               }
-              final ms = durationMs <= 0
-                  ? 0
-                  : centerScrubMs(
-                      anchorPosMs: _scrubAnchorMs,
-                      deltaX: e.localPosition.dx - _scrubAnchorX,
-                      width: width,
-                      spanMs: visibleSpanMs.toDouble(),
-                    ).round();
-              _scrubbing = false;
-              if (durationMs > 0) {
-                _setDisplayMs(
-                  ms.toDouble(),
-                  durationMs: durationMs,
-                  speed: speed,
-                  playing: advancing,
-                );
+              // A tap has no move to notice a hold that started after the
+              // press, so yield here rather than seeking under it.
+              if (_scratch == null && _hasExternalHold()) {
+                _cancelScrub();
+                return;
               }
-              unawaited(_seek(ms));
+              if (durationMs <= 0) {
+                _finishScrub();
+                return;
+              }
+              final raw = _scrubTargetMs(
+                dx: e.localPosition.dx - _scrubAnchorX,
+                width: width,
+                spanMs: visibleSpanMs.toDouble(),
+              );
+              final ms = raw.isFinite ? raw : _lastScrubMs;
+              _finishScrub(positionMs: ms.round());
+              _setDisplayMs(
+                ms,
+                durationMs: durationMs,
+                speed: speed,
+                playing: advancing,
+              );
             },
-            onPointerCancel: (_) {
-              _scrubbing = false;
-              if (advancing && durationMs > 0) {
-                _syncPlayback(
-                  playing: advancing,
-                  durationMs: durationMs,
-                  speed: speed,
-                );
+            onPointerCancel: (e) {
+              if (!_scrubbing || e.pointer != _scrubPointer) {
+                return;
               }
+              _cancelScrub();
             },
             child: ExcludeSemantics(
               child: ClipRect(
@@ -478,7 +613,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                           playhead: _displayTicks,
                           displayMs: () => _displayMs(durationMs),
                           dpr: dpr,
-                          onMenuOpened: () => _suppressSeek = true,
+                          onMenuOpened: _cancelScrub,
                         ),
                       Align(
                         child: ColoredBox(
@@ -550,32 +685,320 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     );
   }
 
-  int get _clockMs => widget.nowMs?.call() ?? _seekClock.elapsedMilliseconds;
+  /// Ends the current press, releasing the platter and seeking to [positionMs].
+  ///
+  /// A null [positionMs] is release-only: Shift, cancel, an unload, a deck
+  /// change and teardown all use it. Everything the release needs is captured
+  /// here, so a queued command never reads `ref` after unmount.
+  ///
+  /// The release seek is a permanent waveform destination even with slip on:
+  /// slip retimes the platter while it is held, it does not move where a
+  /// waveform drag lands.
+  void _finishScrub({int? positionMs}) {
+    final scratch = _scratch;
+    _scratch = null;
+    _scrubbing = false;
+    _scrubPointer = null;
+    _lastQueuedTicks = 0;
+    final epoch = _seekEpoch;
 
-  void _throttledSeek(int ms) {
-    final now = _clockMs;
-    final last = _lastSeekMs;
-    if (last != null && now - last < 32) {
+    if (scratch != null) {
+      _queueScrubCommand(scratch.transport, (engine) async {
+        // Release before any seek, even for a stale press: a deck left holding
+        // its platter would not respond to the next jog.
+        try {
+          await _releaseScratch(engine, scratch);
+        } on Object {
+          _freezeAfterFailedRelease(scratch.deckId);
+          rethrow;
+        }
+        if (scratch.yielded) {
+          _resyncFromEngine();
+          return;
+        }
+        if (positionMs == null || _seekEpoch != epoch) {
+          return;
+        }
+        if (_holdsAfterRelease(scratch.deckId)) {
+          _resyncFromEngine();
+          return;
+        }
+        await engine.seek(deckId: scratch.deckId, positionMs: positionMs);
+      });
       return;
     }
-    _lastSeekMs = now;
-    unawaited(_seek(ms));
-  }
-
-  Future<void> _seek(int ms) async {
-    try {
-      await seekDeck(ref, widget.deckId, ms);
-    } catch (e) {
-      if (!mounted) {
+    if (positionMs == null || !mounted) {
+      return;
+    }
+    // A tap or a sub-tick drag never touched the platter: only the seek is due.
+    final deckId = widget.deckId;
+    _queueScrubCommand(ref.read(engineTransportProvider.future), (
+      engine,
+    ) async {
+      if (_seekEpoch != epoch) {
         return;
       }
-      showMixarToast(
-        context: context,
-        variant: MixarToastVariant.destructive,
-        title: Text('$e'),
-      );
-    }
+      if (_holdsAfterRelease(deckId)) {
+        _resyncFromEngine();
+        return;
+      }
+      await engine.seek(deckId: deckId, positionMs: positionMs);
+    });
   }
+
+  /// Releases the platter captured at press, retrying once.
+  ///
+  /// Only a touch this press actually submitted is released: a press dropped
+  /// before its touch-on ran never owned the deck-wide touch flag, and lifting
+  /// it would break a controller's hold. A second rejection propagates to the
+  /// queue node's error handling, which skips the final seek: a disconnected
+  /// engine cannot be guaranteed to release, and the queue must still advance.
+  Future<void> _releaseScratch(
+    EngineTransport engine,
+    _WaveformScratch scratch,
+  ) async {
+    if (!scratch.touchAttempted || scratch.touchReleased) {
+      return;
+    }
+    // From here a fresh release echo is due; until it lands, this lane's own
+    // stale hold still explains the deck's flag.
+    _releasedDecks.remove(scratch.deckId);
+    try {
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+    } on Object catch (_) {
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+    }
+    // The deck was told to drop this lane's touch, so a hold reported from here
+    // on is foreign, however late this lane's own echo lands. A release that
+    // never published keeps the credit: the deck may still be holding this
+    // lane's touch, and a later drag has to be able to retry and free it.
+    _ownTouchDecks.remove(scratch.deckId);
+    scratch.touchReleased = true;
+  }
+
+  /// Stops the lane's interpolation when the platter could not be released.
+  ///
+  /// A deck that still reports the hold is not advancing, so a playing lane
+  /// must not scroll on past a position the engine never reached. Only the deck
+  /// this release belongs to may be stopped: a rebound lane already shows
+  /// another deck, whose scrolling this failed touch has nothing to do with.
+  void _freezeAfterFailedRelease(int deckId) {
+    if (_disposed || widget.deckId != deckId) {
+      return;
+    }
+    _playing = false;
+    _syncClockAttachment();
+  }
+
+  /// Drops the press without seeking and invalidates any queued final seek.
+  void _invalidateScrub() {
+    _seekEpoch++;
+    _finishScrub();
+  }
+
+  /// Drops the press and puts the playhead back where the engine says it is.
+  ///
+  /// A plain cancel supersedes only this press: an earlier press's already
+  /// queued seek belongs to a different drag and still lands. [invalidate] is
+  /// for the callers whose deck content changed, which do drop those seeks.
+  void _cancelScrub({bool invalidate = false}) {
+    final active = _scrubbing || _scratch != null;
+    if (invalidate) {
+      _seekEpoch++;
+    }
+    // This press never seeks, so superseding it drops only its not-yet-sent
+    // touch-on and turns.
+    _scratch?.superseded = true;
+    _finishScrub();
+    if (!active || !mounted) {
+      return;
+    }
+    _resyncFromEngine();
+  }
+
+  /// Gives a live press up to a platter hold that arrived while it waited.
+  ///
+  /// Further moves of that pointer are ignored and position updates resume, so
+  /// the lane stops previewing a drag it will never send.
+  void _yieldPressToHold(_WaveformScratch scratch) {
+    if (identical(_scratch, scratch)) {
+      _scratch = null;
+      _scrubbing = false;
+      _scrubPointer = null;
+      _lastQueuedTicks = 0;
+    }
+    _resyncFromEngine();
+  }
+
+  /// Puts the shown playhead back where the engine says it is.
+  ///
+  /// Used when a press gives the deck up (a cancel, or a hold that appeared
+  /// while its commands waited), so a stale preview never outlives the press.
+  void _resyncFromEngine() {
+    if (_disposed || !mounted) {
+      return;
+    }
+    final deckId = widget.deckId;
+    final durationMs = ref.read(deckDurationMsProvider(deckId)) ?? 0;
+    if (durationMs <= 0 || ref.read(deckTrackIdProvider(deckId)) == null) {
+      return;
+    }
+    _setDisplayMs(
+      ref.read(deckPositionMsProvider(deckId)).toDouble(),
+      durationMs: durationMs,
+      speed: ref.read(deckSpeedRatioProvider(deckId)),
+      playing: _advancingNow(),
+    );
+  }
+
+  /// Queues one signed platter turn, capturing the platter on the first tick.
+  ///
+  /// A press keeps the same deck and transport for every turn and its release,
+  /// even if the lane later points at a different deck. Deltas that arrive
+  /// while a turn is already in flight merge into the next one: turns add up,
+  /// so the sent value is still the exact net movement and a high-rate pointer
+  /// cannot backlog the queue with round-trips.
+  void _queueTurn(int delta) {
+    final scratch = _scratch ?? _startScratch();
+    if (scratch == null) {
+      return;
+    }
+    scratch.pendingTurn += delta;
+    if (scratch.turnQueued) {
+      return;
+    }
+    scratch.turnQueued = true;
+    _queueScrubCommand(scratch.transport, (engine) async {
+      // Take the net movement now: a move that arrives during the call queues
+      // its own turn behind this one.
+      scratch.turnQueued = false;
+      final pending = scratch.pendingTurn;
+      scratch.pendingTurn = 0;
+      // An invalidated press must not keep turning a deck that has since
+      // changed track; a failed touch-on cannot own the platter either.
+      if (_seekEpoch != scratch.epoch ||
+          scratch.superseded ||
+          !scratch.touchSent ||
+          pending == 0) {
+        return;
+      }
+      await engine.jogTurn(deckId: scratch.deckId, delta: pending);
+    });
+  }
+
+  /// Signed source position for a horizontal drag [dx] from the press anchor.
+  ///
+  /// The preview and the release target share it so both convert pixels with
+  /// the same zoom/tempo span.
+  double _scrubTargetMs({
+    required double dx,
+    required double width,
+    required double spanMs,
+  }) => centerScrubMs(
+    anchorPosMs: _scrubAnchorMs,
+    deltaX: dx,
+    width: width,
+    spanMs: spanMs,
+  );
+
+  _WaveformScratch? _startScratch() {
+    if (!mounted) {
+      return null;
+    }
+    final scratch = _WaveformScratch(
+      deckId: widget.deckId,
+      epoch: _seekEpoch,
+      transport: ref.read(engineTransportProvider.future),
+    );
+    _scratch = scratch;
+    _queueScrubCommand(scratch.transport, (engine) async {
+      // Never start owning the platter for a press that was already dropped.
+      if (_seekEpoch != scratch.epoch || scratch.superseded) {
+        return;
+      }
+      // A foreign hold that started while this scratch waited in the queue owns
+      // the deck now: taking it would lift that hold on release.
+      if (!_ownsTouch(scratch.deckId) && _jogTouching) {
+        scratch.yielded = true;
+        _yieldPressToHold(scratch);
+        return;
+      }
+      // From here on the engine may hold the platter, so the release owes it a
+      // touch-off even if this call rejects.
+      scratch.touchAttempted = true;
+      _ownTouchDecks.add(scratch.deckId);
+      await engine.jogTouch(deckId: scratch.deckId, touching: true);
+      scratch.touchSent = true;
+    });
+    return scratch;
+  }
+
+  /// Appends one command to this lane's serial transport tail.
+  ///
+  /// The node catches its own rejection: it reports the error like the old
+  /// seek path and still resolves, so the release that follows always runs.
+  void _queueScrubCommand(
+    Future<EngineTransport?> transport,
+    Future<void> Function(EngineTransport) send,
+  ) {
+    _scrubQueue = _scrubQueue
+        .then((_) async {
+          try {
+            final engine = await transport;
+            if (engine == null) {
+              return;
+            }
+            await send(engine);
+          } on Object catch (e) {
+            _reportScrubError(e);
+          }
+        })
+        // Reporting is best effort: even a throwing toast must not break the
+        // tail, or a later release would never run.
+        .catchError((Object _) {});
+  }
+
+  void _reportScrubError(Object error) {
+    if (_disposed || !mounted) {
+      return;
+    }
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$error'),
+    );
+  }
+}
+
+/// Platter state captured on the first nonzero tick of one waveform drag.
+class _WaveformScratch {
+  new({required this.deckId, required this.epoch, required this.transport});
+
+  final int deckId;
+
+  /// Seek epoch at capture: a change drops this press's not-yet-sent commands.
+  final int epoch;
+  final Future<EngineTransport?> transport;
+
+  /// True once touch-on has been submitted, so the release owes a touch-off
+  /// even if that call rejected. A press invalidated before submission never
+  /// attempted a touch and must not lift a hold it does not own.
+  bool touchAttempted = false;
+  bool touchSent = false;
+  bool touchReleased = false;
+
+  /// True when this press was canceled: its not-yet-sent commands are dropped
+  /// without invalidating any other press's queued seek.
+  bool superseded = false;
+
+  /// True when a foreign platter hold took the deck while this press's commands
+  /// waited: the press gives the deck up instead of seeking under that hold.
+  bool yielded = false;
+
+  /// Tick deltas for this press that have not reached the engine yet, and
+  /// whether a turn is already queued to carry them.
+  int pendingTurn = 0;
+  bool turnQueued = false;
 }
 
 /// The windowed waveform picture, positioned so the playhead sits at center.
