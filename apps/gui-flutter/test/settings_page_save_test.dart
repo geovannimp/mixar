@@ -77,9 +77,17 @@ void main() {
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
     expect(find.text(l10n.settingsSectionUnsavedBody), findsOneWidget);
 
-    // Cancel stays put, edit and all.
-    await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
+    // The section switch drops Cancel: Discard and Save are its only buttons,
+    // and an outside press is the way to stay.
+    expect(find.widgetWithText(AppButton, l10n.settingsCancel), findsNothing);
+    expect(
+      find.widgetWithText(AppButton, l10n.settingsDiscard),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
+    await tester.tapAt(const Offset(12, 560));
     await tester.pumpAndSettle();
+    expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);
     expect(
       find.widgetWithText(AppButton, l10n.settingsSaveChanges),

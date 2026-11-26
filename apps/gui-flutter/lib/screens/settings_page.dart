@@ -741,16 +741,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   /// Whether the open section may be left, saving or discarding first when it
   /// has unsaved edits.
+  ///
+  /// The section switch offers only Discard and Save: the sidebar is one click
+  /// away, so a third button to stay put would only crowd the footer.
+  /// Dismissing the dialog (outside press or Esc) still means "stay here".
   Future<bool> _confirmSectionExit() => _confirmUnsavedExit(
     AppLocalizations.of(context)!.settingsSectionUnsavedBody,
+    showCancel: false,
   );
 
   /// Asks how to leave something that has unsaved edits.
   ///
-  /// A section switch and shell navigation offer the same Cancel / Discard /
-  /// Save choices and answer them the same way; only [body] differs. Discarding
-  /// drops the draft, so whichever place is left, the next one opens clean.
-  Future<bool> _confirmUnsavedExit(String body) async {
+  /// A section switch and shell navigation answer the same way; only [body] and
+  /// whether the footer offers Cancel differ. Discarding drops the draft, so
+  /// whichever place is left, the next one opens clean.
+  Future<bool> _confirmUnsavedExit(
+    String body, {
+    bool showCancel = true,
+  }) async {
     if (_busy) {
       return false;
     }
@@ -765,11 +773,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       title: l10n.settingsUnsavedTitle,
       body: body,
       actions: [
-        MixarDialogAction(
-          label: l10n.settingsCancel,
-          value: _CloseChoice.cancel,
-          variant: MixarButtonVariant.outline,
-        ),
+        if (showCancel)
+          MixarDialogAction(
+            label: l10n.settingsCancel,
+            value: _CloseChoice.cancel,
+            variant: MixarButtonVariant.outline,
+          ),
         MixarDialogAction(
           label: l10n.settingsDiscard,
           value: _CloseChoice.discard,

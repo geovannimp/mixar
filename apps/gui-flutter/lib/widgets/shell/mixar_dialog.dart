@@ -16,6 +16,14 @@ const mixarDialogBreakpoint = 768.0;
 /// still gets a transparent full-window barrier for outside presses.
 const kMixarDialogScrimColor = Color(0x80000000);
 
+/// End inset shared by the dialog's close button and its action footer.
+///
+/// The close button is a 32px hit box around a 20px glyph: the box ends 10px
+/// from the card edge and its 6px padding puts the icon box 16px from it. The
+/// action footer uses the same 16 so its pills end on the close button's
+/// column instead of a wider one of their own.
+const mixarDialogCloseInset = 16.0;
+
 class MixarDialogAction<T> {
   const new({
     required this.label,
@@ -54,7 +62,8 @@ List<Widget> mixarDialogActions({
 /// Bodies compose this widget instead of drawing their own titles, padding or
 /// frames, so every dialog in the app shares the same chrome. Content is padded
 /// by [contentPadding]; pass [EdgeInsets.zero] for full-bleed section lists.
-/// Action buttons sit in a footer below a rule and are right-aligned.
+/// Action buttons sit in a footer below a rule and are right-aligned, ending on
+/// [mixarDialogCloseInset] like the close button above them.
 class MixarDialog extends StatelessWidget {
   const new({
     this.title,
@@ -66,7 +75,14 @@ class MixarDialog extends StatelessWidget {
       horizontal: 24,
       vertical: 16,
     ),
-    this.actionsPadding = const EdgeInsets.fromLTRB(24, 12, 24, 16),
+    this.actionsPadding = const EdgeInsetsDirectional.fromSTEB(
+      // Start matches the content column; end sits on the close button's
+      // column so the last pill lines up with the X.
+      24,
+      12,
+      mixarDialogCloseInset,
+      16,
+    ),
   });
 
   final String? title;
@@ -209,7 +225,7 @@ ShadDialog _mixarDialogShell({
     ),
     closeIconPosition: ShadPosition.directional(
       top: closeTop,
-      end: titleInset - (closeSize - closeIconSize) / 2,
+      end: mixarDialogCloseInset - (closeSize - closeIconSize) / 2,
       textDirection: Directionality.of(context),
     ),
     child: child,

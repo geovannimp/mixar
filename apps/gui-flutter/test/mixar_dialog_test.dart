@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -201,6 +202,50 @@ void main() {
     );
     final cancelRect = tester.getRect(find.text('Cancel'));
     expect(cancelRect.top, greaterThanOrEqualTo(bodyRect.bottom));
+  });
+
+  testWidgets('dialog footer ends on the close button column', (tester) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarConfirm<String>(
+              context: context,
+              title: 'Delete?',
+              actions: const [
+                MixarDialogAction(label: 'Delete', value: 'delete'),
+                MixarDialogAction(
+                  label: 'Cancel',
+                  value: 'cancel',
+                  variant: MixarButtonVariant.outline,
+                ),
+              ],
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    // The close button is a hit box around a glyph; its padding puts the glyph
+    // box on the shared 16px column. The footer's last pill must end there too.
+    final close = tester.widget<AppButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is AppButton && widget.semanticsLabel == 'Close',
+      ),
+    );
+    final closePadding = close.padding! as EdgeInsets;
+    final closeRight =
+        tester.getRect(find.byWidget(close)).right - closePadding.right;
+    final pill = tester.getRect(find.widgetWithText(AppButton, 'Cancel'));
+    final card = tester.getRect(find.byType(MixarDialog));
+
+    expect(pill.right, closeRight);
+    expect(card.right - pill.right, mixarDialogCloseInset);
   });
 
   testWidgets('showMixarDialog scrolls tall content without overflow', (
