@@ -108,9 +108,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   ///
   /// The deck's touch flag is shared, so a hold this lane submitted itself
   /// explains it too: only a foreign hold may win a press. One predicate keeps
-  /// the move and release paths on the same ownership rule.
-  bool _foreignHoldOwnsDeck() =>
-      _scratch == null &&
+  /// the press, move and release paths on the same ownership rule.
+  bool _hasExternalHold() =>
       _ownTouchesFor(widget.deckId) == 0 &&
       ref.read(deckJogTouchingProvider(widget.deckId));
 
@@ -491,8 +490,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                     }
                     // An external platter hold already owns this deck. A touch
                     // this lane still owes the deck explains the flag too.
-                    if (_ownTouchesFor(widget.deckId) == 0 &&
-                        ref.read(deckJogTouchingProvider(widget.deckId))) {
+                    if (_hasExternalHold()) {
                       return;
                     }
                     // Pin the displayed position, then stop: a held pointer
@@ -523,7 +521,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
               }
               // A platter hold that started after this press owns the deck now:
               // yielding keeps this lane from lifting it on release.
-              if (_foreignHoldOwnsDeck()) {
+              if (_scratch == null && _hasExternalHold()) {
                 _cancelScrub();
                 return;
               }
@@ -558,7 +556,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
               }
               // A tap has no move to notice a hold that started after the
               // press, so yield here rather than seeking under it.
-              if (_foreignHoldOwnsDeck()) {
+              if (_scratch == null && _hasExternalHold()) {
                 _cancelScrub();
                 return;
               }

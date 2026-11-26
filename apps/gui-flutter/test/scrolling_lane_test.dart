@@ -373,6 +373,16 @@ void _applyDeckUpdate(
       );
 }
 
+/// Applies one deck update carrying [touching] and pumps it through the lane.
+Future<void> _setJogTouching(
+  WidgetTester tester,
+  ProviderContainer container,
+  bool touching,
+) async {
+  _applyDeckUpdate(container, jogTouching: touching);
+  await tester.pump();
+}
+
 /// Zooms all the way in so a millisecond-scale discontinuity spans pixels.
 int _zoomIn(ProviderContainer container) {
   container.read(waveformZoomProvider.notifier).zoomBy(-10000);
@@ -1065,8 +1075,7 @@ void main() {
     final (container, engine, gesture) = await _startScrubPress(tester);
 
     // A controller grabs the platter before the first waveform tick.
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
 
     await gesture.moveBy(const Offset(-10, 0));
     await tester.pump();
@@ -1084,8 +1093,7 @@ void main() {
     final (container, engine, gesture) = await _startScrubPress(tester);
 
     // No move means none of the move-path checks see the controller's hold.
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
 
     await gesture.up();
     await tester.pump();
@@ -1174,8 +1182,7 @@ void main() {
     // which lands while the tap is down and must not look like a controller.
     final tap = await tester.startGesture(center);
     await tester.pump();
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
 
     await tap.up();
     await tester.pump();
@@ -1204,8 +1211,7 @@ void main() {
     await tester.pump();
 
     // The deck still reports this lane's own touch while its release lands.
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
 
     final second = await tester.startGesture(center);
     await tester.pump();
@@ -1242,13 +1248,10 @@ void main() {
 
     // Our touch-on echo, then the release echo arrives before the transport
     // future resolves; the deck is free again at that point.
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
-    _applyDeckUpdate(container, jogTouching: false);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
+    await _setJogTouching(tester, container, false);
     // A controller now holds the platter.
-    _applyDeckUpdate(container, jogTouching: true);
-    await tester.pump();
+    await _setJogTouching(tester, container, true);
 
     final second = await tester.startGesture(center);
     await tester.pump();
