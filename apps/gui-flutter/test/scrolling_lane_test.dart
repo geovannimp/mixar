@@ -1069,6 +1069,40 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('a failed touch-on leaves no credit behind', (tester) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+    engine.touchOnFailures = 1;
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    await first.up();
+    await tester.pump();
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('touch', 0, 0),
+      ('seek', 0, 50600),
+    ]);
+
+    // A controller takes the deck; nothing this lane did may excuse taking it.
+    await _setJogTouching(tester, container, true);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final second = await tester.startGesture(center);
+    await tester.pump();
+    await second.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    await second.up();
+    await tester.pump();
+
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(1),
+      reason: 'the rejected touch-on may not credit the deck to this lane',
+    );
+    // The failure toast arms its own auto-close timer.
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a platter hold that starts after the press wins', (
     tester,
   ) async {

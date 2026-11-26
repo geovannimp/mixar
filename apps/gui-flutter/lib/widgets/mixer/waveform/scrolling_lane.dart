@@ -141,6 +141,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   void didUpdateWidget(ScrollingLane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.deckId != widget.deckId) {
+      // Credits explain that deck's touch flag; this lane no longer presses
+      // there, and a hold on the deck it now shows must not be mistaken for
+      // one of ours when the user comes back.
+      _ownTouches.clear();
       _seekEpoch++;
       _finishScrub();
     }
@@ -759,9 +763,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       await engine.jogTouch(deckId: scratch.deckId, touching: false);
     }
     scratch.touchReleased = true;
-    // The credit stands until the deck reports nobody holds it: the release
-    // future resolving only means the command was published, while the shared
-    // flag can keep echoing this lane's touch for a while after that.
+    // The credit stands while the deck can still be echoing this lane's touch:
+    // the future only means the command was published. Retire it as soon as
+    // the deck reports nobody holding it, and always once this lane shows
+    // another deck, so a stale credit can never excuse taking a foreign hold.
+    if (scratch.deckId != widget.deckId || !_jogTouching) {
+      _ownTouchEnded(scratch.deckId);
+    }
   }
 
   /// Stops the lane's interpolation when the platter could not be released.
