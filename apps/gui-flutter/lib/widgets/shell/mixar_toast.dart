@@ -51,7 +51,7 @@ var _mixarToastSeq = 0;
 /// [dismissMixarToast]. [icon] replaces the variant's glyph for a message that
 /// is not a plain tone, such as a question prompt. It is decorative: painted at
 /// glyph size, immune to text scaling and excluded from semantics, so pass a
-/// glyph, never interactive content.
+/// glyph that fits the disc, never interactive content.
 void showMixarToast({
   required BuildContext context,
   required Widget title,
@@ -195,7 +195,7 @@ class _MixarToastSpec {
 
   /// Decorative glyph overriding the variant when the message is not a plain
   /// tone. Painted centred at glyph size, immune to text scaling and excluded
-  /// from semantics; never interactive content.
+  /// from semantics; it must fit the disc and never be interactive content.
   final Widget? icon;
 
   /// Null means the toast stays until dismissed by hand.
@@ -607,6 +607,8 @@ class _MixarToastCard extends StatelessWidget {
                                                       .md
                                                       .copyWith(
                                                         color: onAccent,
+                                                        fontSize:
+                                                            _toastGlyphSize,
                                                         fontWeight:
                                                             FontWeight.w700,
                                                         height: 1,
@@ -622,7 +624,7 @@ class _MixarToastCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: _toastGlyphGap),
                         Expanded(
                           child: DefaultTextStyle(
                             style: theme.typography.body.md.copyWith(
