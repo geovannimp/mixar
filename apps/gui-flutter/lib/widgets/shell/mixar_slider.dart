@@ -140,6 +140,11 @@ class _MixarSliderState extends State<MixarSlider> {
     return next;
   }
 
+  /// Width of the track ShadSlider measures: the rail less the inset that keeps
+  /// its division marks off the caps (see [_divisionMarkInset]).
+  double _measuredTrackWidth(double width, double trackInset) =>
+      width - trackInset * 2;
+
   /// True when [local] lands on the thumb. Seeking there on pointer-down
   /// would jump the value before the thumb's own absolute pan starts.
   bool _isOnThumb(
@@ -149,7 +154,7 @@ class _MixarSliderState extends State<MixarSlider> {
     double trackInset,
   ) {
     final range = widget.max - widget.min;
-    final trackWidth = width - trackInset * 2;
+    final trackWidth = _measuredTrackWidth(width, trackInset);
     if (range <= 0 || trackWidth <= 0) {
       return false;
     }
@@ -164,7 +169,7 @@ class _MixarSliderState extends State<MixarSlider> {
   /// double-tap timeout. This raw listener keeps the click-to-seek immediate
   /// instead of waiting out that window.
   void _seekTo(Offset local, double width, double trackInset) {
-    final trackWidth = width - trackInset * 2;
+    final trackWidth = _measuredTrackWidth(width, trackInset);
     if (!widget.enabled || trackWidth <= 0) {
       return;
     }
