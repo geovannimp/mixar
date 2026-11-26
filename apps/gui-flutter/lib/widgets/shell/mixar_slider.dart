@@ -2,9 +2,32 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 const _transparent = Color(0x00000000);
+
+/// Horizontal inset applied to [ShadSlider] on either side when it paints
+/// division marks.
+///
+/// [ShadSlider] hangs a 2x6 mark on every division boundary, centred on it, so
+/// the first and last marks sit 1px past the track's ends. Drawn over the rail
+/// they cut its stadium caps: the rounded end reads as a square block with a
+/// notch. Insetting the track leaves the caps whole — the mark's outer edge
+/// then starts 2px in, past the point where the 8px default track's 4px cap is
+/// already 6px tall, the mark's own height.
+const _divisionMarkInset = 3.0;
+
+/// Gap between the rail and the [MixarSlider.readout] pill.
+const _readoutGap = 12.0;
+
+/// Room reserved inside the readout pill for the widest value.
+///
+/// The rail must not change width — and drag the thumb with it — as the digits
+/// grow mid-drag. The default fits the app's readouts (`2048`, `100%`); a
+/// label that is wider takes the space it needs, which is why a formatted
+/// label such as `05 seconds` keeps its width across the whole range.
+const _readoutMinWidth = 64.0;
 
 /// Mixar slider over [ShadSlider].
 ///
@@ -32,6 +55,7 @@ class MixarSlider extends StatefulWidget {
     this.semanticFormatterCallback,
     this.trackHeight,
     this.thumbRadius,
+    this.readout,
   });
 
   final double value;
@@ -53,6 +77,13 @@ class MixarSlider extends StatefulWidget {
   /// Thumb radius; `null` uses the theme default (10). Compact rows pass
   /// smaller values so the thumb stops dominating the strip.
   final double? thumbRadius;
+
+  /// Value shown in a pill to the right of the rail; `null` shows no pill.
+  ///
+  /// Format it at the call site (`512`, `50%`, a zero-padded `05 seconds`) and
+  /// keep its length stable across the range: the pill does not chase the
+  /// label, so a longer one would shorten the rail and move the thumb.
+  final String? readout;
 
   @override
   State<MixarSlider> createState() => _MixarSliderState();
@@ -109,15 +140,26 @@ class _MixarSliderState extends State<MixarSlider> {
     return next;
   }
 
+  /// Width of the track ShadSlider measures: the rail less the inset that keeps
+  /// its division marks off the caps (see [_divisionMarkInset]).
+  double _measuredTrackWidth(double width, double trackInset) =>
+      width - trackInset * 2;
+
   /// True when [local] lands on the thumb. Seeking there on pointer-down
   /// would jump the value before the thumb's own absolute pan starts.
-  bool _isOnThumb(Offset local, double width, double thumbRadius) {
+  bool _isOnThumb(
+    Offset local,
+    double width,
+    double thumbRadius,
+    double trackInset,
+  ) {
     final range = widget.max - widget.min;
-    if (range <= 0 || width <= 0) {
+    final trackWidth = _measuredTrackWidth(width, trackInset);
+    if (range <= 0 || trackWidth <= 0) {
       return false;
     }
     final t = ((_controller.value - widget.min) / range).clamp(0.0, 1.0);
-    return (local.dx - t * width).abs() <= thumbRadius;
+    return (local.dx - (trackInset + t * trackWidth)).abs() <= thumbRadius;
   }
 
   /// Seek the same way [ShadSlider]'s `tapAndSlide` does.
@@ -126,13 +168,13 @@ class _MixarSliderState extends State<MixarSlider> {
   /// [ShadSlider]'s tap recognizer resolves a single click only after the
   /// double-tap timeout. This raw listener keeps the click-to-seek immediate
   /// instead of waiting out that window.
-  void _seekTo(Offset local, double width) {
-    if (!widget.enabled || width <= 0) {
+  void _seekTo(Offset local, double width, double trackInset) {
+    final trackWidth = _measuredTrackWidth(width, trackInset);
+    if (!widget.enabled || trackWidth <= 0) {
       return;
     }
-    final next = _snapValue(
-      widget.min + (local.dx / width) * (widget.max - widget.min),
-    );
+    final t = ((local.dx - trackInset) / trackWidth).clamp(0.0, 1.0);
+    final next = _snapValue(widget.min + t * (widget.max - widget.min));
     if (_controller.value != next) {
       _controller.value = next;
       widget.onChanged(next);
@@ -177,6 +219,9 @@ class _MixarSliderState extends State<MixarSlider> {
         shad.sliderTheme.thumbRadius ??
         _fallbackThumbRadius;
     final hitHeight = math.max(trackHeight, thumbRadius * 2 + _focusRingRoom);
+    // Division marks are the only thing [ShadSlider] still paints; keep the
+    // endpoints off the rail's caps (see [_divisionMarkInset]).
+    final trackInset = (widget.divisions ?? 0) > 0 ? _divisionMarkInset : 0.0;
     final canReset = widget.enabled && widget.defaultValue != null;
     // [ShadSlider] paints a square-ended track and only rounds its active
     // fill's left edge. Paint the trail ourselves instead: one clip around the
@@ -191,7 +236,7 @@ class _MixarSliderState extends State<MixarSlider> {
               shad.colorScheme.secondary.withValues(alpha: 0.5);
     // ShadSlider paints the thumb outside its short track box, so the whole
     // reserved height must be the hit target.
-    return SizedBox(
+    final rail = SizedBox(
       // Constrained parents (a fixed-height row) keep their height; the track
       // then centres in it exactly as before.
       height: hitHeight,
@@ -223,13 +268,18 @@ class _MixarSliderState extends State<MixarSlider> {
               onPointerDown: (event) {
                 final width = constraints.maxWidth;
                 final local = event.localPosition;
-                final onThumb = _isOnThumb(local, width, thumbRadius);
+                final onThumb = _isOnThumb(
+                  local,
+                  width,
+                  thumbRadius,
+                  trackInset,
+                );
                 _previousPressOnThumb = _lastPressOnThumb;
                 _lastPressOnThumb = onThumb;
                 final onTrack =
                     local.dy >= trackTop && local.dy <= trackTop + trackHeight;
                 if (event.buttons == kPrimaryButton && !onThumb && onTrack) {
-                  _seekTo(local, width);
+                  _seekTo(local, width, trackInset);
                 }
               },
               child: Center(
@@ -253,26 +303,32 @@ class _MixarSliderState extends State<MixarSlider> {
                           ),
                         ),
                       ),
-                      ShadSlider(
-                        controller: _controller,
-                        min: widget.min,
-                        max: widget.max,
-                        divisions: widget.divisions,
-                        enabled: widget.enabled,
-                        allowedInteraction: ShadSliderInteraction.slideOnly,
-                        trackHeight: widget.trackHeight,
-                        thumbRadius: widget.thumbRadius,
-                        // The custom trail below supplies the paint; keep
-                        // Shad's own track as the transparent hit area.
-                        activeTrackColor: _transparent,
-                        inactiveTrackColor: _transparent,
-                        disabledActiveTrackColor: _transparent,
-                        disabledInactiveTrackColor: _transparent,
-                        onChanged: widget.onChanged,
-                        onChangeStart: (_) => _dragging = true,
-                        onChangeEnd: (_) => _dragging = false,
-                        semanticFormatterCallback:
-                            widget.semanticFormatterCallback,
+                      // The rail (trail) keeps the full width; only the track
+                      // ShadSlider measures and marks is inset, so its endpoint
+                      // division marks land inside the stadium caps.
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: trackInset),
+                        child: ShadSlider(
+                          controller: _controller,
+                          min: widget.min,
+                          max: widget.max,
+                          divisions: widget.divisions,
+                          enabled: widget.enabled,
+                          allowedInteraction: ShadSliderInteraction.slideOnly,
+                          trackHeight: widget.trackHeight,
+                          thumbRadius: widget.thumbRadius,
+                          // The custom trail below supplies the paint; keep
+                          // Shad's own track as the transparent hit area.
+                          activeTrackColor: _transparent,
+                          inactiveTrackColor: _transparent,
+                          disabledActiveTrackColor: _transparent,
+                          disabledInactiveTrackColor: _transparent,
+                          onChanged: widget.onChanged,
+                          onChangeStart: (_) => _dragging = true,
+                          onChangeEnd: (_) => _dragging = false,
+                          semanticFormatterCallback:
+                              widget.semanticFormatterCallback,
+                        ),
                       ),
                     ],
                   ),
@@ -282,6 +338,17 @@ class _MixarSliderState extends State<MixarSlider> {
           );
         },
       ),
+    );
+    final readout = widget.readout;
+    if (readout == null) {
+      return rail;
+    }
+    return Row(
+      spacing: _readoutGap,
+      children: [
+        Expanded(child: rail),
+        _MixarSliderReadout(text: readout),
+      ],
     );
   }
 }
@@ -330,6 +397,40 @@ class _MixarSliderTrack extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The readout pill beside the rail: one line, tabular, room reserved.
+class _MixarSliderReadout extends StatelessWidget {
+  const new({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.card,
+        border: Border.all(color: theme.colors.border),
+        borderRadius: theme.style.borderRadius.pill,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: _readoutMinWidth),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Text(
+            text,
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

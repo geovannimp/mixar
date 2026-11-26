@@ -51,17 +51,7 @@ void main() {
 
   Future<GlobalKey<_SliderHostState>> pumpSlider(WidgetTester tester) async {
     final key = GlobalKey<_SliderHostState>();
-    final theme = MixarThemeData.dark();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(child: _SliderHost(key: key, initial: 0.5)),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpMixarSlider(tester, _SliderHost(key: key, initial: 0.5));
     return key;
   }
 
@@ -294,6 +284,125 @@ void main() {
       reason: 'the focused thumb and ring span the whole box: $paintedRows',
     );
   });
+
+  testWidgets('insets a marked track so its endpoint marks miss the caps', (
+    tester,
+  ) async {
+    double value = 0.5;
+    await pumpMixarSlider(
+      tester,
+      SizedBox(
+        width: 200,
+        child: StatefulBuilder(
+          builder: (context, setState) => MixarSlider(
+            value: value,
+            divisions: 8,
+            onChanged: (next) => setState(() => value = next),
+          ),
+        ),
+      ),
+    );
+
+    final rail = tester.getRect(find.byType(MixarSlider));
+    final track = tester.getRect(find.byType(ShadSlider));
+    // ShadSlider centres a 2x6 mark on every division boundary, so the end
+    // marks hang 1px past the track. Inset the track to keep the rail's
+    // stadium caps whole.
+    expect(
+      track.left - rail.left,
+      3,
+      reason: 'the first mark must clear the left cap',
+    );
+    expect(
+      rail.right - track.right,
+      3,
+      reason: 'the last mark must clear the right cap',
+    );
+
+    // The inset geometry must still map the rail's ends onto the first and
+    // last step.
+    await tester.tapAt(Offset(rail.left + 1, rail.center.dy));
+    await tester.pumpAndSettle();
+    expect(value, 0);
+    await tester.tapAt(Offset(rail.right - 1, rail.center.dy));
+    await tester.pumpAndSettle();
+    expect(value, 1);
+  });
+
+  testWidgets('leaves the track flush when nothing marks divisions', (
+    tester,
+  ) async {
+    await pumpMixarSlider(
+      tester,
+      SizedBox(width: 200, child: MixarSlider(value: 0.5, onChanged: (_) {})),
+    );
+
+    final rail = tester.getRect(find.byType(MixarSlider));
+    final track = tester.getRect(find.byType(ShadSlider));
+    expect(track.left, rail.left);
+    expect(track.right, rail.right);
+  });
+
+  testWidgets('puts the readout in a pill right of the rail', (tester) async {
+    await pumpReadoutSlider(tester, '512');
+
+    final track = tester.getRect(find.byType(ShadSlider));
+    final readout = tester.getRect(find.text('512'));
+    expect(
+      readout.left,
+      greaterThan(track.right),
+      reason: 'the value sits beside the rail, not above it',
+    );
+    expect(readout.center.dy, moreOrLessEquals(track.center.dy, epsilon: 1));
+  });
+
+  testWidgets('reserves readout width so the rail cannot jump', (tester) async {
+    await pumpReadoutSlider(tester, '5');
+    final narrow = tester.getRect(find.byType(ShadSlider));
+    // The pill is wider than its label: the reserved width keeps the rail put.
+    expect(
+      tester.getRect(find.text('5')).width,
+      lessThan(64),
+      reason: 'the label is shorter than the room reserved for it',
+    );
+
+    await pumpReadoutSlider(tester, '100');
+    final wide = tester.getRect(find.byType(ShadSlider));
+
+    expect(
+      wide,
+      narrow,
+      reason: 'the rail keeps its width as the readout gains digits',
+    );
+  });
+}
+
+/// Pumps [child] centred under the app theme; one host for every slider case.
+Future<void> pumpMixarSlider(WidgetTester tester, Widget child) async {
+  final theme = MixarThemeData.dark();
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: materialUiThemeFromMixar(theme),
+      builder: mixarMaterialAppBuilder(theme),
+      home: Scaffold(body: Center(child: child)),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> pumpReadoutSlider(WidgetTester tester, String readout) {
+  return pumpMixarSlider(
+    tester,
+    SizedBox(
+      width: 300,
+      child: MixarSlider(
+        value: 0.5,
+        divisions: 4,
+        readout: readout,
+        onChanged: (_) {},
+      ),
+    ),
+  );
 }
 
 class _ResetSliderState {
@@ -307,32 +416,23 @@ Future<void> pumpResetSlider(
   required _ResetSliderState state,
   double? defaultValue,
   double? height,
-}) async {
-  final theme = MixarThemeData.dark();
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: materialUiThemeFromMixar(theme),
-      builder: mixarMaterialAppBuilder(theme),
-      home: Scaffold(
-        body: Center(
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              return SizedBox(
-                width: 110,
-                height: height,
-                child: MixarSlider(
-                  value: state.value,
-                  defaultValue: defaultValue,
-                  onChanged: (next) => setState(() => state.value = next),
-                ),
-              );
-            },
+}) {
+  return pumpMixarSlider(
+    tester,
+    StatefulBuilder(
+      builder: (context, setState) {
+        return SizedBox(
+          width: 110,
+          height: height,
+          child: MixarSlider(
+            value: state.value,
+            defaultValue: defaultValue,
+            onChanged: (next) => setState(() => state.value = next),
           ),
-        ),
-      ),
+        );
+      },
     ),
   );
-  await tester.pumpAndSettle();
 }
 
 /// Mixar's accent (`MixarTeal.s600`), the slider's active track and thumb ring.

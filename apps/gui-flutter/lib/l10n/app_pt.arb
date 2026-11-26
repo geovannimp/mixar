@@ -310,6 +310,7 @@
       }
     }
   },
+  "settingsDeckEndWarningSecondsLabel": "{seconds} segundos",
   "settingsDeckFaderStart": "Arranque pelo fader",
   "settingsDeckFaderStartHint": "Inicia ou pára a reprodução ao mover o fader do canal para longe ou de volta à base.",
   "settingsDeckFaderStartToggle": "Ativar arranque pelo fader",

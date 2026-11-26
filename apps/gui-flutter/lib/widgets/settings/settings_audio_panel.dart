@@ -199,33 +199,17 @@ class _BufferSizeSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final snapped = _snap(value);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            '$snapped',
-            style: theme.typography.body.sm.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        MixarSlider(
-          value: _toNorm(snapped),
-          defaultValue: _toNorm(kDefaultBufferSize),
-          divisions: _indexMax,
-          onChanged: (norm) => onChanged(_fromNorm(norm)),
-          semanticFormatterCallback: (norm) =>
-              l10n.settingsAudioBufferSizeSemantics(_fromNorm(norm)),
-        ),
-      ],
+    return MixarSlider(
+      value: _toNorm(snapped),
+      defaultValue: _toNorm(kDefaultBufferSize),
+      divisions: _indexMax,
+      readout: '$snapped',
+      onChanged: (norm) => onChanged(_fromNorm(norm)),
+      semanticFormatterCallback: (norm) =>
+          l10n.settingsAudioBufferSizeSemantics(_fromNorm(norm)),
     );
   }
 }

@@ -388,6 +388,15 @@
       }
     }
   },
+  "settingsDeckEndWarningSecondsLabel": "{seconds} seconds",
+  "@settingsDeckEndWarningSecondsLabel": {
+    "description": "Visible readout beside the end-of-track warning slider. The whole slider range is 5-60 s, so the count is passed zero-padded to two digits (05, 10, 60) and the pill keeps one width.",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
   "settingsDeckFaderStart": "Fader start",
   "@settingsDeckFaderStart": {
     "description": "Title of the fader-start card in Deck settings."
