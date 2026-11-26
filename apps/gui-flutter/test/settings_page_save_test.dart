@@ -16,6 +16,7 @@ import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -85,7 +86,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
-    await tester.tapAt(const Offset(12, 560));
+    final card = tester.getRect(find.byType(MixarDialog));
+    await tester.tapAt(Offset(card.left - 24, card.center.dy));
     await tester.pumpAndSettle();
     expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);

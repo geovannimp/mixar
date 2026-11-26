@@ -15,13 +15,18 @@ void main() {
     WidgetTester tester,
     Widget home, {
     Locale locale = const Locale('en', 'US'),
+    TextDirection textDirection = TextDirection.ltr,
   }) async {
     final theme = MixarThemeData.dark();
+    final appBuilder = mixarMaterialAppBuilder(theme);
     await tester.pumpWidget(
       MaterialApp(
         locale: locale,
         theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
+        builder: (context, child) => Directionality(
+          textDirection: textDirection,
+          child: appBuilder(context, child),
+        ),
         home: Scaffold(body: home),
       ),
     );
@@ -205,47 +210,68 @@ void main() {
   });
 
   testWidgets('dialog footer ends on the close button column', (tester) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarConfirm<String>(
-              context: context,
-              title: 'Delete?',
-              actions: const [
-                MixarDialogAction(label: 'Delete', value: 'delete'),
-                MixarDialogAction(
-                  label: 'Cancel',
-                  value: 'cancel',
-                  variant: MixarButtonVariant.outline,
-                ),
-              ],
-            );
-          },
-          child: const Text('Open'),
+    for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
+      await pumpHome(
+        tester,
+        Builder(
+          builder: (context) => GestureDetector(
+            onTap: () async {
+              await showMixarConfirm<String>(
+                context: context,
+                title: 'Delete?',
+                actions: const [
+                  MixarDialogAction(label: 'Delete', value: 'delete'),
+                  MixarDialogAction(
+                    label: 'Cancel',
+                    value: 'cancel',
+                    variant: MixarButtonVariant.outline,
+                  ),
+                ],
+              );
+            },
+            child: const Text('Open'),
+          ),
         ),
-      ),
-    );
+        textDirection: direction,
+      );
 
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-    // The close button is a hit box around a glyph; its padding puts the glyph
-    // box on the shared 16px column. The footer's last pill must end there too.
-    final close = tester.widget<AppButton>(
-      find.byWidgetPredicate(
-        (widget) => widget is AppButton && widget.semanticsLabel == 'Close',
-      ),
-    );
-    final closePadding = close.padding! as EdgeInsets;
-    final closeRight =
-        tester.getRect(find.byWidget(close)).right - closePadding.right;
-    final pill = tester.getRect(find.widgetWithText(AppButton, 'Cancel'));
-    final card = tester.getRect(find.byType(MixarDialog));
+      // The close button is a hit box around a glyph; its padding puts the
+      // glyph box on the shared inset. The footer's trailing pill must end on
+      // the same column, on whichever side the direction puts the close button.
+      final rtl = direction == TextDirection.rtl;
+      final close = tester.widget<AppButton>(
+        find.byWidgetPredicate(
+          (widget) => widget is AppButton && widget.semanticsLabel == 'Close',
+        ),
+      );
+      final closePadding = close.padding! as EdgeInsets;
+      final closeBox = tester.getRect(find.byWidget(close));
+      final pill = tester.getRect(find.widgetWithText(AppButton, 'Cancel'));
+      final card = tester.getRect(find.byType(MixarDialog));
 
-    expect(pill.right, closeRight);
-    expect(card.right - pill.right, mixarDialogCloseInset);
+      final closeTrailing = rtl
+          ? closeBox.left + closePadding.left
+          : closeBox.right - closePadding.right;
+      final pillTrailing = rtl ? pill.left : pill.right;
+      final cardTrailing = rtl ? card.left : card.right;
+      final inset = rtl
+          ? pillTrailing - cardTrailing
+          : cardTrailing - pillTrailing;
+
+      expect(pillTrailing, closeTrailing, reason: '$direction pill vs close');
+      expect(
+        inset,
+        mixarDialogCloseInset,
+        reason: '$direction card edge to pill',
+      );
+
+      // Dismiss the card so the next pass starts from a clean navigator.
+      await tester.tapAt(const Offset(12, 560));
+      await tester.pumpAndSettle();
+    }
   });
 
   testWidgets('showMixarDialog scrolls tall content without overflow', (

@@ -62,8 +62,8 @@ List<Widget> mixarDialogActions({
 /// Bodies compose this widget instead of drawing their own titles, padding or
 /// frames, so every dialog in the app shares the same chrome. Content is padded
 /// by [contentPadding]; pass [EdgeInsets.zero] for full-bleed section lists.
-/// Action buttons sit in a footer below a rule and are right-aligned, ending on
-/// [mixarDialogCloseInset] like the close button above them.
+/// Action buttons sit in a footer below a rule and are trailing-aligned, ending
+/// on [mixarDialogCloseInset] like the close button above them.
 class MixarDialog extends StatelessWidget {
   const new({
     this.title,
@@ -127,10 +127,10 @@ class MixarDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Right inset leaves room for the shell's close button.
+            // End inset leaves room for the shell's close button.
             if (title case final title?) ...[
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 56, 16),
+                padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 56, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   spacing: 4,
