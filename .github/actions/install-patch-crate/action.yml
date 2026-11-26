@@ -14,8 +14,10 @@ runs:
           echo "cargo:patch-crate is not pinned in mise.toml" >&2
           exit 1
         fi
-        if command -v cargo-patch-crate >/dev/null 2>&1 &&
-          cargo-patch-crate --version | grep -q "$version"; then
-          exit 0
+        if command -v cargo-patch-crate >/dev/null 2>&1; then
+          installed="$(cargo-patch-crate --version | awk '{print $NF}')"
+          if [[ "$installed" == "$version" ]]; then
+            exit 0
+          fi
         fi
         cargo install patch-crate --version "$version" --locked
