@@ -16,6 +16,7 @@ import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -77,9 +78,23 @@ void main() {
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
     expect(find.text(l10n.settingsSectionUnsavedBody), findsOneWidget);
 
-    // Cancel stays put, edit and all.
-    await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
+    // The section switch drops Cancel: Discard and Save are its only buttons,
+    // and an outside press is the way to stay.
+    expect(find.widgetWithText(AppButton, l10n.settingsCancel), findsNothing);
+    expect(
+      find.widgetWithText(AppButton, l10n.settingsDiscard),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
+    // Stay put by dismissing the card: a press on the dimmed body, at the
+    // barrier's own top-left so the point holds for a bottom sheet too.
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((b) => b.color == kMixarDialogScrimColor);
+    final barrierRect = tester.getRect(find.byWidget(barrier));
+    await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
     await tester.pumpAndSettle();
+    expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);
     expect(
       find.widgetWithText(AppButton, l10n.settingsSaveChanges),
