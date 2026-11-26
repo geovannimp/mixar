@@ -168,6 +168,12 @@ void main() {
     expect(gear.center.dy, moreOrLessEquals(select.center.dy, epsilon: 0.5));
   }
 
+  Rect panelRect(WidgetTester tester) =>
+      tester.getRect(find.byType(DeckPadsPanel));
+
+  Rect selectRect(WidgetTester tester) =>
+      tester.getRect(find.byType(MixarSelect<PadMode>));
+
   Rect gearRect(WidgetTester tester) => tester.getRect(
     find.descendant(
       of: find.byType(DeckPadsPanel),
@@ -519,8 +525,8 @@ void main() {
     // keeps room for its label row and chevron.
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gearRect(tester),
       inset: 0,
       gap: 4,
@@ -544,8 +550,8 @@ void main() {
     );
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gearRect(tester),
     );
 
@@ -558,8 +564,8 @@ void main() {
     );
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gearRect(tester),
       inset: 0,
       gap: 4,
@@ -576,8 +582,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gearRect(tester),
       inset: 0,
       gap: 4,
@@ -613,8 +619,8 @@ void main() {
     final gear = tester.getRect(gearFinder);
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gear,
     );
     expect(
@@ -647,8 +653,8 @@ void main() {
     );
     expectHeaderLayout(
       tester,
-      panel: tester.getRect(find.byType(DeckPadsPanel)),
-      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      panel: panelRect(tester),
+      select: selectRect(tester),
       gear: gearRect(tester),
     );
   });
