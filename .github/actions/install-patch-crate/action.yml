@@ -15,8 +15,8 @@ runs:
           exit 1
         fi
         if command -v cargo-patch-crate >/dev/null 2>&1; then
-          installed="$(cargo-patch-crate --version | awk '{print $NF}')"
-          if [[ "$installed" == "$version" ]]; then
+          if installed="$(cargo-patch-crate --version 2>/dev/null | awk '{print $NF}')" &&
+            [[ "$installed" == "$version" ]]; then
             exit 0
           fi
         fi
