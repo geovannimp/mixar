@@ -104,6 +104,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
 
   int _ownTouchesFor(int deckId) => _ownTouches[deckId] ?? 0;
 
+  /// True when a platter hold that is not this lane's owns this deck now.
+  ///
+  /// The deck's touch flag is shared, so a hold this lane submitted itself
+  /// explains it too: only a foreign hold may win a press. One predicate keeps
+  /// the move and release paths on the same ownership rule.
+  bool _foreignHoldOwnsDeck() =>
+      _scratch == null &&
+      _ownTouchesFor(widget.deckId) == 0 &&
+      ref.read(deckJogTouchingProvider(widget.deckId));
+
   void _ownTouchStarted(int deckId) {
     _ownTouches[deckId] = _ownTouchesFor(deckId) + 1;
   }
@@ -512,11 +522,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 return;
               }
               // A platter hold that started after this press owns the deck now:
-              // yielding here keeps this lane from lifting it on release. Our
-              // own submitted touch explains the flag too, so it cannot win.
-              if (_scratch == null &&
-                  _ownTouchesFor(widget.deckId) == 0 &&
-                  ref.read(deckJogTouchingProvider(widget.deckId))) {
+              // yielding keeps this lane from lifting it on release.
+              if (_foreignHoldOwnsDeck()) {
                 _cancelScrub();
                 return;
               }
@@ -549,12 +556,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 _cancelScrub();
                 return;
               }
-              // A tap has no move to notice a platter hold that started after
-              // the press, so yield here rather than seeking under that hold
-              // unless the flag is our own unreleased touch.
-              if (_scratch == null &&
-                  _ownTouchesFor(widget.deckId) == 0 &&
-                  ref.read(deckJogTouchingProvider(widget.deckId))) {
+              // A tap has no move to notice a hold that started after the
+              // press, so yield here rather than seeking under it.
+              if (_foreignHoldOwnsDeck()) {
                 _cancelScrub();
                 return;
               }
