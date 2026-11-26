@@ -41,6 +41,14 @@ jobs:
         with:
           cache-key-prefix: mixar-kache-beta
 
+      # This job does not use mise, so materialize the patch before Rust cache
+      # runs `cargo metadata` or any Cargo command resolves the workspace.
+      - name: Install patch-crate
+        uses: ./.github/actions/install-patch-crate
+
+      - name: Materialize dependency patches
+        run: bash ../scripts/patch-crates.sh
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:

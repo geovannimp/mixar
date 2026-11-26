@@ -1,0 +1,23 @@
+name: Install patch-crate
+description: Install the patch-crate version pinned in mise.toml
+
+runs:
+  using: composite
+  steps:
+    - name: Install patch-crate
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+        version="$(sed -n 's/.*"cargo:patch-crate" = "\([^"]*\)".*/\1/p' mise.toml)"
+        if [ -z "$version" ]; then
+          echo "cargo:patch-crate is not pinned in mise.toml" >&2
+          exit 1
+        fi
+        if command -v cargo-patch-crate >/dev/null 2>&1; then
+          if installed="$(cargo-patch-crate --version 2>/dev/null | awk '{print $NF}')" &&
+            [[ "$installed" == "$version" ]]; then
+            exit 0
+          fi
+        fi
+        cargo install patch-crate --version "$version" --locked
