@@ -124,32 +124,27 @@ void main() {
     );
   });
 
-  testWidgets('performance panel keeps its side margins', (tester) async {
+  testWidgets('performance panel runs full-bleed with the track info', (
+    tester,
+  ) async {
     await pumpDeck(tester);
 
     final info = tester.getRect(find.byType(DeckTrackInfo));
     final panel = tester.getRect(find.byType(DeckPerformancePanel));
 
     expect(info.left, 0, reason: 'the track info stays full-bleed');
-    expect(panel.left, 10);
-    expect(panel.right, info.right - 10);
+    expect(panel.left, info.left, reason: 'no side margin on the panel');
+    expect(panel.right, info.right);
   });
 
-  testWidgets('track info clears the deck leading rule', (tester) async {
+  testWidgets('deck content starts at the pane top', (tester) async {
     await pumpDeck(tester);
 
-    final theme = MixarThemeData.dark();
     final info = tester.getTopLeft(find.byType(DeckTrackInfo));
     final rail = tester.getTopLeft(find.byType(DeckTempoPanel));
 
     expect(rail.dy, 0, reason: 'the rail spans the deck height');
-    expect(
-      info.dy,
-      theme.style.borderWidth,
-      reason:
-          'the leading rule owns the first pixel, so the hover outline '
-          'is not painted underneath it',
-    );
+    expect(info.dy, 0, reason: 'no 1 px margin above the deck content');
   });
 
   testWidgets('track info card keeps only its bottom hairline', (tester) async {
