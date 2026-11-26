@@ -185,10 +185,7 @@ class DeckPanel extends ConsumerWidget {
                     // The divider hugs the panel; the row keeps equal
                     // breathing room above and below so the controls sit
                     // centred between it and the deck's foot.
-                    if (rowGap >= borderWidth && rowGap > 0)
-                      transportDivider()
-                    else if (rowGap > 0)
-                      SizedBox(height: rowGap),
+                    if (rowGap > 0) transportDivider(),
                     Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: _kDeckSideInset,

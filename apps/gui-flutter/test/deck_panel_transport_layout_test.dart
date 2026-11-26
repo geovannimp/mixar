@@ -31,6 +31,12 @@ class _EngineUi extends EngineUi {
 /// Tolerance for sub-pixel layout rounding.
 const _kEpsilon = 0.5;
 
+/// Mirrors `_kDeckSideInset` in `deck_panel.dart`.
+const _kSideInset = 10.0;
+
+/// Mirrors `_kTransportRowGap` in `deck_panel.dart`.
+const _kRowGap = 8.0;
+
 void main() {
   Future<void> pumpDeck(
     WidgetTester tester, {
@@ -101,7 +107,7 @@ void main() {
     final board = tester.getRect(find.byType(DeckTrackInfo));
     expect(panel.left, board.left);
     // The pair keeps the deck's side gutter on the outside edge.
-    expect(cue.right, board.right - 10);
+    expect(cue.right, board.right - _kSideInset);
 
     // The divider hugs the panel; the circles are centred in the gutter.
     final dividerFinder = find.byKey(
@@ -115,7 +121,7 @@ void main() {
     );
     expect(divider.left, closeTo(panel.right, _kEpsilon));
     expect(divider.center.dx, lessThan(cue.left));
-    expect(cue.left - divider.right, closeTo(10, _kEpsilon));
+    expect(cue.left - divider.right, closeTo(_kSideInset, _kEpsilon));
     final painted = tester.getRect(
       find
           .descendant(of: dividerFinder, matching: find.byType(ColoredBox))
@@ -133,7 +139,7 @@ void main() {
     expect(cue.width, 72, reason: 'the width cap sets the diameter here');
     expect(
       playTile.top - cue.bottom,
-      closeTo(8, _kEpsilon),
+      closeTo(_kRowGap, _kEpsilon),
       reason: 'the pair keeps its fixed gap',
     );
     // Stacked as a pair, centred in the pads area.
@@ -172,14 +178,14 @@ void main() {
     expect(cue.right, lessThanOrEqualTo(panel.left + _kEpsilon));
     expect(playTile.right, lessThanOrEqualTo(panel.left + _kEpsilon));
     // The pair keeps the deck's outer gutter and is centred in its column.
-    expect(cue.left, board.left + 10);
+    expect(cue.left, board.left + _kSideInset);
     // The divider sits between the transport and the panel.
     final divider = tester.getRect(
       find.byKey(const ValueKey('deck-performance-transport-divider')),
     );
     expect(divider.center.dx, greaterThan(cue.right));
     expect(divider.center.dx, lessThan(panel.left));
-    expect(divider.left, closeTo(cue.right + 10, _kEpsilon));
+    expect(divider.left, closeTo(cue.right + _kSideInset, _kEpsilon));
     // The two circles keep their size and stack in deck order.
     expect(cue.width, closeTo(playTile.width, _kEpsilon));
     expect(cue.center.dy, greaterThan(playTile.center.dy));
@@ -228,15 +234,26 @@ void main() {
   testWidgets('the stacked breakpoint budgets the whole transport block', (
     tester,
   ) async {
-    // 202 px available: compact, so the panel keeps the full height.
-    await pumpDeck(tester, size: const Size(294, 304));
+    // Mirrors the stacked footprint in deck_panel.dart: the panel floor, the
+    // buttons, both row gaps, and the divider hairline.
+    const panelFloor = 150.0;
+    const buttonHeight = 36.0;
+    final borderWidth = MixarThemeData.dark().style.borderWidth;
+    final threshold = panelFloor + buttonHeight + _kRowGap * 2 + borderWidth;
+
+    // Read the fixed deck chrome (track info) above the panel.
+    await pumpDeck(tester, size: const Size(294, 560));
+    final chrome = tester.getRect(find.byType(DeckTrackInfo)).height;
+
+    // One pixel below the threshold: compact, so the panel keeps full height.
+    await pumpDeck(tester, size: Size(294, threshold + chrome - 1));
     var cue = tester.getRect(find.byType(DeckCueButton));
     var panel = tester.getRect(find.byType(DeckPerformancePanel));
     expect(cue.width, closeTo(cue.height, _kEpsilon));
     expect(panel.height, greaterThan(190));
 
-    // 203 px: stacked, and the panel still keeps its 150 px floor.
-    await pumpDeck(tester, size: const Size(294, 305));
+    // At the threshold: stacked, and the panel still keeps its floor.
+    await pumpDeck(tester, size: Size(294, threshold + chrome));
     cue = tester.getRect(find.byType(DeckCueButton));
     panel = tester.getRect(find.byType(DeckPerformancePanel));
     expect(cue.width, greaterThan(cue.height * 1.5));
@@ -309,16 +326,16 @@ void main() {
           matching: find.byType(DecoratedBox),
         )
         .first;
-    expect(cue.left, 10);
+    expect(cue.left, _kSideInset);
     final board = tester.getRect(find.byType(DeckTrackInfo));
     // The panel runs flush to the deck's content edges, with no side margin.
     expect(panel.left, board.left);
     expect(panel.right, board.right);
-    expect(tester.getRect(playSurface).right, board.right - 10);
+    expect(tester.getRect(playSurface).right, board.right - _kSideInset);
     // The row keeps equal space above and below the controls.
     final playRect = tester.getRect(playSurface);
-    expect(playRect.top - divider.bottom, closeTo(8, _kEpsilon));
-    expect(560 - playRect.bottom, closeTo(8, _kEpsilon));
+    expect(playRect.top - divider.bottom, closeTo(_kRowGap, _kEpsilon));
+    expect(560 - playRect.bottom, closeTo(_kRowGap, _kEpsilon));
     // Half-width each, not squares.
     expect(cue.width, greaterThan(cue.height * 1.5));
   });

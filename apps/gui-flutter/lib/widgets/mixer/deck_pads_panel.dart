@@ -34,6 +34,11 @@ const _kWideHeaderWidth = 112.0;
 /// Smallest gear square that still fits the select beside it in a narrow pane.
 const _kNarrowGearSize = 24.0;
 
+/// Narrowest header that can hold the select's 42 px label row and the small
+/// gear with their 4 px gap. Below it the gear yields so the select stays
+/// usable instead of overflowing.
+const _kMinHeaderWithGear = 72.0;
+
 /// Presentational deck pads panel (mode select + per-mode grids).
 class DeckPadsPanel extends StatelessWidget {
   const new({
@@ -156,6 +161,8 @@ class DeckPadsPanel extends StatelessWidget {
         final inset = wide ? 8.0 : 0.0;
         final gap = wide ? 8.0 : 4.0;
         final gearSize = wide ? 32.0 : _kNarrowGearSize;
+        final showGear =
+            _showsConfig && constraints.maxWidth >= _kMinHeaderWithGear;
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: inset, vertical: 4),
           child: Row(
@@ -175,7 +182,7 @@ class DeckPadsPanel extends StatelessWidget {
                   enabled: !disabled,
                 ),
               ),
-              if (_showsConfig)
+              if (showGear)
                 SizedBox.square(
                   dimension: gearSize,
                   child: _configButton(context),

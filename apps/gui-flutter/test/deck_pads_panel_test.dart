@@ -150,6 +150,31 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Geometry the header shares at every width: the select starts `inset`
+  /// from the panel, the gear ends `inset` from it, and `gap` separates them.
+  void expectHeaderLayout(
+    WidgetTester tester, {
+    required Rect panel,
+    required Rect select,
+    required Rect gear,
+    double inset = 8,
+    double gap = 8,
+    Size gearSize = const Size(32, 32),
+  }) {
+    expect(gear.size, gearSize);
+    expect(select.left - panel.left, inset);
+    expect(panel.right - gear.right, inset);
+    expect(gear.left - select.right, gap);
+    expect(gear.center.dy, moreOrLessEquals(select.center.dy, epsilon: 0.5));
+  }
+
+  Rect gearRect(WidgetTester tester) => tester.getRect(
+    find.descendant(
+      of: find.byType(DeckPadsPanel),
+      matching: find.byType(MixerButton),
+    ),
+  );
+
   testWidgets('compact cue pads remain usable without a config button', (
     tester,
   ) async {
@@ -490,21 +515,86 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    final panel = tester.getRect(find.byType(DeckPadsPanel));
-    final select = tester.getRect(find.byType(MixarSelect<PadMode>));
-    final gear = tester.getRect(
-      find.descendant(
-        of: find.byType(DeckPadsPanel),
-        matching: find.byType(MixerButton),
-      ),
-    );
     // The narrow header drops the insets and shrinks the gear so the select
     // keeps room for its label row and chevron.
-    expect(gear.size, const Size(24, 24));
-    expect(select.left, panel.left);
-    expect(panel.right - gear.right, 0);
-    expect(gear.left - select.right, 4);
-    expect(select.width, greaterThan(40));
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gearRect(tester),
+      inset: 0,
+      gap: 4,
+      gearSize: const Size(24, 24),
+    );
+    expect(
+      tester.getRect(find.byType(MixarSelect<PadMode>)).width,
+      greaterThan(40),
+    );
+  });
+
+  testWidgets('the header narrows in steps and drops the gear at its floor', (
+    tester,
+  ) async {
+    // 112 px: the wide tier keeps the eight-pixel insets and 32 px gear.
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(112, 280),
+      padMode: PadMode.sampler,
+    );
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gearRect(tester),
+    );
+
+    // 111 px: the narrow tier trades the insets and gear size for the select.
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(111, 280),
+      padMode: PadMode.sampler,
+    );
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gearRect(tester),
+      inset: 0,
+      gap: 4,
+      gearSize: const Size(24, 24),
+    );
+
+    // 72 px: the narrowest header that still holds the select and the gear.
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(72, 280),
+      padMode: PadMode.sampler,
+    );
+    expect(tester.takeException(), isNull);
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gearRect(tester),
+      inset: 0,
+      gap: 4,
+      gearSize: const Size(24, 24),
+    );
+
+    // 71 px: the gear yields so the select keeps the full width instead of
+    // overflowing its label row.
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(71, 280),
+      padMode: PadMode.sampler,
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MixerButton), findsNothing);
+    expect(tester.getRect(find.byType(MixarSelect<PadMode>)).width, 71);
   });
 
   testWidgets('config button sits after the select in the header', (
@@ -516,18 +606,17 @@ void main() {
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
 
-    final panel = tester.getRect(find.byType(DeckPadsPanel));
-    final select = tester.getRect(find.byType(MixarSelect<PadMode>));
     final gearFinder = find.descendant(
       of: find.byType(DeckPadsPanel),
       matching: find.byType(MixerButton),
     );
     final gear = tester.getRect(gearFinder);
-    expect(gear.size, const Size(32, 32));
-    expect(select.left - panel.left, 8);
-    expect(panel.right - gear.right, 8);
-    expect(gear.left - select.right, 8);
-    expect(gear.center.dy, moreOrLessEquals(select.center.dy, epsilon: 0.5));
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gear,
+    );
     expect(
       tester.widget<MixerButton>(gearFinder).variant,
       MixarButtonVariant.outline,
@@ -556,19 +645,12 @@ void main() {
       bordered: false,
       padMode: PadMode.sampler,
     );
-    final panel = tester.getRect(find.byType(DeckPadsPanel));
-    final select = tester.getRect(find.byType(MixarSelect<PadMode>));
-    final gear = tester.getRect(
-      find.descendant(
-        of: find.byType(DeckPadsPanel),
-        matching: find.byType(MixerButton),
-      ),
+    expectHeaderLayout(
+      tester,
+      panel: tester.getRect(find.byType(DeckPadsPanel)),
+      select: tester.getRect(find.byType(MixarSelect<PadMode>)),
+      gear: gearRect(tester),
     );
-    expect(gear.size, const Size(32, 32));
-    expect(select.left - panel.left, 8);
-    expect(panel.right - gear.right, 8);
-    expect(gear.left - select.right, 8);
-    expect(gear.center.dy, moreOrLessEquals(select.center.dy, epsilon: 0.5));
   });
 
   testWidgets('configurable modes use the same pad size as plain modes', (
