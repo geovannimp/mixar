@@ -1218,7 +1218,9 @@ void main() {
     await second.moveBy(const Offset(-10, 0));
     await tester.pump();
 
-    // Unblock the first release: the re-grab's own touch-on follows it.
+    // The first release's echo lands, then its release unblocks: the re-grab's
+    // own touch-on follows it.
+    await _setJogTouching(tester, container, false);
     engine.touchOffGate!.complete();
     await tester.pump();
     await tester.pump();
@@ -1257,16 +1259,62 @@ void main() {
     await tester.pump();
     await second.moveBy(const Offset(-10, 0));
     await tester.pump();
+    await second.up();
+    await tester.pump();
+
+    // Drain the queue: a press that wrongly started would submit its touch-on
+    // once the first release lets it through.
+    engine.touchOffGate!.complete();
+    await tester.pump();
+    await tester.pump();
     expect(
       engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
       hasLength(1),
       reason: 'the press must yield to the controller, not take the deck',
     );
+    await tester.pump(const Duration(milliseconds: 400));
+  });
 
-    engine.touchOffGate!.complete();
+  testWidgets('a queued scratch yields when a controller takes the deck', (
+    tester,
+  ) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    engine.touchOffGate = Completer<void>();
+    await first.up();
+    await tester.pump();
+
+    // A re-grab starts before the first release lands, so its commands queue.
+    final second = await tester.startGesture(center);
+    await tester.pump();
+    await second.moveBy(const Offset(-10, 0));
+    await tester.pump();
+
+    // Our release echo, then a controller takes the platter.
+    await _setJogTouching(tester, container, true);
+    await _setJogTouching(tester, container, false);
+    await _setJogTouching(tester, container, true);
     await second.up();
     await tester.pump();
+
+    engine.touchOffGate!.complete();
     await tester.pump();
+    await tester.pump();
+
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(1),
+      reason: 'the queued scratch must recheck ownership before touching',
+    );
+    expect(
+      engine.commands.where((c) => c.$1 == 'seek'),
+      hasLength(1),
+      reason:
+          'only the completed drag seeks; the yielded press gives the deck up',
+    );
     await tester.pump(const Duration(milliseconds: 400));
   });
 

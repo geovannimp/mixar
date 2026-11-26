@@ -102,6 +102,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
 
   var _disposed = false;
 
+  /// Latest value of the deck's shared touch flag. Mirrored so a queued command
+  /// can recheck ownership without reading `ref` after unmount.
+  var _jogTouching = false;
+
   int _ownTouchesFor(int deckId) => _ownTouches[deckId] ?? 0;
 
   /// True when a platter hold that is not this lane's owns this deck now.
@@ -325,9 +329,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final jogTouching = ref.watch(deckJogTouchingProvider(widget.deckId));
+    _jogTouching = jogTouching;
     final advancing = playheadAdvancing(
       playing: ref.watch(deckPlayingProvider(widget.deckId)),
-      jogTouching: ref.watch(deckJogTouchingProvider(widget.deckId)),
+      jogTouching: jogTouching,
     );
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
@@ -389,10 +395,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       );
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
+      _jogTouching = next;
       if (!next) {
-        // Nobody holds the deck, this lane included: whatever release is still
-        // in flight no longer explains a later hold.
-        _ownTouches.remove(widget.deckId);
+        // Nobody holds the deck, this lane included, so one release of ours has
+        // landed. End a single credit: a second scratch's touch may be the next
+        // one to be release-confirmed.
+        _ownTouchEnded(widget.deckId);
       }
       if (_scrubbing || durationMs <= 0) {
         return;
@@ -705,6 +713,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
           _freezeAfterFailedRelease(scratch.deckId);
           rethrow;
         }
+        if (scratch.yielded) {
+          _resyncFromEngine();
+          return;
+        }
         if (positionMs == null || _seekEpoch != epoch) {
           return;
         }
@@ -792,6 +804,17 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     if (!active || !mounted) {
       return;
     }
+    _resyncFromEngine();
+  }
+
+  /// Puts the shown playhead back where the engine says it is.
+  ///
+  /// Used when a press gives the deck up (a cancel, or a hold that appeared
+  /// while its commands waited), so a stale preview never outlives the press.
+  void _resyncFromEngine() {
+    if (_disposed || !mounted) {
+      return;
+    }
     final deckId = widget.deckId;
     final durationMs = ref.read(deckDurationMsProvider(deckId)) ?? 0;
     if (durationMs <= 0 || ref.read(deckTrackIdProvider(deckId)) == null) {
@@ -870,6 +893,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       if (_seekEpoch != scratch.epoch || scratch.superseded) {
         return;
       }
+      // A foreign hold that started while this scratch waited in the queue owns
+      // the deck now: taking it would lift that hold on release.
+      if (_ownTouchesFor(scratch.deckId) == 0 && _jogTouching) {
+        scratch.yielded = true;
+        return;
+      }
       // From here on the engine may hold the platter, so the release owes it a
       // touch-off even if this call rejects.
       scratch.touchAttempted = true;
@@ -937,6 +966,10 @@ class _WaveformScratch {
   /// True when this press was canceled: its not-yet-sent commands are dropped
   /// without invalidating any other press's queued seek.
   bool superseded = false;
+
+  /// True when a foreign platter hold took the deck while this press's commands
+  /// waited: the press gives the deck up instead of seeking under that hold.
+  bool yielded = false;
 
   /// Tick deltas for this press that have not reached the engine yet, and
   /// whether a turn is already queued to carry them.
