@@ -1191,6 +1191,82 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   });
 
+  testWidgets('a re-grab is not blocked by our own unreleased touch', (
+    tester,
+  ) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    engine.touchOffGate = Completer<void>();
+    await first.up();
+    await tester.pump();
+
+    // The deck still reports this lane's own touch while its release lands.
+    _applyDeckUpdate(container, jogTouching: true);
+    await tester.pump();
+
+    final second = await tester.startGesture(center);
+    await tester.pump();
+    await second.moveBy(const Offset(-10, 0));
+    await tester.pump();
+
+    // Unblock the first release: the re-grab's own touch-on follows it.
+    engine.touchOffGate!.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(2),
+      reason: 'the re-grab starts its own scratch despite the stale echo',
+    );
+
+    await second.up();
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('a controller hold after our own release wins the deck', (
+    tester,
+  ) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    engine.touchOffGate = Completer<void>();
+    await first.up();
+    await tester.pump();
+
+    // Our touch-on echo, then the release echo arrives before the transport
+    // future resolves; the deck is free again at that point.
+    _applyDeckUpdate(container, jogTouching: true);
+    await tester.pump();
+    _applyDeckUpdate(container, jogTouching: false);
+    await tester.pump();
+    // A controller now holds the platter.
+    _applyDeckUpdate(container, jogTouching: true);
+    await tester.pump();
+
+    final second = await tester.startGesture(center);
+    await tester.pump();
+    await second.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(1),
+      reason: 'the press must yield to the controller, not take the deck',
+    );
+
+    engine.touchOffGate!.complete();
+    await second.up();
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('release seeks even with slip on', (tester) async {
     final (_, engine, gesture) = await _startScrubPress(tester, slip: true);
     await gesture.moveBy(const Offset(-10, 0));

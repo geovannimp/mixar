@@ -94,11 +94,28 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// seek that has not been published yet is dropped.
   int _seekEpoch = 0;
 
-  /// Platter touches this lane has submitted but not released. The deck's
-  /// touch flag is shared, so only a hold that is not ours may win a press.
-  var _ownTouches = 0;
+  /// Platter touches this lane has submitted but not released, per deck. The
+  /// deck's touch flag is shared, so only a hold of the deck this lane shows
+  /// that is not ours may win a press. Keyed by deck so a rebound lane does not
+  /// inherit the old deck's outstanding touch.
+  final _ownTouches = <int, int>{};
 
   var _disposed = false;
+
+  int _ownTouchesFor(int deckId) => _ownTouches[deckId] ?? 0;
+
+  void _ownTouchStarted(int deckId) {
+    _ownTouches[deckId] = _ownTouchesFor(deckId) + 1;
+  }
+
+  void _ownTouchEnded(int deckId) {
+    final count = _ownTouchesFor(deckId);
+    if (count <= 1) {
+      _ownTouches.remove(deckId);
+      return;
+    }
+    _ownTouches[deckId] = count - 1;
+  }
 
   @override
   void initState() {
@@ -363,6 +380,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       );
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
+      if (!next) {
+        // Nobody holds the deck, this lane included: whatever release is still
+        // in flight no longer explains a later hold.
+        _ownTouches.remove(widget.deckId);
+      }
       if (_scrubbing || durationMs <= 0) {
         return;
       }
@@ -457,8 +479,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                     if (ref.read(deckTrackIdProvider(widget.deckId)) == null) {
                       return;
                     }
-                    // An external platter hold already owns this deck.
-                    if (ref.read(deckJogTouchingProvider(widget.deckId))) {
+                    // An external platter hold already owns this deck. A touch
+                    // this lane still owes the deck explains the flag too.
+                    if (_ownTouchesFor(widget.deckId) == 0 &&
+                        ref.read(deckJogTouchingProvider(widget.deckId))) {
                       return;
                     }
                     // Pin the displayed position, then stop: a held pointer
@@ -491,7 +515,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
               // yielding here keeps this lane from lifting it on release. Our
               // own submitted touch explains the flag too, so it cannot win.
               if (_scratch == null &&
-                  _ownTouches == 0 &&
+                  _ownTouchesFor(widget.deckId) == 0 &&
                   ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
@@ -529,7 +553,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
               // the press, so yield here rather than seeking under that hold
               // unless the flag is our own unreleased touch.
               if (_scratch == null &&
-                  _ownTouches == 0 &&
+                  _ownTouchesFor(widget.deckId) == 0 &&
                   ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
@@ -725,9 +749,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     } finally {
       // The deck's touch flag is ours to explain until this point, so the hold
       // checks must not read our own echo as an external one.
-      if (_ownTouches > 0) {
-        _ownTouches--;
-      }
+      _ownTouchEnded(scratch.deckId);
     }
   }
 
@@ -849,7 +871,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // From here on the engine may hold the platter, so the release owes it a
       // touch-off even if this call rejects.
       scratch.touchAttempted = true;
-      _ownTouches++;
+      _ownTouchStarted(scratch.deckId);
       await engine.jogTouch(deckId: scratch.deckId, touching: true);
       scratch.touchSent = true;
     });
