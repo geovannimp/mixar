@@ -383,6 +383,22 @@ Future<void> _setJogTouching(
   await tester.pump();
 }
 
+/// Drags the live gesture by [dx] and pumps it through the lane.
+Future<void> _dragBy(
+  WidgetTester tester,
+  TestGesture gesture,
+  double dx,
+) async {
+  await gesture.moveBy(Offset(dx, 0));
+  await tester.pump();
+}
+
+/// Drains the destructive toast a rejected scrub command raises.
+Future<void> _drainScrubToast(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 6));
+  await tester.pumpAndSettle();
+}
+
 /// Zooms all the way in so a millisecond-scale discontinuity spans pixels.
 int _zoomIn(ProviderContainer container) {
   container.read(waveformZoomProvider.notifier).zoomBy(-10000);
@@ -761,8 +777,7 @@ void main() {
     // Moving the waveform right walks the playhead backwards, into the
     // silence before the track: the strip must follow instead of freezing at
     // t=0 because the controller cannot go negative.
-    await gesture.moveBy(const Offset(40, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, 40);
 
     final movedLeft = _stripRect(tester).left;
     expect(movedLeft, greaterThan(restingLeft));
@@ -793,8 +808,7 @@ void main() {
   testWidgets('cancel releases the platter without seeking', (tester) async {
     final (_, engine, gesture) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
     // Another pointer's down and up must not end the owning gesture.
@@ -831,8 +845,7 @@ void main() {
     tester,
   ) async {
     final (container, engine, gesture) = await _startScrubPress(tester);
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
 
     engine.touchOffGate = Completer<void>();
     await gesture.up();
@@ -853,8 +866,7 @@ void main() {
   ) async {
     final (_, engine, gesture) = await _startScrubPress(tester);
     engine.turnGate = Completer<void>();
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -881,8 +893,7 @@ void main() {
   ) async {
     final (_, engine, gesture) = await _startScrubPress(tester);
     engine.touchOffFailures = 1;
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     await gesture.up();
     await tester.pump();
 
@@ -899,8 +910,7 @@ void main() {
   testWidgets('a platter that will not release skips the seek', (tester) async {
     final (container, engine, gesture) = await _startScrubPress(tester);
     engine.touchOffFailures = 2;
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     await gesture.up();
     await tester.pump();
 
@@ -918,8 +928,7 @@ void main() {
     final center = tester.getCenter(find.byType(ScrollingLane));
     final retry = await tester.startGesture(center);
     await tester.pump();
-    await retry.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, retry, -10);
     expect(
       engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
       hasLength(2),
@@ -933,8 +942,7 @@ void main() {
     await _setJogTouching(tester, container, true);
     final held = await tester.startGesture(center);
     await tester.pump();
-    await held.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, held, -10);
     await held.up();
     await tester.pump();
     expect(
@@ -943,17 +951,14 @@ void main() {
       reason: 'the released deck is no longer claimed by this lane',
     );
 
-    // The failure toast arms its own auto-close timer.
-    await tester.pump(const Duration(seconds: 6));
-    await tester.pumpAndSettle();
+    await _drainScrubToast(tester);
   });
 
   testWidgets('starting a load while the release is in flight drops the seek', (
     tester,
   ) async {
     final (container, engine, gesture) = await _startScrubPress(tester);
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
 
     engine.touchOffGate = Completer<void>();
     await gesture.up();
@@ -974,13 +979,11 @@ void main() {
   testWidgets('an invalidated drag sends no stale turns', (tester) async {
     final (container, engine, gesture) = await _startScrubPress(tester);
     engine.turnGate = Completer<void>();
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
     // The second turn queues behind the gated one, then the track goes away.
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     container.read(engineUiProvider.notifier).clearDeck(0);
     await tester.pump();
 
@@ -1005,8 +1008,7 @@ void main() {
 
     // The first press holds the queue open at its touch-on.
     engine.touchOnGate = Completer<void>();
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     expect(engine.commands, [('touch', 0, 1)]);
     await first.up();
     await tester.pump();
@@ -1015,8 +1017,7 @@ void main() {
     // must send neither its touch-on nor an unmatched touch-off.
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
     container.read(engineUiProvider.notifier).clearDeck(0);
     await tester.pump();
 
@@ -1044,19 +1045,15 @@ void main() {
     final (_, engine, gesture) = await _startScrubPress(tester);
 
     engine.turnGate = Completer<void>();
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
     // Moves while that turn is in flight share one follow-up turn carrying
     // their exact net movement, so a high-rate pointer cannot backlog the
     // queue with round-trips.
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
-    await gesture.moveBy(const Offset(10, 0));
-    await tester.pump();
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
+    await _dragBy(tester, gesture, 10);
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1), ('turn', 0, 240)]);
 
     // Release while the turn is still in flight: the merged turn was queued
@@ -1083,8 +1080,7 @@ void main() {
     final (_, engine, gesture) = await _startScrubPress(tester);
     engine.touchOnFailures = 1;
 
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, [('touch', 0, 1)]);
 
     await gesture.up();
@@ -1095,17 +1091,14 @@ void main() {
       ('touch', 0, 0),
       ('seek', 0, 50600),
     ]);
-    // The failure toast arms its own auto-close timer.
-    await tester.pump(const Duration(seconds: 6));
-    await tester.pumpAndSettle();
+    await _drainScrubToast(tester);
   });
 
   testWidgets('a failed touch-on leaves no credit behind', (tester) async {
     final (container, engine, first) = await _startScrubPress(tester);
     engine.touchOnFailures = 1;
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     await first.up();
     await tester.pump();
     expect(engine.commands, [
@@ -1119,8 +1112,7 @@ void main() {
     final center = tester.getCenter(find.byType(ScrollingLane));
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
     await second.up();
     await tester.pump();
 
@@ -1129,9 +1121,7 @@ void main() {
       hasLength(1),
       reason: 'the rejected touch-on may not credit the deck to this lane',
     );
-    // The failure toast arms its own auto-close timer.
-    await tester.pump(const Duration(seconds: 6));
-    await tester.pumpAndSettle();
+    await _drainScrubToast(tester);
   });
 
   testWidgets('a platter hold that starts after the press wins', (
@@ -1142,8 +1132,7 @@ void main() {
     // A controller grabs the platter before the first waveform tick.
     await _setJogTouching(tester, container, true);
 
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     expect(engine.commands, isEmpty);
 
     await gesture.up();
@@ -1173,8 +1162,7 @@ void main() {
     final (_, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
@@ -1187,8 +1175,7 @@ void main() {
     // A second press starts behind the first one's release and is canceled.
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
     await second.cancel();
     await tester.pump();
 
@@ -1212,8 +1199,7 @@ void main() {
     final (_, engine, gesture) = await _startScrubPress(tester, playing: true);
     engine.touchOffFailures = 2;
 
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     await gesture.up();
     await tester.pump();
 
@@ -1225,9 +1211,7 @@ void main() {
       reason: 'a deck that still holds its platter is not advancing',
     );
 
-    // The failure toast arms its own auto-close timer.
-    await tester.pump(const Duration(seconds: 6));
-    await tester.pumpAndSettle();
+    await _drainScrubToast(tester);
   });
 
   testWidgets('a tap waits for the release echo before seeking', (
@@ -1236,8 +1220,7 @@ void main() {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     await first.up();
     await tester.pump();
     expect(engine.commands.where((c) => c.$1 == 'seek'), hasLength(1));
@@ -1269,17 +1252,21 @@ void main() {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     await first.up();
     await tester.pump();
+    expect(engine.commands, [
+      ('touch', 0, 1),
+      ('turn', 0, 240),
+      ('touch', 0, 0),
+      ('seek', 0, 50600),
+    ]);
 
     // The deck still reports the touch this lane just released.
     await _setJogTouching(tester, container, true);
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
     await second.up();
     await tester.pump();
     expect(
@@ -1292,8 +1279,7 @@ void main() {
     await _setJogTouching(tester, container, false);
     final third = await tester.startGesture(center);
     await tester.pump();
-    await third.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, third, -10);
     expect(
       engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
       hasLength(2),
@@ -1309,8 +1295,7 @@ void main() {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
@@ -1344,8 +1329,7 @@ void main() {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
@@ -1359,8 +1343,7 @@ void main() {
 
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
     await second.up();
     await tester.pump();
 
@@ -1383,8 +1366,7 @@ void main() {
     final (container, engine, first) = await _startScrubPress(tester);
     final center = tester.getCenter(find.byType(ScrollingLane));
 
-    await first.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, first, -10);
     engine.touchOffGate = Completer<void>();
     await first.up();
     await tester.pump();
@@ -1392,8 +1374,7 @@ void main() {
     // A re-grab starts before the first release lands, so its commands queue.
     final second = await tester.startGesture(center);
     await tester.pump();
-    await second.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, second, -10);
 
     // Our release echo, then a controller takes the platter.
     await _setJogTouching(tester, container, true);
@@ -1421,8 +1402,7 @@ void main() {
 
   testWidgets('release seeks even with slip on', (tester) async {
     final (_, engine, gesture) = await _startScrubPress(tester, slip: true);
-    await gesture.moveBy(const Offset(-10, 0));
-    await tester.pump();
+    await _dragBy(tester, gesture, -10);
     await gesture.up();
     await tester.pump();
 
