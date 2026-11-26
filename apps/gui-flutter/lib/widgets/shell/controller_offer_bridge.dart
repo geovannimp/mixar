@@ -502,6 +502,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         }
       },
       title: Text('${offer.deviceName} connected'),
+      icon: const Text('?'),
       description: StatefulBuilder(
         builder: (context, setLocal) {
           return Column(

@@ -660,6 +660,36 @@ void main() {
     );
   });
 
+  testWidgets('toast icon override ignores text scaling', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Question toast'),
+          icon: const Text('?'),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final glyph = find.descendant(
+      of: toastCard(find.text('Question toast')),
+      matching: find.text('?'),
+    );
+    expect(glyph, findsOneWidget);
+    final size = tester.getSize(glyph);
+    expect(size.height, closeTo(16, 0.5), reason: 'glyph keeps its own size');
+    expect(size.height, lessThanOrEqualTo(22), reason: 'glyph fits its disc');
+    expect(size.width, lessThanOrEqualTo(22));
+  });
+
   testWidgets('toast close hover paints a circular wash', (tester) async {
     final theme = MixarThemeData.dark();
     await pumpShowControllerToast(tester);

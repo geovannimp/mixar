@@ -49,7 +49,9 @@ var _mixarToastSeq = 0;
 /// Toasts stack upward, newest nearest the corner, and each one can be
 /// dismissed by hand, by its own timer (paused on hover), or by [id] through
 /// [dismissMixarToast]. [icon] replaces the variant's glyph for a message that
-/// is not a plain tone, such as a question prompt.
+/// is not a plain tone, such as a question prompt. It is decorative: painted at
+/// glyph size, immune to text scaling and excluded from semantics, so pass a
+/// glyph, never interactive content.
 void showMixarToast({
   required BuildContext context,
   required Widget title,
@@ -191,8 +193,9 @@ class _MixarToastSpec {
   final Widget Function(BuildContext context, VoidCallback dismiss)?
   suffixBuilder;
 
-  /// Overrides the variant glyph when the message is not a plain tone. Painted
-  /// centred in the disc, inheriting its colour.
+  /// Decorative glyph overriding the variant when the message is not a plain
+  /// tone. Painted centred at glyph size, immune to text scaling and excluded
+  /// from semantics; never interactive content.
   final Widget? icon;
 
   /// Null means the toast stays until dismissed by hand.
