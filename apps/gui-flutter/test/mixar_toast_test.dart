@@ -14,6 +14,17 @@ import 'support/mixar_material_app.dart';
 Finder toastCard(Finder text) =>
     find.ancestor(of: text, matching: find.byType(IntrinsicWidth));
 
+/// The variant disc inside [card], filled with [color].
+Finder toastDisc(Finder card, Color color) => find.descendant(
+  of: card,
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is DecoratedBox &&
+        widget.decoration ==
+            BoxDecoration(color: color, shape: BoxShape.circle),
+  ),
+);
+
 /// One tap target the toast tests mount; the callback receives a live context.
 typedef ToastTrigger = ({
   String label,
@@ -451,15 +462,7 @@ void main() {
       reason: 'the left rail is gone',
     );
 
-    final circle = find.descendant(
-      of: clip,
-      matching: find.byWidgetPredicate(
-        (widget) =>
-            widget is DecoratedBox &&
-            widget.decoration ==
-                BoxDecoration(color: accent, shape: BoxShape.circle),
-      ),
-    );
+    final circle = toastDisc(clip, accent);
     expect(circle, findsOneWidget);
     expect(tester.getSize(circle), const Size(22, 22));
 
@@ -547,21 +550,7 @@ void main() {
         theme.colors.primaryForeground,
         reason: '$title uses on-accent ink over the primary disc',
       );
-      expect(
-        find.descendant(
-          of: card,
-          matching: find.byWidgetPredicate(
-            (widget) =>
-                widget is DecoratedBox &&
-                widget.decoration ==
-                    BoxDecoration(
-                      color: theme.colors.primary,
-                      shape: BoxShape.circle,
-                    ),
-          ),
-        ),
-        findsOneWidget,
-      );
+      expect(toastDisc(card, theme.colors.primary), findsOneWidget);
     }
   });
 
@@ -596,15 +585,7 @@ void main() {
     );
     expect(glyph.color, theme.colors.primaryForeground);
     expect(
-      find.descendant(
-        of: card,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is DecoratedBox &&
-              widget.decoration ==
-                  BoxDecoration(color: green, shape: BoxShape.circle),
-        ),
-      ),
+      toastDisc(card, green),
       findsOneWidget,
       reason: 'the success disc is the local status green',
     );
