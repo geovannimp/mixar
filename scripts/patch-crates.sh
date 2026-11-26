@@ -19,13 +19,15 @@ if [[ -f "$target/Cargo.toml" && -f "$target/src/lib.rs" ]] &&
   valid_target=1
 fi
 
-if ((valid_target)) && [[ ! "$patch_file" -nt "$target/.cargo-ok" ]]; then
+if ((valid_target)) && [[ ! "$patch_file" -nt "$target/.cargo-ok" ]] &&
+  [[ -z "${CI:-}" ]]; then
   exit 0
 fi
 
 # Missing, incomplete, stale, or unpatched target: rebuild it from the
 # registry source. CI restores `target` from a cache that may hold a partial
-# `target/patch`, so validate the package manifest before trusting it.
+# `target/patch`, so validate the package manifest before trusting it and
+# always rebuild there.
 if [[ -d "$target" ]]; then
   args+=(--force)
 fi
