@@ -396,7 +396,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     });
     ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
       _jogTouching = next;
-      if (!next) {
+      if (!next && _ownsTouch(widget.deckId)) {
+        // A free report while this lane still holds the deck is its own
+        // release landing. A controller releasing its own hold is not.
         _releasedDecks.add(widget.deckId);
       }
       if (_scrubbing || durationMs <= 0) {
@@ -736,7 +738,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       if (_seekEpoch != epoch) {
         return;
       }
-      if (_releasedDecks.contains(deckId) && _jogTouching) {
+      if (_holdsAfterRelease(deckId)) {
         _resyncFromEngine();
         return;
       }

@@ -393,6 +393,17 @@ Future<void> _dragBy(
   await tester.pump();
 }
 
+/// Lifts the gesture while holding its touch-off unanswered.
+Future<void> _releaseWithGatedTouchOff(
+  WidgetTester tester,
+  _RecordingTransport engine,
+  TestGesture gesture,
+) async {
+  engine.touchOffGate = Completer<void>();
+  await gesture.up();
+  await tester.pump();
+}
+
 /// Drains the destructive toast a rejected scrub command raises.
 Future<void> _drainScrubToast(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 6));
@@ -847,9 +858,7 @@ void main() {
     final (container, engine, gesture) = await _startScrubPress(tester);
     await _dragBy(tester, gesture, -10);
 
-    engine.touchOffGate = Completer<void>();
-    await gesture.up();
-    await tester.pump();
+    await _releaseWithGatedTouchOff(tester, engine, gesture);
     expect(engine.commands.last, ('touch', 0, 0));
 
     container.read(engineUiProvider.notifier).clearDeck(0);
@@ -960,9 +969,7 @@ void main() {
     final (container, engine, gesture) = await _startScrubPress(tester);
     await _dragBy(tester, gesture, -10);
 
-    engine.touchOffGate = Completer<void>();
-    await gesture.up();
-    await tester.pump();
+    await _releaseWithGatedTouchOff(tester, engine, gesture);
     expect(engine.commands.last, ('touch', 0, 0));
 
     // A load request bumps the generation before the engine hears about it, so
