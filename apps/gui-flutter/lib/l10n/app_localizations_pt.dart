@@ -960,6 +960,11 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String settingsDeckEndWarningSecondsLabel(String seconds) {
+    return '$seconds segundos';
+  }
+
+  @override
   String get settingsDeckFaderStart => 'Arranque pelo fader';
 
   @override

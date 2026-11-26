@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -437,7 +438,8 @@ void main() {
     expect(find.text(l10n.settingsDeckEndWarning), findsOneWidget);
     expect(find.text(l10n.settingsDeckEndWarningSeconds(30)), findsOneWidget);
 
-    final slider = find.byType(MixarSlider);
+    // The readout pill rides inside MixarSlider's box; tap the rail itself.
+    final slider = find.byType(ShadSlider);
     await tester.ensureVisible(slider);
     await tester.pumpAndSettle();
     final box = tester.getRect(slider);
@@ -449,6 +451,28 @@ void main() {
     expect(emitted!.trackEndWarningSecs, 45);
     expect(emitted!.trackEndWarningSecs % kTrackEndWarningSecsStep, 0);
   });
+
+  testWidgets(
+    'end-of-track readout keeps two digits so the pill cannot resize',
+    (tester) async {
+      final l10n = lookupAppLocalizations(const Locale('en'));
+      await pumpDeckPanel(
+        tester,
+        draft: copyAppSettings(
+          defaultAppSettings(),
+          trackEndWarningSecs: kMinTrackEndWarningSecs,
+        ),
+        onChanged: (_) {},
+      );
+
+      expect(find.text('05 seconds'), findsOneWidget);
+      expect(
+        l10n.settingsDeckEndWarningSecondsLabel('05'),
+        startsWith('05'),
+        reason: "the label is localised but the digits are the caller's",
+      );
+    },
+  );
 
   testWidgets('the warning window only shows while the toggle is on', (
     tester,

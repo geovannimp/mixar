@@ -133,34 +133,18 @@ class _MinDeckVolumeSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final snapped = _snap(value);
     final label = '${(snapped * 100).toStringAsFixed(0)}%';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            label,
-            style: theme.typography.body.sm.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        MixarSlider(
-          value: snapped,
-          defaultValue: kDefaultHistoryMinDeckVolume,
-          divisions: 100,
-          onChanged: (v) => onChanged(_snap(v)),
-          semanticFormatterCallback: (v) =>
-              l10n.settingsSessionPercentSemantics((v * 100).round()),
-        ),
-      ],
+    return MixarSlider(
+      value: snapped,
+      defaultValue: kDefaultHistoryMinDeckVolume,
+      divisions: 100,
+      readout: label,
+      onChanged: (v) => onChanged(_snap(v)),
+      semanticFormatterCallback: (v) =>
+          l10n.settingsSessionPercentSemantics((v * 100).round()),
     );
   }
 }

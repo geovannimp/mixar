@@ -1779,6 +1779,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 second} other{{count} seconds}}'**
   String settingsDeckEndWarningSeconds(int count);
 
+  /// Visible readout beside the end-of-track warning slider. The whole slider range is 5-60 s, so the count is passed zero-padded to two digits (05, 10, 60) and the pill keeps one width.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} seconds'**
+  String settingsDeckEndWarningSecondsLabel(String seconds);
+
   /// Title of the fader-start card in Deck settings.
   ///
   /// In en, this message translates to:

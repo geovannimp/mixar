@@ -14,7 +14,6 @@ import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsDeckPanel extends ConsumerWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -376,40 +375,28 @@ class _EndWarningSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final seconds = value.clamp(
       kMinTrackEndWarningSecs,
       kMaxTrackEndWarningSecs,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            l10n.settingsDeckEndWarningSeconds(seconds),
-            style: theme.typography.body.sm.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        MixarSlider(
-          value: seconds.toDouble(),
-          defaultValue: kDefaultTrackEndWarningSecs.toDouble(),
-          min: kMinTrackEndWarningSecs.toDouble(),
-          max: kMaxTrackEndWarningSecs.toDouble(),
-          divisions:
-              (kMaxTrackEndWarningSecs - kMinTrackEndWarningSecs) ~/
-              kTrackEndWarningSecsStep,
-          semanticFormatterCallback: (v) =>
-              l10n.settingsDeckEndWarningSeconds(_snap(v)),
-          onChanged: (v) => onChanged(_snap(v)),
-        ),
-      ],
+    return MixarSlider(
+      value: seconds.toDouble(),
+      defaultValue: kDefaultTrackEndWarningSecs.toDouble(),
+      min: kMinTrackEndWarningSecs.toDouble(),
+      max: kMaxTrackEndWarningSecs.toDouble(),
+      divisions:
+          (kMaxTrackEndWarningSecs - kMinTrackEndWarningSecs) ~/
+          kTrackEndWarningSecsStep,
+      // Zero-padded to two digits: the range is 5-60 s, and a wider label on
+      // `10` would resize the pill (and the rail) away from `05`.
+      readout: l10n.settingsDeckEndWarningSecondsLabel(
+        seconds.toString().padLeft(2, '0'),
+      ),
+      semanticFormatterCallback: (v) =>
+          l10n.settingsDeckEndWarningSeconds(_snap(v)),
+      onChanged: (v) => onChanged(_snap(v)),
     );
   }
 }
