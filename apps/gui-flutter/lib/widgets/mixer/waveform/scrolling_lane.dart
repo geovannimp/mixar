@@ -94,6 +94,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// seek that has not been published yet is dropped.
   int _seekEpoch = 0;
 
+  /// Platter touches this lane has submitted but not released. The deck's
+  /// touch flag is shared, so only a hold that is not ours may win a press.
+  var _ownTouches = 0;
+
   var _disposed = false;
 
   @override
@@ -484,8 +488,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 return;
               }
               // A platter hold that started after this press owns the deck now:
-              // yielding here keeps this lane from lifting it on release.
+              // yielding here keeps this lane from lifting it on release. Our
+              // own submitted touch explains the flag too, so it cannot win.
               if (_scratch == null &&
+                  _ownTouches == 0 &&
                   ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
@@ -520,8 +526,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 return;
               }
               // A tap has no move to notice a platter hold that started after
-              // the press, so yield here rather than seeking under that hold.
+              // the press, so yield here rather than seeking under that hold
+              // unless the flag is our own unreleased touch.
               if (_scratch == null &&
+                  _ownTouches == 0 &&
                   ref.read(deckJogTouchingProvider(widget.deckId))) {
                 _cancelScrub();
                 return;
@@ -668,7 +676,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
         try {
           await _releaseScratch(engine, scratch);
         } on Object {
-          _freezeAfterFailedRelease();
+          _freezeAfterFailedRelease(scratch.deckId);
           rethrow;
         }
         if (positionMs == null || _seekEpoch != epoch) {
@@ -708,19 +716,29 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       return;
     }
     try {
-      await engine.jogTouch(deckId: scratch.deckId, touching: false);
-    } on Object catch (_) {
-      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+      try {
+        await engine.jogTouch(deckId: scratch.deckId, touching: false);
+      } on Object catch (_) {
+        await engine.jogTouch(deckId: scratch.deckId, touching: false);
+      }
+      scratch.touchReleased = true;
+    } finally {
+      // The deck's touch flag is ours to explain until this point, so the hold
+      // checks must not read our own echo as an external one.
+      if (_ownTouches > 0) {
+        _ownTouches--;
+      }
     }
-    scratch.touchReleased = true;
   }
 
   /// Stops the lane's interpolation when the platter could not be released.
   ///
   /// A deck that still reports the hold is not advancing, so a playing lane
-  /// must not scroll on past a position the engine never reached.
-  void _freezeAfterFailedRelease() {
-    if (_disposed) {
+  /// must not scroll on past a position the engine never reached. Only the deck
+  /// this release belongs to may be stopped: a rebound lane already shows
+  /// another deck, whose scrolling this failed touch has nothing to do with.
+  void _freezeAfterFailedRelease(int deckId) {
+    if (_disposed || widget.deckId != deckId) {
       return;
     }
     _playing = false;
@@ -831,6 +849,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // From here on the engine may hold the platter, so the release owes it a
       // touch-off even if this call rejects.
       scratch.touchAttempted = true;
+      _ownTouches++;
       await engine.jogTouch(deckId: scratch.deckId, touching: true);
       scratch.touchSent = true;
     });

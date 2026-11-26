@@ -1157,6 +1157,40 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('our own unreleased touch does not swallow the next tap', (
+    tester,
+  ) async {
+    final (container, engine, first) = await _startScrubPress(tester);
+    final center = tester.getCenter(find.byType(ScrollingLane));
+
+    await first.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    engine.touchOffGate = Completer<void>();
+    await first.up();
+    await tester.pump();
+    expect(engine.commands.last, ('touch', 0, 0));
+
+    // The tap starts before the engine's echo of this lane's own touch-on,
+    // which lands while the tap is down and must not look like a controller.
+    final tap = await tester.startGesture(center);
+    await tester.pump();
+    _applyDeckUpdate(container, jogTouching: true);
+    await tester.pump();
+
+    await tap.up();
+    await tester.pump();
+    engine.touchOffGate!.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      engine.commands.where((c) => c.$1 == 'seek'),
+      hasLength(2),
+      reason: 'the completed drag and the tap both seek',
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('release seeks even with slip on', (tester) async {
     final (_, engine, gesture) = await _startScrubPress(tester, slip: true);
     await gesture.moveBy(const Offset(-10, 0));
