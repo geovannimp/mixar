@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart' show PointerScrollEvent, kPrimaryButton;
@@ -7,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/jog_ticks.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
@@ -17,6 +17,7 @@ import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
@@ -26,19 +27,13 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
-  const new({required this.deckId, this.label, this.nowMs, super.key});
+  const new({required this.deckId, this.label, super.key});
 
   final int deckId;
 
   /// Deck letter painted in the lane's leading corner. Vertical lanes leave it
   /// null: the text would be rotated with the lane and unreadable.
   final String? label;
-
-  /// Monotonic millisecond clock for the scrub-seek throttle.
-  ///
-  /// Defaults to a real wall clock. Tests inject a controllable clock so the
-  /// 32 ms window does not depend on how fast the runner pumps events.
-  final int Function()? nowMs;
 
   @override
   ConsumerState<ScrollingLane> createState() => _ScrollingLaneState();
@@ -74,11 +69,32 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   final ValueNotifier<double?> _outsideMs = ValueNotifier<double?>(null);
 
   var _scrubbing = false;
+
+  /// Pointer that owns the current scratch drag, null when none is active.
+  int? _scrubPointer;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
-  final _seekClock = Stopwatch()..start();
-  int? _lastSeekMs;
-  var _suppressSeek = false;
+
+  /// Last preview target that was finite, so a release with non-finite
+  /// coordinates still lands somewhere the lane was already showing.
+  var _lastScrubMs = 0.0;
+
+  /// Cumulative jog ticks already queued for the current press. Absolute, so
+  /// sub-tick moves and reversals keep their precise net difference.
+  var _lastQueuedTicks = 0;
+
+  /// Platter touch state captured on the press's first nonzero tick.
+  _WaveformScratch? _scratch;
+
+  /// One serial command tail per lane: touch-on, turns and the release seek go
+  /// out in submission order, and cleanup still works after unmount.
+  Future<void> _scrubQueue = Future<void>.value();
+
+  /// Bumped whenever the target track can no longer be trusted, so a queued
+  /// seek that has not been published yet is dropped.
+  int _seekEpoch = 0;
+
+  var _disposed = false;
 
   @override
   void initState() {
@@ -88,7 +104,19 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   }
 
   @override
+  void didUpdateWidget(ScrollingLane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deckId != widget.deckId) {
+      _seekEpoch++;
+      _finishScrub();
+    }
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
+    _seekEpoch++;
+    _finishScrub();
     _clock.removeListener(_onClockTick);
     if (_attached) {
       _clock.detach();
@@ -360,6 +388,19 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
         speed: next,
       );
     });
+    // A different track or a lost duration invalidates the gesture and any
+    // final seek still waiting in the queue; display reinit is left to the
+    // lane's build and the listeners above.
+    ref.listen(deckTrackIdProvider(widget.deckId), (prev, next) {
+      if (prev != next) {
+        _invalidateScrub();
+      }
+    });
+    ref.listen(deckDurationMsProvider(widget.deckId), (prev, next) {
+      if ((next ?? 0) <= 0) {
+        _invalidateScrub();
+      }
+    });
 
     return TrackEndBlink(
       deckId: widget.deckId,
@@ -389,7 +430,14 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
             onPointerDown: durationMs <= 0
                 ? null
                 : (e) {
-                    if (e.buttons != kPrimaryButton) {
+                    if (e.buttons != kPrimaryButton || _scrubbing) {
+                      return;
+                    }
+                    if (ref.read(deckTrackIdProvider(widget.deckId)) == null) {
+                      return;
+                    }
+                    // An external platter hold already owns this deck.
+                    if (ref.read(deckJogTouchingProvider(widget.deckId))) {
                       return;
                     }
                     // Pin the displayed position, then stop: a held pointer
@@ -402,11 +450,20 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                       playing: false,
                     );
                     _scrubbing = true;
+                    _scrubPointer = e.pointer;
                     _scrubAnchorX = e.localPosition.dx;
                     _scrubAnchorMs = _displayMs(durationMs);
+                    _lastScrubMs = _scrubAnchorMs;
+                    _lastQueuedTicks = 0;
                   },
             onPointerMove: (e) {
-              if (!_scrubbing || durationMs <= 0) {
+              if (!_scrubbing ||
+                  e.pointer != _scrubPointer ||
+                  durationMs <= 0) {
+                return;
+              }
+              if (shiftKeyPressed()) {
+                _cancelScrub();
                 return;
               }
               final ms = centerScrubMs(
@@ -415,46 +472,54 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                 width: width,
                 spanMs: visibleSpanMs.toDouble(),
               );
+              if (!ms.isFinite) {
+                return;
+              }
               _showMs(ms, durationMs: durationMs);
-              _throttledSeek(ms.round());
+              _lastScrubMs = ms;
+              // Absolute tick count from the press anchor: its difference from
+              // what is already queued carries sub-tick moves and reversals.
+              final cumulative = ((ms - _scrubAnchorMs) / vinylMsPerTick())
+                  .round();
+              final delta = cumulative - _lastQueuedTicks;
+              if (delta == 0) {
+                return;
+              }
+              _lastQueuedTicks = cumulative;
+              _queueTurn(delta);
             },
             onPointerUp: (e) {
-              if (_suppressSeek || shiftKeyPressed()) {
-                _suppressSeek = false;
-                _scrubbing = false;
+              if (!_scrubbing || e.pointer != _scrubPointer) {
                 return;
               }
-              if (!_scrubbing) {
+              if (shiftKeyPressed()) {
+                _cancelScrub();
                 return;
               }
-              final ms = durationMs <= 0
-                  ? 0
-                  : centerScrubMs(
-                      anchorPosMs: _scrubAnchorMs,
-                      deltaX: e.localPosition.dx - _scrubAnchorX,
-                      width: width,
-                      spanMs: visibleSpanMs.toDouble(),
-                    ).round();
-              _scrubbing = false;
-              if (durationMs > 0) {
-                _setDisplayMs(
-                  ms.toDouble(),
-                  durationMs: durationMs,
-                  speed: speed,
-                  playing: advancing,
-                );
+              if (durationMs <= 0) {
+                _finishScrub();
+                return;
               }
-              unawaited(_seek(ms));
+              final raw = centerScrubMs(
+                anchorPosMs: _scrubAnchorMs,
+                deltaX: e.localPosition.dx - _scrubAnchorX,
+                width: width,
+                spanMs: visibleSpanMs.toDouble(),
+              );
+              final ms = raw.isFinite ? raw : _lastScrubMs;
+              _finishScrub(positionMs: ms.round());
+              _setDisplayMs(
+                ms,
+                durationMs: durationMs,
+                speed: speed,
+                playing: advancing,
+              );
             },
-            onPointerCancel: (_) {
-              _scrubbing = false;
-              if (advancing && durationMs > 0) {
-                _syncPlayback(
-                  playing: advancing,
-                  durationMs: durationMs,
-                  speed: speed,
-                );
+            onPointerCancel: (e) {
+              if (!_scrubbing || e.pointer != _scrubPointer) {
+                return;
               }
+              _cancelScrub();
             },
             child: ExcludeSemantics(
               child: ClipRect(
@@ -478,7 +543,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
                           playhead: _displayTicks,
                           displayMs: () => _displayMs(durationMs),
                           dpr: dpr,
-                          onMenuOpened: () => _suppressSeek = true,
+                          onMenuOpened: _cancelScrub,
                         ),
                       Align(
                         child: ColoredBox(
@@ -550,32 +615,173 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     );
   }
 
-  int get _clockMs => widget.nowMs?.call() ?? _seekClock.elapsedMilliseconds;
+  /// Ends the current press, releasing the platter and seeking to [positionMs].
+  ///
+  /// A null [positionMs] is release-only: Shift, cancel, an unload, a deck
+  /// change and teardown all use it. Everything the release needs is captured
+  /// here, so a queued command never reads `ref` after unmount.
+  void _finishScrub({int? positionMs}) {
+    final scratch = _scratch;
+    _scratch = null;
+    _scrubbing = false;
+    _scrubPointer = null;
+    _lastQueuedTicks = 0;
+    final epoch = _seekEpoch;
 
-  void _throttledSeek(int ms) {
-    final now = _clockMs;
-    final last = _lastSeekMs;
-    if (last != null && now - last < 32) {
+    if (scratch != null) {
+      _queueScrubCommand(scratch.transport, (engine) async {
+        // Always attempt the captured release, even for a stale press: a deck
+        // left holding its platter would not respond to the next jog.
+        await _releaseScratch(engine, scratch);
+        if (positionMs == null || _seekEpoch != epoch) {
+          return;
+        }
+        await engine.seek(deckId: scratch.deckId, positionMs: positionMs);
+      });
       return;
     }
-    _lastSeekMs = now;
-    unawaited(_seek(ms));
-  }
-
-  Future<void> _seek(int ms) async {
-    try {
-      await seekDeck(ref, widget.deckId, ms);
-    } catch (e) {
-      if (!mounted) {
+    if (positionMs == null || !mounted) {
+      return;
+    }
+    // A tap or a sub-tick drag never touched the platter: only the seek is due.
+    final deckId = widget.deckId;
+    _queueScrubCommand(ref.read(engineTransportProvider.future), (
+      engine,
+    ) async {
+      if (_seekEpoch != epoch) {
         return;
       }
-      showMixarToast(
-        context: context,
-        variant: MixarToastVariant.destructive,
-        title: Text('$e'),
-      );
-    }
+      await engine.seek(deckId: deckId, positionMs: positionMs);
+    });
   }
+
+  /// Releases the platter captured at press, retrying once.
+  ///
+  /// A second rejection propagates to the queue node's error handling, which
+  /// skips the final seek: a disconnected engine cannot be guaranteed to
+  /// release, and the queue must still advance.
+  Future<void> _releaseScratch(
+    EngineTransport engine,
+    _WaveformScratch scratch,
+  ) async {
+    if (scratch.touchReleased) {
+      return;
+    }
+    try {
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+    } on Object catch (_) {
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+    }
+    scratch.touchReleased = true;
+  }
+
+  /// Drops the press without seeking and invalidates any queued final seek.
+  void _invalidateScrub() {
+    _seekEpoch++;
+    _finishScrub();
+  }
+
+  /// Drops the press and puts the playhead back where the engine says it is.
+  void _cancelScrub() {
+    if (!_scrubbing && _scratch == null) {
+      return;
+    }
+    _invalidateScrub();
+    if (!mounted) {
+      return;
+    }
+    final deckId = widget.deckId;
+    final durationMs = ref.read(deckDurationMsProvider(deckId)) ?? 0;
+    if (durationMs <= 0 || ref.read(deckTrackIdProvider(deckId)) == null) {
+      return;
+    }
+    _setDisplayMs(
+      ref.read(deckPositionMsProvider(deckId)).toDouble(),
+      durationMs: durationMs,
+      speed: ref.read(deckSpeedRatioProvider(deckId)),
+      playing: _advancingNow(),
+    );
+  }
+
+  /// Queues one signed platter turn, capturing the platter on the first tick.
+  ///
+  /// A press keeps the same deck and transport for every turn and its release,
+  /// even if the lane later points at a different deck.
+  void _queueTurn(int delta) {
+    final scratch = _scratch ?? _startScratch();
+    if (scratch == null) {
+      return;
+    }
+    _queueScrubCommand(scratch.transport, (engine) async {
+      // A failed touch-on cannot own the platter, so it must not be turned.
+      if (!scratch.touchSent) {
+        return;
+      }
+      await engine.jogTurn(deckId: scratch.deckId, delta: delta);
+    });
+  }
+
+  _WaveformScratch? _startScratch() {
+    if (!mounted) {
+      return null;
+    }
+    final scratch = _WaveformScratch(
+      deckId: widget.deckId,
+      transport: ref.read(engineTransportProvider.future),
+    );
+    _scratch = scratch;
+    _queueScrubCommand(scratch.transport, (engine) async {
+      await engine.jogTouch(deckId: scratch.deckId, touching: true);
+      scratch.touchSent = true;
+    });
+    return scratch;
+  }
+
+  /// Appends one command to this lane's serial transport tail.
+  ///
+  /// The node catches its own rejection: it reports the error like the old
+  /// seek path and still resolves, so the release that follows always runs.
+  void _queueScrubCommand(
+    Future<EngineTransport?> transport,
+    Future<void> Function(EngineTransport) send,
+  ) {
+    _scrubQueue = _scrubQueue
+        .then((_) async {
+          try {
+            final engine = await transport;
+            if (engine == null) {
+              return;
+            }
+            await send(engine);
+          } on Object catch (e) {
+            _reportScrubError(e);
+          }
+        })
+        // Reporting is best effort: even a throwing toast must not break the
+        // tail, or a later release would never run.
+        .catchError((Object _) {});
+  }
+
+  void _reportScrubError(Object error) {
+    if (_disposed || !mounted) {
+      return;
+    }
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$error'),
+    );
+  }
+}
+
+/// Platter state captured on the first nonzero tick of one waveform drag.
+class _WaveformScratch {
+  new({required this.deckId, required this.transport});
+
+  final int deckId;
+  final Future<EngineTransport?> transport;
+  bool touchSent = false;
+  bool touchReleased = false;
 }
 
 /// The windowed waveform picture, positioned so the playhead sits at center.
