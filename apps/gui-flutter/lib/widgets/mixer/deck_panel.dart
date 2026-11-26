@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 import 'package:gui_flutter/widgets/mixer/deck_transport_shape.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
+import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -23,9 +24,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// Height of the transport buttons when they sit in their own row.
 const _kTransportButtonHeight = 36.0;
 
-/// Height the full-width transport row takes: the button height plus the 8px
-/// gap above it.
-const _kStackedTransportHeight = _kTransportButtonHeight + 8;
+/// Breathing room above and below the full-width transport buttons.
+const _kTransportRowGap = 8.0;
+
+/// Height the full-width transport block takes: the buttons plus the gap above
+/// and below them. The divider hairline is added at layout time.
+const _kStackedTransportHeight =
+    _kTransportButtonHeight + _kTransportRowGap * 2;
 
 /// Performance-panel height worth keeping before the transport row gives up
 /// its space and moves beside the pads.
@@ -43,8 +48,8 @@ const _kMinCompactPanelWidth = 120.0;
 /// row instead of shrinking the pads' side column any further.
 const _kMinCompactButtonDiameter = 48.0;
 
-/// Side gutter for the deck's inner chrome (performance panel, transport row)
-/// inside the full-bleed deck body.
+/// Side gutter for the deck's transport row and its divider, plus the pad
+/// floor's breathing room.
 const _kDeckSideInset = 10.0;
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
@@ -110,25 +115,30 @@ class DeckPanel extends ConsumerWidget {
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 8,
       children: [
         DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final performance = Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _kDeckSideInset,
-                ),
-                child: DeckPerformancePanel(
-                  deckId: deckId,
-                  hasTrack: hasTrack,
-                  accent: accent,
-                  // Engine-level only: pad mode must stay selectable while the
-                  // deck is empty, and the per-surface panels already gate
-                  // their controls on `hasTrack`.
-                  disabled: loadDisabled,
-                ),
+              final theme = context.theme;
+              final borderWidth = theme.style.borderWidth;
+              // One divider shape for both layouts so the two cannot drift.
+              Widget transportDivider({Axis axis = Axis.horizontal}) =>
+                  MDivider(
+                    key: const ValueKey('deck-performance-transport-divider'),
+                    axis: axis,
+                    color: theme.colors.border,
+                    thickness: borderWidth,
+                    padding: EdgeInsets.zero,
+                  );
+              final performance = DeckPerformancePanel(
+                deckId: deckId,
+                hasTrack: hasTrack,
+                accent: accent,
+                // Engine-level only: pad mode must stay selectable while the
+                // deck is empty, and the per-surface panels already gate
+                // their controls on `hasTrack`.
+                disabled: loadDisabled,
               );
               final available = constraints.maxHeight;
               // Tiny heights: the pair's own gap and the fixed button height
@@ -151,26 +161,38 @@ class DeckPanel extends ConsumerWidget {
               // squeezing the pads to an unusable strip; a narrow one cannot
               // spare the side column. In both cases the controls take the
               // bottom row and the pads keep the room.
-              if (available >=
-                      _kMinStackedPanelHeight + _kStackedTransportHeight ||
+              // The breakpoint budgets the whole stacked block, divider
+              // included, so the panel keeps its floor.
+              final stackedBlock = _kStackedTransportHeight + borderWidth;
+              if (available >= _kMinStackedPanelHeight + stackedBlock ||
                   !compactFits) {
-                final rowGap = available >= _kStackedTransportHeight
-                    ? 8.0
+                final rowGap = available >= stackedBlock
+                    ? _kTransportRowGap
                     : 0.0;
                 // The row never takes more than the deck's height: the pads
                 // get the non-negative remainder above it.
                 final buttonHeight = _kTransportButtonHeight.clamp(
                   0.0,
-                  (available - rowGap).clamp(0.0, double.infinity),
+                  (available - rowGap * 2 - borderWidth).clamp(
+                    0.0,
+                    double.infinity,
+                  ),
                 );
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: rowGap,
                   children: [
                     Expanded(child: performance),
+                    // The divider hugs the panel; the row keeps equal
+                    // breathing room above and below so the controls sit
+                    // centred between it and the deck's foot.
+                    if (rowGap >= borderWidth && rowGap > 0)
+                      transportDivider()
+                    else if (rowGap > 0)
+                      SizedBox(height: rowGap),
                     Padding(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: _kDeckSideInset,
+                        vertical: rowGap,
                       ),
                       child: SizedBox(
                         height: buttonHeight,
@@ -190,27 +212,26 @@ class DeckPanel extends ConsumerWidget {
               // Compact: the two controls are perfect circles, capped by the
               // column width and by the room a pair plus its gap needs. The
               // pair is centred in the pads area, leaving the rest to the pads.
+              // The divider hugs the panel and the circles sit centred in the
+              // gutter beside it; right-hand decks mirror the whole side.
+              final transportOnLeft = !_tempoOnRight;
+              final side = SizedBox(
+                width: diameter + _kDeckSideInset * 2,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: pairGap,
+                  children: [
+                    for (final control in transport)
+                      SizedBox.square(dimension: diameter, child: control),
+                  ],
+                ),
+              );
+              final divider = transportDivider(axis: Axis.vertical);
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: performance),
-                  // The panel's own side padding supplies the gap here, so the
-                  // pair sits the same distance from the pads as from the deck
-                  // edge; a row gap would make the inside gutter wider.
-                  Padding(
-                    // Mirror the performance panel's outer margin so the
-                    // pair does not run into the deck edge.
-                    padding: const EdgeInsets.only(right: _kDeckSideInset),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: pairGap,
-                      children: [
-                        for (final control in transport)
-                          SizedBox.square(dimension: diameter, child: control),
-                      ],
-                    ),
-                  ),
-                ],
+                children: transportOnLeft
+                    ? [side, divider, Expanded(child: performance)]
+                    : [Expanded(child: performance), divider, side],
               );
             },
           ),
@@ -228,18 +249,7 @@ class DeckPanel extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!_tempoOnRight) tempo,
-              Expanded(
-                // The panes paint the divider above the deck row over the
-                // content's first pixel. Reserve it so the track-info outline
-                // is not half-covered, and keep the foot clearance below.
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: context.theme.style.borderWidth,
-                    bottom: 10,
-                  ),
-                  child: body,
-                ),
-              ),
+              Expanded(child: body),
               if (_tempoOnRight) tempo,
             ],
           ),

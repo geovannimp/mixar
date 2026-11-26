@@ -26,6 +26,8 @@ class MTabs extends StatefulWidget {
     this.expands = false,
     this.spacing = 0,
     this.barBottomBorder,
+    this.verticalBarWidth,
+    this.verticalBarOnRight = false,
     super.key,
   }) : assert(children.length > 0, 'Must provide at least 1 tab.');
 
@@ -46,6 +48,14 @@ class MTabs extends StatefulWidget {
   /// hairline, since the width is part of `kMTabBarMinHeight`'s alignment
   /// contract and a wider side would overlap the header strip.
   final BorderSide? barBottomBorder;
+
+  /// Fixed width for a [Axis.vertical] tab bar. When omitted, the bar keeps its
+  /// intrinsic label width.
+  final double? verticalBarWidth;
+
+  /// Places a [Axis.vertical] tab bar on the physical right edge of the content
+  /// instead of the leading edge. Ignored for horizontal tabs.
+  final bool verticalBarOnRight;
 
   @override
   State<MTabs> createState() => _MTabsState();
@@ -99,6 +109,7 @@ class _MTabsState extends State<MTabs> {
       onSelect: _select,
       theme: theme,
       barBottomBorder: widget.barBottomBorder,
+      verticalBarOnRight: widget.verticalBarOnRight,
     );
     final stack = IndexedStack(
       index: current,
@@ -117,13 +128,19 @@ class _MTabsState extends State<MTabs> {
       );
     }
 
+    final barWidth = widget.verticalBarWidth;
+    final rail = barWidth == null ? bar : SizedBox(width: barWidth, child: bar);
+    final content = Expanded(child: stack);
+    final gap = widget.spacing > 0;
+
     return Row(
+      // The rail side is physical: keep the composition left-to-right even in
+      // right-to-left locales.
+      textDirection: TextDirection.ltr,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        bar,
-        if (widget.spacing > 0) SizedBox(width: widget.spacing),
-        Expanded(child: stack),
-      ],
+      children: widget.verticalBarOnRight
+          ? [content, if (gap) SizedBox(width: widget.spacing), rail]
+          : [rail, if (gap) SizedBox(width: widget.spacing), content],
     );
   }
 }

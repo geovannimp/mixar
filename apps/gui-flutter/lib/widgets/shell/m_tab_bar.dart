@@ -13,6 +13,7 @@ class MTabBar extends StatelessWidget {
     required this.theme,
     super.key,
     this.barBottomBorder,
+    this.verticalBarOnRight = false,
   });
 
   final Axis direction;
@@ -22,6 +23,10 @@ class MTabBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final MixarThemeData theme;
   final BorderSide? barBottomBorder;
+
+  /// A vertical bar paints its hairline on the left when the rail sits on the
+  /// right of the content.
+  final bool verticalBarOnRight;
 
   static const _slideDuration = Duration(milliseconds: 300);
 
@@ -95,7 +100,8 @@ class MTabBar extends StatelessWidget {
     // of the bar's alignment contract, so a wider side would misalign the rows.
     final bottom = barBottomBorder?.copyWith(width: theme.style.borderWidth);
     final border = Border(
-      right: horizontal ? BorderSide.none : hairline,
+      right: horizontal || verticalBarOnRight ? BorderSide.none : hairline,
+      left: horizontal || !verticalBarOnRight ? BorderSide.none : hairline,
       bottom: horizontal ? (bottom ?? BorderSide.none) : BorderSide.none,
     );
     // Foreground so the hairline stays above the selected chip instead of

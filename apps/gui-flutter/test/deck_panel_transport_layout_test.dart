@@ -83,7 +83,7 @@ void main() {
   testWidgets('compact deck stacks circular transport beside the panel', (
     tester,
   ) async {
-    await pumpDeck(tester, size: const Size(370, 300));
+    await pumpDeck(tester, size: const Size(370, 290));
 
     final (:panel, :cue, :play) = rects(tester);
     final playTile = tester.getRect(
@@ -97,14 +97,35 @@ void main() {
 
     // Beside the pads, not under them.
     expect(cue.left, greaterThanOrEqualTo(panel.right - _kEpsilon));
-    // The pair keeps the deck's side gutter on the outside edge.
+    // The panel runs flush to the deck's content edges, with no side margin.
     final board = tester.getRect(find.byType(DeckTrackInfo));
+    expect(panel.left, board.left);
+    // The pair keeps the deck's side gutter on the outside edge.
     expect(cue.right, board.right - 10);
-    expect(
-      cue.left - panel.right,
-      board.right - cue.right,
-      reason: 'the gap to the pads matches the gap to the deck edge',
+
+    // The divider hugs the panel; the circles are centred in the gutter.
+    final dividerFinder = find.byKey(
+      const ValueKey('deck-performance-transport-divider'),
     );
+    expect(dividerFinder, findsOneWidget);
+    final divider = tester.getRect(dividerFinder);
+    expect(
+      divider.width,
+      closeTo(MixarThemeData.dark().style.borderWidth, _kEpsilon),
+    );
+    expect(divider.left, closeTo(panel.right, _kEpsilon));
+    expect(divider.center.dx, lessThan(cue.left));
+    expect(cue.left - divider.right, closeTo(10, _kEpsilon));
+    final painted = tester.getRect(
+      find
+          .descendant(of: dividerFinder, matching: find.byType(ColoredBox))
+          .first,
+    );
+    expect(
+      painted.width,
+      closeTo(MixarThemeData.dark().style.borderWidth, _kEpsilon),
+    );
+    expect(painted.height, closeTo(panel.height, _kEpsilon));
     // Both tiles are perfect circles, square to their cap.
     expect(cue.width, closeTo(cue.height, _kEpsilon));
     expect(playTile.width, closeTo(playTile.height, _kEpsilon));
@@ -126,6 +147,42 @@ void main() {
     expect(play.center.dy, greaterThan(cue.center.dy));
     // The pads keep the space the pair gives up.
     expect(panel.height, greaterThan(120));
+    // The panel reaches the deck pane's bottom: no foot clearance.
+    expect(panel.bottom, closeTo(290, _kEpsilon));
+  });
+
+  testWidgets('right-hand deck puts the compact transport left of the panel', (
+    tester,
+  ) async {
+    await pumpDeck(tester, size: const Size(370, 290), deckId: 1);
+
+    final panel = tester.getRect(find.byType(DeckPerformancePanel));
+    final cue = tester.getRect(find.byType(DeckCueButton));
+    final playTile = tester.getRect(
+      find
+          .ancestor(
+            of: find.byIcon(LucideIcons.play),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final board = tester.getRect(find.byType(DeckTrackInfo));
+
+    // Transport on the left, panel to its right.
+    expect(cue.right, lessThanOrEqualTo(panel.left + _kEpsilon));
+    expect(playTile.right, lessThanOrEqualTo(panel.left + _kEpsilon));
+    // The pair keeps the deck's outer gutter and is centred in its column.
+    expect(cue.left, board.left + 10);
+    // The divider sits between the transport and the panel.
+    final divider = tester.getRect(
+      find.byKey(const ValueKey('deck-performance-transport-divider')),
+    );
+    expect(divider.center.dx, greaterThan(cue.right));
+    expect(divider.center.dx, lessThan(panel.left));
+    expect(divider.left, closeTo(cue.right + 10, _kEpsilon));
+    // The two circles keep their size and stack in deck order.
+    expect(cue.width, closeTo(playTile.width, _kEpsilon));
+    expect(cue.center.dy, greaterThan(playTile.center.dy));
   });
 
   testWidgets('a narrow compact deck keeps the panel usable', (tester) async {
@@ -145,7 +202,7 @@ void main() {
   testWidgets('a width-limited deck shrinks the circles to keep the pads', (
     tester,
   ) async {
-    await pumpDeck(tester, size: const Size(294, 300));
+    await pumpDeck(tester, size: const Size(294, 290));
 
     final rect = rects(tester);
     final panel = rect.panel;
@@ -166,6 +223,24 @@ void main() {
     expect(cue.width, closeTo(60, _kEpsilon));
     expect(cue.width, closeTo(cue.height, _kEpsilon));
     expect(cue.width, closeTo(playTile.width, _kEpsilon));
+  });
+
+  testWidgets('the stacked breakpoint budgets the whole transport block', (
+    tester,
+  ) async {
+    // 202 px available: compact, so the panel keeps the full height.
+    await pumpDeck(tester, size: const Size(294, 304));
+    var cue = tester.getRect(find.byType(DeckCueButton));
+    var panel = tester.getRect(find.byType(DeckPerformancePanel));
+    expect(cue.width, closeTo(cue.height, _kEpsilon));
+    expect(panel.height, greaterThan(190));
+
+    // 203 px: stacked, and the panel still keeps its 150 px floor.
+    await pumpDeck(tester, size: const Size(294, 305));
+    cue = tester.getRect(find.byType(DeckCueButton));
+    panel = tester.getRect(find.byType(DeckPerformancePanel));
+    expect(cue.width, greaterThan(cue.height * 1.5));
+    expect(panel.height, greaterThanOrEqualTo(150 - _kEpsilon));
   });
 
   testWidgets('a loaded narrow deck keeps its time row inside', (tester) async {
@@ -205,6 +280,28 @@ void main() {
     expect(play.top, greaterThanOrEqualTo(panel.bottom - _kEpsilon));
     expect(cue.left, lessThan(panel.right));
     expect(play.right, greaterThan(panel.center.dx));
+
+    // The divider hugs the panel's bottom edge.
+    final dividerFinder = find.byKey(
+      const ValueKey('deck-performance-transport-divider'),
+    );
+    expect(dividerFinder, findsOneWidget);
+    final divider = tester.getRect(dividerFinder);
+    expect(divider.top, closeTo(panel.bottom, _kEpsilon));
+    expect(divider.center.dy, lessThan(cue.top));
+    final painted = tester.getRect(
+      find
+          .descendant(of: dividerFinder, matching: find.byType(ColoredBox))
+          .first,
+    );
+    expect(
+      painted.height,
+      closeTo(MixarThemeData.dark().style.borderWidth, _kEpsilon),
+    );
+    // The divider spans the deck's full width, like the panel above it.
+    expect(painted.width, closeTo(panel.width, _kEpsilon));
+    expect(divider.left, closeTo(panel.left, _kEpsilon));
+    expect(divider.right, closeTo(panel.right, _kEpsilon));
     // The buttons keep a side gutter inside the full-bleed deck body.
     final playSurface = find
         .ancestor(
@@ -214,7 +311,14 @@ void main() {
         .first;
     expect(cue.left, 10);
     final board = tester.getRect(find.byType(DeckTrackInfo));
+    // The panel runs flush to the deck's content edges, with no side margin.
+    expect(panel.left, board.left);
+    expect(panel.right, board.right);
     expect(tester.getRect(playSurface).right, board.right - 10);
+    // The row keeps equal space above and below the controls.
+    final playRect = tester.getRect(playSurface);
+    expect(playRect.top - divider.bottom, closeTo(8, _kEpsilon));
+    expect(560 - playRect.bottom, closeTo(8, _kEpsilon));
     // Half-width each, not squares.
     expect(cue.width, greaterThan(cue.height * 1.5));
   });
