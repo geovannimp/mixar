@@ -21,12 +21,16 @@ typedef ToastTrigger = ({
 });
 
 void main() {
-  Future<void> pumpHome(WidgetTester tester, Widget home) async {
-    final theme = MixarThemeData.dark();
+  Future<void> pumpHome(
+    WidgetTester tester,
+    Widget home, {
+    MixarThemeData? theme,
+  }) async {
+    final data = theme ?? MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(data),
+        builder: mixarMaterialAppBuilder(data),
         home: Scaffold(body: home),
       ),
     );
@@ -35,8 +39,9 @@ void main() {
   /// Mounts [triggers] as a column of tap targets inside the themed shell.
   Future<void> pumpToastTriggers(
     WidgetTester tester,
-    List<ToastTrigger> triggers,
-  ) {
+    List<ToastTrigger> triggers, {
+    MixarThemeData? theme,
+  }) {
     return pumpHome(
       tester,
       Builder(
@@ -50,6 +55,7 @@ void main() {
           ],
         ),
       ),
+      theme: theme,
     );
   }
 
@@ -451,21 +457,40 @@ void main() {
         (widget) =>
             widget is DecoratedBox &&
             widget.decoration ==
-                BoxDecoration(
-                  color: accent.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
+                BoxDecoration(color: accent, shape: BoxShape.circle),
       ),
     );
     expect(circle, findsOneWidget);
     expect(tester.getSize(circle), const Size(22, 22));
 
+    // The disc must overhang its 16-px slot and be allowed to paint outside.
+    final slot = find.descendant(
+      of: card,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 16 && widget.height == 22,
+      ),
+    );
+    expect(slot, findsOneWidget);
+    final slotRect = tester.getRect(slot);
+    final discRect = tester.getRect(circle);
+    expect(discRect.left - slotRect.left, closeTo(-3, 0.01));
+    expect(discRect.width, greaterThan(slotRect.width));
+    expect(
+      tester
+          .widget<Stack>(
+            find.descendant(of: slot, matching: find.byType(Stack)),
+          )
+          .clipBehavior,
+      Clip.none,
+    );
+
     final glyph = find.descendant(of: circle, matching: find.byType(Icon));
     expect(tester.widget<Icon>(glyph).icon, LucideIcons.circleAlert);
     expect(
       tester.widget<Icon>(glyph).color,
-      accent,
-      reason: 'the glyph keeps the variant colour',
+      theme.colors.destructiveForeground,
+      reason: 'the glyph uses the on-accent ink for contrast',
     );
     expect(
       tester.getCenter(glyph),
@@ -503,7 +528,10 @@ void main() {
     await tester.tap(find.text('Warning'));
     await tester.pumpAndSettle();
 
-    for (final title in ['Info notice', 'Warning notice']) {
+    for (final (title, icon) in [
+      ('Info notice', LucideIcons.info),
+      ('Warning notice', LucideIcons.triangleAlert),
+    ]) {
       final card = toastCard(find.text(title));
       final glyph = tester.widget<Icon>(
         find.descendant(
@@ -513,10 +541,11 @@ void main() {
           ),
         ),
       );
+      expect(glyph.icon, icon, reason: '$title keeps its own glyph');
       expect(
         glyph.color,
-        theme.colors.primary,
-        reason: '$title keeps the primary colour',
+        theme.colors.primaryForeground,
+        reason: '$title uses on-accent ink over the primary disc',
       );
       expect(
         find.descendant(
@@ -526,7 +555,7 @@ void main() {
                 widget is DecoratedBox &&
                 widget.decoration ==
                     BoxDecoration(
-                      color: theme.colors.primary.withValues(alpha: 0.2),
+                      color: theme.colors.primary,
                       shape: BoxShape.circle,
                     ),
           ),
@@ -536,7 +565,11 @@ void main() {
     }
   });
 
-  testWidgets('success toast paints the success green', (tester) async {
+  Future<void> expectSuccessToast(
+    WidgetTester tester,
+    MixarThemeData theme,
+    Color green,
+  ) async {
     await pumpToastTriggers(tester, [
       (
         label: 'Show',
@@ -547,14 +580,11 @@ void main() {
           title: const Text('Settings saved'),
         ),
       ),
-    ]);
+    ], theme: theme);
 
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
 
-    // The palette ships no green ladder, so success keeps the local status
-    // green the library live dot and settings verdict already use.
-    const success = Color(0xFF4ADE80);
     final card = toastCard(find.text('Settings saved'));
     final glyph = tester.widget<Icon>(
       find.descendant(
@@ -564,7 +594,7 @@ void main() {
         ),
       ),
     );
-    expect(glyph.color, success);
+    expect(glyph.color, theme.colors.primaryForeground);
     expect(
       find.descendant(
         of: card,
@@ -572,13 +602,31 @@ void main() {
           (widget) =>
               widget is DecoratedBox &&
               widget.decoration ==
-                  BoxDecoration(
-                    color: success.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
+                  BoxDecoration(color: green, shape: BoxShape.circle),
         ),
       ),
       findsOneWidget,
+      reason: 'the success disc is the local status green',
+    );
+  }
+
+  testWidgets('success toast paints the success green in dark', (tester) async {
+    // The palette ships no green ladder, so success keeps the local status
+    // green the library live dot and settings verdict already use.
+    await expectSuccessToast(
+      tester,
+      MixarThemeData.dark(),
+      const Color(0xFF4ADE80),
+    );
+  });
+
+  testWidgets('success toast paints the success green in light', (
+    tester,
+  ) async {
+    await expectSuccessToast(
+      tester,
+      MixarThemeData.light(),
+      const Color(0xFF15803D),
     );
   });
 
@@ -599,7 +647,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final card = toastCard(find.text('Question toast'));
-    expect(find.descendant(of: card, matching: find.text('?')), findsOneWidget);
+    final question = find.descendant(of: card, matching: find.text('?'));
+    expect(question, findsOneWidget);
+    expect(
+      find.ancestor(of: question, matching: find.byType(ExcludeSemantics)),
+      findsOneWidget,
+      reason: 'the glyph is decorative; the title carries the message',
+    );
     expect(
       find.descendant(of: card, matching: find.byIcon(LucideIcons.info)),
       findsNothing,

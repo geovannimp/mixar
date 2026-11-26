@@ -14,17 +14,22 @@ const _toastGap = 8.0;
 const _toastMinWidth = 300.0;
 const _toastMaxWidth = 420.0;
 
-/// Left edge of the copy column: past the variant glyph (16) and its gap (12).
+/// Glyph slot in the title row. The disc is wider and overhangs into the card
+/// padding and gap, so the copy column keeps its indent.
+const _toastGlyphSize = 16.0;
+const _toastDiscSize = 22.0;
+const _toastGlyphGap = 12.0;
+
+/// Centres the disc on its glyph slot.
+const _toastDiscOverhang = (_toastGlyphSize - _toastDiscSize) / 2;
+
+/// Left edge of the copy column: past the glyph slot and its gap.
 /// Description and actions share it so the card reads as one stack.
-const _toastCopyIndent = 28.0;
+const _toastCopyIndent = _toastGlyphSize + _toastGlyphGap;
 
 /// Left-edge strength of the variant wash; it reaches the card colour by half
 /// the card's width.
 const _toastWashAlpha = 0.16;
-
-/// Fill behind the glyph: a tint of the variant colour, so the glyph itself can
-/// keep that colour instead of switching to an on-accent neutral.
-const _toastDiscAlpha = 0.2;
 
 /// Success green for the check disc. The palette ships no green ladder, so the
 /// status colour stays local, like the library live dot and the settings
@@ -492,14 +497,19 @@ class _MixarToastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = theme.colors;
-    // Success and error own a colour; every other tone reads as primary.
+    // Success and error own a colour; every other tone reads as primary. The
+    // disc is solid, so the glyph takes the theme's on-accent ink to keep
+    // contrast in both brightnesses.
     final success = theme.colors.brightness == Brightness.dark
         ? _toastSuccessDark
         : _toastSuccessLight;
-    final accent = switch (spec.variant) {
-      MixarToastVariant.success => success,
-      MixarToastVariant.destructive => colors.destructive,
-      _ => colors.primary,
+    final (accent, onAccent) = switch (spec.variant) {
+      MixarToastVariant.success => (success, colors.primaryForeground),
+      MixarToastVariant.destructive => (
+        colors.destructive,
+        colors.destructiveForeground,
+      ),
+      _ => (colors.primary, colors.primaryForeground),
     };
     final variantGlyph = switch (spec.variant) {
       MixarToastVariant.primary => LucideIcons.info,
@@ -551,46 +561,56 @@ class _MixarToastCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        // The disc is wider than the glyph's 16-px slot and
-                        // overflows into the card padding and gap, so the copy
-                        // column keeps its indent.
+                        // The disc is wider than its glyph slot and overhangs
+                        // into the card padding and gap, so the copy column
+                        // keeps its indent.
                         SizedBox(
-                          width: 16,
-                          height: 22,
+                          width: _toastGlyphSize,
+                          height: _toastDiscSize,
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
                               Positioned(
-                                left: -3,
-                                width: 22,
-                                height: 22,
+                                left: _toastDiscOverhang,
+                                width: _toastDiscSize,
+                                height: _toastDiscSize,
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    color: accent.withValues(
-                                      alpha: _toastDiscAlpha,
-                                    ),
+                                    color: accent,
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
                                     child: icon == null
                                         ? Icon(
                                             variantGlyph,
-                                            size: 16,
-                                            color: accent,
+                                            size: _toastGlyphSize,
+                                            color: onAccent,
                                           )
-                                        : IconTheme.merge(
-                                            data: IconThemeData(
-                                              color: accent,
-                                              size: 16,
-                                            ),
-                                            child: DefaultTextStyle(
-                                              style: theme.typography.body.md
-                                                  .copyWith(
-                                                    color: accent,
-                                                    fontWeight: FontWeight.w700,
-                                                    height: 1,
-                                                  ),
-                                              child: icon,
+                                        : ExcludeSemantics(
+                                            // Decorative: the title carries the
+                                            // message, and a fixed size keeps
+                                            // the glyph inside the disc at any
+                                            // text scale.
+                                            child: MediaQuery.withNoTextScaling(
+                                              child: IconTheme.merge(
+                                                data: IconThemeData(
+                                                  color: onAccent,
+                                                  size: _toastGlyphSize,
+                                                ),
+                                                child: DefaultTextStyle(
+                                                  style: theme
+                                                      .typography
+                                                      .body
+                                                      .md
+                                                      .copyWith(
+                                                        color: onAccent,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        height: 1,
+                                                      ),
+                                                  child: icon,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                   ),
