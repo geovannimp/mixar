@@ -94,11 +94,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// seek that has not been published yet is dropped.
   int _seekEpoch = 0;
 
-  /// Platter touches this lane has submitted but not released, per deck. The
-  /// deck's touch flag is shared, so only a hold of the deck this lane shows
-  /// that is not ours may win a press. Keyed by deck so a rebound lane does not
-  /// inherit the old deck's outstanding touch.
-  final _ownTouches = <int, int>{};
+  /// Decks this lane has submitted a touch-on for and not yet released. The
+  /// deck's touch flag is shared, so only a hold of a deck that is not in here
+  /// may win a press. A set, not a count: a press and its retry are one claim.
+  final _ownTouchDecks = <int>{};
 
   var _disposed = false;
 
@@ -106,7 +105,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// can recheck ownership without reading `ref` after unmount.
   var _jogTouching = false;
 
-  int _ownTouchesFor(int deckId) => _ownTouches[deckId] ?? 0;
+  bool _ownsTouch(int deckId) => _ownTouchDecks.contains(deckId);
 
   /// True when a platter hold that is not this lane's owns this deck now.
   ///
@@ -114,21 +113,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
   /// explains it too: only a foreign hold may win a press. One predicate keeps
   /// the press, move and release paths on the same ownership rule.
   bool _hasExternalHold() =>
-      _ownTouchesFor(widget.deckId) == 0 &&
+      !_ownsTouch(widget.deckId) &&
       ref.read(deckJogTouchingProvider(widget.deckId));
-
-  void _ownTouchStarted(int deckId) {
-    _ownTouches[deckId] = _ownTouchesFor(deckId) + 1;
-  }
-
-  void _ownTouchEnded(int deckId) {
-    final count = _ownTouchesFor(deckId);
-    if (count <= 1) {
-      _ownTouches.remove(deckId);
-      return;
-    }
-    _ownTouches[deckId] = count - 1;
-  }
 
   @override
   void initState() {
@@ -144,7 +130,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // Credits explain that deck's touch flag; this lane no longer presses
       // there, and a hold on the deck it now shows must not be mistaken for
       // one of ours when the user comes back.
-      _ownTouches.clear();
+      _ownTouchDecks.clear();
       _seekEpoch++;
       _finishScrub();
     }
@@ -760,7 +746,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     // on is foreign, however late this lane's own echo lands. A release that
     // never published keeps the credit: the deck may still be holding this
     // lane's touch, and a later drag has to be able to retry and free it.
-    _ownTouchEnded(scratch.deckId);
+    _ownTouchDecks.remove(scratch.deckId);
     scratch.touchReleased = true;
   }
 
@@ -906,7 +892,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       }
       // A foreign hold that started while this scratch waited in the queue owns
       // the deck now: taking it would lift that hold on release.
-      if (_ownTouchesFor(scratch.deckId) == 0 && _jogTouching) {
+      if (!_ownsTouch(scratch.deckId) && _jogTouching) {
         scratch.yielded = true;
         _yieldPressToHold(scratch);
         return;
@@ -914,7 +900,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // From here on the engine may hold the platter, so the release owes it a
       // touch-off even if this call rejects.
       scratch.touchAttempted = true;
-      _ownTouchStarted(scratch.deckId);
+      _ownTouchDecks.add(scratch.deckId);
       await engine.jogTouch(deckId: scratch.deckId, touching: true);
       scratch.touchSent = true;
     });

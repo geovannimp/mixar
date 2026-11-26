@@ -927,6 +927,21 @@ void main() {
     );
     await retry.up();
     await tester.pump();
+    expect(engine.seeks, hasLength(1), reason: 'the retry released and sought');
+
+    // The retry cleared the claim: a controller hold now wins the deck.
+    await _setJogTouching(tester, container, true);
+    final held = await tester.startGesture(center);
+    await tester.pump();
+    await held.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    await held.up();
+    await tester.pump();
+    expect(
+      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
+      hasLength(2),
+      reason: 'the released deck is no longer claimed by this lane',
+    );
 
     // The failure toast arms its own auto-close timer.
     await tester.pump(const Duration(seconds: 6));
