@@ -1218,9 +1218,8 @@ void main() {
     await second.moveBy(const Offset(-10, 0));
     await tester.pump();
 
-    // The first release's echo lands, then its release unblocks: the re-grab's
-    // own touch-on follows it.
-    await _setJogTouching(tester, container, false);
+    // The first release's future resolves before its echo lands: the re-grab
+    // must still be admitted and still submit its own touch-on.
     engine.touchOffGate!.complete();
     await tester.pump();
     await tester.pump();

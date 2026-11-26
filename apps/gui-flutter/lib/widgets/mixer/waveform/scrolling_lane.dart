@@ -754,17 +754,14 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       return;
     }
     try {
-      try {
-        await engine.jogTouch(deckId: scratch.deckId, touching: false);
-      } on Object catch (_) {
-        await engine.jogTouch(deckId: scratch.deckId, touching: false);
-      }
-      scratch.touchReleased = true;
-    } finally {
-      // The deck's touch flag is ours to explain until this point, so the hold
-      // checks must not read our own echo as an external one.
-      _ownTouchEnded(scratch.deckId);
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
+    } on Object catch (_) {
+      await engine.jogTouch(deckId: scratch.deckId, touching: false);
     }
+    scratch.touchReleased = true;
+    // The credit stands until the deck reports nobody holds it: the release
+    // future resolving only means the command was published, while the shared
+    // flag can keep echoing this lane's touch for a while after that.
   }
 
   /// Stops the lane's interpolation when the platter could not be released.
@@ -803,6 +800,20 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
     _finishScrub();
     if (!active || !mounted) {
       return;
+    }
+    _resyncFromEngine();
+  }
+
+  /// Gives a live press up to a platter hold that arrived while it waited.
+  ///
+  /// Further moves of that pointer are ignored and position updates resume, so
+  /// the lane stops previewing a drag it will never send.
+  void _yieldPressToHold(_WaveformScratch scratch) {
+    if (identical(_scratch, scratch)) {
+      _scratch = null;
+      _scrubbing = false;
+      _scrubPointer = null;
+      _lastQueuedTicks = 0;
     }
     _resyncFromEngine();
   }
@@ -897,6 +908,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane> {
       // the deck now: taking it would lift that hold on release.
       if (_ownTouchesFor(scratch.deckId) == 0 && _jogTouching) {
         scratch.yielded = true;
+        _yieldPressToHold(scratch);
         return;
       }
       // From here on the engine may hold the platter, so the release owes it a
