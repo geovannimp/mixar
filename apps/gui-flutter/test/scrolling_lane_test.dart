@@ -982,20 +982,17 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(
-      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 1),
-      hasLength(1),
-      reason: 'the invalidated press must not touch the platter',
-    );
-    expect(
-      engine.commands.where((c) => c.$1 == 'touch' && c.$3 == 0),
-      hasLength(1),
-      reason: 'only the touch that was attempted is released',
-    );
-    expect(engine.commands.where((c) => c.$1 == 'turn'), isEmpty);
+    // Exactly one press touched the platter and exactly that press released
+    // it; the invalidated press contributes no command of any kind.
+    expect(engine.commands, [('touch', 0, 1), ('touch', 0, 0)]);
     expect(engine.seeks, isEmpty);
 
+    // Lifting the second pointer adds nothing, so the touch-off above belongs
+    // to the press that submitted the touch-on, not to the dropped one.
     await second.up();
+    await tester.pump();
+    expect(engine.commands, [('touch', 0, 1), ('touch', 0, 0)]);
+    expect(engine.seeks, isEmpty);
     await tester.pump(const Duration(milliseconds: 400));
   });
 
