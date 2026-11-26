@@ -32,26 +32,34 @@ void main() {
     );
   }
 
-  testWidgets('dialogs dim the body but leave the titlebar bright', (
-    tester,
-  ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarDialog<String?>(
-              context: context,
-              builder: (context) => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Export format'),
-              ),
-            );
-          },
-          child: const Text('Open'),
+  /// Text surface that opens [show] when tapped, so every dialog test shares
+  /// one opener instead of its own Builder/GestureDetector copy.
+  Widget openOnTap(Future<void> Function(BuildContext pageContext) show) {
+    return Builder(
+      builder: (pageContext) => GestureDetector(
+        onTap: () => show(pageContext),
+        child: const Text('Open'),
+      ),
+    );
+  }
+
+  /// Opener for the placeholder dialog the localization and barrier tests use.
+  Widget exportDialogOpener() {
+    return openOnTap(
+      (context) => showMixarDialog<String?>(
+        context: context,
+        builder: (_) => const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Export format'),
         ),
       ),
     );
+  }
+
+  testWidgets('dialogs dim the body but leave the titlebar bright', (
+    tester,
+  ) async {
+    await pumpHome(tester, exportDialogOpener());
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -79,20 +87,7 @@ void main() {
   testWidgets('showMixarDialog under pt_BR does not crash', (tester) async {
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarDialog<String?>(
-              context: context,
-              builder: (context) => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Export format'),
-              ),
-            );
-          },
-          child: const Text('Open'),
-        ),
-      ),
+      exportDialogOpener(),
       locale: const Locale('pt', 'BR'),
     );
 
@@ -104,23 +99,7 @@ void main() {
   testWidgets('showMixarDialog builds content without localization crash', (
     tester,
   ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarDialog<String?>(
-              context: context,
-              builder: (context) => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Export format'),
-              ),
-            );
-          },
-          child: const Text('Open'),
-        ),
-      ),
-    );
+    await pumpHome(tester, exportDialogOpener());
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -131,30 +110,25 @@ void main() {
     String? result;
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            result = await showMixarConfirm<String>(
-              context: context,
-              title: 'Delete?',
-              body: 'Cannot undo.',
-              actions: const [
-                MixarDialogAction(
-                  label: 'Cancel',
-                  value: 'cancel',
-                  variant: MixarButtonVariant.outline,
-                ),
-                MixarDialogAction(
-                  label: 'Delete',
-                  value: 'delete',
-                  variant: MixarButtonVariant.destructive,
-                ),
-              ],
-            );
-          },
-          child: const Text('Open'),
-        ),
-      ),
+      openOnTap((context) async {
+        result = await showMixarConfirm<String>(
+          context: context,
+          title: 'Delete?',
+          body: 'Cannot undo.',
+          actions: const [
+            MixarDialogAction(
+              label: 'Cancel',
+              value: 'cancel',
+              variant: MixarButtonVariant.outline,
+            ),
+            MixarDialogAction(
+              label: 'Delete',
+              value: 'delete',
+              variant: MixarButtonVariant.destructive,
+            ),
+          ],
+        );
+      }),
     );
 
     await tester.tap(find.text('Open'));
@@ -168,30 +142,25 @@ void main() {
   testWidgets('showMixarConfirm actions sit below body text', (tester) async {
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarConfirm<bool>(
-              context: context,
-              title: 'Clear stem cache?',
-              body:
-                  'Deletes generated stem files for all tracks. '
-                  'Original library audio is not touched.',
-              actions: const [
-                MixarDialogAction(
-                  label: 'Cancel',
-                  value: false,
-                  variant: MixarButtonVariant.outline,
-                ),
-                MixarDialogAction(
-                  label: 'Clear',
-                  value: true,
-                  variant: MixarButtonVariant.destructive,
-                ),
-              ],
-            );
-          },
-          child: const Text('Open'),
+      openOnTap(
+        (context) => showMixarConfirm<bool>(
+          context: context,
+          title: 'Clear stem cache?',
+          body:
+              'Deletes generated stem files for all tracks. '
+              'Original library audio is not touched.',
+          actions: const [
+            MixarDialogAction(
+              label: 'Cancel',
+              value: false,
+              variant: MixarButtonVariant.outline,
+            ),
+            MixarDialogAction(
+              label: 'Clear',
+              value: true,
+              variant: MixarButtonVariant.destructive,
+            ),
+          ],
         ),
       ),
     );
@@ -215,23 +184,18 @@ void main() {
     for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
       await pumpHome(
         tester,
-        Builder(
-          builder: (context) => GestureDetector(
-            onTap: () async {
-              await showMixarConfirm<String>(
-                context: context,
-                title: title,
-                actions: const [
-                  MixarDialogAction(label: 'Delete', value: 'delete'),
-                  MixarDialogAction(
-                    label: 'Cancel',
-                    value: 'cancel',
-                    variant: MixarButtonVariant.outline,
-                  ),
-                ],
-              );
-            },
-            child: const Text('Open'),
+        openOnTap(
+          (context) => showMixarConfirm<String>(
+            context: context,
+            title: title,
+            actions: const [
+              MixarDialogAction(label: 'Delete', value: 'delete'),
+              MixarDialogAction(
+                label: 'Cancel',
+                value: 'cancel',
+                variant: MixarButtonVariant.outline,
+              ),
+            ],
           ),
         ),
         textDirection: direction,
@@ -284,21 +248,16 @@ void main() {
 
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarDialog<void>(
-              context: context,
-              builder: (context) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [for (var i = 0; i < 40; i++) Text('Row $i')],
-                ),
-              ),
-            );
-          },
-          child: const Text('Open'),
+      openOnTap(
+        (context) => showMixarDialog<void>(
+          context: context,
+          builder: (_) => Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [for (var i = 0; i < 40; i++) Text('Row $i')],
+            ),
+          ),
         ),
       ),
     );
@@ -319,18 +278,13 @@ void main() {
     String? result = 'unset';
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            result = await showMixarConfirm<String>(
-              context: context,
-              title: 'Hello',
-              actions: const [MixarDialogAction(label: 'Ok', value: 'ok')],
-            );
-          },
-          child: const Text('Open'),
-        ),
-      ),
+      openOnTap((context) async {
+        result = await showMixarConfirm<String>(
+          context: context,
+          title: 'Hello',
+          actions: const [MixarDialogAction(label: 'Ok', value: 'ok')],
+        );
+      }),
     );
 
     await tester.tap(find.text('Open'));
@@ -346,26 +300,21 @@ void main() {
   ) async {
     await pumpHome(
       tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () async {
-            await showMixarDialog<void>(
-              context: context,
-              builder: (context) {
-                final theme = context.theme;
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Pad mode',
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                );
-              },
+      openOnTap(
+        (context) => showMixarDialog<void>(
+          context: context,
+          builder: (dialogContext) {
+            final theme = dialogContext.theme;
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Pad mode',
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             );
           },
-          child: const Text('Open'),
         ),
       ),
     );
