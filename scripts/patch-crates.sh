@@ -8,36 +8,48 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 crates="$root/crates"
-patch_file="$crates/patches/cpal+0.18.2.patch"
-target="$crates/target/patch/cpal-0.18.2"
+crate_name="cpal"
+crate_version="0.18.2"
+patch_file="$crates/patches/${crate_name}+${crate_version}.patch"
+target="$crates/target/patch/${crate_name}-${crate_version}"
+marker="$target/.patch-inputs"
 
-args=()
-valid_target=0
-if [[ -f "$target/Cargo.toml" && -f "$target/src/lib.rs" ]] &&
-  grep -q '^name = "cpal"' "$target/Cargo.toml" &&
-  grep -q 'RtPromoterHandle' "$target/src/host/pipewire/rt_promote.rs"; then
-  valid_target=1
+if [[ ! -f "$patch_file" ]]; then
+  echo "error: missing patch file $patch_file" >&2
+  exit 1
 fi
 
-if ((valid_target)) && [[ ! "$patch_file" -nt "$target/.cargo-ok" ]] &&
-  [[ -z "${CI:-}" ]]; then
+inputs_hash() {
+  (cd "$crates" && cksum patches/*.patch Cargo.toml)
+}
+
+valid_target() {
+  [[ -f "$target/Cargo.toml" && -f "$target/src/lib.rs" ]] &&
+    grep -q "^name = \"${crate_name}\"" "$target/Cargo.toml" &&
+    grep -q 'RtPromoterHandle' "$target/src/host/pipewire/rt_promote.rs" &&
+    grep -q 'promoter.demote()' "$target/src/host/pipewire/device.rs" &&
+    grep -q 'rt_promoter_handle' "$target/src/host/pipewire/stream.rs"
+}
+
+# The marker hashes every patch input, so adding/editing any patch or changing
+# the workspace manifest rebuilds the tree. CI also always rebuilds: rust-cache
+# can restore a partial crates/target/patch over the one mise installed.
+if valid_target && [[ -f "$marker" ]] &&
+  [[ "$(inputs_hash)" == "$(cat "$marker")" ]] && [[ -z "${CI:-}" ]]; then
   exit 0
-fi
-
-# Missing, incomplete, stale, or unpatched target: rebuild it from the
-# registry source. CI restores `target` from a cache that may hold a partial
-# `target/patch`, so validate the package manifest before trusting it and
-# always rebuild there.
-if [[ -d "$target" ]]; then
-  args+=(--force)
 fi
 
 if ! command -v cargo-patch-crate >/dev/null 2>&1; then
   echo "error: cargo-patch-crate is not installed." >&2
-  echo "Install it with 'cargo install patch-crate --version 0.1.13 --locked'" >&2
-  echo "or run 'mise install'." >&2
+  echo "Run 'mise install', or install it with 'cargo install patch-crate --locked'." >&2
   exit 1
+fi
+
+args=()
+if [[ -d "$target" ]]; then
+  args+=(--force)
 fi
 
 cd "$crates"
 cargo patch-crate "${args[@]}"
+inputs_hash > "$marker"

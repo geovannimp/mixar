@@ -41,6 +41,14 @@ jobs:
         with:
           cache-key-prefix: mixar-kache-beta
 
+      # This job does not use mise, so materialize the patch before Rust cache
+      # runs `cargo metadata` or any Cargo command resolves the workspace.
+      - name: Install patch-crate
+        uses: ./.github/actions/install-patch-crate
+
+      - name: Materialize dependency patches
+        run: bash ../scripts/patch-crates.sh
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
@@ -52,14 +60,6 @@ jobs:
       # install-nextest action — keeps the tool/version in one place.
       - name: Install cargo-nextest
         uses: ./.github/actions/install-nextest
-
-      # This job installs its own toolchain (no mise), so run the patch
-      # bootstrap explicitly before Cargo resolves the workspace.
-      - name: Install patch-crate
-        run: cargo install patch-crate --version 0.1.13 --locked
-
-      - name: Materialize dependency patches
-        run: bash ../scripts/patch-crates.sh
 
       - name: Check formatting
         run: cargo fmt -- --check

@@ -40,7 +40,7 @@ Rust builds go through [kache](https://github.com/kunobi-ninja/kache) (`rustc-wr
 
 `mise install` runs `kache-setup` automatically (a no-op on Windows): it creates kache's compiler-name shims in `$KACHE_SHIMS_DIR` (`~/.local/lib/kache/shims`, set in `mise.toml`) and, outside CI, raises the local cache budget. Re-run it with `mise run kache-setup`. Cargokit puts that directory on `PATH` only for the cargo build, so C/C++ compiled inside build scripts (Opus, SQLCipher, OpenSSL) is cached too; on the ambient `PATH` it would make Flutter's build hooks resolve `clang` to the shim. A GUI/IDE build that does not inherit mise's environment falls back to that same directory when the variable is absent. Plain `kache init` is still not used, because it edits developer-global Cargo config and installs services.
 
-`mise install` also materializes the CPAL 0.18.2 backport from `crates/patches/cpal+0.18.2.patch` into `crates/target/patch/cpal-0.18.2`. Cargo resolves `[patch.crates-io]` before build scripts, so this must exist before any `cargo` or Flutter build. Re-run it with `mise run rust-patch`; `cargo clean` deletes `crates/target/patch`, so rerun it after cleaning.
+`mise install` also materializes the CPAL 0.18.2 backport from `crates/patches/cpal+0.18.2.patch` into `crates/target/patch/cpal-0.18.2`. Cargo resolves `[patch.crates-io]` before build scripts, so this must exist before any `cargo` or Flutter build. Re-run it with `mise run rust-patch`; `cargo clean` deletes `crates/target/patch`, so rerun it after cleaning. Without mise, install `patch-crate` (`cargo install patch-crate --locked`) and run `bash scripts/patch-crates.sh`.
 
 ## Development
 
