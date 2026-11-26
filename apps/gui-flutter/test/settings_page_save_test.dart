@@ -86,8 +86,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
-    final card = tester.getRect(find.byType(MixarDialog));
-    await tester.tapAt(Offset(card.left - 24, card.center.dy));
+    // Stay put by dismissing the card: a press on the dimmed body, at the
+    // barrier's own top-left so the point holds for a bottom sheet too.
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((b) => b.color == kMixarDialogScrimColor);
+    final barrierRect = tester.getRect(find.byWidget(barrier));
+    await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
     await tester.pumpAndSettle();
     expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);

@@ -210,6 +210,8 @@ void main() {
   });
 
   testWidgets('dialog footer ends on the close button column', (tester) async {
+    const title =
+        'Delete these tracks from every playlist and the library collection?';
     for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
       await pumpHome(
         tester,
@@ -218,7 +220,7 @@ void main() {
             onTap: () async {
               await showMixarConfirm<String>(
                 context: context,
-                title: 'Delete?',
+                title: title,
                 actions: const [
                   MixarDialogAction(label: 'Delete', value: 'delete'),
                   MixarDialogAction(
@@ -238,23 +240,15 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // The close button is a hit box around a glyph; its padding puts the
-      // glyph box on the shared inset. The footer's trailing pill must end on
-      // the same column, on whichever side the direction puts the close button.
+      // The close glyph's box and the footer's last pill must end on the same
+      // column, on whichever side the direction puts the close button.
       final rtl = direction == TextDirection.rtl;
-      final close = tester.widget<AppButton>(
-        find.byWidgetPredicate(
-          (widget) => widget is AppButton && widget.semanticsLabel == 'Close',
-        ),
-      );
-      final closePadding = close.padding! as EdgeInsets;
-      final closeBox = tester.getRect(find.byWidget(close));
+      final closeIcon = tester.getRect(find.byIcon(LucideIcons.x));
+      final titleRect = tester.getRect(find.text(title));
       final pill = tester.getRect(find.widgetWithText(AppButton, 'Cancel'));
       final card = tester.getRect(find.byType(MixarDialog));
 
-      final closeTrailing = rtl
-          ? closeBox.left + closePadding.left
-          : closeBox.right - closePadding.right;
+      final closeTrailing = rtl ? closeIcon.left : closeIcon.right;
       final pillTrailing = rtl ? pill.left : pill.right;
       final cardTrailing = rtl ? card.left : card.right;
       final inset = rtl
@@ -266,6 +260,13 @@ void main() {
         inset,
         mixarDialogCloseInset,
         reason: '$direction card edge to pill',
+      );
+      // The header reserves its close-button space on the same side, so a long
+      // title wraps clear of the icon instead of running under it.
+      expect(
+        titleRect.overlaps(closeIcon),
+        isFalse,
+        reason: '$direction header vs close icon',
       );
 
       // Dismiss the card so the next pass starts from a clean navigator.
