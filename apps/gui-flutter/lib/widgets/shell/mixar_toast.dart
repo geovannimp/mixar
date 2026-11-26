@@ -6,8 +6,8 @@ import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Tone of a toast. [primary] is the neutral notice; [success] and [warning]
-/// colour the rail and glyph without tinting the copy.
+/// Tone of a toast. The variant colour paints the glyph, its disc and the card
+/// wash; the copy stays untinted.
 enum MixarToastVariant { primary, success, warning, destructive }
 
 const _toastGap = 8.0;
@@ -17,6 +17,20 @@ const _toastMaxWidth = 420.0;
 /// Left edge of the copy column: past the variant glyph (16) and its gap (12).
 /// Description and actions share it so the card reads as one stack.
 const _toastCopyIndent = 28.0;
+
+/// Left-edge strength of the variant wash; it reaches the card colour by half
+/// the card's width.
+const _toastWashAlpha = 0.16;
+
+/// Fill behind the glyph: a tint of the variant colour, so the glyph itself can
+/// keep that colour instead of switching to an on-accent neutral.
+const _toastDiscAlpha = 0.2;
+
+/// Success green for the check disc. The palette ships no green ladder, so the
+/// status colour stays local, like the library live dot and the settings
+/// capability verdict.
+const _toastSuccessLight = Color(0xFF15803D);
+const _toastSuccessDark = Color(0xFF4ADE80);
 const _toastEnter = Duration(milliseconds: 320);
 const _toastExit = Duration(milliseconds: 180);
 const _toastLift = 18.0;
@@ -29,13 +43,15 @@ var _mixarToastSeq = 0;
 ///
 /// Toasts stack upward, newest nearest the corner, and each one can be
 /// dismissed by hand, by its own timer (paused on hover), or by [id] through
-/// [dismissMixarToast].
+/// [dismissMixarToast]. [icon] replaces the variant's glyph for a message that
+/// is not a plain tone, such as a question prompt.
 void showMixarToast({
   required BuildContext context,
   required Widget title,
   MixarToastVariant variant = MixarToastVariant.primary,
   Widget? description,
   Widget Function(BuildContext context, VoidCallback dismiss)? suffixBuilder,
+  Widget? icon,
   Duration? duration = const Duration(seconds: 5),
   VoidCallback? onDismiss,
   String? id,
@@ -55,6 +71,7 @@ void showMixarToast({
       title: title,
       description: description,
       suffixBuilder: suffixBuilder,
+      icon: icon,
       duration: showFor,
       onDismiss: onDismiss,
     ),
@@ -157,6 +174,7 @@ class _MixarToastSpec {
     required this.title,
     required this.description,
     required this.suffixBuilder,
+    required this.icon,
     required this.duration,
     required this.onDismiss,
   });
@@ -167,6 +185,10 @@ class _MixarToastSpec {
   final Widget? description;
   final Widget Function(BuildContext context, VoidCallback dismiss)?
   suffixBuilder;
+
+  /// Overrides the variant glyph when the message is not a plain tone. Painted
+  /// centred in the disc, inheriting its colour.
+  final Widget? icon;
 
   /// Null means the toast stays until dismissed by hand.
   final Duration? duration;
@@ -470,22 +492,27 @@ class _MixarToastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = theme.colors;
-    final (accent, glyph, tintAlpha) = switch (spec.variant) {
-      MixarToastVariant.primary => (colors.primary, LucideIcons.info, 0.0),
-      MixarToastVariant.success => (colors.primary, LucideIcons.check, 0.05),
-      MixarToastVariant.warning => (
-        colors.cueOn,
-        LucideIcons.triangleAlert,
-        0.06,
-      ),
-      MixarToastVariant.destructive => (
-        colors.destructive,
-        LucideIcons.circleAlert,
-        0.06,
-      ),
+    // Success and error own a colour; every other tone reads as primary.
+    final success = theme.colors.brightness == Brightness.dark
+        ? _toastSuccessDark
+        : _toastSuccessLight;
+    final accent = switch (spec.variant) {
+      MixarToastVariant.success => success,
+      MixarToastVariant.destructive => colors.destructive,
+      _ => colors.primary,
     };
+    final variantGlyph = switch (spec.variant) {
+      MixarToastVariant.primary => LucideIcons.info,
+      MixarToastVariant.success => LucideIcons.check,
+      MixarToastVariant.warning => LucideIcons.triangleAlert,
+      MixarToastVariant.destructive => LucideIcons.circleAlert,
+    };
+    final icon = spec.icon;
     final description = spec.description;
     final suffix = spec.suffixBuilder?.call(context, dismiss);
+
+    final radius = theme.style.borderRadius.dialog;
+    final borderWidth = theme.style.borderWidth;
 
     return IntrinsicWidth(
       child: ConstrainedBox(
@@ -494,82 +521,128 @@ class _MixarToastCard extends StatelessWidget {
           maxWidth: _toastMaxWidth,
         ),
         child: DecoratedBox(
+          // Foreground: the card content runs full-bleed, so the outline would
+          // otherwise be covered at the rounded corners.
+          position: DecorationPosition.foreground,
           decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              accent.withValues(alpha: tintAlpha),
-              colors.card,
-            ),
-            border: Border(
-              left: BorderSide(color: accent, width: 3),
-              top: BorderSide(
-                color: colors.border,
-                width: theme.style.borderWidth,
-              ),
-              right: BorderSide(
-                color: colors.border,
-                width: theme.style.borderWidth,
-              ),
-              bottom: BorderSide(
-                color: colors.border,
-                width: theme.style.borderWidth,
-              ),
-            ),
+            borderRadius: radius,
+            border: Border.all(color: colors.border, width: borderWidth),
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 8, 13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+          child: ClipRRect(
+            borderRadius: radius,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color.alphaBlend(
+                      accent.withValues(alpha: _toastWashAlpha),
+                      colors.card,
+                    ),
+                    colors.card,
+                  ],
+                  stops: const [0, 0.5],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 8, 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Outfit's 14px glyph sits ~1.5px below its line-box
-                    // centre; nudge the glyph so it reads level with the title.
-                    Transform.translate(
-                      offset: const Offset(0, 1.5),
-                      child: Icon(glyph, size: 16, color: accent),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DefaultTextStyle(
-                        style: theme.typography.body.md.copyWith(
-                          color: colors.foreground,
-                          fontWeight: FontWeight.w700,
+                    Row(
+                      children: [
+                        // The disc is wider than the glyph's 16-px slot and
+                        // overflows into the card padding and gap, so the copy
+                        // column keeps its indent.
+                        SizedBox(
+                          width: 16,
+                          height: 22,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                left: -3,
+                                width: 22,
+                                height: 22,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: accent.withValues(
+                                      alpha: _toastDiscAlpha,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: icon == null
+                                        ? Icon(
+                                            variantGlyph,
+                                            size: 16,
+                                            color: accent,
+                                          )
+                                        : IconTheme.merge(
+                                            data: IconThemeData(
+                                              color: accent,
+                                              size: 16,
+                                            ),
+                                            child: DefaultTextStyle(
+                                              style: theme.typography.body.md
+                                                  .copyWith(
+                                                    color: accent,
+                                                    fontWeight: FontWeight.w700,
+                                                    height: 1,
+                                                  ),
+                                              child: icon,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: spec.title,
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DefaultTextStyle(
+                            style: theme.typography.body.md.copyWith(
+                              color: colors.foreground,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            child: spec.title,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        _ToastCloseButton(onPress: dismiss),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    _ToastCloseButton(onPress: dismiss),
+                    if (description != null) ...[
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(left: _toastCopyIndent),
+                        child: DefaultTextStyle(
+                          style: theme.typography.body.xs.copyWith(
+                            color: colors.mutedForeground,
+                            height: 1.4,
+                          ),
+                          child: description,
+                        ),
+                      ),
+                    ],
+                    if (suffix != null) ...[
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(left: _toastCopyIndent),
+                        // A row that fills the width starts at the copy
+                        // column; a content-sized row (the plain
+                        // Cancel/Enable pair) keeps the corner alignment
+                        // the prompts already use.
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: suffix,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                if (description != null) ...[
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(left: _toastCopyIndent),
-                    child: DefaultTextStyle(
-                      style: theme.typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
-                        height: 1.4,
-                      ),
-                      child: description,
-                    ),
-                  ),
-                ],
-                if (suffix != null) ...[
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(left: _toastCopyIndent),
-                    // A row that fills the width starts at the copy column; a
-                    // content-sized row (the plain Cancel/Enable pair) keeps
-                    // the corner alignment the prompts already use.
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: suffix,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         ),

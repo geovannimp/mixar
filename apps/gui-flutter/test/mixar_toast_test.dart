@@ -347,6 +347,265 @@ void main() {
     );
   });
 
+  testWidgets('toast paints a gradient surface and a circled glyph', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    final radius = theme.style.borderRadius.dialog;
+    final borderWidth = theme.style.borderWidth;
+    final accent = theme.colors.destructive;
+
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Rounded toast'),
+          description: const Text('Short body copy.'),
+          variant: MixarToastVariant.destructive,
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final card = toastCard(find.text('Rounded toast'));
+    expect(card, findsOneWidget);
+
+    final outline = find.descendant(
+      of: card,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.position == DecorationPosition.foreground &&
+            widget.decoration ==
+                BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: theme.colors.border,
+                    width: borderWidth,
+                  ),
+                ),
+      ),
+    );
+    expect(
+      outline,
+      findsOneWidget,
+      reason: 'the rounded outline must paint over the clipped card content',
+    );
+
+    final clip = find.descendant(
+      of: outline,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is ClipRRect &&
+            widget.borderRadius == radius &&
+            widget.clipBehavior == Clip.antiAlias,
+      ),
+    );
+    expect(clip, findsOneWidget);
+
+    final gradientBox = find.descendant(
+      of: clip,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).gradient != null,
+      ),
+    );
+    expect(gradientBox, findsOneWidget);
+    final gradient =
+        (tester.widget<DecoratedBox>(gradientBox).decoration as BoxDecoration)
+                .gradient!
+            as LinearGradient;
+    expect(gradient.begin, Alignment.centerLeft);
+    expect(gradient.end, Alignment.centerRight);
+    expect(
+      gradient.colors.last,
+      theme.colors.card,
+      reason: 'the wash fades into the card surface',
+    );
+    expect(
+      gradient.colors.first,
+      Color.alphaBlend(accent.withValues(alpha: 0.16), theme.colors.card),
+      reason: 'the wash is the bare variant accent over the card',
+    );
+
+    expect(
+      find.descendant(
+        of: clip,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is ColoredBox && widget.color == accent,
+        ),
+      ),
+      findsNothing,
+      reason: 'the left rail is gone',
+    );
+
+    final circle = find.descendant(
+      of: clip,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration ==
+                BoxDecoration(
+                  color: accent.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+      ),
+    );
+    expect(circle, findsOneWidget);
+    expect(tester.getSize(circle), const Size(22, 22));
+
+    final glyph = find.descendant(of: circle, matching: find.byType(Icon));
+    expect(tester.widget<Icon>(glyph).icon, LucideIcons.circleAlert);
+    expect(
+      tester.widget<Icon>(glyph).color,
+      accent,
+      reason: 'the glyph keeps the variant colour',
+    );
+    expect(
+      tester.getCenter(glyph),
+      tester.getCenter(circle),
+      reason: 'the glyph must sit centred in its disc',
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('non success toasts paint in the primary colour', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Info',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Info notice'),
+        ),
+      ),
+      (
+        label: 'Warning',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          variant: MixarToastVariant.warning,
+          title: const Text('Warning notice'),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Info'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Warning'));
+    await tester.pumpAndSettle();
+
+    for (final title in ['Info notice', 'Warning notice']) {
+      final card = toastCard(find.text(title));
+      final glyph = tester.widget<Icon>(
+        find.descendant(
+          of: card,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Icon && widget.icon != LucideIcons.x,
+          ),
+        ),
+      );
+      expect(
+        glyph.color,
+        theme.colors.primary,
+        reason: '$title keeps the primary colour',
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.decoration ==
+                    BoxDecoration(
+                      color: theme.colors.primary.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+          ),
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('success toast paints the success green', (tester) async {
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          variant: MixarToastVariant.success,
+          title: const Text('Settings saved'),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    // The palette ships no green ladder, so success keeps the local status
+    // green the library live dot and settings verdict already use.
+    const success = Color(0xFF4ADE80);
+    final card = toastCard(find.text('Settings saved'));
+    final glyph = tester.widget<Icon>(
+      find.descendant(
+        of: card,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Icon && widget.icon != LucideIcons.x,
+        ),
+      ),
+    );
+    expect(glyph.color, success);
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.decoration ==
+                  BoxDecoration(
+                    color: success.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('toast icon override replaces the variant glyph', (tester) async {
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Question toast'),
+          icon: const Text('?'),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final card = toastCard(find.text('Question toast'));
+    expect(find.descendant(of: card, matching: find.text('?')), findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.byIcon(LucideIcons.info)),
+      findsNothing,
+    );
+  });
+
   testWidgets('toast close hover paints a circular wash', (tester) async {
     final theme = MixarThemeData.dark();
     await pumpShowControllerToast(tester);

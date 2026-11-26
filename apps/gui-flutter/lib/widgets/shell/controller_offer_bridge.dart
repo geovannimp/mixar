@@ -289,6 +289,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       id: _audioToastId(portName),
       duration: null,
       title: Text('Switch audio outputs to $label?'),
+      icon: const Text('?'),
       description: const _EngineRestartWarning(),
       suffixBuilder: (context, dismiss) => StatefulBuilder(
         builder: (context, setLocal) => Row(
