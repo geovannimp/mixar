@@ -53,6 +53,14 @@ jobs:
       - name: Install cargo-nextest
         uses: ./.github/actions/install-nextest
 
+      # This job installs its own toolchain (no mise), so run the patch
+      # bootstrap explicitly before Cargo resolves the workspace.
+      - name: Install patch-crate
+        run: cargo install patch-crate --version 0.1.13 --locked
+
+      - name: Materialize dependency patches
+        run: bash ../scripts/patch-crates.sh
+
       - name: Check formatting
         run: cargo fmt -- --check
 

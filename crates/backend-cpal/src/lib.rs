@@ -1113,6 +1113,75 @@ mod tests {
         );
     }
 
+    /// Reproduces the PipeWire real-time teardown crash: a promoted output
+    /// stream dropped while the host is torn down can terminate the process
+    /// with `SIGXCPU`.
+    ///
+    /// Needs a live PipeWire default sink at 48 kHz stereo and realtime
+    /// promotion (RTKit); run it explicitly with
+    /// `cargo test -p backend-cpal --lib -- --ignored --exact tests::pipewire_repeated_output_stream_drop`.
+    #[cfg(all(target_os = "linux", feature = "pipewire"))]
+    #[test]
+    #[ignore = "requires a live PipeWire default output and real-time scheduling"]
+    fn pipewire_repeated_output_stream_drop() {
+        use std::sync::atomic::AtomicBool;
+        use std::time::Instant;
+
+        struct SilentCallback {
+            ran: Arc<AtomicBool>,
+        }
+
+        impl AudioCallback for SilentCallback {
+            fn render(&mut self, out: &mut [f32], _frames: u32, _sample_rate: u32) {
+                out.fill(0.0);
+                self.ran.store(true, Ordering::Relaxed);
+            }
+        }
+
+        const CYCLES: usize = 20;
+
+        let mut backend = CpalBackend::new().expect("live CPAL backend");
+        assert_eq!(
+            backend.host.id(),
+            cpal::HostId::PipeWire,
+            "this test needs the real PipeWire host; an ALSA fallback proves nothing"
+        );
+
+        let device = DeviceId::new("default");
+        let params = StreamParams::new(48_000, 2, 512);
+
+        for cycle in 1..=CYCLES {
+            let ran = Arc::new(AtomicBool::new(false));
+            let mut stream = backend
+                .open_output_stream(
+                    &device,
+                    &params,
+                    Box::new(SilentCallback {
+                        ran: Arc::clone(&ran),
+                    }),
+                )
+                .unwrap_or_else(|e| {
+                    panic!("cycle {cycle}: opening the output stream failed: {e:#}")
+                });
+            stream.start().unwrap_or_else(|e| {
+                panic!("cycle {cycle}: starting the output stream failed: {e:#}")
+            });
+
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while !ran.load(Ordering::Relaxed) {
+                if Instant::now() >= deadline {
+                    panic!("cycle {cycle}: no audio callback within 3 s");
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+
+            // Give RTKit a moment to promote the callback thread, so the drop
+            // exercises the real-time teardown path.
+            std::thread::sleep(Duration::from_millis(250));
+            drop(stream);
+        }
+    }
+
     #[test]
     fn test_cpal_default_device() {
         let backend = CpalBackend::new().unwrap();

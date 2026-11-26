@@ -35,6 +35,8 @@ tasks:
   # Impeller is the default backend again: the Linux half-window misrender was
   # flutter/flutter#195885 (NVIDIA can_blit blocklist), fixed on master.
   dev-linux:
+    deps:
+      - "rust:patch-crates"
     command: "mise"
     args: ["exec", "--", "dashmonx", "-d", "linux"]
     toolchain: "system"
@@ -49,6 +51,8 @@ tasks:
   # `flutter run` takes no --target-platform; it builds the ABI of the attached
   # device (ndk.abiFilters already restricts the APK to 64-bit).
   dev-android:
+    deps:
+      - "rust:patch-crates"
     command: "bash"
     args: ["scripts/run_android.sh"]
     toolchain: "system"
@@ -59,6 +63,8 @@ tasks:
       - "scripts/run_android.sh"
 
   build-android:
+    deps:
+      - "rust:patch-crates"
     command: "mise"
     args:
       [
@@ -75,6 +81,8 @@ tasks:
   # Impeller is the engine default; no opt-out is set in
   # linux/runner/my_application.cc.
   build-linux:
+    deps:
+      - "rust:patch-crates"
     command: "mise"
     args: ["exec", "--", "flutter", "build", "linux", "--debug"]
     toolchain: "system"
@@ -85,6 +93,8 @@ tasks:
       runInCI: false
 
   build-linux-release:
+    deps:
+      - "rust:patch-crates"
     command: "mise"
     args: ["exec", "--", "flutter", "build", "linux", "--release"]
     toolchain: "system"
@@ -98,6 +108,8 @@ tasks:
   # Requires: fastforge (+ appimagetool on Linux / appdmg on macOS / Inno Setup on Windows).
   # Linux: .appimageignore excludes bundled libasound/libpipewire (system audio stack).
   package-linux:
+    deps:
+      - "rust:patch-crates"
     command: "bash"
     args:
       - "-c"
@@ -119,6 +131,8 @@ tasks:
       cache: false
 
   package-macos:
+    deps:
+      - "rust:patch-crates"
     command: "bash"
     args:
       - "-c"
@@ -139,6 +153,8 @@ tasks:
       cache: false
 
   package-windows:
+    deps:
+      - "rust:patch-crates"
     command: "bash"
     args:
       - "-c"

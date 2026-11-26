@@ -29,6 +29,21 @@ members = [
 # Standalone midir probe — optional debug tool (own workspace; not required for the Flutter host).
 resolver = "2"
 
+# CPAL 0.18.2 backport of upstream fix
+# 92e176e0ae32171a8841febf8248254751af155f: demote a real-time-promoted
+# PipeWire thread before teardown, so dropping an output stream cannot
+# terminate the process with SIGXCPU.
+#
+# The patched source is generated into `target/patch/cpal-0.18.2` by
+# `cargo patch-crate` from `patches/cpal+0.18.2.patch`. Cargo resolves this
+# path before any build script runs, so run `cargo patch-crate` (or the
+# `rust-patch` mise task) once before building, and again after `cargo clean`.
+[workspace.metadata.patch]
+crates = ["cpal"]
+
+[patch.crates-io]
+cpal = { path = "target/patch/cpal-0.18.2" }
+
 # Lint policy shared by every crate (`[lints] workspace = true` in each member);
 # the rule set it implements is documented in `.cursor/rules/rust.mdc`. Only
 # lints that are NOT on by default belong here — the rest of that rule set is

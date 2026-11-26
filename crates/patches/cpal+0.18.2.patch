@@ -1,0 +1,233 @@
+diff --git a/src/host/pipewire/device.rs b/src/host/pipewire/device.rs
+index 5d30177..e9155d2 100644
+--- a/src/host/pipewire/device.rs
++++ b/src/host/pipewire/device.rs
+@@ -413,6 +413,8 @@ impl DeviceTrait for Device {
+                 let StreamData {
+                     mainloop,
+                     listener,
++                    #[cfg(all(target_os = "linux", feature = "realtime"))]
++                    rt_promoter,
+                     stream,
+                     context,
+                     core,
+@@ -458,6 +460,10 @@ impl DeviceTrait for Device {
+                         }
+                     }
+                     StreamCommand::Stop => {
++                        #[cfg(all(target_os = "linux", feature = "realtime"))]
++                        if let Some(promoter) = &rt_promoter {
++                            promoter.demote();
++                        }
+                         if let Err(e) = stream_clone.disconnect() {
+                             emit_error(
+                                 &error_callback_cmd,
+@@ -591,6 +597,8 @@ impl DeviceTrait for Device {
+                 let StreamData {
+                     mainloop,
+                     listener,
++                    #[cfg(all(target_os = "linux", feature = "realtime"))]
++                    rt_promoter,
+                     stream,
+                     context,
+                     core,
+@@ -636,6 +644,10 @@ impl DeviceTrait for Device {
+                         }
+                     }
+                     StreamCommand::Stop => {
++                        #[cfg(all(target_os = "linux", feature = "realtime"))]
++                        if let Some(promoter) = &rt_promoter {
++                            promoter.demote();
++                        }
+                         if let Err(e) = stream_clone.disconnect() {
+                             emit_error(
+                                 &error_callback_cmd,
+diff --git a/src/host/pipewire/rt_promote.rs b/src/host/pipewire/rt_promote.rs
+index 3fa0a52..502c021 100644
+--- a/src/host/pipewire/rt_promote.rs
++++ b/src/host/pipewire/rt_promote.rs
+@@ -3,7 +3,7 @@
+ use std::{
+     sync::{
+         atomic::{AtomicBool, AtomicU32, Ordering},
+-        Arc,
++        Arc, Mutex,
+     },
+     thread::{self, JoinHandle, Thread},
+ };
+@@ -13,11 +13,45 @@ use crate::{
+     Error, ErrorKind, FrameCount, SampleRate,
+ };
+ 
++/// Handle that demotes the audio thread from any thread.
++///
++/// CPAL 0.18.2 tears the PipeWire stream down in the `StreamCommand::Stop`
++/// handler, before the promoter itself is dropped. Demoting only in
++/// `RtPromoter::drop` is too late there: the kernel can deliver `SIGXCPU` while
++/// `pw_impl_node_destroy` runs. The stream hands this handle to the stop
++/// handler so the thread is demoted first.
++#[derive(Clone)]
++pub(crate) struct RtPromoterHandle {
++    thread_info: audio_thread_priority::RtPriorityThreadInfo,
++    promoted: Arc<AtomicBool>,
++    /// Set once the stream begins tearing down; blocks later promotions.
++    stop: Arc<AtomicBool>,
++    /// Serializes promotion with demotion so demote waits for an in-flight promote.
++    promotion: Arc<Mutex<()>>,
++    error_callback: ErrorCallbackArc,
++}
++
++impl RtPromoterHandle {
++    /// Demote the audio thread if it is still promoted. Idempotent.
++    pub(crate) fn demote(&self) {
++        let _guard = self.promotion.lock().unwrap_or_else(|e| e.into_inner());
++        self.stop.store(true, Ordering::Relaxed);
++        if self.promoted.swap(false, Ordering::Relaxed) {
++            if let Err(e) =
++                audio_thread_priority::demote_thread_from_real_time(self.thread_info)
++            {
++                emit_error(&self.error_callback, Error::from(e));
++            }
++        }
++    }
++}
++
+ pub(crate) struct RtPromoter {
+     pending_frames: Arc<AtomicU32>,
+     shutdown: Arc<AtomicBool>,
+     handle: Thread,
+     join: Option<JoinHandle<()>>,
++    demote: RtPromoterHandle,
+ }
+ 
+ impl RtPromoter {
+@@ -34,24 +68,47 @@ impl RtPromoter {
+ 
+         let pending_frames = Arc::new(AtomicU32::new(0));
+         let shutdown = Arc::new(AtomicBool::new(false));
++        let promoted = Arc::new(AtomicBool::new(false));
++        let stop = Arc::new(AtomicBool::new(false));
++        let promotion = Arc::new(Mutex::new(()));
+         let pending_frames_bg = pending_frames.clone();
+         let shutdown_bg = shutdown.clone();
++        let promoted_bg = promoted.clone();
++        let stop_bg = stop.clone();
++        let promotion_bg = promotion.clone();
+         let error_callback_bg = error_callback.clone();
+ 
+         let join = thread::Builder::new()
+             .name("cpal_rt_promote".to_owned())
+             .spawn(move || loop {
+                 if shutdown_bg.load(Ordering::Relaxed) {
++                    // Demote before pw::deinit() to prevent spurious SIGXCPU signals.
++                    let _guard = promotion_bg.lock().unwrap_or_else(|e| e.into_inner());
++                    if promoted_bg.swap(false, Ordering::Relaxed) {
++                        if let Err(e) =
++                            audio_thread_priority::demote_thread_from_real_time(thread_info)
++                        {
++                            emit_error(&error_callback_bg, Error::from(e));
++                        }
++                    }
+                     return;
+                 }
+                 let frames = pending_frames_bg.swap(0, Ordering::Relaxed);
+                 if frames != 0 {
+-                    if let Err(e) = audio_thread_priority::promote_thread_to_real_time(
++                    // The stream may have begun tearing down between the request and this
++                    // thread running; promotion after the Stop demotion would re-arm the
++                    // real-time watchdog and crash in pw_impl_node_destroy.
++                    let _guard = promotion_bg.lock().unwrap_or_else(|e| e.into_inner());
++                    if stop_bg.load(Ordering::Relaxed) {
++                        continue;
++                    }
++                    match audio_thread_priority::promote_thread_to_real_time(
+                         thread_info,
+                         frames,
+                         rate,
+                     ) {
+-                        emit_error(&error_callback_bg, Error::from(e));
++                        Ok(_) => promoted_bg.store(true, Ordering::Relaxed),
++                        Err(e) => emit_error(&error_callback_bg, Error::from(e)),
+                     }
+                     continue;
+                 }
+@@ -76,9 +133,21 @@ impl RtPromoter {
+             shutdown,
+             handle: join.thread().clone(),
+             join: Some(join),
++            demote: RtPromoterHandle {
++                thread_info,
++                promoted,
++                stop,
++                promotion,
++                error_callback,
++            },
+         })
+     }
+ 
++    /// Handle the stream can use to demote before destroying its PipeWire node.
++    pub(crate) fn demote_handle(&self) -> RtPromoterHandle {
++        self.demote.clone()
++    }
++
+     /// Hands a promotion request to the background thread; never blocks.
+     pub(crate) fn request(&self, frames: FrameCount) {
+         self.pending_frames.store(frames, Ordering::Relaxed);
+diff --git a/src/host/pipewire/stream.rs b/src/host/pipewire/stream.rs
+index cea6e50..e104aa3 100644
+--- a/src/host/pipewire/stream.rs
++++ b/src/host/pipewire/stream.rs
+@@ -32,7 +32,7 @@ use pipewire::{
+ };
+ 
+ #[cfg(all(target_os = "linux", feature = "realtime"))]
+-use super::rt_promote::RtPromoter;
++use super::rt_promote::{RtPromoter, RtPromoterHandle};
+ use crate::{
+     host::{
+         emit_error, equilibrium::fill_equilibrium, frames_to_duration, latch::Latch,
+@@ -394,6 +394,8 @@ where
+ pub struct StreamData<D> {
+     pub mainloop: MainLoopRc,
+     pub listener: StreamListener<UserData<D>>,
++    #[cfg(all(target_os = "linux", feature = "realtime"))]
++    pub rt_promoter: Option<RtPromoterHandle>,
+     pub stream: StreamRc,
+     pub context: ContextRc,
+     pub core: CoreRc,
+@@ -601,6 +603,8 @@ where
+     let error_callback_out = error_callback.clone();
+     #[cfg(all(target_os = "linux", feature = "realtime"))]
+     let rt_promoter = RtPromoter::spawn(error_callback.clone(), config.sample_rate);
++    #[cfg(all(target_os = "linux", feature = "realtime"))]
++    let rt_promoter_handle = rt_promoter.as_ref().map(RtPromoter::demote_handle);
+     let data = UserData {
+         data_callback,
+         error_callback,
+@@ -802,6 +806,8 @@ where
+     Ok(StreamData {
+         mainloop,
+         listener,
++        #[cfg(all(target_os = "linux", feature = "realtime"))]
++        rt_promoter: rt_promoter_handle,
+         stream,
+         context,
+         core,
+@@ -861,6 +867,8 @@ where
+     let error_callback_out = error_callback.clone();
+     #[cfg(all(target_os = "linux", feature = "realtime"))]
+     let rt_promoter = RtPromoter::spawn(error_callback.clone(), config.sample_rate);
++    #[cfg(all(target_os = "linux", feature = "realtime"))]
++    let rt_promoter_handle = rt_promoter.as_ref().map(RtPromoter::demote_handle);
+     let data = UserData {
+         data_callback,
+         error_callback,
+@@ -1045,6 +1053,8 @@ where
+     Ok(StreamData {
+         mainloop,
+         listener,
++        #[cfg(all(target_os = "linux", feature = "realtime"))]
++        rt_promoter: rt_promoter_handle,
+         stream,
+         context,
+         core,

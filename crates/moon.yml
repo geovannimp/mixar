@@ -17,6 +17,20 @@ fileGroups:
     - 'Cargo.lock'
 
 tasks:
+  # Cargo resolves `[patch.crates-io]` before build scripts, so this side-
+  # effecting task must run before anything that compiles Rust. `mise install`
+  # also runs it; `cargo clean` removes `crates/target/patch`.
+  patch-crates:
+    command: 'bash'
+    args: ['../scripts/patch-crates.sh']
+    inputs:
+      - 'patches/**/*'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+    options:
+      runInCI: true
+      cache: false
+
   format-check:
     command: 'cargo'
     args: ['fmt', '--', '--check']
@@ -57,6 +71,8 @@ tasks:
       - '--'
       - '-D'
       - 'warnings'
+    deps:
+      - 'patch-crates'
     inputs:
       - '**/*.rs'
     options:
@@ -77,6 +93,8 @@ tasks:
       - '--'
       - '-D'
       - 'warnings'
+    deps:
+      - 'patch-crates'
     inputs:
       - '@group(sources)'
     options:
@@ -94,6 +112,8 @@ tasks:
   test-doctests:
     command: 'cargo'
     args: ['test', '--doc']
+    deps:
+      - 'patch-crates'
     inputs:
       - '@group(sources)'
     options:
@@ -103,6 +123,7 @@ tasks:
     command: 'cargo'
     args: ['nextest', 'run', '--workspace']
     deps:
+      - 'patch-crates'
       - 'test-doctests'
     inputs:
       - '@group(sources)'
@@ -112,6 +133,8 @@ tasks:
   build:
     command: 'cargo'
     args: ['build', '--all-targets', '--all-features']
+    deps:
+      - 'patch-crates'
     inputs:
       - '@group(sources)'
     options:
@@ -136,6 +159,8 @@ tasks:
       - '--'
       - '--all'
       - '../mappings'
+    deps:
+      - 'patch-crates'
     inputs:
       - 'controller/**/*'
     options:
@@ -150,6 +175,8 @@ tasks:
       - '--bin'
       - 'map-check'
       - '--'
+    deps:
+      - 'patch-crates'
     inputs:
       - 'controller/**/*'
     options:
