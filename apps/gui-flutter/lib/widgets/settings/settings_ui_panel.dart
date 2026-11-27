@@ -23,6 +23,8 @@ class SettingsUiPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // The stored flag is "setup done"; the switch asks the opposite question.
+    final setupScheduled = !draft.onboardingCompleted;
     return SettingsSectionBody(
       cards: [
         SettingsSectionCard(
@@ -87,7 +89,7 @@ class SettingsUiPanel extends StatelessWidget {
           // launch should open it. `Application` reads the flag once, so
           // saving here never swaps the window away from the mixer.
           trailing: SettingsHeaderSwitch(
-            value: !draft.onboardingCompleted,
+            value: setupScheduled,
             semanticsLabel: l10n.settingsUiOnboardingNextRun,
             onChanged: (scheduled) => onChanged(
               copyAppSettings(draft, onboardingCompleted: !scheduled),

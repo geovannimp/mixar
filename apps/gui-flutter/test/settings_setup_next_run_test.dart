@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'package:flutter/widgets.dart';
@@ -115,5 +117,40 @@ void main() {
     await pumpLaunch(tester, savedProfile(setupDone: false));
 
     expect(find.byType(OnboardingPage), findsOneWidget);
+  });
+
+  testWidgets('a slow settings read still hands the launch to setup', (
+    tester,
+  ) async {
+    configureTestSurface(tester);
+    final gate = Completer<void>();
+    final settings = FakeSettingsTransport(
+      copyAppSettings(defaultAppSettings(), onboardingCompleted: false),
+      ready: gate.future,
+    );
+    final container = ProviderContainer(overrides: appOverrides(settings));
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const Application(appTitle: 'Mixar'),
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.byType(AppShell),
+      findsOneWidget,
+      reason: 'unresolved settings keep the mixer, like a preload timeout',
+    );
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(OnboardingPage),
+      findsOneWidget,
+      reason: 'the read landed and setup was never done',
+    );
   });
 }

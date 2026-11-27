@@ -60,18 +60,20 @@ class _ApplicationState extends ConsumerState<Application> {
   /// still letting the setup flow hand over to it when it finishes.
   late bool _setupDone;
 
+  /// Whether [settings] report setup as done; unresolved reads as not done.
+  static bool _setupSeen(AsyncValue<AppSettings> settings) =>
+      settings.asData?.value.onboardingCompleted ?? false;
+
   @override
   void initState() {
     super.initState();
     // Resolved by the preload in `main()`; a preload timeout leaves this
     // `false` and the listener below latches once the read lands.
-    _setupDone =
-        ref.read(appSettingsProvider).asData?.value.onboardingCompleted ??
-        false;
+    _setupDone = _setupSeen(ref.read(appSettingsProvider));
     // The latch only moves one way, so a replay scheduled from Settings cannot
     // reopen setup after the flow handed over to the mixer.
     ref.listenManual(appSettingsProvider, (_, next) {
-      if (!_setupDone && (next.asData?.value.onboardingCompleted ?? false)) {
+      if (!_setupDone && _setupSeen(next)) {
         setState(() => _setupDone = true);
       }
     });
