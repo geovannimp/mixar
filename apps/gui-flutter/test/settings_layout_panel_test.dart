@@ -9,7 +9,9 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
@@ -67,7 +69,7 @@ void main() {
   }
 
   Finder waveformChoice() =>
-      find.byType(SettingsVisualChoice<WaveformPositionSetting>);
+      find.byType(SettingsSegmentedChoice<WaveformPositionSetting>);
   Finder drawerChoice() =>
       find.byType(SettingsVisualChoice<LibraryDrawerSideSetting>);
 
@@ -104,6 +106,15 @@ void main() {
         reason: 'missing $label option',
       );
     }
+
+    // The layout miniatures stay inside the segments, one per option.
+    expect(
+      find.descendant(
+        of: waveformChoice(),
+        matching: find.byType(SettingsPreviewBlock),
+      ),
+      findsAtLeastNWidgets(4),
+    );
   }, semanticsEnabled: false);
 
   testWidgets('the default layout reads as the Desktop preset', (tester) async {
@@ -177,7 +188,7 @@ void main() {
     );
 
     expect(
-      find.byType(SettingsVisualChoice<WaveformPositionSetting>),
+      find.byType(SettingsSegmentedChoice<WaveformPositionSetting>),
       findsNothing,
     );
     expect(find.text('POSITION'), findsNothing);
