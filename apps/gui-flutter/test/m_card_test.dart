@@ -227,6 +227,43 @@ void main() {
     expect(outlineRect.bottom, cardRect.bottom);
   });
 
+  testWidgets('the hover outline does not move or resize the card content', (
+    tester,
+  ) async {
+    final base = MixarThemeData.dark();
+    const childKey = ValueKey('m-card-child');
+
+    Widget build({Color? border}) => _mixarApp(
+      base,
+      Align(
+        alignment: Alignment.topLeft,
+        child: MCard(
+          sideBorders: false,
+          topBorder: false,
+          borderColor: border,
+          outlineInset: const EdgeInsets.symmetric(horizontal: 1),
+          child: const SizedBox(key: childKey, width: 40, height: 40),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(build());
+    final restCard = tester.getRect(find.byType(MCard));
+    final restChild = tester.getRect(find.byKey(childKey));
+
+    await tester.pumpWidget(build(border: _override));
+    expect(
+      tester.getRect(find.byType(MCard)),
+      restCard,
+      reason: 'hover chrome is an overlay and must not resize the card',
+    );
+    expect(
+      tester.getRect(find.byKey(childKey)),
+      restChild,
+      reason: 'a drag entering the card must not squeeze its content',
+    );
+  });
+
   testWidgets('an outline inset clamps to the card hairline', (tester) async {
     final base = MixarThemeData.dark();
     final borderW = base.style.borderWidth;

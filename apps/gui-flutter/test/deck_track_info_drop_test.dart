@@ -6,8 +6,10 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart' show Scaffold;
@@ -130,6 +132,8 @@ void main() {
   Border outlineBorder(WidgetTester tester, MixarThemeData theme) =>
       (outline(tester, theme).decoration as BoxDecoration).border! as Border;
 
+  final titleFinder = find.byKey(const ValueKey('deck-title-artist'));
+
   testWidgets(
     'the track info card closes its border while a track hangs over',
     (tester) async {
@@ -169,11 +173,10 @@ void main() {
       expect(outlineRect.top, cardRect.top);
       expect(outlineRect.bottom, cardRect.bottom);
 
-      // The closed outline makes the card reserve its side hairlines; the
-      // title-row math must account for them or the cluster grows into the
-      // title and pushes it below its floor.
+      // The card keeps its resting geometry while the outline paints over it:
+      // the title must not give way to the closed outline's hairline.
       expect(
-        tester.getRect(find.byKey(const ValueKey('deck-title-artist'))).width,
+        tester.getRect(titleFinder).width,
         56,
         reason: 'the closed outline must not steal room from the title',
       );
@@ -190,6 +193,55 @@ void main() {
       expect(loads.libraryLoads, [(0, 't1')]);
     },
   );
+
+  testWidgets('the drag hover does not squeeze the track info card', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpCard(tester, theme: theme, engine: FakeEngineTransport());
+
+    final restCard = tester.getRect(find.byType(MCard));
+    final restCover = tester.getRect(find.byType(DeckCover));
+    final restTitle = tester.getRect(titleFinder);
+    final restOverview = tester.getRect(find.byType(OverviewStrip));
+
+    final gesture = await startRowDrag(
+      tester,
+      tester.getCenter(find.byKey(_sourceKey)),
+    );
+    await gesture.moveTo(tester.getCenter(find.byKey(_cardKey)));
+    await tester.pump();
+
+    expect(
+      outlineFinder(theme),
+      findsOneWidget,
+      reason:
+          'the hover must be active for the geometry checks to mean anything',
+    );
+    expect(
+      tester.getRect(find.byType(MCard)),
+      restCard,
+      reason: 'the closed outline is an overlay, not extra chrome',
+    );
+    expect(
+      tester.getRect(find.byType(DeckCover)),
+      restCover,
+      reason: 'the cover must not shift or shrink while a track hangs over',
+    );
+    expect(
+      tester.getRect(titleFinder),
+      restTitle,
+      reason: 'the title must not give way to the outline hairline',
+    );
+    expect(
+      tester.getRect(find.byType(OverviewStrip)),
+      restOverview,
+      reason: 'the waveform strip must keep its full width',
+    );
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('a stopped engine clears a stale drop hover', (tester) async {
     final theme = MixarThemeData.dark();
