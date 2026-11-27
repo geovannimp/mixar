@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
@@ -112,6 +115,69 @@ void main() {
     expect(rects[4].top, closeTo(rects[0].bottom, 0.01));
     expect(rects[7].right, closeTo(290, 0.01));
     expect(rects[7].bottom, closeTo(260, 0.01));
+  });
+
+  testWidgets('a pane narrower than one device pixel paints nothing', (
+    tester,
+  ) async {
+    for (final width in [0.0, 0.5]) {
+      await pumpGrid(tester, size: Size(width, 200));
+      expect(tester.takeException(), isNull, reason: 'width $width');
+      expect(find.byKey(const Key('pad-0')), findsNothing);
+    }
+  });
+
+  testWidgets('a half-pixel origin does not blur the seams', (tester) async {
+    tester.view.physicalSize = const Size(400, 300);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final theme = MixarThemeData.dark();
+    final boundaryKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: (context, child) => MixarTheme(data: theme, child: child!),
+        home: Scaffold(
+          body: RepaintBoundary(
+            key: boundaryKey,
+            child: Padding(
+              // The compact transport column can put the grid on a half pixel.
+              padding: const EdgeInsets.only(left: 0.5, top: 0.5),
+              child: SizedBox(
+                width: 290,
+                height: 260,
+                child: PadGrid(
+                  children: [
+                    for (var i = 0; i < 8; i++)
+                      const ColoredBox(color: Color(0xFF111111)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final boundary =
+        boundaryKey.currentContext!.findRenderObject()!
+            as RenderRepaintBoundary;
+    final bytes = (await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      return data!.buffer.asUint8List();
+    }))!;
+    final colors = <int>{
+      for (var x = 1; x < 290; x++)
+        () {
+          final i = (200 * 291 + x) * 4;
+          return (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+        }(),
+    };
+    // Only the pad fill and the hairline: an antialiased seam would add a
+    // blended colour and read as a two-pixel border.
+    expect(colors, hasLength(2));
   });
 
   test('seams split the block into pixel-aligned cells', () {

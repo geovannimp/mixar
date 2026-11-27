@@ -40,31 +40,75 @@ List<Rect> padTableLines(Size size, double width, double devicePixelRatio) {
   ];
 }
 
-/// Paints [padTableLines] above the pads.
+/// Paints [padTableLines] above the pads, on whole device pixels.
+///
+/// Snapping has to happen in screen space: a parent can place the grid on a
+/// half pixel (a deck column split down the middle does exactly that), and a
+/// 1 px seam starting there is rasterised over two pixels. [blockKey] locates
+/// the block so each seam can be shifted by the fractional part of its origin.
 class PadTablePainter extends CustomPainter {
   const new({
     required this.color,
     required this.width,
     required this.devicePixelRatio,
+    this.blockKey,
   });
 
   final Color color;
   final double width;
   final double devicePixelRatio;
+  final GlobalKey? blockKey;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    for (final line in padTableLines(size, width, devicePixelRatio)) {
-      canvas.drawRect(line, paint);
+    // No antialiasing: the seams are already on whole pixels, and blurring the
+    // edges again would reintroduce the two-pixel look.
+    final paint = Paint()
+      ..color = color
+      ..isAntiAlias = false;
+    // One whole number of device pixels wide, at least one.
+    final stroke =
+        math.max(1, (width * devicePixelRatio).round()) / devicePixelRatio;
+    final offset = _originFraction();
+    // Floor, not round: the pixel that straddles a fractional boundary is the
+    // one where two pad fills composite into a darker fringe, so the seam has
+    // to cover that pixel rather than the next one.
+    double snap(double value, double fraction) =>
+        ((value + fraction) * devicePixelRatio).floor() / devicePixelRatio -
+        fraction;
+
+    for (final line in padTableLines(size, stroke, devicePixelRatio)) {
+      final vertical = line.height == size.height;
+      canvas.drawRect(
+        vertical
+            ? Rect.fromLTWH(snap(line.left, offset.dx), 0, stroke, size.height)
+            : Rect.fromLTWH(0, snap(line.top, offset.dy), size.width, stroke),
+        paint,
+      );
     }
+  }
+
+  /// Fractional part of the block's origin, in logical pixels.
+  Offset _originFraction() {
+    final object = blockKey?.currentContext?.findRenderObject();
+    if (object is! RenderBox || !object.hasSize) {
+      return Offset.zero;
+    }
+    final origin = object.localToGlobal(Offset.zero);
+    double fraction(double value) {
+      final device = value * devicePixelRatio;
+      return (device - device.floorToDouble()) / devicePixelRatio;
+    }
+
+    return Offset(fraction(origin.dx), fraction(origin.dy));
   }
 
   @override
   bool shouldRepaint(PadTablePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.width != width ||
-      oldDelegate.devicePixelRatio != devicePixelRatio;
+      oldDelegate.devicePixelRatio != devicePixelRatio ||
+      oldDelegate.blockKey != blockKey;
 }
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
@@ -92,6 +136,10 @@ class PadGrid extends StatefulWidget {
 class _PadGridState extends State<PadGrid> {
   final _controller = ScrollController();
 
+  /// Locates the tiled block so the painter can snap its seams to the screen's
+  /// device-pixel grid, not just to its own local one.
+  final _blockKey = GlobalKey();
+
   /// Lets a thumb drag stop an in-flight wheel glide.
   final _silkyKey = GlobalKey();
 
@@ -104,36 +152,38 @@ class _PadGridState extends State<PadGrid> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
-    return SilkyGlideHandoff(
-      scrollKey: _silkyKey,
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context)
-            .copyWith(dragDevices: const {}),
-        child: RawScrollbar(
-          controller: _controller,
-          thumbVisibility: true,
-          interactive: true,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-              double snapDown(double value) =>
-                  (value * devicePixelRatio).floor() / devicePixelRatio;
-              final double padHeight = math.max(
-                _kPadMinSide,
-                constraints.maxHeight / 2,
-              );
-              // Snap the block itself, not just the lines: a fractional block
-              // would leave a pad fill bleeding past its frame by a fraction
-              // of a pixel, which reads as a second border along the edge.
-              final double height = snapDown(2 * padHeight);
-              final double width = snapDown(constraints.maxWidth);
-              if (width <= 0) {
-                return const SizedBox.shrink();
-              }
-              final columns = padTableSeams(width, 4, devicePixelRatio);
-              final rows = padTableSeams(height, 2, devicePixelRatio);
-              return SilkySingleChildScrollView(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+        // Too narrow for a single device pixel: nothing to paint, and a
+        // scrollbar with no scrollable child would assert in debug.
+        if (constraints.maxWidth * devicePixelRatio < 1) {
+          return const SizedBox.shrink();
+        }
+        double snapDown(double value) =>
+            (value * devicePixelRatio).floor() / devicePixelRatio;
+        final double padHeight = math.max(
+          _kPadMinSide,
+          constraints.maxHeight / 2,
+        );
+        // Snap the block itself, not just the lines: a fractional block would
+        // leave a pad fill bleeding past its edge by a fraction of a pixel,
+        // which reads as a second border along the pane.
+        final double height = snapDown(2 * padHeight);
+        final double width = snapDown(constraints.maxWidth);
+        final columns = padTableSeams(width, 4, devicePixelRatio);
+        final rows = padTableSeams(height, 2, devicePixelRatio);
+        // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
+        return SilkyGlideHandoff(
+          scrollKey: _silkyKey,
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context)
+                .copyWith(dragDevices: const {}),
+            child: RawScrollbar(
+              controller: _controller,
+              thumbVisibility: true,
+              interactive: true,
+              child: SilkySingleChildScrollView(
                 key: _silkyKey,
                 controller: _controller,
                 physics: mixarScrollPhysics(context),
@@ -145,6 +195,7 @@ class _PadGridState extends State<PadGrid> {
                   child: Align(
                     alignment: Alignment.topLeft,
                     child: SizedBox(
+                      key: _blockKey,
                       width: width,
                       height: height,
                       child: Stack(
@@ -174,6 +225,7 @@ class _PadGridState extends State<PadGrid> {
                                 color: theme.colors.border,
                                 width: theme.style.borderWidth,
                                 devicePixelRatio: devicePixelRatio,
+                                blockKey: _blockKey,
                               ),
                             ),
                           ),
@@ -182,11 +234,11 @@ class _PadGridState extends State<PadGrid> {
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

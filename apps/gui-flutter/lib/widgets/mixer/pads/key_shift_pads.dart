@@ -45,6 +45,9 @@ class KeyShiftPads extends StatelessWidget {
               fillChild: true,
               child: PadFace(
                 action: 'SHIFT',
+                // A latched pad fills with primary; muted ink on it would
+                // fall to about 1.4:1 contrast.
+                actionColor: active ? theme.colors.primaryForeground : null,
                 label: Text(
                   pitchPadLabel(pad),
                   style: theme.typography.body.sm.copyWith(

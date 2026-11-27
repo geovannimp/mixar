@@ -127,6 +127,49 @@ void main() {
     );
   });
 
+  testWidgets('a lit pad keeps its stem fill while the pointer stays on it', (
+    tester,
+  ) async {
+    var mute = [false, false, false, false];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 360,
+            child: StatefulBuilder(
+              builder: (context, setState) => StemsPads(
+                stemMute: mute,
+                stemIsolate: null,
+                stemsReady: true,
+                stemsGenerating: false,
+                onPress: (slot) =>
+                    setState(() => mute = [...mute]..[slot] = !mute[slot]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(pointer.removePointer);
+    await pointer.addPointer(location: Offset.zero);
+    final pad = find.byType(PadButton).at(0);
+    await pointer.moveTo(tester.getCenter(pad));
+    await tester.pumpAndSettle();
+
+    await tester.tap(pad);
+    await tester.pumpAndSettle();
+
+    // The press lands with the pointer still over the pad: the hover tint must
+    // not bury the stem colour it just switched to.
+    expect(padDecorationOf(tester, pad).color, kStemColors[0]);
+  });
+
   testWidgets('pads without stems stay inert and neutral', (tester) async {
     var presses = 0;
     await pumpStems(

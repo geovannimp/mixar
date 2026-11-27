@@ -137,16 +137,19 @@ class _PadButtonState extends State<PadButton> {
     final pressedFill = !disabled && _pressed
         ? (chrome?.pressedFill ?? theme.colors.primary)
         : null;
-    // Pads never own a border colour: the seam is the shared neutral hairline
-    // on the right and bottom edges only, so neighbouring pads share one line.
+    // Pads never own a border colour: the seam is painted by the grid.
+    final restFill = chrome?.fill ?? theme.colors.card;
+    // Hover only tints the plain card face. A pad that fills with its own
+    // colour (a lit stem) keeps it: the pointer is still over the pad when the
+    // press lands, and darkening it would hide the state it just switched to.
     final fill = disabled
         ? theme.colors.secondary.withValues(alpha: 0.35)
         : pressedFill ??
               (!disabled && widget.active
                   ? theme.colors.primary
-                  : (!disabled && _hovered
+                  : (!disabled && _hovered && restFill == theme.colors.card
                         ? theme.colors.secondary
-                        : (chrome?.fill ?? theme.colors.card)));
+                        : restFill));
     final fg = disabled
         ? theme.colors.mutedForeground
         : pressedFill != null

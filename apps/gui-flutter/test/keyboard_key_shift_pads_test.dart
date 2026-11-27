@@ -67,6 +67,17 @@ void main() {
     // Latched pads fill with primary; the grid owns the seam.
     expect(activeDecoration.color, MixarThemeData.dark().colors.primary);
     expect(activeDecoration.border, isNull);
+    // The caption must switch to on-primary ink, or it falls to ~1.4:1.
+    final caption = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('key-shift-pad-2-active')),
+        matching: find.text('SHIFT'),
+      ),
+    );
+    expect(
+      caption.style?.color,
+      MixarThemeData.dark().colors.primaryForeground,
+    );
 
     await tester.tap(find.text('+2'));
     await tester.pumpAndSettle();
