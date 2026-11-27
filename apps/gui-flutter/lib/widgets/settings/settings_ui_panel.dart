@@ -10,27 +10,14 @@ import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
-import 'package:gui_flutter/widgets/settings/theme_swatch.dart';
+import 'package:gui_flutter/widgets/settings/settings_theme_picker.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 
 class SettingsUiPanel extends StatelessWidget {
-  const new({
-    required this.draft,
-    required this.onChanged,
-    required this.savedAccentPalette,
-    super.key,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
-
-  /// Accent the app is running with, before this draft is saved.
-  ///
-  /// The theme previews paint the mixed window in this palette so the accent
-  /// they show only switches after a save; the picker below still previews the
-  /// draft's own swatch.
-  final AccentPaletteSetting savedAccentPalette;
 
   static const List<UiLanguageSetting> _languages = UiLanguageSetting.values;
 
@@ -74,25 +61,8 @@ class SettingsUiPanel extends StatelessWidget {
           subtitle: l10n.settingsUiThemeDescription,
           child: SettingsField(
             label: l10n.settingsUiTheme,
-            child: SettingsVisualChoice<ThemeSetting>(
+            child: SettingsThemePicker(
               value: draft.theme,
-              axis: Axis.horizontal,
-              previewAspectRatio: 16 / 9,
-              options: [
-                for (final theme in const [
-                  ThemeSetting.system,
-                  ThemeSetting.light,
-                  ThemeSetting.dark,
-                ])
-                  SettingsVisualOption<ThemeSetting>(
-                    value: theme,
-                    label: themeSettingLabel(l10n, theme),
-                    preview: ThemeSwatch(
-                      value: theme,
-                      palette: accentPaletteFromSettings(savedAccentPalette),
-                    ),
-                  ),
-              ],
               onChanged: (theme) =>
                   onChanged(copyAppSettings(draft, theme: theme)),
             ),
