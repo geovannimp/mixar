@@ -102,8 +102,9 @@ class PadButton extends StatefulWidget {
   final VoidCallback? onPointerExit;
   final bool disabled;
 
-  /// Latched single-select state (e.g. the active semitone): the pad keeps its
-  /// card fill and wears a primary-colour border.
+  /// Latched single-select state (e.g. the active semitone): the pad fills
+  /// with the primary colour and its content switches to on-primary ink. Pads
+  /// paint no border; the grid owns every seam.
   final bool active;
   final PadChrome? chrome;
   final String? tooltip;

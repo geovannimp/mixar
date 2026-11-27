@@ -197,13 +197,23 @@ void main() {
         deckKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final bytes = (await tester.runAsync(() async {
       final image = await boundary.toImage();
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      return data!.buffer.asUint8List();
+      try {
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        return data!.buffer.asUint8List();
+      } finally {
+        image.dispose();
+      }
     }))!;
     final imageWidth = boundary.size.width.round();
     final i =
         ((panel.bottom.round() - 1) * imageWidth + panel.center.dx.round()) * 4;
-    expect((bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2], 0x27272A);
+    final border = MixarThemeData.dark().colors.border;
+    expect(
+      (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2],
+      (border.r * 255).round() << 16 |
+          (border.g * 255).round() << 8 |
+          (border.b * 255).round(),
+    );
   });
 
   testWidgets('right-hand deck puts the compact transport left of the panel', (

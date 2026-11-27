@@ -21,9 +21,9 @@ String _titleCase(String name) => name[0].toUpperCase() + name.substring(1);
 
 /// Stems pad mode: top row mute, bottom row solo (isolate).
 ///
-/// Mirrors the website stem pads: hairline stem-tinted border at rest, solid
-/// stem fill when lit, with a signal dot, uppercase mono action, and the stem
-/// name in the display face.
+/// Mirrors the website stem pads: neutral shared seam at rest (the grid paints
+/// it, not the pad), solid stem fill when lit, with a signal dot, uppercase
+/// mono action, and the stem name in the display face.
 class StemsPads extends StatelessWidget {
   const new({
     required this.stemMute,

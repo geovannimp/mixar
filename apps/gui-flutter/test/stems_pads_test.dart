@@ -63,6 +63,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<TestGesture> hoverPad(WidgetTester tester, int index) async {
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(pointer.removePointer);
+    await pointer.addPointer(location: Offset.zero);
+    await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(index)));
+    await tester.pumpAndSettle();
+    return pointer;
+  }
+
   testWidgets('rest pads show every stem with a neutral seam', (tester) async {
     await pumpStems(tester);
 
@@ -108,12 +117,7 @@ void main() {
 
   testWidgets('hover shifts the pad fill, not its seam', (tester) async {
     await pumpStems(tester);
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: Offset.zero);
-
-    await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(1)));
-    await tester.pumpAndSettle();
+    final pointer = await hoverPad(tester, 1);
     expect(
       padDecorationOf(tester, find.byType(PadButton).at(1)).color,
       theme.colors.secondary,
@@ -155,12 +159,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: Offset.zero);
     final pad = find.byType(PadButton).at(0);
-    await pointer.moveTo(tester.getCenter(pad));
-    await tester.pumpAndSettle();
+    await hoverPad(tester, 0);
 
     await tester.tap(pad);
     await tester.pumpAndSettle();

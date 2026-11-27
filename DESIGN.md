@@ -306,7 +306,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Tooltips:** `AppTooltip` — square bubble, no border radius; fill is the theme `card`, hairline `border` stroke, ink `foreground` / `mutedForeground` (follows light and dark)
 - **Toasts:** `showMixarToast` (context_show) for concise error feedback — square chrome
 - **Panels:** Bordered deck sections; performance controls grouped in bordered panels per deck spec
-- **Performance pads:** the eight-pad grid tiles its panel — no gaps, no inset, no aspect cap: four columns take the width and two rows the height at any pane shape. `PadGrid` paints the interior seams above the pads on whole device pixels; the header's hairline is the top edge, the deck's transport divider the bottom, and the sides stay bare so they cannot double the deck chrome's own hairline. Pads are fill only: cue/stem colour lives in the dot and the pressed fill
+- **Performance pads:** the eight-pad grid tiles its panel — no gaps, no inset, no aspect cap: four columns take the width and two rows the height at any pane shape, except a pane shorter than 48 px, which keeps 24 px rows and scrolls. `PadGrid` paints the seams above the pads on whole device pixels: the table's top edge and the interior seams, with no side frame (the deck chrome's own hairline draws those) and no bottom frame (the deck's transport divider does it, or the compact panel's own foot when the transport sits beside the pads). Pads are fill only: cue/stem colour lives in the dot, the pressed fill, and the lit stem fill
 
 ### Motion
 

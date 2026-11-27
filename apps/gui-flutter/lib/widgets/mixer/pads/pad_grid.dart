@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
@@ -29,9 +30,9 @@ List<double> padTableSeams(double extent, int cells, double devicePixelRatio) {
 
 /// Seams of the tiled pad table, in block coordinates.
 ///
-/// The grid paints the table's interior above the pads: the three column seams
-/// and the row seam. It draws no outer frame — the top is the panel's header
-/// divider, the bottom the deck's transport divider, and the sides are the
+/// The grid paints the table above the pads: a top edge plus the three column
+/// seams and the row seam. It draws no other frame — the bottom is the deck's
+/// transport divider (or the compact panel's own foot) and the sides are the
 /// hairline the deck chrome already draws against the pane (the tempo column's
 /// border or the tab rail's).
 @visibleForTesting
@@ -42,6 +43,7 @@ List<Rect> padTableLines(
   List<double> rows,
 ) {
   return <Rect>[
+    Rect.fromLTWH(0, 0, size.width, width),
     for (var column = 1; column < columns.length - 1; column++)
       Rect.fromLTWH(columns[column], 0, width, size.height),
     Rect.fromLTWH(0, rows[1], size.width, width),
@@ -92,7 +94,12 @@ class PadTablePainter extends CustomPainter {
         ((value + fraction) * devicePixelRatio).floor() / devicePixelRatio -
         fraction;
 
-    for (final line in padTableLines(size, stroke, columns, rows)) {
+    for (final line in padTableLines(
+      size,
+      stroke,
+      padTableSeams(size.width, 4, devicePixelRatio),
+      padTableSeams(size.height, 2, devicePixelRatio),
+    )) {
       final vertical = line.height == size.height;
       canvas.drawRect(
         vertical
@@ -123,8 +130,8 @@ class PadTablePainter extends CustomPainter {
       oldDelegate.color != color ||
       oldDelegate.width != width ||
       oldDelegate.devicePixelRatio != devicePixelRatio ||
-      oldDelegate.columns != columns ||
-      oldDelegate.rows != rows ||
+      !listEquals(oldDelegate.columns, columns) ||
+      !listEquals(oldDelegate.rows, rows) ||
       oldDelegate.blockKey != blockKey;
 }
 

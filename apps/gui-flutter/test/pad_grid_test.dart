@@ -173,8 +173,12 @@ void main() {
             as RenderRepaintBoundary;
     final bytes = (await tester.runAsync(() async {
       final image = await boundary.toImage();
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      return data!.buffer.asUint8List();
+      try {
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        return data!.buffer.asUint8List();
+      } finally {
+        image.dispose();
+      }
     }))!;
     final colors = <int>{
       for (var x = 1; x < 290; x++)
@@ -270,8 +274,12 @@ void main() {
             as RenderRepaintBoundary;
     final bytes = (await tester.runAsync(() async {
       final image = await boundary.toImage(pixelRatio: 1.3);
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      return data!.buffer.asUint8List();
+      try {
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        return data!.buffer.asUint8List();
+      } finally {
+        image.dispose();
+      }
     }))!;
     final imageWidth = (200 * 1.3).round();
     int pixel(int x, int y) {
@@ -286,18 +294,22 @@ void main() {
     expect(pixel(10, 32), 0x111111);
   });
 
-  test('the table paints interior seams only', () {
+  test('the table paints its top edge and interior seams', () {
     final lines = padTableLines(
       const Size(400, 300),
       1,
       padTableSeams(400, 4, 1),
       padTableSeams(300, 2, 1),
     );
-    // Three column seams and one row seam: no top (the header divider draws
-    // it), bottom (the transport divider), or side frame (the deck chrome's
-    // hairline) — so no edge is ever doubled.
-    expect(lines, hasLength(4));
-    expect([for (final line in lines) line.left], [100.0, 200.0, 300.0, 0.0]);
+    // Top edge, three column seams, one row seam. No bottom (the transport
+    // divider or the compact panel foot) and no side frame (the deck chrome's
+    // hairline draws those), so no edge is ever doubled.
+    expect(lines, hasLength(5));
+    expect(lines.first, const Rect.fromLTWH(0, 0, 400, 1));
+    expect(
+      [for (final line in lines.skip(1).take(3)) line.left],
+      [100.0, 200.0, 300.0],
+    );
     expect(lines.last, const Rect.fromLTWH(0, 150, 400, 1));
   });
 

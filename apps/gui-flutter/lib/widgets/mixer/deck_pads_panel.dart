@@ -199,15 +199,9 @@ class DeckPadsPanel extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (showsHeader) ...[
-              header,
-              // The pads tile the panel, so the header's edge is drawn here:
-              // one hairline, flush with the grid below it.
-              SizedBox(
-                height: theme.style.borderWidth,
-                child: ColoredBox(color: theme.colors.border),
-              ),
-            ],
+            // The grid paints the table's top edge itself, snapped to the
+            // screen's pixels; a header rule here would double it.
+            if (showsHeader) header,
             Expanded(child: _modeBody()),
           ],
         );
@@ -219,6 +213,9 @@ class DeckPadsPanel extends StatelessWidget {
     }
 
     return DecoratedBox(
+      // Above the pads: the tiled grid now fills the body's edges, so a
+      // background border would sit under the pad fills.
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         border: Border.all(color: theme.colors.border),
         borderRadius: theme.style.borderRadius.sm,

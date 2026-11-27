@@ -328,31 +328,36 @@ void main() {
     expect(frameBorder.bottom.color, theme.colors.border);
   });
 
-  testWidgets('a hairline divides the mode header from the pads', (
+  testWidgets("the pad table's top edge sits under the mode header", (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true);
-    final theme = MixarThemeData.dark();
-    final divider = find.byWidgetPredicate(
-      (widget) =>
-          widget is SizedBox &&
-          widget.height == theme.style.borderWidth &&
-          widget.child is ColoredBox,
-      description: 'header divider',
-    );
-    expect(divider, findsOneWidget);
-
-    final line = tester.getRect(divider);
     final header = tester.getRect(find.byType(MixarSelect<PadMode>));
     final firstPad = tester.getRect(find.byType(PadButton).first);
     final lastPad = tester.getRect(find.byType(PadButton).at(3));
 
-    // Flush with the pads below it and above them, never clipped by them.
-    expect(line.bottom, closeTo(firstPad.top, 0.5));
-    expect(line.top, greaterThanOrEqualTo(header.bottom));
-    // It spans the grid's columns, edge to edge.
-    expect(line.left, closeTo(firstPad.left, 0.5));
-    expect(line.right, closeTo(lastPad.right, 0.5));
+    // The grid paints that edge itself, snapped to the screen's pixels, so a
+    // header rule beside it would double the line.
+    final seam = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is PadTablePainter,
+      description: 'table seams',
+    );
+    final layer = tester.getRect(seam);
+    expect(layer.top, closeTo(firstPad.top, 0.5));
+    expect(layer.top, greaterThanOrEqualTo(header.bottom));
+    expect(layer.left, closeTo(firstPad.left, 0.5));
+    expect(layer.right, closeTo(lastPad.right, 0.5));
+
+    final painter =
+        tester.widget<CustomPaint>(seam).painter! as PadTablePainter;
+    final lines = padTableLines(
+      Size(painter.columns.last, painter.rows.last),
+      1,
+      painter.columns,
+      painter.rows,
+    );
+    // First line = the top edge, spanning the block's width.
+    expect(lines.first, Rect.fromLTWH(0, 0, painter.columns.last, 1));
   });
 
   testWidgets('the grid paints three column seams and one row seam', (
