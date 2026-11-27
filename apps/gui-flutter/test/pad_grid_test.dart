@@ -105,6 +105,33 @@ void main() {
     }
   });
 
+  testWidgets('pads tile a fractional pane without gaps', (tester) async {
+    final rects = await pumpPads(tester, size: const Size(290, 260));
+    for (var column = 1; column < 4; column++) {
+      expect(rects[column].left, closeTo(rects[column - 1].right, 0.01));
+      expect(rects[column].width, anyOf(72.0, 73.0));
+    }
+    expect(rects[4].left, closeTo(rects[0].left, 0.01));
+    expect(rects[4].top, closeTo(rects[0].bottom, 0.01));
+    expect(rects[7].right, closeTo(290, 0.01));
+    expect(rects[7].bottom, closeTo(260, 0.01));
+  });
+
+  test('seams split the block into pixel-aligned cells', () {
+    expect(padTableSeams(290, 4, 1), [0.0, 73.0, 145.0, 218.0, 290.0]);
+    expect(padTableSeams(100, 4, 1), [0.0, 25.0, 50.0, 75.0, 100.0]);
+
+    // At a fractional ratio every seam still lands on a device pixel and the
+    // block never grows past the space it was given.
+    final seams = padTableSeams(123, 4, 1.25);
+    expect(seams.first, 0);
+    expect(seams.last, lessThanOrEqualTo(123));
+    for (final seam in seams) {
+      final device = seam * 1.25;
+      expect(device, closeTo(device.roundToDouble(), 1e-9));
+    }
+  });
+
   test('the table seams frame the block and divide it evenly', () {
     final lines = padTableLines(const Size(400, 300), 1, 1);
     // Left and right frames, three column seams, one row seam.
