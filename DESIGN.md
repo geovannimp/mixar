@@ -306,6 +306,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Tooltips:** `AppTooltip` — square bubble, no border radius; fill is the theme `card`, hairline `border` stroke, ink `foreground` / `mutedForeground` (follows light and dark)
 - **Toasts:** `showMixarToast` (context_show) for concise error feedback — square chrome
 - **Panels:** Bordered deck sections; performance controls grouped in bordered panels per deck spec
+- **Performance pads:** the eight-pad grid fills its panel — rows take the panel's height, columns its width, and a pad's width caps at 16:10 (`PadGrid`)
 
 ### Motion
 
