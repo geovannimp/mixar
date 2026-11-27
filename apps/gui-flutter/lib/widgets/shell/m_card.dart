@@ -25,10 +25,9 @@ class MCard extends StatelessWidget {
   /// chrome painted over its edge — the window frame along a deck's outer
   /// edge, say — so the outline is not cropped there.
   ///
-  /// Every side is clamped to `[0, borderWidth]`. The card reserves exactly
-  /// that hairline before its content, so the largest inset keeps the stroke
-  /// on the card but lets it sit over the content's first hairline; negative
-  /// sides resolve to the card edge.
+  /// Every side is clamped to `[0, borderWidth]`. The overlay paints over the
+  /// card's content, so an inset may sit on the content's first hairline;
+  /// negative sides resolve to the card edge.
   final EdgeInsetsGeometry outlineInset;
 
   /// Whether the hairline also runs down the left and right edges. Off, the
@@ -78,10 +77,12 @@ class MCard extends StatelessWidget {
       ),
       // Inset so edge-flush fills (cover art, waveforms) cannot paint over the
       // hairline — DecoratedBox draws the stroke behind its child. Only the
-      // sides that carry a hairline are reserved, so content sits flush where
-      // there is none (a card with `sideBorders`/`topBorder` off).
+      // sides that carry a resting hairline are reserved, so content sits
+      // flush where there is none (a card with `sideBorders`/`topBorder` off).
+      // The hover outline is a foreground overlay: it must not reserve any
+      // room, or a drag entering the card would shift and squeeze its content.
       child: Padding(
-        padding: borderColor != null || sideBorders
+        padding: sideBorders
             ? EdgeInsets.all(borderW)
             : EdgeInsets.only(top: topBorder ? borderW : 0, bottom: borderW),
         child: content,
@@ -121,8 +122,9 @@ class MCard extends StatelessWidget {
   }
 }
 
-/// The card reserves [max] of padding before its content, so the interaction
-/// outline may use that ring and no more.
+/// The inset stays within the card hairline ([max]), so the interaction
+/// outline's stroke can sit over the content's first hairline but never past
+/// the card edge.
 EdgeInsets _clampOutlineInset(EdgeInsets inset, double max) =>
     EdgeInsets.fromLTRB(
       _clampInset(inset.left, max),
