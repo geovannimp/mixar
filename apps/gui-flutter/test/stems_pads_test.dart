@@ -63,9 +63,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('rest pads show every stem with a tinted hairline border', (
-    tester,
-  ) async {
+  testWidgets('rest pads show every stem with a neutral seam', (tester) async {
     await pumpStems(tester);
 
     expect(find.text('MUTE'), findsNWidgets(4));
@@ -80,10 +78,8 @@ void main() {
         find.byType(PadButton).at(stem),
       );
       expect(decoration.color, theme.colors.card);
-      expect(
-        decoration.border!.top.color,
-        Color.lerp(theme.colors.border, kStemColors[stem], 0.4),
-      );
+      // The seam is shared and neutral: no stem tint on the border.
+      expect((decoration.border! as Border).right.color, theme.colors.border);
     }
   });
 
@@ -98,12 +94,10 @@ void main() {
 
     final muted = padDecorationOf(tester, find.byType(PadButton).at(0));
     expect(muted.color, kStemColors[0]);
-    expect(muted.border!.top.color, kStemColors[0]);
 
     // Solo pads are slots 4–7; isolate index 2 lights slot 6 (Other).
     final isolated = padDecorationOf(tester, find.byType(PadButton).at(6));
     expect(isolated.color, kStemColors[2]);
-    expect(isolated.border!.top.color, kStemColors[2]);
 
     // A non-lit pad keeps the card fill.
     expect(
@@ -112,7 +106,7 @@ void main() {
     );
   });
 
-  testWidgets('hover lifts the border to the full stem color', (tester) async {
+  testWidgets('hover shifts the pad fill, not its seam', (tester) async {
     await pumpStems(tester);
     final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(pointer.removePointer);
@@ -121,15 +115,15 @@ void main() {
     await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(1)));
     await tester.pumpAndSettle();
     expect(
-      padDecorationOf(tester, find.byType(PadButton).at(1)).border!.top.color,
-      kStemColors[1],
+      padDecorationOf(tester, find.byType(PadButton).at(1)).color,
+      theme.colors.secondary,
     );
 
     await pointer.moveTo(Offset.zero);
     await tester.pumpAndSettle();
     expect(
-      padDecorationOf(tester, find.byType(PadButton).at(1)).border!.top.color,
-      Color.lerp(theme.colors.border, kStemColors[1], 0.4),
+      padDecorationOf(tester, find.byType(PadButton).at(1)).color,
+      theme.colors.card,
     );
   });
 
@@ -144,7 +138,7 @@ void main() {
 
     final decoration = padDecorationOf(tester, find.byType(PadButton).at(0));
     expect(decoration.color, theme.colors.secondary.withValues(alpha: 0.35));
-    expect(decoration.border!.top.color, theme.colors.border);
+    expect((decoration.border! as Border).right.color, theme.colors.border);
 
     // Inert pads must not keep the bright name that made them look enabled.
     final name = tester.widget<Text>(find.text('Drums').first);

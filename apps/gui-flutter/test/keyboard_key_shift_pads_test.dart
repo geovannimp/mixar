@@ -64,8 +64,12 @@ void main() {
       tester,
       find.byKey(const ValueKey('key-shift-pad-2-active')),
     );
-    // Single-select stays outline-only: card fill + accent stroke.
-    expect(activeDecoration.color, MixarThemeData.dark().colors.card);
+    // Latched pads fill with primary; the seam stays neutral.
+    expect(activeDecoration.color, MixarThemeData.dark().colors.primary);
+    expect(
+      (activeDecoration.border! as Border).right.color,
+      MixarThemeData.dark().colors.border,
+    );
 
     await tester.tap(find.text('+2'));
     await tester.pumpAndSettle();

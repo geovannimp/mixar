@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
 const _kPadMinSide = 24.0;
@@ -47,6 +48,17 @@ class _PadGridState extends State<PadGrid> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
+    // The table's outer top line belongs to the panel's divider above the grid,
+    // so the grid draws only the left edge; each pad draws its right and bottom.
+    final frame = BoxDecoration(
+      border: Border(
+        left: BorderSide(
+          color: theme.colors.border,
+          width: theme.style.borderWidth,
+        ),
+      ),
+    );
     // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
     return SilkyGlideHandoff(
       scrollKey: _silkyKey,
@@ -78,22 +90,25 @@ class _PadGridState extends State<PadGrid> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(
-                    child: SizedBox(
-                      width: 4 * padWidth,
-                      height: 2 * padHeight,
-                      child: Column(
-                        children: [
-                          _padRow(
-                            widget.children.sublist(0, 4),
-                            padWidth,
-                            padHeight,
-                          ),
-                          _padRow(
-                            widget.children.sublist(4),
-                            padWidth,
-                            padHeight,
-                          ),
-                        ],
+                    child: DecoratedBox(
+                      decoration: frame,
+                      child: SizedBox(
+                        width: 4 * padWidth,
+                        height: 2 * padHeight,
+                        child: Column(
+                          children: [
+                            _padRow(
+                              widget.children.sublist(0, 4),
+                              padWidth,
+                              padHeight,
+                            ),
+                            _padRow(
+                              widget.children.sublist(4),
+                              padWidth,
+                              padHeight,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

@@ -98,20 +98,17 @@ class StemsPads extends StatelessWidget {
   TextStyle _nameStyle(MixarThemeData theme) => theme.typography.display.md
       .copyWith(fontWeight: FontWeight.w600, height: 1.25, letterSpacing: -0.4);
 
-  /// Rest/lit chrome for a stem pad; the 40% stem tint is shared with the dot.
+  /// Rest/lit chrome for a stem pad; the stem colour lives in the dot and the
+  /// lit fill, never in the seam.
   PadChrome _stemChrome(
     MixarThemeData theme,
     Color stemColor,
     Color nameColor, {
     required bool lit,
   }) {
-    // color-mix(in srgb, stem 40%, border), resolved to a solid hairline.
-    final restBorder = Color.lerp(theme.colors.border, stemColor, 0.4)!;
     return PadChrome(
-      border: lit ? stemColor : restBorder,
       fill: lit ? stemColor : theme.colors.card,
       foreground: nameColor,
-      hoverBorder: stemColor,
       pressedFill: stemColor,
       pressedForeground: kPadOnAccentColor,
     );

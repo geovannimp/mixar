@@ -194,13 +194,24 @@ class DeckPadsPanel extends StatelessWidget {
     );
 
     final body = LayoutBuilder(
-      builder: (context, constraints) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (constraints.maxHeight > _headerMinHeight) header,
-          Expanded(child: _modeBody()),
-        ],
-      ),
+      builder: (context, constraints) {
+        final showsHeader = constraints.maxHeight > _headerMinHeight;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showsHeader) ...[
+              header,
+              // The pads tile the panel, so the header's edge is drawn here:
+              // one hairline, flush with the grid below it.
+              SizedBox(
+                height: theme.style.borderWidth,
+                child: ColoredBox(color: theme.colors.border),
+              ),
+            ],
+            Expanded(child: _modeBody()),
+          ],
+        );
+      },
     );
 
     if (!bordered) {

@@ -327,6 +327,33 @@ void main() {
     expect(frameBorder.bottom.color, theme.colors.border);
   });
 
+  testWidgets('a hairline divides the mode header from the pads', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final theme = MixarThemeData.dark();
+    final divider = find.byWidgetPredicate(
+      (widget) =>
+          widget is SizedBox &&
+          widget.height == theme.style.borderWidth &&
+          widget.child is ColoredBox,
+      description: 'header divider',
+    );
+    expect(divider, findsOneWidget);
+
+    final line = tester.getRect(divider);
+    final header = tester.getRect(find.byType(MixarSelect<PadMode>));
+    final firstPad = tester.getRect(find.byType(PadButton).first);
+    final lastPad = tester.getRect(find.byType(PadButton).at(3));
+
+    // Flush with the pads below it and above them, never clipped by them.
+    expect(line.bottom, closeTo(firstPad.top, 0.5));
+    expect(line.top, greaterThanOrEqualTo(header.bottom));
+    // It spans the grid's columns, edge to edge.
+    expect(line.left, closeTo(firstPad.left, 0.5));
+    expect(line.right, closeTo(lastPad.right, 0.5));
+  });
+
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
     final pressed = <(int, bool)>[];
     await pumpPanel(
@@ -469,9 +496,10 @@ void main() {
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();
     expect(padDecorationOf(tester, pad).color, theme.colors.primary);
+    // The seam stays neutral while held; the fill carries the state.
     expect(
-      padDecorationOf(tester, pad).border!.top.color,
-      theme.colors.primary,
+      (padDecorationOf(tester, pad).border! as Border).right.color,
+      theme.colors.border,
     );
 
     await gesture.up();
@@ -699,7 +727,7 @@ void main() {
     );
   });
 
-  testWidgets('assigned cue rests outlined and fills while held', (
+  testWidgets('assigned cue rests neutral and fills while held', (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true);
@@ -716,17 +744,8 @@ void main() {
             as BoxDecoration;
 
     expect(decoration().color, theme.colors.card);
-    final restingBorder = decoration().border!.top.color;
-    expect(
-      restingBorder,
-      Color.lerp(
-        theme.colors.border,
-        hotCueAccent(0).fill.withValues(alpha: 1),
-        0.4,
-      ),
-    );
-    // The accent fill is a 20% tint; the hairline must still be opaque.
-    expect(restingBorder.a, 1.0);
+    // A set cue never tints its seam; the accent dot and held fill carry it.
+    expect((decoration().border! as Border).right.color, theme.colors.border);
 
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();
