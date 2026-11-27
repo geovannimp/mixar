@@ -17,13 +17,12 @@ void main() {
     );
   });
 
-  Future<List<Rect>> pumpPads(WidgetTester tester, {required Size size}) async {
+  Future<void> pumpGrid(WidgetTester tester, {required Size size}) async {
     // The test surface is 800 x 600 by default; a wider pane needs a wider one.
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final theme = MixarThemeData.dark();
-    final keys = List<Key>.generate(8, (i) => Key('pad-$i'));
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromMixar(theme),
@@ -34,15 +33,24 @@ void main() {
             height: size.height,
             child: PadGrid(
               children: [
-                for (final key in keys)
-                  ColoredBox(key: key, color: const Color(0xFF111111)),
+                for (var i = 0; i < 8; i++)
+                  ColoredBox(
+                    key: Key('pad-$i'),
+                    color: const Color(0xFF111111),
+                  ),
               ],
             ),
           ),
         ),
       ),
     );
-    return [for (final key in keys) tester.getRect(find.byKey(key))];
+  }
+
+  Future<List<Rect>> pumpPads(WidgetTester tester, {required Size size}) async {
+    await pumpGrid(tester, size: size);
+    return [
+      for (var i = 0; i < 8; i++) tester.getRect(find.byKey(Key('pad-$i'))),
+    ];
   }
 
   testWidgets('pads fill a wide pane', (tester) async {
@@ -97,5 +105,12 @@ void main() {
       expect(rect.width, closeTo(5, 0.5));
       expect(rect.height, closeTo(88, 0.5));
     }
+  });
+
+  testWidgets('a pane too narrow for the gaps paints no rows', (tester) async {
+    // 28 px pane: the 8 px inset leaves 12 px, less than the three 8 px gaps.
+    await pumpGrid(tester, size: const Size(28, 200));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('pad-0')), findsNothing);
   });
 }

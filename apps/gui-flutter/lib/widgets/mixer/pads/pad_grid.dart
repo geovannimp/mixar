@@ -71,6 +71,9 @@ class _PadGridState extends State<PadGrid> {
                   0,
                   math.min(widthFit, _kPadMaxAspect * padHeight),
                 );
+                // No width for even one pad: painting the rows would overflow
+                // the pane's three gaps, so the grid stays empty instead.
+                final bool fitsColumns = widthFit > 0;
                 return SilkySingleChildScrollView(
                   key: _silkyKey,
                   controller: _controller,
@@ -83,25 +86,27 @@ class _PadGridState extends State<PadGrid> {
                       minHeight: constraints.maxHeight,
                     ),
                     child: Center(
-                      child: SizedBox(
-                        width: 4 * padWidth + 3 * gap,
-                        height: 2 * padHeight + gap,
-                        child: Column(
-                          children: [
-                            _padRow(
-                              widget.children.sublist(0, 4),
-                              padWidth,
-                              padHeight,
-                            ),
-                            const SizedBox(height: gap),
-                            _padRow(
-                              widget.children.sublist(4),
-                              padWidth,
-                              padHeight,
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: fitsColumns
+                          ? SizedBox(
+                              width: 4 * padWidth + 3 * gap,
+                              height: 2 * padHeight + gap,
+                              child: Column(
+                                children: [
+                                  _padRow(
+                                    widget.children.sublist(0, 4),
+                                    padWidth,
+                                    padHeight,
+                                  ),
+                                  const SizedBox(height: gap),
+                                  _padRow(
+                                    widget.children.sublist(4),
+                                    padWidth,
+                                    padHeight,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ),
                 );
