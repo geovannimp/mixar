@@ -3,6 +3,7 @@ import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
@@ -12,7 +13,6 @@ import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/settings/theme_swatch.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsUiPanel extends StatelessWidget {
   const new({
@@ -101,23 +101,8 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiAccentColor,
           subtitle: l10n.settingsUiAccentDescription,
-          child: SettingsVisualChoice<AccentPaletteSetting>(
+          child: SettingsAccentPicker(
             value: draft.accentPalette,
-            axis: Axis.horizontal,
-            options: [
-              for (final palette in const [
-                AccentPaletteSetting.teal,
-                AccentPaletteSetting.blue,
-                AccentPaletteSetting.violet,
-                AccentPaletteSetting.orange,
-                AccentPaletteSetting.pink,
-              ])
-                SettingsVisualOption<AccentPaletteSetting>(
-                  value: palette,
-                  label: accentPaletteLabel(l10n, palette),
-                  preview: _AccentSwatch(palette: palette),
-                ),
-            ],
             onChanged: (palette) =>
                 onChanged(copyAppSettings(draft, accentPalette: palette)),
           ),
@@ -134,30 +119,6 @@ class SettingsUiPanel extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// The palette's own mid tone, centred above its label.
-class _AccentSwatch extends StatelessWidget {
-  const new({required this.palette});
-
-  final AccentPaletteSetting palette;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Center(
-      child: SizedBox.square(
-        dimension: 24,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: accentPaletteFromSettings(palette).scale.s500,
-            border: Border.all(color: theme.colors.border),
-          ),
-        ),
-      ),
     );
   }
 }
