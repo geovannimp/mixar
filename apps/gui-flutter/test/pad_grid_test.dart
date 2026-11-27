@@ -236,6 +236,56 @@ void main() {
     expect(painter.rows[1], closeTo(24, 1e-9));
   });
 
+  testWidgets('the painted seam sits on the clamped split', (tester) async {
+    tester.view.physicalSize = const Size(400, 300);
+    tester.view.devicePixelRatio = 1.3;
+    addTearDown(tester.view.reset);
+    final theme = MixarThemeData.dark();
+    final boundaryKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: (context, child) => MixarTheme(data: theme, child: child!),
+        home: Scaffold(
+          body: RepaintBoundary(
+            key: boundaryKey,
+            child: SizedBox(
+              width: 200,
+              height: 40,
+              child: PadGrid(
+                children: [
+                  for (var i = 0; i < 8; i++)
+                    const ColoredBox(color: Color(0xFF111111)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final boundary =
+        boundaryKey.currentContext!.findRenderObject()!
+            as RenderRepaintBoundary;
+    final bytes = (await tester.runAsync(() async {
+      final image = await boundary.toImage(pixelRatio: 1.3);
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      return data!.buffer.asUint8List();
+    }))!;
+    final imageWidth = (200 * 1.3).round();
+    int pixel(int x, int y) {
+      final i = (y * imageWidth + x) * 4;
+      return (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    }
+
+    // The clamped 24 px split is device row 31 (24 x 1.3 = 31.2), one pixel
+    // thick, with pad fill either side.
+    expect(pixel(10, 31), 0x27272A);
+    expect(pixel(10, 30), 0x111111);
+    expect(pixel(10, 32), 0x111111);
+  });
+
   test('the table paints interior seams only', () {
     final lines = padTableLines(
       const Size(400, 300),
