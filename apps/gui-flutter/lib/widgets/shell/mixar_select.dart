@@ -275,6 +275,12 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   /// one card instead of keeping its closed pill.
   final ShadPopoverController _popoverController = ShadPopoverController();
 
+  /// Mobile style never shows a popover: ShadSelect's own Enter/Space
+  /// shortcuts ask this controller to open, so it opens the option dialog
+  /// instead of an empty panel.
+  late final _MixarMobilePopoverController _mobilePopoverController =
+      _MixarMobilePopoverController(onOpen: _openMobilePicker);
+
   /// Laid-out trigger height, used for the open card's cap.
   final GlobalKey _triggerKey = GlobalKey();
   double? _triggerHeight;
@@ -360,6 +366,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   void dispose() {
     _popoverController.removeListener(_onPopoverChanged);
     _popoverController.dispose();
+    _mobilePopoverController.dispose();
     super.dispose();
   }
 
@@ -370,12 +377,21 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   Future<void> _openMobilePicker() async {
     if (!widget.enabled || _isOpening) return;
     _isOpening = true;
+    // The dialog route can rebuild while this select is already deactivated
+    // (Skip pops it mid-flight), so its builder must not reach back into the
+    // widget or its now-unstable element tree.
+    final theme = context.theme;
+    final title = widget.dialogTitle ?? 'Select';
+    final options = widget.options;
+    final labelBuilder = widget.optionLabelBuilder ?? widget.labelBuilder;
+    final subtitleBuilder = widget.subtitleBuilder;
+    final value = widget.value;
     try {
       final selected = await showMixarDialog<T>(
         context: context,
         builder: (dialogContext) {
           return MixarDialog(
-            title: widget.dialogTitle ?? 'Select',
+            title: title,
             // Rows are full-bleed bands: they paint and separate edge to edge,
             // with the text inset by their own horizontal padding.
             contentPadding: EdgeInsets.zero,
@@ -383,19 +399,17 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final (index, option) in widget.options.indexed) ...[
+                for (final (index, option) in options.indexed) ...[
                   if (index > 0)
                     MDivider(
                       padding: EdgeInsets.zero,
-                      color: context.theme.colors.border,
+                      color: theme.colors.border,
                     ),
                   _MobileSelectOption(
                     key: ValueKey(option),
-                    label: (widget.optionLabelBuilder ?? widget.labelBuilder)(
-                      option,
-                    ),
-                    subtitle: widget.subtitleBuilder?.call(option),
-                    selected: option == widget.value,
+                    label: labelBuilder(option),
+                    subtitle: subtitleBuilder?.call(option),
+                    selected: option == value,
                     onPress: () => Navigator.of(dialogContext).pop(option),
                   ),
                 ],
@@ -428,6 +442,11 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   Widget _buildForStyle(SelectStyleSetting style) {
     final theme = context.theme;
     final mobile = style == SelectStyleSetting.mobile;
+    // Mobile opens a dialog, so its trigger gets a controller that never
+    // shows a panel; desktop joins the trigger to its real popover.
+    final popoverController = mobile
+        ? _mobilePopoverController
+        : _popoverController;
 
     Widget buildOption(T option, {BorderRadius? radius}) {
       final optionLabel = (widget.optionLabelBuilder ?? widget.labelBuilder)(
@@ -468,9 +487,9 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
             ? constraints.maxWidth
             : null;
         return ListenableBuilder(
-          listenable: _popoverController,
+          listenable: popoverController,
           builder: (context, _) {
-            final open = _popoverController.isOpen;
+            final open = popoverController.isOpen;
             final above = _openAbove ?? false;
             // Wait one frame for the measured direction before reshaping the
             // trigger; until then it keeps its closed pill so nothing flashes.
@@ -555,7 +574,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   placeholder: widget.placeholder,
                   minWidth: fill,
                   padding: openSelectPadding,
-                  popoverController: _popoverController,
+                  popoverController: popoverController,
                   decoration: _borderDecoration(
                     theme,
                     radius,
@@ -697,4 +716,23 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
       secondaryFocusedBorder: ShadBorder(radius: radius),
     );
   }
+}
+
+/// Popover controller for the mobile select style.
+///
+/// ShadSelect's own Enter/Space shortcuts ask the controller to show the
+/// panel; in mobile mode there is no panel (the option list lives in a
+/// dialog), so every show request opens that dialog instead. `isOpen` stays
+/// false, which keeps the trigger's closed chrome and stops an empty popover
+/// from opening for keyboard users.
+class _MixarMobilePopoverController extends ShadPopoverController {
+  new({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  void show() => onOpen();
+
+  @override
+  void toggle() => onOpen();
 }

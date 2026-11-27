@@ -147,6 +147,33 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void _apply(AppSettings next) {
     setState(() => _draft = next);
     ref.read(onboardingDraftProvider.notifier).set(next);
+    // Some controls (the analytics switch) drop the window focus when a
+    // pointer press lands while they are unfocused. The wizard's Enter and
+    // arrow shortcuts live on [_keyboardFocus]; give them back once the press
+    // has finished, but only when nothing else claimed focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _keyboardFocus.hasPrimaryFocus) {
+        return;
+      }
+      final focused = FocusManager.instance.primaryFocus;
+      if (focused == null || focused is FocusScopeNode) {
+        _keyboardFocus.requestFocus();
+      }
+    });
+  }
+
+  /// Dismiss any picker opened by a step before the run leaves the page.
+  ///
+  /// A select's dialog is a route above the page, and the onboarding title bar
+  /// stays clickable above the dialog's scrim, so Skip (or Finish) can land
+  /// with a picker still open; without this the dialog would outlive setup and
+  /// hang over the mixer.
+  void _dismissOpenPanels() {
+    final pageRoute = ModalRoute.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (pageRoute != null && navigator.canPop()) {
+      navigator.popUntil((route) => route == pageRoute);
+    }
   }
 
   bool get _last => _index == _steps.length - 1;
@@ -167,6 +194,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Future<void> _finish() async {
+    _dismissOpenPanels();
     final result = await _save(_draft!);
     if (result == null || !mounted) {
       // No page left to preview on or toast on: the mixer is already up.
@@ -206,6 +234,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (_busy) {
       return;
     }
+    _dismissOpenPanels();
     // Lock the page before the first await: the settings read can take a
     // frame, and a second click would enter `_save` twice.
     setState(() => _busy = true);

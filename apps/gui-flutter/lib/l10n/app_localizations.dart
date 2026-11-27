@@ -927,30 +927,6 @@ abstract class AppLocalizations {
   /// **'Or import an existing library'**
   String get onboardingLibraryImportLabel;
 
-  /// No description provided for @onboardingPrivacyOffTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep it private'**
-  String get onboardingPrivacyOffTitle;
-
-  /// No description provided for @onboardingPrivacyOffBody.
-  ///
-  /// In en, this message translates to:
-  /// **'No analytics. Nothing leaves this machine.'**
-  String get onboardingPrivacyOffBody;
-
-  /// No description provided for @onboardingPrivacyOnTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Share anonymous usage'**
-  String get onboardingPrivacyOnTitle;
-
-  /// No description provided for @onboardingPrivacyOnBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Anonymous events and error reports. No music, no file names.'**
-  String get onboardingPrivacyOnBody;
-
   /// No description provided for @onboardingLanguageFollowsOs.
   ///
   /// In en, this message translates to:
