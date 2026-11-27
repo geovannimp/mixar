@@ -22,10 +22,9 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-import 'support/render_capture.dart';
-
 import 'support/mixar_material_app.dart';
 import 'support/pad_finders.dart';
+import 'support/render_capture.dart';
 
 Finder padLabel(String text) => find.text(text, findRichText: true);
 
@@ -355,16 +354,17 @@ void main() {
     expect(layer.left, closeTo(firstPad.left, 0.5));
     expect(layer.right, closeTo(lastPad.right, 0.5));
 
-    final painter =
-        tester.widget<CustomPaint>(seam).painter! as PadTablePainter;
-    final lines = padTableLines(
-      Size(painter.columns.last, painter.rows.last),
-      1,
-      painter.columns,
-      painter.rows,
+    // Painted, not just computed: the grid's first pixel row is the seam.
+    final bytes = await captureRgba(tester, panelKey);
+    final imageWidth = tester.getRect(find.byKey(panelKey)).width.round();
+    final i = (layer.top.round() * imageWidth + firstPad.center.dx.round()) * 4;
+    final border = MixarThemeData.dark().colors.border;
+    expect(
+      (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2],
+      (border.r * 255).round() << 16 |
+          (border.g * 255).round() << 8 |
+          (border.b * 255).round(),
     );
-    // First line = the top edge, spanning the block's width.
-    expect(lines.first, Rect.fromLTWH(0, 0, painter.columns.last, 1));
   });
 
   testWidgets('the grid paints three column seams and one row seam', (
