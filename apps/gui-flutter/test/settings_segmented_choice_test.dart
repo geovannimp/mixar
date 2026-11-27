@@ -274,6 +274,18 @@ void main() {
     expect(eight, closeTo(seven * 2, 2));
   }, semanticsEnabled: false);
 
+  testWidgets('the row breakpoint flips at three 120px cells', (tester) async {
+    await pumpChoice(tester, const ['One', 'Two', 'Three'], width: 360);
+    expect(horizontalDividers(), findsNothing);
+    expect(verticalDividers(), findsNWidgets(2));
+
+    // One pixel under three minimum cells, the same options wrap.
+    await pumpChoice(tester, const ['One', 'Two', 'Three'], width: 359);
+    expect(horizontalDividers(), findsOneWidget);
+    expect(verticalDividers(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  }, semanticsEnabled: false);
+
   testWidgets('a very narrow pane stacks the options in one column', (
     tester,
   ) async {
