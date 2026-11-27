@@ -14,6 +14,7 @@ import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -113,14 +114,14 @@ class SettingsMixerPanel extends StatelessWidget {
                   children: [
                     SettingsField(
                       label: l10n.settingsMixerCrossfaderCurve,
-                      child: SettingsVisualChoice<String>(
+                      child: SettingsSegmentedChoice<String>(
                         value: draft.defaultCrossfaderCurve,
                         options: [
                           for (final id in _curveOptions(draft))
-                            SettingsVisualOption<String>(
+                            SettingsSegmentedOption<String>(
                               value: id,
                               label: _curveLabel(draft, id, l10n),
-                              preview: _CurvePreview(
+                              leading: _CurveGlyph(
                                 channels: _previewChannels(draft, id),
                                 colors: [
                                   deckInk(
@@ -447,6 +448,22 @@ class _CapabilityStatus {
   final Color color;
   final Color fill;
   final Color border;
+}
+
+/// The two deck curves at segment scale, small enough to sit beside a label in
+/// the segmented control while keeping the shape readable.
+class _CurveGlyph extends StatelessWidget {
+  const new({required this.channels, required this.colors});
+
+  final List<List<double>> channels;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 36,
+    height: 20,
+    child: _CurvePreview(channels: channels, colors: colors),
+  );
 }
 
 /// The two deck curves as the crossfader draws them.

@@ -49,9 +49,15 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
   final List<SettingsSegmentedOption<T>> options;
   final ValueChanged<T> onChanged;
 
-  /// Below this width a segment cannot hold its leading mark without
-  /// crushing the label, so the mark drops out and the label keeps the space.
-  static const _leadingBreakpoint = 56.0;
+  /// Below this width a segment cannot hold its leading mark *and* a readable
+  /// label, so the mark drops out and the label keeps the space.
+  static const _leadingBreakpoint = 96.0;
+
+  /// Up to one row of cells reads as a pill. Past that, the same cells wrap
+  /// into a three-column grid — a single row of six or more labels would
+  /// squeeze every segment below readability.
+  static const _rowLimit = 5;
+  static const _gridColumns = 3;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +65,18 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final theme = context.theme;
-    final radius = theme.style.borderRadius.pill;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final singleRow = options.length <= _rowLimit;
+        final columns = singleRow ? options.length : _gridColumns;
         final showLeading =
             !constraints.hasBoundedWidth ||
-            constraints.maxWidth / options.length >= _leadingBreakpoint;
+            constraints.maxWidth / columns >= _leadingBreakpoint;
+        // A grid keeps the softer card corner: the pill's stadium radius
+        // would bite into the corner cells of a multi-row track.
+        final radius = singleRow
+            ? theme.style.borderRadius.pill
+            : theme.style.borderRadius.dialog;
         return DecoratedBox(
           decoration: BoxDecoration(
             border: Border.all(
@@ -75,34 +87,76 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: radius,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < options.length; i++) ...[
-                    if (i > 0)
-                      MDivider(
-                        axis: Axis.vertical,
-                        padding: EdgeInsets.zero,
-                        color: theme.colors.border,
-                      ),
-                    Expanded(
-                      child: _Segment<T>(
-                        option: options[i],
-                        selected: options[i].value == value,
-                        showLeading: showLeading,
-                        onPress: () => onChanged(options[i].value),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            child: singleRow
+                ? _row(theme, showLeading)
+                : _grid(theme, showLeading),
           ),
         );
       },
     );
   }
+
+  Widget _row(MixarThemeData theme, bool showLeading) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < options.length; i++) ...[
+            if (i > 0) _divider(theme, Axis.vertical),
+            Expanded(child: _cell(options[i], showLeading)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _grid(MixarThemeData theme, bool showLeading) {
+    final rows = (options.length + _gridColumns - 1) ~/ _gridColumns;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var row = 0; row < rows; row++) ...[
+          if (row > 0) _divider(theme, Axis.horizontal),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var column = 0; column < _gridColumns; column++) ...[
+                  if (column > 0) _divider(theme, Axis.vertical),
+                  Expanded(
+                    child: switch (row * _gridColumns + column) {
+                      final index when index < options.length => _cell(
+                        options[index],
+                        showLeading,
+                      ),
+                      // Short last row: the empty slot keeps the column
+                      // hairlines running to the bottom edge.
+                      _ => const SizedBox.shrink(),
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _cell(SettingsSegmentedOption<T> option, bool showLeading) {
+    return _Segment<T>(
+      option: option,
+      selected: option.value == value,
+      showLeading: showLeading,
+      onPress: () => onChanged(option.value),
+    );
+  }
+
+  Widget _divider(MixarThemeData theme, Axis axis) => MDivider(
+    axis: axis,
+    padding: EdgeInsets.zero,
+    color: theme.colors.border,
+  );
 }
 
 class _Segment<T> extends StatelessWidget {

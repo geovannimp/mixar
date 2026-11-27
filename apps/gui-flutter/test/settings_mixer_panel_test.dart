@@ -8,6 +8,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -265,7 +266,7 @@ void main() {
     await _pumpPanel(tester, changed: changed);
 
     expect(find.text('Crossfader'), findsOneWidget);
-    expect(find.byType(SettingsVisualChoice<String>), findsOneWidget);
+    expect(find.byType(SettingsSegmentedChoice<String>), findsOneWidget);
     expect(find.text('Constant power'), findsOneWidget);
     expect(find.text('Linear'), findsOneWidget);
     expect(find.text('Fast cut'), findsOneWidget);
@@ -316,7 +317,7 @@ void main() {
       tester.widget<SettingsHeaderSwitch>(crossfaderSwitch).value,
       isFalse,
     );
-    expect(find.byType(SettingsVisualChoice<String>), findsNothing);
+    expect(find.byType(SettingsSegmentedChoice<String>), findsNothing);
     expect(find.text('Invert (swap A and B)'), findsNothing);
   }, semanticsEnabled: false);
 
