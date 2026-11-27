@@ -385,6 +385,48 @@ void main() {
     expect(find.text('Quality'), findsNothing);
   });
 
+  testWidgets('switching to the mobile style closes an open panel', (
+    tester,
+  ) async {
+    final style = ValueNotifier(SelectStyleSetting.desktop);
+    addTearDown(style.dispose);
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 220,
+              child: ValueListenableBuilder<SelectStyleSetting>(
+                valueListenable: style,
+                builder: (context, value, _) => MixarSelect<String>(
+                  value: 'low',
+                  options: const ['low', 'medium', 'high'],
+                  labelBuilder: (option) => option,
+                  onChanged: (_) {},
+                  style: value,
+                  dialogTitle: 'Quality',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await openMenu(tester);
+    expect(popoverDecoratorFinder(borderlessTop: true), findsOneWidget);
+
+    // The style can change while its panel is open (Settings saves the select
+    // style); the panel must close through the same controller it opened on.
+    style.value = SelectStyleSetting.mobile;
+    await tester.pumpAndSettle();
+
+    expect(popoverDecoratorFinder(borderlessTop: true), findsNothing);
+    expect(find.text('medium'), findsNothing);
+  });
+
   testWidgets('mobile style opens its dialog from the keyboard', (
     tester,
   ) async {

@@ -271,15 +271,15 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   bool _pointerSelection = false;
   bool _isOpening = false;
 
-  /// Tracks the desktop dropdown so the trigger can join the open panel into
-  /// one card instead of keeping its closed pill.
-  final ShadPopoverController _popoverController = ShadPopoverController();
+  /// Tracks the dropdown so the trigger can join the open panel into one card
+  /// instead of keeping its closed pill. The same instance serves both styles:
+  /// swapping controllers under an open popover leaves its overlay behind.
+  late final _MixarSelectPopoverController _popoverController =
+      _MixarSelectPopoverController(onMobileOpen: _openMobilePicker);
 
-  /// Mobile style never shows a popover: ShadSelect's own Enter/Space
-  /// shortcuts ask this controller to open, so it opens the option dialog
-  /// instead of an empty panel.
-  late final _MixarMobilePopoverController _mobilePopoverController =
-      _MixarMobilePopoverController(onOpen: _openMobilePicker);
+  /// Set while a style change hands an open panel over to the mobile dialog;
+  /// the close has to wait for the frame that rebuilt the trigger.
+  bool _closingForMobile = false;
 
   /// Laid-out trigger height, used for the open card's cap.
   final GlobalKey _triggerKey = GlobalKey();
@@ -366,7 +366,6 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   void dispose() {
     _popoverController.removeListener(_onPopoverChanged);
     _popoverController.dispose();
-    _mobilePopoverController.dispose();
     super.dispose();
   }
 
@@ -442,11 +441,17 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   Widget _buildForStyle(SelectStyleSetting style) {
     final theme = context.theme;
     final mobile = style == SelectStyleSetting.mobile;
-    // Mobile opens a dialog, so its trigger gets a controller that never
-    // shows a panel; desktop joins the trigger to its real popover.
-    final popoverController = mobile
-        ? _mobilePopoverController
-        : _popoverController;
+    _popoverController.mobile = mobile;
+    // A panel opened under the desktop style has to play its close animation
+    // through the same controller; closing it inside build would notify
+    // listeners mid-layout.
+    if (mobile && _popoverController.isOpen && !_closingForMobile) {
+      _closingForMobile = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _closingForMobile = false;
+        if (mounted) _popoverController.hide();
+      });
+    }
 
     Widget buildOption(T option, {BorderRadius? radius}) {
       final optionLabel = (widget.optionLabelBuilder ?? widget.labelBuilder)(
@@ -487,9 +492,9 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
             ? constraints.maxWidth
             : null;
         return ListenableBuilder(
-          listenable: popoverController,
+          listenable: _popoverController,
           builder: (context, _) {
-            final open = popoverController.isOpen;
+            final open = _popoverController.isOpen;
             final above = _openAbove ?? false;
             // Wait one frame for the measured direction before reshaping the
             // trigger; until then it keeps its closed pill so nothing flashes.
@@ -574,7 +579,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   placeholder: widget.placeholder,
                   minWidth: fill,
                   padding: openSelectPadding,
-                  popoverController: popoverController,
+                  popoverController: _popoverController,
                   decoration: _borderDecoration(
                     theme,
                     radius,
@@ -718,21 +723,36 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   }
 }
 
-/// Popover controller for the mobile select style.
+/// Popover controller shared by both select styles.
 ///
 /// ShadSelect's own Enter/Space shortcuts ask the controller to show the
 /// panel; in mobile mode there is no panel (the option list lives in a
 /// dialog), so every show request opens that dialog instead. `isOpen` stays
-/// false, which keeps the trigger's closed chrome and stops an empty popover
-/// from opening for keyboard users.
-class _MixarMobilePopoverController extends ShadPopoverController {
-  new({required this.onOpen});
+/// false while mobile, which keeps the trigger's closed chrome and stops an
+/// empty popover from opening for keyboard users.
+class _MixarSelectPopoverController extends ShadPopoverController {
+  new({required this.onMobileOpen});
 
-  final VoidCallback onOpen;
+  final VoidCallback onMobileOpen;
+
+  /// Set from the resolved select style on every build.
+  bool mobile = false;
 
   @override
-  void show() => onOpen();
+  void show() {
+    if (mobile) {
+      onMobileOpen();
+      return;
+    }
+    super.show();
+  }
 
   @override
-  void toggle() => onOpen();
+  void toggle() {
+    if (mobile) {
+      onMobileOpen();
+      return;
+    }
+    super.toggle();
+  }
 }
