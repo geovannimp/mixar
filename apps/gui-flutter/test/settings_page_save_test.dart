@@ -42,6 +42,17 @@ Future<void> _pumpSettingsPage(
   await tester.pumpAndSettle();
 }
 
+/// Stays put by dismissing the card: a press on the dimmed body, at the
+/// barrier's own top-left so the point holds for a bottom sheet too.
+Future<void> _dismissByBarrier(WidgetTester tester) async {
+  final barrier = tester
+      .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+      .firstWhere((b) => b.color == kMixarDialogScrimColor);
+  final barrierRect = tester.getRect(find.byWidget(barrier));
+  await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('a dirty section asks before the sidebar leaves it', (
     tester,
@@ -78,22 +89,15 @@ void main() {
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
     expect(find.text(l10n.settingsSectionUnsavedBody), findsOneWidget);
 
-    // The section switch drops Cancel: Discard and Save are its only buttons,
-    // and an outside press is the way to stay.
+    // Both prompts offer Discard and Save only; dismissing the card is how
+    // the user stays put.
     expect(find.widgetWithText(AppButton, l10n.settingsCancel), findsNothing);
     expect(
       find.widgetWithText(AppButton, l10n.settingsDiscard),
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
-    // Stay put by dismissing the card: a press on the dimmed body, at the
-    // barrier's own top-left so the point holds for a bottom sheet too.
-    final barrier = tester
-        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-        .firstWhere((b) => b.color == kMixarDialogScrimColor);
-    final barrierRect = tester.getRect(find.byWidget(barrier));
-    await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
-    await tester.pumpAndSettle();
+    await _dismissByBarrier(tester);
     expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);
     expect(
@@ -196,8 +200,15 @@ void main() {
 
     await askToLeave();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
-    await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
-    await tester.pumpAndSettle();
+    // Same footer as the section prompt: no Cancel, dismissing is the way to
+    // stay put.
+    expect(find.widgetWithText(AppButton, l10n.settingsCancel), findsNothing);
+    expect(
+      find.widgetWithText(AppButton, l10n.settingsDiscard),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
+    await _dismissByBarrier(tester);
     expect(left, isFalse);
 
     // Discarding is a real leave: the shell may navigate away.

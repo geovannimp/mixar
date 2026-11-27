@@ -744,21 +744,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   ///
   /// The section switch offers only Discard and Save: the sidebar is one click
   /// away, so a third button to stay put would only crowd the footer.
-  /// Dismissing the dialog (outside press or Esc) still means "stay here".
+  /// Dismissing the dialog (outside press, close button, or Esc) still means
+  /// "stay here".
   Future<bool> _confirmSectionExit() => _confirmUnsavedExit(
     AppLocalizations.of(context)!.settingsSectionUnsavedBody,
-    showCancel: false,
   );
 
   /// Asks how to leave something that has unsaved edits.
   ///
-  /// A section switch and shell navigation answer the same way; only [body] and
-  /// whether the footer offers Cancel differ. Discarding drops the draft, so
-  /// whichever place is left, the next one opens clean.
-  Future<bool> _confirmUnsavedExit(
-    String body, {
-    bool showCancel = true,
-  }) async {
+  /// A section switch and shell navigation answer the same way; only [body]
+  /// differs. Discarding drops the draft, so whichever place is left, the next
+  /// one opens clean. Staying is dismissing the dialog, never a footer button.
+  Future<bool> _confirmUnsavedExit(String body) async {
     if (_busy) {
       return false;
     }
@@ -773,12 +770,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       title: l10n.settingsUnsavedTitle,
       body: body,
       actions: [
-        if (showCancel)
-          MixarDialogAction(
-            label: l10n.settingsCancel,
-            value: _CloseChoice.cancel,
-            variant: MixarButtonVariant.outline,
-          ),
         MixarDialogAction(
           label: l10n.settingsDiscard,
           value: _CloseChoice.discard,
@@ -792,7 +783,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
     switch (choice) {
       case null:
-      case _CloseChoice.cancel:
         return false;
       case _CloseChoice.discard:
         setState(() => _draft = _baseline);
@@ -824,7 +814,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 }
 
-enum _CloseChoice { save, discard, cancel }
+enum _CloseChoice { save, discard }
 
 class _SettingsSectionPanel extends StatelessWidget {
   const new({

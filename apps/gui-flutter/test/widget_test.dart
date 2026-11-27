@@ -43,6 +43,7 @@ import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_back_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
@@ -1241,7 +1242,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
+    // No Cancel in the footer: dismissing the card is how the user stays.
+    expect(find.widgetWithText(AppButton, 'Cancel'), findsNothing);
+    final barrier = tester
+        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+        .firstWhere((b) => b.color == kMixarDialogScrimColor);
+    final barrierRect = tester.getRect(find.byWidget(barrier));
+    await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsPage), findsOneWidget);
 
