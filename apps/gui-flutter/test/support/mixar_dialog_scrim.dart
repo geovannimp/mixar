@@ -2,16 +2,31 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 
-/// Stays in a Mixar dialog by pressing its dimmed body, then settles.
+Iterable<ModalBarrier> _mixarScrims(WidgetTester tester) => tester
+    .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+    .where((barrier) => barrier.color == kMixarDialogScrimColor);
+
+/// Stays in a Mixar dialog by pressing its dimmed body, then asserts it closed.
 ///
-/// The point sits at the barrier's own top-left corner, so it holds for the
-/// narrow bottom-sheet layout as well as the centered card. Callers assert
-/// what staying meant (the draft kept, the page still open) afterwards.
+/// The press lands on the scrim above the card: a narrow bottom-sheet layout
+/// can put a tall card over a corner, so a corner press would hit the card.
+/// The scrim must be gone afterwards, so a press that only grazed the card
+/// fails here instead of passing as a dismissal.
 Future<void> dismissMixarDialogScrim(WidgetTester tester) async {
-  final barrier = tester
-      .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-      .firstWhere((b) => b.color == kMixarDialogScrimColor);
-  final barrierRect = tester.getRect(find.byWidget(barrier));
-  await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
+  final scrims = _mixarScrims(tester);
+  if (scrims.isEmpty) {
+    fail(
+      'No Mixar dialog scrim on screen: open the dialog before dismissing it.',
+    );
+  }
+  final barrierRect = tester.getRect(find.byWidget(scrims.first));
+  final point = Offset(barrierRect.center.dx, barrierRect.top + 8);
+  if (point.dy >= tester.getRect(find.byType(MixarDialog).first).top) {
+    fail('The dialog card leaves no scrim above it to press.');
+  }
+  await tester.tapAt(point);
   await tester.pumpAndSettle();
+  if (_mixarScrims(tester).isNotEmpty) {
+    fail('The dialog is still open after pressing the scrim.');
+  }
 }
