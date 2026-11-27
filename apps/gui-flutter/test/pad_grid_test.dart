@@ -53,39 +53,39 @@ void main() {
     ];
   }
 
-  testWidgets('pads fill a wide pane', (tester) async {
+  testWidgets('pads tile the pane edge to edge', (tester) async {
     final rects = await pumpPads(tester, size: const Size(400, 300));
-    // Inner pane is 384 x 284 after the 8 px inset: 90 wide, 138 tall.
+    // Four columns and two rows with no gaps: 100 wide, 150 tall.
     for (final rect in rects) {
-      expect(rect.width, closeTo(90, 0.5));
-      expect(rect.height, closeTo(138, 0.5));
+      expect(rect.width, closeTo(100, 0.5));
+      expect(rect.height, closeTo(150, 0.5));
     }
-    expect(rects[0].left, closeTo(8, 0.5));
-    expect(rects[0].top, closeTo(8, 0.5));
-    expect(rects[3].right, closeTo(392, 0.5));
-    expect(rects[7].bottom, closeTo(292, 0.5));
-    expect(rects[4].top, closeTo(8 + 138 + 8, 0.5));
+    expect(rects[0].left, closeTo(0, 0.5));
+    expect(rects[0].top, closeTo(0, 0.5));
+    expect(rects[3].right, closeTo(400, 0.5));
+    expect(rects[7].bottom, closeTo(300, 0.5));
+    expect(rects[4].top, closeTo(150, 0.5));
   });
 
   testWidgets('pads cap at 16:10 and centre in a very wide pane', (
     tester,
   ) async {
     final rects = await pumpPads(tester, size: const Size(1000, 300));
-    // 984 x 284 inner: rows take 138, the cap holds width at 1.6 x 138.
+    // Rows take 150, so the cap holds width at 1.6 x 150.
     for (final rect in rects) {
-      expect(rect.width, closeTo(220.8, 0.5));
-      expect(rect.height, closeTo(138, 0.5));
+      expect(rect.width, closeTo(240, 0.5));
+      expect(rect.height, closeTo(150, 0.5));
     }
-    const blockWidth = 4 * 220.8 + 3 * 8;
-    expect(rects[0].left, closeTo(8 + (984 - blockWidth) / 2, 0.5));
-    expect(rects[3].right, closeTo(8 + (984 + blockWidth) / 2, 0.5));
+    const blockWidth = 4 * 240.0;
+    expect(rects[0].left, closeTo((1000 - blockWidth) / 2, 0.5));
+    expect(rects[3].right, closeTo((1000 + blockWidth) / 2, 0.5));
   });
 
   testWidgets('pads stretch tall in a narrow pane', (tester) async {
     final rects = await pumpPads(tester, size: const Size(200, 400));
     for (final rect in rects) {
-      expect(rect.width, closeTo(40, 0.5));
-      expect(rect.height, closeTo(188, 0.5));
+      expect(rect.width, closeTo(50, 0.5));
+      expect(rect.height, closeTo(200, 0.5));
     }
   });
 
@@ -96,21 +96,12 @@ void main() {
     expect(find.byType(Scrollable), findsWidgets);
   });
 
-  testWidgets('a pane barely wider than the gaps keeps four columns', (
-    tester,
-  ) async {
-    final rects = await pumpPads(tester, size: const Size(60, 200));
+  testWidgets('a pane narrower than four pads still tiles it', (tester) async {
+    final rects = await pumpPads(tester, size: const Size(28, 200));
     expect(tester.takeException(), isNull);
     for (final rect in rects) {
-      expect(rect.width, closeTo(5, 0.5));
-      expect(rect.height, closeTo(88, 0.5));
+      expect(rect.width, closeTo(7, 0.5));
+      expect(rect.height, closeTo(100, 0.5));
     }
-  });
-
-  testWidgets('a pane too narrow for the gaps paints no rows', (tester) async {
-    // 28 px pane: the 8 px inset leaves 12 px, less than the three 8 px gaps.
-    await pumpGrid(tester, size: const Size(28, 200));
-    expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('pad-0')), findsNothing);
   });
 }

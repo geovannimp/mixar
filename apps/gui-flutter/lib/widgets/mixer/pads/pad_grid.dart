@@ -5,7 +5,6 @@ import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
-const _kPadGap = 8.0;
 const _kPadMinSide = 24.0;
 
 /// Widest a pad may get relative to its height.
@@ -13,9 +12,10 @@ const _kPadMaxAspect = 16 / 10;
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
 ///
-/// The grid fills the pane: rows take its height, columns its width. A pad's
-/// width caps at 16:10, so a wide pane centres a narrower block instead of
-/// stretching pads; short panes scroll without crushing controls.
+/// Pads tile the pane edge to edge, table-style: no gaps and no outer inset.
+/// A pad's width caps at 16:10, so a pane wider than that ratio centres a
+/// narrower block instead of stretching pads; short panes scroll without
+/// crushing controls.
 class PadGrid extends StatefulWidget {
   new({required this.children, super.key}) {
     if (children.length != 8) {
@@ -57,61 +57,49 @@ class _PadGridState extends State<PadGrid> {
           controller: _controller,
           thumbVisibility: true,
           interactive: true,
-          child: Padding(
-            padding: const EdgeInsets.all(_kPadGap),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const gap = _kPadGap;
-                final double padHeight = math.max(
-                  _kPadMinSide,
-                  (constraints.maxHeight - gap) / 2,
-                );
-                final double widthFit = (constraints.maxWidth - 3 * gap) / 4;
-                final double padWidth = math.max(
-                  0,
-                  math.min(widthFit, _kPadMaxAspect * padHeight),
-                );
-                // No width for even one pad: painting the rows would overflow
-                // the pane's three gaps, so the grid stays empty instead.
-                final bool fitsColumns = widthFit > 0;
-                return SilkySingleChildScrollView(
-                  key: _silkyKey,
-                  controller: _controller,
-                  physics: mixarScrollPhysics(context),
-                  decayLogFactor: kMixarSilkyDecayLogFactor,
-                  blockWebOverscrollBehaviorX:
-                      kMixarSilkyBlockWebOverscrollBehaviorX,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: Center(
-                      child: fitsColumns
-                          ? SizedBox(
-                              width: 4 * padWidth + 3 * gap,
-                              height: 2 * padHeight + gap,
-                              child: Column(
-                                children: [
-                                  _padRow(
-                                    widget.children.sublist(0, 4),
-                                    padWidth,
-                                    padHeight,
-                                  ),
-                                  const SizedBox(height: gap),
-                                  _padRow(
-                                    widget.children.sublist(4),
-                                    padWidth,
-                                    padHeight,
-                                  ),
-                                ],
-                              ),
-                            )
-                          : const SizedBox.shrink(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double padHeight = math.max(
+                _kPadMinSide,
+                constraints.maxHeight / 2,
+              );
+              final double widthFit = constraints.maxWidth / 4;
+              final double padWidth = math.max(
+                0,
+                math.min(widthFit, _kPadMaxAspect * padHeight),
+              );
+              return SilkySingleChildScrollView(
+                key: _silkyKey,
+                controller: _controller,
+                physics: mixarScrollPhysics(context),
+                decayLogFactor: kMixarSilkyDecayLogFactor,
+                blockWebOverscrollBehaviorX:
+                    kMixarSilkyBlockWebOverscrollBehaviorX,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: SizedBox(
+                      width: 4 * padWidth,
+                      height: 2 * padHeight,
+                      child: Column(
+                        children: [
+                          _padRow(
+                            widget.children.sublist(0, 4),
+                            padWidth,
+                            padHeight,
+                          ),
+                          _padRow(
+                            widget.children.sublist(4),
+                            padWidth,
+                            padHeight,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -124,10 +112,8 @@ Widget _padRow(List<Widget> pads, double padWidth, double padHeight) {
     height: padHeight,
     child: Row(
       children: [
-        for (var i = 0; i < pads.length; i++) ...[
-          if (i > 0) const SizedBox(width: _kPadGap),
-          SizedBox(width: padWidth, height: padHeight, child: pads[i]),
-        ],
+        for (final pad in pads)
+          SizedBox(width: padWidth, height: padHeight, child: pad),
       ],
     ),
   );
