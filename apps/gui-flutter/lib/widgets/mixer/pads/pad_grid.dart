@@ -8,9 +8,14 @@ import 'package:silky_scroll/silky_scroll.dart';
 const _kPadGap = 8.0;
 const _kPadMinSide = 24.0;
 
+/// Widest a pad may get relative to its height.
+const _kPadMaxAspect = 16 / 10;
+
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
 ///
-/// Pads stay square and centered; short panes scroll without crushing controls.
+/// The grid fills the pane: rows take its height, columns its width. A pad's
+/// width caps at 16:10, so a wide pane centres a narrower block instead of
+/// stretching pads; short panes scroll without crushing controls.
 class PadGrid extends StatefulWidget {
   new({required this.children, super.key}) {
     if (children.length != 8) {
@@ -56,15 +61,15 @@ class _PadGridState extends State<PadGrid> {
             padding: const EdgeInsets.all(_kPadGap),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final double side = math.max(
+                const gap = _kPadGap;
+                final double padHeight = math.max(
+                  _kPadMinSide,
+                  (constraints.maxHeight - gap) / 2,
+                );
+                final double widthFit = (constraints.maxWidth - 3 * gap) / 4;
+                final double padWidth = math.max(
                   0,
-                  math.min(
-                    (constraints.maxWidth - 3 * _kPadGap) / 4,
-                    math.max(
-                      _kPadMinSide,
-                      (constraints.maxHeight - _kPadGap) / 2,
-                    ),
-                  ),
+                  math.min(widthFit, _kPadMaxAspect * padHeight),
                 );
                 return SilkySingleChildScrollView(
                   key: _silkyKey,
@@ -79,13 +84,21 @@ class _PadGridState extends State<PadGrid> {
                     ),
                     child: Center(
                       child: SizedBox(
-                        width: 4 * side + 3 * _kPadGap,
-                        height: 2 * side + _kPadGap,
+                        width: 4 * padWidth + 3 * gap,
+                        height: 2 * padHeight + gap,
                         child: Column(
                           children: [
-                            _padRow(widget.children.sublist(0, 4), side),
-                            const SizedBox(height: _kPadGap),
-                            _padRow(widget.children.sublist(4), side),
+                            _padRow(
+                              widget.children.sublist(0, 4),
+                              padWidth,
+                              padHeight,
+                            ),
+                            const SizedBox(height: gap),
+                            _padRow(
+                              widget.children.sublist(4),
+                              padWidth,
+                              padHeight,
+                            ),
                           ],
                         ),
                       ),
@@ -101,14 +114,14 @@ class _PadGridState extends State<PadGrid> {
   }
 }
 
-Widget _padRow(List<Widget> pads, double side) {
+Widget _padRow(List<Widget> pads, double padWidth, double padHeight) {
   return SizedBox(
-    height: side,
+    height: padHeight,
     child: Row(
       children: [
         for (var i = 0; i < pads.length; i++) ...[
           if (i > 0) const SizedBox(width: _kPadGap),
-          SizedBox(width: side, height: side, child: pads[i]),
+          SizedBox(width: padWidth, height: padHeight, child: pads[i]),
         ],
       ],
     ),
