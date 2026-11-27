@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -67,6 +68,35 @@ void main() {
         tester.getCenter(find.text(label)).dy.round(),
     };
     expect(centres, hasLength(1));
+  }, semanticsEnabled: false);
+
+  testWidgets('selection is a coloured cell border, not a fill', (
+    tester,
+  ) async {
+    await pumpChoice(tester, const ['One', 'Two', 'Three']);
+
+    Finder cellFor(String label) =>
+        find.ancestor(of: find.text(label), matching: find.byType(MTappable));
+    Border? borderOf(Finder cell) {
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+      );
+      return (box.decoration as BoxDecoration).border as Border?;
+    }
+
+    Color? fillOf(Finder cell) {
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: cell, matching: find.byType(DecoratedBox)).at(1),
+      );
+      return (box.decoration as BoxDecoration).color;
+    }
+
+    final selected = borderOf(cellFor('One'));
+    expect(selected, isNotNull);
+    expect(selected!.top.width, 1.5);
+    expect(selected.top.color, MixarThemeData.dark().colors.primary);
+    expect(borderOf(cellFor('Two')), isNull);
+    expect(fillOf(cellFor('One')), const Color(0x00000000));
   }, semanticsEnabled: false);
 
   testWidgets('a sixth option wraps the same cells into a three-column grid', (

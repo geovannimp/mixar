@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
@@ -169,7 +170,13 @@ void main() {
       return (box.decoration as BoxDecoration).border as Border?;
     }
 
-    expect(ringOf(0), isNull);
+    // Teal is selected, so its cell already carries the palette-tone border;
+    // Blue is unselected and has none.
+    final selected = ringOf(0);
+    expect(selected, isNotNull);
+    expect(selected!.top.width, 1.5);
+    expect(selected.top.color, MixarTeal.s400);
+    expect(ringOf(1), isNull);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();

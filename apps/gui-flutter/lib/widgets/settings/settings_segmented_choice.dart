@@ -12,7 +12,7 @@ class SettingsSegmentedOption<T> {
     required this.label,
     this.leading,
     this.labelColor,
-    this.selectedFill,
+    this.selectedBorder,
   });
 
   final T value;
@@ -27,16 +27,17 @@ class SettingsSegmentedOption<T> {
   /// the theme foreground.
   final Color? labelColor;
 
-  /// Fill behind the selected cell. `null` uses the theme's selection tint.
-  final Color? selectedFill;
+  /// Border colour for the selected cell, e.g. the accent palette's own tone.
+  /// `null` uses the theme primary. Selection never paints a fill.
+  final Color? selectedBorder;
 }
 
 /// A rounded segmented track: one bordered pill split by hairlines, matching
 /// the deck selector's grouped options.
 ///
-/// Selection is carried by the palette tint behind the cell (or the theme
-/// selection), the heavier label, and the filled leading mark; a keyboard
-/// focus ring paints over the fill.
+/// Selection is carried by a coloured border around the cell, the heavier
+/// label, and the leading mark; a keyboard focus ring paints the same border
+/// in the foreground colour.
 class SettingsSegmentedChoice<T> extends StatelessWidget {
   const new({
     required this.value,
@@ -181,20 +182,23 @@ class _Segment<T> extends StatelessWidget {
       selected: selected,
       semanticsLabel: option.label,
       builder: (context, state) {
+        final border = state.focused
+            ? Border.all(color: theme.colors.foreground, width: 1.5)
+            : selected
+            ? Border.all(
+                color: option.selectedBorder ?? theme.colors.primary,
+                width: 1.5,
+              )
+            : null;
         return DecoratedBox(
-          // Focus paints over the fill: the ring is always readable, and the
-          // track's hairlines stay underneath it.
+          // The cell border paints over the track: the selection and the
+          // focus ring stay readable above the hairlines.
           position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            border: state.focused
-                ? Border.all(color: theme.colors.foreground, width: 1.5)
-                : null,
-          ),
+          decoration: BoxDecoration(border: border),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: selected
-                  ? option.selectedFill ?? theme.colors.selection
-                  : state.hovered || state.pressed
+              // Selection is a border only; the fill stays for hover/press.
+              color: state.hovered || state.pressed
                   ? theme.hoverWash
                   : const Color(0x00000000),
             ),

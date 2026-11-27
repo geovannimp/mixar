@@ -12,7 +12,7 @@ import 'package:material_ui/material_ui.dart' show Theme;
 ///
 /// Each segment paints its own tone: the dot is the palette's `s500` step and
 /// the label takes [textColorStep], so the hue reads the same in light and
-/// dark. Selection tints the segment with that palette's own step.
+/// dark. Selection outlines the segment in that same tone.
 class SettingsAccentPicker extends StatelessWidget {
   const new({required this.value, required this.onChanged, super.key});
 
@@ -31,6 +31,8 @@ class SettingsAccentPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final brightness = Theme.brightnessOf(context);
+    Color ink(AccentPaletteSetting palette) =>
+        textColorStep(accentPaletteFromSettings(palette).scale, brightness);
     return SettingsSegmentedChoice<AccentPaletteSetting>(
       value: value,
       options: [
@@ -38,24 +40,13 @@ class SettingsAccentPicker extends StatelessWidget {
           SettingsSegmentedOption<AccentPaletteSetting>(
             value: palette,
             label: accentPaletteLabel(l10n, palette),
-            labelColor: textColorStep(
-              accentPaletteFromSettings(palette).scale,
-              brightness,
-            ),
-            selectedFill: _selectionFill(palette, brightness),
+            labelColor: ink(palette),
+            selectedBorder: ink(palette),
             leading: _AccentDot(palette: palette),
           ),
       ],
       onChanged: onChanged,
     );
-  }
-
-  static Color _selectionFill(
-    AccentPaletteSetting palette,
-    Brightness brightness,
-  ) {
-    final scale = accentPaletteFromSettings(palette).scale;
-    return brightness == Brightness.dark ? scale.s950 : scale.s100;
   }
 }
 
