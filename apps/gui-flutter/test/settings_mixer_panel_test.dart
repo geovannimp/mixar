@@ -9,7 +9,6 @@ import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -78,7 +77,7 @@ Future<void> _pumpPanel(
 /// Taps a row in the mixer meters card, scrolling it into view first.
 Future<void> _tapMeterOption(WidgetTester tester, String label) async {
   final option = find.descendant(
-    of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    of: find.byType(SettingsSegmentedChoice<MixerMetersSetting>),
     matching: find.text(label),
   );
   await tester.ensureVisible(option);
@@ -321,14 +320,14 @@ void main() {
     expect(find.text('Invert (swap A and B)'), findsNothing);
   }, semanticsEnabled: false);
 
-  testWidgets('the mixer panel offers the meter width as radio rows', (
+  testWidgets('the mixer panel offers the meter width as segments', (
     tester,
   ) async {
     final changed = <AppSettings>[];
     await _pumpPanel(tester, changed: changed);
 
-    final meters = tester.widget<SettingsVisualChoice<MixerMetersSetting>>(
-      find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    final meters = tester.widget<SettingsSegmentedChoice<MixerMetersSetting>>(
+      find.byType(SettingsSegmentedChoice<MixerMetersSetting>),
     );
     expect(meters.value, MixerMetersSetting.mono);
     expect(meters.options.map((option) => option.value), [
@@ -346,7 +345,7 @@ void main() {
     expect(changed.last.mixerMeters, MixerMetersSetting.none);
   }, semanticsEnabled: false);
 
-  testWidgets('the meter rows highlight Off when the meters are off', (
+  testWidgets('the meter segments highlight Off when the meters are off', (
     tester,
   ) async {
     await _pumpPanel(
@@ -358,8 +357,8 @@ void main() {
       ),
     );
 
-    final meters = tester.widget<SettingsVisualChoice<MixerMetersSetting>>(
-      find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    final meters = tester.widget<SettingsSegmentedChoice<MixerMetersSetting>>(
+      find.byType(SettingsSegmentedChoice<MixerMetersSetting>),
     );
     expect(meters.value, MixerMetersSetting.none);
   }, semanticsEnabled: false);

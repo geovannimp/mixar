@@ -16,7 +16,6 @@ import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -42,15 +41,6 @@ class SettingsMixerPanel extends StatelessWidget {
         MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMono,
         MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereo,
       };
-
-  static String _metersSubtitle(
-    AppLocalizations l10n,
-    MixerMetersSetting value,
-  ) => switch (value) {
-    MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNoneSubtitle,
-    MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMonoSubtitle,
-    MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereoSubtitle,
-  };
 
   /// Last measured CPU capability; `null` until this device has run a probe.
   final RealtimeStemsCapability? capability;
@@ -162,17 +152,16 @@ class SettingsMixerPanel extends StatelessWidget {
         ),
         SettingsSectionCard(
           title: l10n.settingsLayoutMixerMeters,
-          child: SettingsVisualChoice<MixerMetersSetting>(
+          child: SettingsSegmentedChoice<MixerMetersSetting>(
             value: draft.mixerMeters,
             // Off, mono, and stereo all live here so the value is always
-            // reachable and the selected row always exists.
+            // reachable and the selected segment always exists.
             options: [
               for (final mode in MixerMetersSetting.values)
-                SettingsVisualOption<MixerMetersSetting>(
+                SettingsSegmentedOption<MixerMetersSetting>(
                   value: mode,
                   label: _metersLabel(l10n, mode),
-                  subtitle: _metersSubtitle(l10n, mode),
-                  preview: _MixerMetersPreview(mode: mode),
+                  leading: _MixerMetersGlyph(mode: mode),
                 ),
             ],
             onChanged: (mode) =>
@@ -559,6 +548,18 @@ class _CapabilityBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The meter ladders at segment scale, small enough to sit beside the mode
+/// label while still showing one lane per channel.
+class _MixerMetersGlyph extends StatelessWidget {
+  const new({required this.mode});
+
+  final MixerMetersSetting mode;
+
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(width: 36, height: 24, child: _MixerMetersPreview(mode: mode));
 }
 
 /// Two channel strips; each carries as many meter ladders as the mode asks
