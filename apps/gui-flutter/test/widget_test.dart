@@ -54,6 +54,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'helpers/collection_tracks_override.dart';
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
+import 'support/mixar_dialog_scrim.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -1241,8 +1242,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Unsaved settings'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
-    await tester.pumpAndSettle();
+    // No Cancel in the footer: dismissing the card is how the user stays.
+    expect(find.widgetWithText(AppButton, 'Cancel'), findsNothing);
+    await dismissMixarDialogScrim(tester);
     expect(find.byType(SettingsPage), findsOneWidget);
 
     // The menu still opens after a cancelled guard, and discarding leaves.
