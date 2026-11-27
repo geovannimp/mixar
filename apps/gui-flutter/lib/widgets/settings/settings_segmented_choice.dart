@@ -18,7 +18,8 @@ class SettingsSegmentedOption<T> {
 
   final T value;
 
-  /// Visible cell text, also the cell's accessible name.
+  /// Visible cell text. It is also the accessible name unless [description]
+  /// adds a longer explanation after it.
   final String label;
 
   /// Longer explanation read after [label] by assistive tech; the cell itself
@@ -59,8 +60,9 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
   final List<SettingsSegmentedOption<T>> options;
   final ValueChanged<T> onChanged;
 
-  /// Below this width a segment cannot hold its leading mark *and* a readable
-  /// label, so the mark drops out and the label keeps the space.
+  /// Below this content width — a cell minus its padding — a segment cannot
+  /// hold its leading mark *and* a readable label, so the mark drops out and
+  /// the label keeps the space.
   static const _leadingBreakpoint = 96.0;
 
   /// The narrowest cell that still reads: a 36px mark, an 8px gap, a short
