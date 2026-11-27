@@ -98,13 +98,27 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
   }
 
   Widget _row(MixarThemeData theme, bool showLeading) {
+    final pill = theme.style.borderRadius.pill;
+    BorderRadius? shapeFor(int index) {
+      if (options.length == 1) {
+        return pill;
+      }
+      if (index == 0) {
+        return BorderRadius.horizontal(left: pill.topLeft);
+      }
+      if (index == options.length - 1) {
+        return BorderRadius.horizontal(right: pill.topRight);
+      }
+      return null;
+    }
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < options.length; i++) ...[
             if (i > 0) _divider(theme, Axis.vertical),
-            Expanded(child: _cell(options[i], showLeading)),
+            Expanded(child: _cell(options[i], showLeading, shapeFor(i))),
           ],
         ],
       ),
@@ -113,6 +127,20 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
 
   Widget _grid(MixarThemeData theme, bool showLeading) {
     final rows = (options.length + _gridColumns - 1) ~/ _gridColumns;
+    final lastRow = rows - 1;
+    final corner = theme.style.borderRadius.dialog.topLeft;
+    BorderRadius? shapeFor(int row, int column) {
+      final top = row == 0;
+      final bottom = row == lastRow;
+      final left = column == 0;
+      final right = column == _gridColumns - 1;
+      if (top && left) return BorderRadius.only(topLeft: corner);
+      if (top && right) return BorderRadius.only(topRight: corner);
+      if (bottom && left) return BorderRadius.only(bottomLeft: corner);
+      if (bottom && right) return BorderRadius.only(bottomRight: corner);
+      return null;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -129,6 +157,7 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
                       final index when index < options.length => _cell(
                         options[index],
                         showLeading,
+                        shapeFor(row, column),
                       ),
                       // Short last row: the empty slot keeps the column
                       // hairlines running to the bottom edge.
@@ -144,11 +173,16 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
     );
   }
 
-  Widget _cell(SettingsSegmentedOption<T> option, bool showLeading) {
+  Widget _cell(
+    SettingsSegmentedOption<T> option,
+    bool showLeading,
+    BorderRadius? shape,
+  ) {
     return _Segment<T>(
       option: option,
       selected: option.value == value,
       showLeading: showLeading,
+      borderShape: shape,
       onPress: () => onChanged(option.value),
     );
   }
@@ -165,12 +199,18 @@ class _Segment<T> extends StatelessWidget {
     required this.option,
     required this.selected,
     required this.showLeading,
+    required this.borderShape,
     required this.onPress,
   });
 
   final SettingsSegmentedOption<T> option;
   final bool selected;
   final bool showLeading;
+
+  /// Outer corners rounded when the cell sits at the track's edge, so the
+  /// selection border follows the pill instead of ending in a square.
+  final BorderRadius? borderShape;
+
   final VoidCallback onPress;
 
   @override
@@ -194,7 +234,7 @@ class _Segment<T> extends StatelessWidget {
           // The cell border paints over the track: the selection and the
           // focus ring stay readable above the hairlines.
           position: DecorationPosition.foreground,
-          decoration: BoxDecoration(border: border),
+          decoration: BoxDecoration(border: border, borderRadius: borderShape),
           child: DecoratedBox(
             decoration: BoxDecoration(
               // Selection is a border only; the fill stays for hover/press.

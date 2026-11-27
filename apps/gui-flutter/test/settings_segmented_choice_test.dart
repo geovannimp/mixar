@@ -97,6 +97,26 @@ void main() {
     expect(selected.top.color, MixarThemeData.dark().colors.primary);
     expect(borderOf(cellFor('Two')), isNull);
     expect(fillOf(cellFor('One')), const Color(0x00000000));
+
+    // Only the edge cells round their outer corners, so the border follows
+    // the pill instead of ending square.
+    final pill = MixarThemeData.dark().style.borderRadius.pill;
+    BorderRadiusGeometry? shapeOf(Finder cell) {
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+      );
+      return (box.decoration as BoxDecoration).borderRadius;
+    }
+
+    expect(
+      shapeOf(cellFor('One')),
+      BorderRadius.horizontal(left: pill.topLeft),
+    );
+    expect(shapeOf(cellFor('Two')), isNull);
+    expect(
+      shapeOf(cellFor('Three')),
+      BorderRadius.horizontal(right: pill.topRight),
+    );
   }, semanticsEnabled: false);
 
   testWidgets('a sixth option wraps the same cells into a three-column grid', (
@@ -118,6 +138,23 @@ void main() {
       trackRadius(tester, choice),
       MixarThemeData.dark().style.borderRadius.dialog,
     );
+    final dialog = MixarThemeData.dark().style.borderRadius.dialog;
+    BorderRadiusGeometry? shapeOf(String label) {
+      final cell = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(MTappable),
+      );
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+      );
+      return (box.decoration as BoxDecoration).borderRadius;
+    }
+
+    // Each outer corner of the grid rounds only its own cell.
+    expect(shapeOf('One'), BorderRadius.only(topLeft: dialog.topLeft));
+    expect(shapeOf('Three'), BorderRadius.only(topRight: dialog.topRight));
+    expect(shapeOf('Four'), BorderRadius.only(bottomLeft: dialog.bottomLeft));
+    expect(shapeOf('Six'), BorderRadius.only(bottomRight: dialog.bottomRight));
     expect(horizontalDividers(), findsOneWidget);
     expect(verticalDividers(), findsNWidgets(4));
 
