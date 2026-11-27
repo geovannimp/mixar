@@ -10,6 +10,20 @@ import 'package:material_ui/material_ui.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
+  /// A saved draft, with setup done or scheduled for the next launch.
+  AppSettings draftWithSetup({required bool setupDone}) =>
+      copyAppSettings(defaultAppSettings(), onboardingCompleted: setupDone);
+
+  /// The setup card is the panel's last one and its switch sits on the test
+  /// surface's bottom edge, so each tap scrolls it into view first.
+  Future<void> tapSetupSwitch(WidgetTester tester) async {
+    final toggle = find.byType(SettingsHeaderSwitch);
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pumpPanel(
     WidgetTester tester, {
     required AppSettings draft,
@@ -37,8 +51,7 @@ void main() {
   ) async {
     AppSettings? changed;
     final draft = copyAppSettings(
-      defaultAppSettings(),
-      onboardingCompleted: true,
+      draftWithSetup(setupDone: true),
       theme: ThemeSetting.dark,
     );
     await pumpPanel(
@@ -55,8 +68,7 @@ void main() {
       isFalse,
       reason: 'setup is done, so nothing is scheduled',
     );
-    await tester.tap(find.byType(SettingsHeaderSwitch));
-    await tester.pumpAndSettle();
+    await tapSetupSwitch(tester);
 
     expect(changed, isNotNull);
     expect(changed!.onboardingCompleted, isFalse);
@@ -71,10 +83,7 @@ void main() {
   }, semanticsEnabled: false);
 
   testWidgets('the switch reads on while setup is scheduled', (tester) async {
-    await pumpPanel(
-      tester,
-      draft: copyAppSettings(defaultAppSettings(), onboardingCompleted: false),
-    );
+    await pumpPanel(tester, draft: draftWithSetup(setupDone: false));
 
     expect(
       tester
@@ -88,12 +97,11 @@ void main() {
     AppSettings? changed;
     await pumpPanel(
       tester,
-      draft: copyAppSettings(defaultAppSettings(), onboardingCompleted: false),
+      draft: draftWithSetup(setupDone: false),
       onChanged: (settings) => changed = settings,
     );
 
-    await tester.tap(find.byType(SettingsHeaderSwitch));
-    await tester.pumpAndSettle();
+    await tapSetupSwitch(tester);
 
     expect(changed, isNotNull);
     expect(changed!.onboardingCompleted, isTrue);

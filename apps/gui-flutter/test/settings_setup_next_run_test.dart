@@ -45,12 +45,19 @@ void main() {
     onboardingControllersProvider.overrideWith((_) async => const []),
   ];
 
-  /// Boots the app on a saved profile, resolving settings exactly as `main()`
-  /// does before the first frame.
+  /// A saved profile with setup done, or scheduled for the next launch.
+  FakeSettingsTransport savedProfile({required bool setupDone}) =>
+      FakeSettingsTransport(
+        copyAppSettings(defaultAppSettings(), onboardingCompleted: setupDone),
+      );
+
+  /// Boots the app on [settings], resolving them exactly as `main()` does
+  /// before the first frame.
   Future<ProviderContainer> pumpLaunch(
     WidgetTester tester,
     FakeSettingsTransport settings,
   ) async {
+    configureTestSurface(tester);
     final container = ProviderContainer(overrides: appOverrides(settings));
     addTearDown(container.dispose);
     await preloadAppSettings(container);
@@ -67,10 +74,7 @@ void main() {
   testWidgets(
     'saving the replay switch keeps the mixer until the next launch',
     (tester) async {
-      configureTestSurface(tester);
-      final settings = FakeSettingsTransport(
-        copyAppSettings(defaultAppSettings(), onboardingCompleted: true),
-      );
+      final settings = savedProfile(setupDone: true);
       final container = await pumpLaunch(tester, settings);
       expect(find.byType(AppShell), findsOneWidget);
 
@@ -108,12 +112,7 @@ void main() {
   );
 
   testWidgets('a launch on the scheduled flag opens setup', (tester) async {
-    configureTestSurface(tester);
-    final settings = FakeSettingsTransport(
-      copyAppSettings(defaultAppSettings(), onboardingCompleted: false),
-    );
-
-    await pumpLaunch(tester, settings);
+    await pumpLaunch(tester, savedProfile(setupDone: false));
 
     expect(find.byType(OnboardingPage), findsOneWidget);
   });
