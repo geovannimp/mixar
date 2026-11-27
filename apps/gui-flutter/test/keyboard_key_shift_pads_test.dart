@@ -85,6 +85,28 @@ void main() {
     expect(find.byKey(const ValueKey('key-shift-pad-2-active')), findsNothing);
   });
 
+  testWidgets('a disabled latched pad keeps its muted caption', (tester) async {
+    await pumpPad(
+      tester,
+      KeyShiftPads(
+        page: kDefaultPitchPage,
+        activeSemitones: 2,
+        onPress: (_) {},
+        disabled: true,
+      ),
+    );
+
+    // Disabled pads paint the muted fill, not primary, so the caption must
+    // stay muted instead of switching to on-primary ink.
+    final caption = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('key-shift-pad-2-active')),
+        matching: find.text('SHIFT'),
+      ),
+    );
+    expect(caption.style?.color, MixarThemeData.dark().colors.mutedForeground);
+  });
+
   testWidgets('KeyShiftPads renders page-5 specials and highlights semitones', (
     tester,
   ) async {

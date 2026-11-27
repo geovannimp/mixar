@@ -155,6 +155,34 @@ void main() {
     expect(panel.height, greaterThan(120));
     // The panel reaches the deck pane's bottom: no foot clearance.
     expect(panel.bottom, closeTo(290, _kEpsilon));
+
+    // Tiled pads carry no bottom border, and the transport sits beside them:
+    // the panel draws that closing hairline itself, on its own bounds.
+    final ancestors = find.ancestor(
+      of: find.byType(DeckPerformancePanel),
+      matching: find.byType(DecoratedBox),
+    );
+    Border? foot;
+    for (var i = 0; i < ancestors.evaluate().length; i++) {
+      final decoration = tester
+          .widget<DecoratedBox>(ancestors.at(i))
+          .decoration;
+      final border = decoration is BoxDecoration ? decoration.border : null;
+      if (border is! Border || border.bottom == BorderSide.none) {
+        continue;
+      }
+      final rect = tester.getRect(ancestors.at(i));
+      if ((rect.width - panel.width).abs() < _kEpsilon &&
+          (rect.height - panel.height).abs() < _kEpsilon) {
+        foot = border;
+        break;
+      }
+    }
+    expect(foot, isNotNull);
+    expect(foot!.bottom.color, MixarThemeData.dark().colors.border);
+    expect(foot.top, BorderSide.none);
+    expect(foot.left, BorderSide.none);
+    expect(foot.right, BorderSide.none);
   });
 
   testWidgets('right-hand deck puts the compact transport left of the panel', (

@@ -15,10 +15,15 @@ const _kPadMinSide = 24.0;
 /// keeps every fill edge on a pixel, which is what makes a 1 px seam stay 1 px.
 @visibleForTesting
 List<double> padTableSeams(double extent, int cells, double devicePixelRatio) {
-  final snapped = (extent * devicePixelRatio).floor() / devicePixelRatio;
   return [
+    // Interior boundaries snap so each seam lands on a pixel; the outer
+    // boundary stays exact, or the last cell would leave a strip of pane
+    // showing along the right or bottom edge.
     for (var i = 0; i <= cells; i++)
-      (snapped * i / cells * devicePixelRatio).round() / devicePixelRatio,
+      if (i == cells)
+        extent
+      else
+        (extent * i / cells * devicePixelRatio).round() / devicePixelRatio,
   ];
 }
 
@@ -160,19 +165,16 @@ class _PadGridState extends State<PadGrid> {
         if (constraints.maxWidth * devicePixelRatio < 1) {
           return const SizedBox.shrink();
         }
-        double snapDown(double value) =>
-            (value * devicePixelRatio).floor() / devicePixelRatio;
-        final double padHeight = math.max(
-          _kPadMinSide,
-          constraints.maxHeight / 2,
-        );
-        // Snap the block itself, not just the lines: a fractional block would
-        // leave a pad fill bleeding past its edge by a fraction of a pixel,
-        // which reads as a second border along the pane.
-        final double height = snapDown(2 * padHeight);
-        final double width = snapDown(constraints.maxWidth);
+        // The block always covers the pane; only the interior boundaries snap.
+        final double width = constraints.maxWidth;
+        final double height = math.max(constraints.maxHeight, 2 * _kPadMinSide);
         final columns = padTableSeams(width, 4, devicePixelRatio);
-        final rows = padTableSeams(height, 2, devicePixelRatio);
+        final rows = padTableSeams(height, 2, devicePixelRatio)
+          ..[1] = padTableSeams(
+            height,
+            2,
+            devicePixelRatio,
+          )[1].clamp(_kPadMinSide, height - _kPadMinSide);
         // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
         return SilkyGlideHandoff(
           scrollKey: _silkyKey,

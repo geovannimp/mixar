@@ -20,10 +20,14 @@ void main() {
     );
   });
 
-  Future<void> pumpGrid(WidgetTester tester, {required Size size}) async {
+  Future<void> pumpGrid(
+    WidgetTester tester, {
+    required Size size,
+    double devicePixelRatio = 1.0,
+  }) async {
     // The test surface is 800 x 600 by default; a wider pane needs a wider one.
     tester.view.physicalSize = const Size(1200, 900);
-    tester.view.devicePixelRatio = 1.0;
+    tester.view.devicePixelRatio = devicePixelRatio;
     addTearDown(tester.view.reset);
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -49,8 +53,12 @@ void main() {
     );
   }
 
-  Future<List<Rect>> pumpPads(WidgetTester tester, {required Size size}) async {
-    await pumpGrid(tester, size: size);
+  Future<List<Rect>> pumpPads(
+    WidgetTester tester, {
+    required Size size,
+    double devicePixelRatio = 1.0,
+  }) async {
+    await pumpGrid(tester, size: size, devicePixelRatio: devicePixelRatio);
     return [
       for (var i = 0; i < 8; i++) tester.getRect(find.byKey(Key('pad-$i'))),
     ];
@@ -184,14 +192,35 @@ void main() {
     expect(padTableSeams(290, 4, 1), [0.0, 73.0, 145.0, 218.0, 290.0]);
     expect(padTableSeams(100, 4, 1), [0.0, 25.0, 50.0, 75.0, 100.0]);
 
-    // At a fractional ratio every seam still lands on a device pixel and the
-    // block never grows past the space it was given.
+    // Interior seams land on a device pixel; the outer boundary stays exact so
+    // no strip of pane shows at the right edge.
     final seams = padTableSeams(123, 4, 1.25);
     expect(seams.first, 0);
-    expect(seams.last, lessThanOrEqualTo(123));
-    for (final seam in seams) {
+    expect(seams.last, 123);
+    for (final seam in seams.take(seams.length - 1)) {
       final device = seam * 1.25;
       expect(device, closeTo(device.roundToDouble(), 1e-9));
+    }
+  });
+
+  testWidgets('a fractional pane leaves no strip at the edge', (tester) async {
+    final rects = await pumpPads(tester, size: const Size(290.5, 260));
+    expect(rects[3].right, closeTo(290.5, 0.01));
+    expect(rects[7].bottom, closeTo(260, 0.01));
+  });
+
+  testWidgets('rows keep the 24 px floor at a fractional ratio', (
+    tester,
+  ) async {
+    // 48 px of pane at 1.3 dpr snaps to 62 device pixels = 47.7 logical, so
+    // the split has to be clamped rather than trusting the snap.
+    final rects = await pumpPads(
+      tester,
+      size: const Size(200, 40),
+      devicePixelRatio: 1.3,
+    );
+    for (final rect in rects) {
+      expect(rect.height, greaterThanOrEqualTo(24 - 1e-9));
     }
   });
 
