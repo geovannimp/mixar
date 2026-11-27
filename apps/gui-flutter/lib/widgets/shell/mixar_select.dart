@@ -246,7 +246,7 @@ class MixarSelect<T> extends StatefulWidget {
   /// Plain label for dropdown/dialog rows. Defaults to [labelBuilder]; use this
   /// when the collapsed selection carries a suffix the list should omit.
   final String Function(T value)? optionLabelBuilder;
-  final String Function(T value)? subtitleBuilder;
+  final String? Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
   final Widget? placeholder;
@@ -654,7 +654,13 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     bool join = false,
   }) {
     final color = widget.borderColor;
-    if (color == null && radius == null && fill == null) return null;
+    // The closed trigger needs its own surface: the stage and the settings
+    // card behind it are different colours, and a fill-less pill read as a
+    // hole in both. The open trigger keeps the card so it joins the panel.
+    final surface = fill ?? theme.colors.muted;
+    if (color == null && radius == null) {
+      return ShadDecoration(color: surface);
+    }
     // ShadSelect sizes the popover from the trigger's width minus the trigger
     // decoration's padding, but the popover's 1px border still insets its
     // content. Match the trigger's horizontal padding to that border while
@@ -664,7 +670,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
         : null;
     if (color == null) {
       return ShadDecoration(
-        color: fill,
+        color: surface,
         border: ShadBorder(radius: radius, padding: joinPadding),
         secondaryFocusedBorder: ShadBorder(radius: radius),
       );
@@ -678,7 +684,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     }
 
     return ShadDecoration(
-      color: fill,
+      color: surface,
       border: ShadBorder(
         radius: radius,
         padding: joinPadding,

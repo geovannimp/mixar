@@ -355,7 +355,7 @@ void main() {
       trigger.decoration?.border?.radius,
       MixarThemeData.dark().style.borderRadius.pill,
     );
-    expect(trigger.decoration?.color, isNull);
+    expect(trigger.decoration?.color, MixarThemeData.dark().colors.muted);
   });
 
   testWidgets('mobile style opens a dialog of options and selects', (

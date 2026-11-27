@@ -24,7 +24,6 @@ import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_welcome_step.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -463,10 +462,13 @@ class _TopBar extends StatelessWidget {
               ),
               Expanded(child: maybeDrag(const SizedBox.expand())),
               if (!busy && showSkip)
-                _SkipAction(
+                AppButton(
                   key: kOnboardingSkipKey,
-                  label: l10n.onboardingSkip,
+                  variant: MixarButtonVariant.ghost,
+                  size: MixarButtonSize.sm,
+                  mainAxisSize: MainAxisSize.min,
                   onPress: onSkip,
+                  child: Text(l10n.onboardingSkip),
                 )
               else
                 const SizedBox(height: 28, width: 84),
@@ -532,50 +534,6 @@ class _Footer extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Top-right escape hatch: quiet text, never competing with the primary action.
-class _SkipAction extends StatelessWidget {
-  const new({required this.label, required this.onPress, super.key});
-
-  final String label;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return MTappable(
-      onPress: onPress,
-      semanticsLabel: label,
-      builder: (_, state) {
-        final ink = state.hovered || state.focused
-            ? theme.colors.foreground
-            : theme.colors.mutedForeground;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: state.hovered || state.focused
-                      ? theme.colors.accent
-                      : const Color(0x00000000),
-                ),
-              ),
-            ),
-            child: Text(
-              label.toUpperCase(),
-              style: theme.typography.mono.xs.copyWith(
-                color: ink,
-                letterSpacing: 1.6,
-                height: 1.2,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_body.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_floating_hero.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 export 'package:gui_flutter/widgets/onboarding/onboarding_floating_hero.dart';
 
@@ -20,6 +21,7 @@ class OnboardingWelcomeStep extends StatelessWidget {
     return OnboardingBody(
       emphasis: true,
       eyebrow: l10n.onboardingKickerSetup,
+      icon: LucideIcons.sparkles,
       title: l10n.onboardingWelcomeTitle,
       titleHighlight: appTitle,
       description: l10n.onboardingWelcomeBody,

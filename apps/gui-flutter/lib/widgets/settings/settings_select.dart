@@ -17,7 +17,7 @@ class SettingsSelect<T> extends StatelessWidget {
   final T value;
   final List<T> options;
   final String Function(T value) labelBuilder;
-  final String Function(T value)? subtitleBuilder;
+  final String? Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
 

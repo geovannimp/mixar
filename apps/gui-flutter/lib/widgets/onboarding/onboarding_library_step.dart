@@ -138,6 +138,7 @@ class _OnboardingLibraryStepState extends ConsumerState<OnboardingLibraryStep> {
 
     return OnboardingBody(
       eyebrow: l10n.onboardingKickerLibrary,
+      icon: LucideIcons.library,
       title: l10n.onboardingLibraryTitle,
       description: l10n.onboardingLibraryBody,
       child: Column(
@@ -192,6 +193,7 @@ class _FolderCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colors.card,
+        borderRadius: theme.style.borderRadius.dialog,
         border: Border.all(color: theme.colors.primary, width: 2),
       ),
       child: Padding(

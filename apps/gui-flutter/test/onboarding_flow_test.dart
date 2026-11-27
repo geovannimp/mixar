@@ -16,6 +16,7 @@ import 'package:gui_flutter/screens/onboarding_page.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_backdrop.dart';
+import 'package:gui_flutter/widgets/onboarding/onboarding_language_step.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
@@ -265,6 +266,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Open the language select and choose its option row.
+  Future<void> pickLanguage(WidgetTester tester, String label) async {
+    await tester.tap(find.byKey(kOnboardingLanguageSelectKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   /// Press Continue/Finish [times] times: the run's length lives in the flow,
   /// not in each test.
   Future<void> tapNextTimes(WidgetTester tester, int times) async {
@@ -458,8 +467,7 @@ void main() {
     expect(find.bySemanticsLabel('Step 2 of 6'), findsOneWidget);
     expect(find.text('Pick your language'), findsOneWidget);
 
-    await tester.tap(find.text('Português (Brasil)'));
-    await tester.pumpAndSettle();
+    await pickLanguage(tester, 'Português (Brasil)');
     // The draft drives the app: the page itself switches language immediately.
     expect(find.text('Escolha o seu idioma'), findsOneWidget);
     expect(find.text('Pick your language'), findsNothing);
@@ -489,7 +497,7 @@ void main() {
     expect(settings.stored.onboardingCompleted, isTrue);
   });
 
-  testWidgets('Enter advances the flow and the theme tile previews live', (
+  testWidgets('Enter advances the flow and the theme segment previews live', (
     tester,
   ) async {
     final settings = await pumpApp(tester);
