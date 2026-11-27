@@ -172,33 +172,31 @@ void main() {
       return (box.decoration as BoxDecoration).border as Border?;
     }
 
+    void expectRing(int index, {required double width, required Color color}) {
+      final ring = ringOf(index);
+      expect(ring, isNotNull);
+      expect(ring!.top.width, width);
+      expect(ring.top.color, color);
+    }
+
     // Teal is selected, so its cell already carries the palette-tone border;
     // Blue is unselected and has none.
-    final selected = ringOf(0);
-    expect(selected, isNotNull);
-    expect(selected!.top.width, 1.5);
-    expect(selected.top.color, MixarTeal.s400);
+    expectRing(0, width: 1.5, color: MixarTeal.s400);
     expect(ringOf(1), isNull);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
     // Focus keeps the palette tone and only thickens the ring.
-    final focused = ringOf(0);
-    expect(focused, isNotNull);
-    expect(focused!.top.width, 2.5);
-    expect(focused.top.color, MixarTeal.s400);
+    expectRing(0, width: 2.5, color: MixarTeal.s400);
 
     // The next tab lands on Blue, an unselected cell, which gains its own
     // tone ring so keyboard focus matches the label colour.
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
-    expect(ringOf(0)!.top.width, 1.5);
-    final next = ringOf(1);
-    expect(next, isNotNull);
-    expect(next!.top.width, 2.5);
-    expect(next.top.color, MixarBlue.s400);
+    expectRing(0, width: 1.5, color: MixarTeal.s400);
+    expectRing(1, width: 2.5, color: MixarBlue.s400);
   }, semanticsEnabled: false);
 
   testWidgets('hovering a segment paints the shared hover wash', (

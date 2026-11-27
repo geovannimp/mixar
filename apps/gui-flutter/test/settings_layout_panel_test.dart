@@ -95,30 +95,17 @@ void main() {
     expect(find.text('Waveform position'), findsOneWidget);
     expect(find.text('POSITION'), findsOneWidget);
 
+    // Each option is present and keeps its own layout miniature inside its
+    // segment.
     for (final label in [
       'Top',
       'Middle horizontal',
       'Middle vertical',
       'Bottom',
     ]) {
-      expect(
-        choiceOption(waveformChoice(), label),
-        findsOneWidget,
-        reason: 'missing $label option',
-      );
-    }
-
-    // Each option keeps its own layout miniature inside its segment.
-    for (final label in [
-      'Top',
-      'Middle horizontal',
-      'Middle vertical',
-      'Bottom',
-    ]) {
-      final cell = find.ancestor(
-        of: choiceOption(waveformChoice(), label),
-        matching: find.byType(MTappable),
-      );
+      final option = choiceOption(waveformChoice(), label);
+      expect(option, findsOneWidget, reason: 'missing $label option');
+      final cell = find.ancestor(of: option, matching: find.byType(MTappable));
       expect(
         find.descendant(of: cell, matching: find.byType(SettingsPreviewBlock)),
         findsWidgets,

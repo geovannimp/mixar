@@ -76,6 +76,18 @@ void main() {
     return (box.decoration as BoxDecoration).color;
   }
 
+  void expectRing(
+    WidgetTester tester,
+    Finder cell, {
+    required double width,
+    required Color color,
+  }) {
+    final border = borderOf(tester, cell);
+    expect(border, isNotNull);
+    expect(border!.top.width, width);
+    expect(border.top.color, color);
+  }
+
   testWidgets('up to five options stay in one rounded pill row', (
     tester,
   ) async {
@@ -101,10 +113,12 @@ void main() {
   ) async {
     await pumpChoice(tester, const ['One', 'Two', 'Three']);
 
-    final selected = borderOf(tester, cellFor('One'));
-    expect(selected, isNotNull);
-    expect(selected!.top.width, 1.5);
-    expect(selected.top.color, MixarThemeData.dark().colors.primary);
+    expectRing(
+      tester,
+      cellFor('One'),
+      width: 1.5,
+      color: MixarThemeData.dark().colors.primary,
+    );
     expect(borderOf(tester, cellFor('Two')), isNull);
     expect(fillOf(tester, cellFor('One')), const Color(0x00000000));
 
@@ -278,16 +292,22 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
-    final focused = borderOf(tester, cellFor('One'))!;
-    expect(focused.top.width, 2.5);
-    expect(focused.top.color, MixarThemeData.dark().colors.foreground);
+    expectRing(
+      tester,
+      cellFor('One'),
+      width: 2.5,
+      color: MixarThemeData.dark().colors.foreground,
+    );
 
     // The next tab lands on an unselected cell, which gains the same ring.
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
-    final next = borderOf(tester, cellFor('Two'))!;
-    expect(next.top.width, 2.5);
-    expect(next.top.color, MixarThemeData.dark().colors.foreground);
+    expectRing(
+      tester,
+      cellFor('Two'),
+      width: 2.5,
+      color: MixarThemeData.dark().colors.foreground,
+    );
   }, semanticsEnabled: false);
 }
