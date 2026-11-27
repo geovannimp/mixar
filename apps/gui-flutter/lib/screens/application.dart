@@ -58,15 +58,29 @@ class _ApplicationState extends ConsumerState<Application> {
   /// reactively would drop the window into setup the moment the switch is
   /// saved. Latching `true` keeps the mixer for the rest of the launch, while
   /// still letting the setup flow hand over to it when it finishes.
-  var _setupDone = false;
+  late bool _setupDone;
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolved by the preload in `main()`; a preload timeout leaves this
+    // `false` and the listener below latches once the read lands.
+    _setupDone =
+        ref.read(appSettingsProvider).asData?.value.onboardingCompleted ??
+        false;
+    // The latch only moves one way, so a replay scheduled from Settings cannot
+    // reopen setup after the flow handed over to the mixer.
+    ref.listenManual(appSettingsProvider, (_, next) {
+      if (!_setupDone && (next.asData?.value.onboardingCompleted ?? false)) {
+        setState(() => _setupDone = true);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final settings = settingsAsync.asData?.value;
-    if (settings != null && settings.onboardingCompleted) {
-      _setupDone = true;
-    }
     // A running first-run flow owns the theme, accent and locale: its draft
     // previews step choices before Finish writes them.
     final resolved =
