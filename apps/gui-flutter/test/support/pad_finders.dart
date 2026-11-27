@@ -14,9 +14,12 @@ BoxDecoration padDecorationOf(WidgetTester tester, Finder pad) {
 
 /// Parks a mouse pointer outside every pad, so a test can move it onto the pad
 /// it means to hover. The pointer is removed when the test ends.
+///
+/// The default sits outside the widget tree entirely: any in-bounds point can
+/// land on a pad in a small fixture.
 Future<TestGesture> attachMousePointer(
   WidgetTester tester, {
-  Offset at = const Offset(200, 200),
+  Offset at = const Offset(-1, -1),
 }) async {
   final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
   addTearDown(pointer.removePointer);
