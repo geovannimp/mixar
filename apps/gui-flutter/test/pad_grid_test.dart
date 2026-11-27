@@ -222,10 +222,27 @@ void main() {
     for (final rect in rects) {
       expect(rect.height, greaterThanOrEqualTo(24 - 1e-9));
     }
+    // The painted seam has to follow the clamped layout split, not re-snap it.
+    final painter = tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(PadGrid),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<PadTablePainter>()
+        .single;
+    expect(painter.rows[1], closeTo(24, 1e-9));
   });
 
   test('the table paints interior seams only', () {
-    final lines = padTableLines(const Size(400, 300), 1, 1);
+    final lines = padTableLines(
+      const Size(400, 300),
+      1,
+      padTableSeams(400, 4, 1),
+      padTableSeams(300, 2, 1),
+    );
     // Three column seams and one row seam: no top (the header divider draws
     // it), bottom (the transport divider), or side frame (the deck chrome's
     // hairline) — so no edge is ever doubled.
@@ -237,7 +254,12 @@ void main() {
   test('fractional pad widths snap their seams to device pixels', () {
     // A 290 px pane gives 72.5 px pads; an unsnapped seam would blur across
     // two pixels and read as a double line.
-    final lines = padTableLines(const Size(290, 260), 1, 1);
+    final lines = padTableLines(
+      const Size(290, 260),
+      1,
+      padTableSeams(290, 4, 1),
+      padTableSeams(260, 2, 1),
+    );
     final verticals = [
       for (final line in lines)
         if (line.width == 1 && line.height == 260) line.left,

@@ -228,6 +228,9 @@ class DeckPanel extends ConsumerWidget {
               // the panel keeps its own bottom hairline: the tiled pads end
               // flush and nothing else draws that edge.
               final compactPerformance = DecoratedBox(
+                // Above the panel: the panel paints an opaque fill over the
+                // same bounds, so a background-position border never shows.
+                position: DecorationPosition.foreground,
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(

@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +41,8 @@ const _kSideInset = 10.0;
 const _kRowGap = 8.0;
 
 void main() {
+  final deckKey = GlobalKey();
+
   Future<void> pumpDeck(
     WidgetTester tester, {
     required Size size,
@@ -68,10 +73,13 @@ void main() {
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
           home: Scaffold(
-            body: DeckPanel(
-              deckId: deckId,
-              label: 'DECK A',
-              accent: DeckAccent.a,
+            body: RepaintBoundary(
+              key: deckKey,
+              child: DeckPanel(
+                deckId: deckId,
+                label: 'DECK A',
+                accent: DeckAccent.a,
+              ),
             ),
           ),
         ),
@@ -183,6 +191,19 @@ void main() {
     expect(foot.top, BorderSide.none);
     expect(foot.left, BorderSide.none);
     expect(foot.right, BorderSide.none);
+
+    // Painted above the panel's own fill, so the deck actually shows it.
+    final boundary =
+        deckKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final bytes = (await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      return data!.buffer.asUint8List();
+    }))!;
+    final imageWidth = boundary.size.width.round();
+    final i =
+        ((panel.bottom.round() - 1) * imageWidth + panel.center.dx.round()) * 4;
+    expect((bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2], 0x27272A);
   });
 
   testWidgets('right-hand deck puts the compact transport left of the panel', (

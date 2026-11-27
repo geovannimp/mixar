@@ -35,11 +35,14 @@ List<double> padTableSeams(double extent, int cells, double devicePixelRatio) {
 /// hairline the deck chrome already draws against the pane (the tempo column's
 /// border or the tab rail's).
 @visibleForTesting
-List<Rect> padTableLines(Size size, double width, double devicePixelRatio) {
-  final columns = padTableSeams(size.width, 4, devicePixelRatio);
-  final rows = padTableSeams(size.height, 2, devicePixelRatio);
+List<Rect> padTableLines(
+  Size size,
+  double width,
+  List<double> columns,
+  List<double> rows,
+) {
   return <Rect>[
-    for (var column = 1; column < 4; column++)
+    for (var column = 1; column < columns.length - 1; column++)
       Rect.fromLTWH(columns[column], 0, width, size.height),
     Rect.fromLTWH(0, rows[1], size.width, width),
   ];
@@ -56,12 +59,19 @@ class PadTablePainter extends CustomPainter {
     required this.color,
     required this.width,
     required this.devicePixelRatio,
+    required this.columns,
+    required this.rows,
     this.blockKey,
   });
 
   final Color color;
   final double width;
   final double devicePixelRatio;
+
+  /// Cell boundaries from the layout, so a seam cannot drift from the pad edge
+  /// it belongs to (the row split is clamped, and must keep its clamp here).
+  final List<double> columns;
+  final List<double> rows;
   final GlobalKey? blockKey;
 
   @override
@@ -82,7 +92,7 @@ class PadTablePainter extends CustomPainter {
         ((value + fraction) * devicePixelRatio).floor() / devicePixelRatio -
         fraction;
 
-    for (final line in padTableLines(size, stroke, devicePixelRatio)) {
+    for (final line in padTableLines(size, stroke, columns, rows)) {
       final vertical = line.height == size.height;
       canvas.drawRect(
         vertical
@@ -113,6 +123,8 @@ class PadTablePainter extends CustomPainter {
       oldDelegate.color != color ||
       oldDelegate.width != width ||
       oldDelegate.devicePixelRatio != devicePixelRatio ||
+      oldDelegate.columns != columns ||
+      oldDelegate.rows != rows ||
       oldDelegate.blockKey != blockKey;
 }
 
@@ -227,6 +239,8 @@ class _PadGridState extends State<PadGrid> {
                                 color: theme.colors.border,
                                 width: theme.style.borderWidth,
                                 devicePixelRatio: devicePixelRatio,
+                                columns: columns,
+                                rows: rows,
                                 blockKey: _blockKey,
                               ),
                             ),
