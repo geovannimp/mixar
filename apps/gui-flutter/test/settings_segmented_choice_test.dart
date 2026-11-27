@@ -58,7 +58,14 @@ void main() {
   /// The cell's foreground decoration (selection/focus border and shape).
   BoxDecoration decorationOf(WidgetTester tester, Finder cell) {
     final box = tester.widget<DecoratedBox>(
-      find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+      find.descendant(
+        of: cell,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.position == DecorationPosition.foreground,
+        ),
+      ),
     );
     return box.decoration as BoxDecoration;
   }
@@ -71,7 +78,16 @@ void main() {
 
   Color? fillOf(WidgetTester tester, Finder cell) {
     final box = tester.widget<DecoratedBox>(
-      find.descendant(of: cell, matching: find.byType(DecoratedBox)).at(1),
+      find.descendant(
+        of: cell,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.position == DecorationPosition.background &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).border == null,
+        ),
+      ),
     );
     return (box.decoration as BoxDecoration).color;
   }
@@ -234,6 +250,45 @@ void main() {
     );
   }, semanticsEnabled: false);
 
+  testWidgets('an eight-option grid gives the last pair the spare column', (
+    tester,
+  ) async {
+    await pumpChoice(tester, const [
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+    ]);
+
+    expect(horizontalDividers(), findsNWidgets(2));
+    // Rows of 3 + 3 + 2: two dividers, two dividers, one divider.
+    expect(verticalDividers(), findsNWidgets(5));
+
+    // The final cell takes the leftover two columns, not just one.
+    final seven = tester.getSize(cellFor('Seven')).width;
+    final eight = tester.getSize(cellFor('Eight')).width;
+    expect(eight, closeTo(seven * 2, 2));
+  }, semanticsEnabled: false);
+
+  testWidgets('a very narrow pane stacks the options in one column', (
+    tester,
+  ) async {
+    await pumpChoice(tester, const ['One', 'Two', 'Three'], width: 200);
+
+    final choice = find.byType(SettingsSegmentedChoice<String>);
+    expect(
+      trackRadius(tester, choice),
+      MixarThemeData.dark().style.borderRadius.dialog,
+    );
+    expect(verticalDividers(), findsNothing);
+    expect(horizontalDividers(), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  }, semanticsEnabled: false);
+
   testWidgets('tapping a grid cell emits its value', (tester) async {
     String? changed;
     await pumpChoice(tester, const [
@@ -296,7 +351,7 @@ void main() {
       tester,
       cellFor('One'),
       width: 2.5,
-      color: MixarThemeData.dark().colors.foreground,
+      color: MixarThemeData.dark().colors.primary,
     );
 
     // The next tab lands on an unselected cell, which gains the same ring.

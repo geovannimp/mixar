@@ -10,6 +10,7 @@ class SettingsSegmentedOption<T> {
   const new({
     required this.value,
     required this.label,
+    this.description,
     this.leading,
     this.labelColor,
     this.selectedBorder,
@@ -19,6 +20,10 @@ class SettingsSegmentedOption<T> {
 
   /// Visible cell text, also the cell's accessible name.
   final String label;
+
+  /// Longer explanation read after [label] by assistive tech; the cell itself
+  /// shows only the label.
+  final String? description;
 
   /// Small mark before the label. Drops out when segments get too narrow.
   final Widget? leading;
@@ -95,10 +100,12 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
         final dividers = columns - 1;
         final cellWidth =
             (width - dividers * theme.style.borderWidth) / columns;
-        final showLeading = cellWidth >= _leadingBreakpoint;
         // At pathological widths the padding would eat the whole cell; shrink
         // it so a truncated label still shows.
         final inset = cellWidth >= 44 ? 6.0 : 2.0;
+        // The mark only fits when the cell keeps a readable label beside it.
+        final contentWidth = cellWidth - 2 * inset;
+        final showLeading = contentWidth >= _leadingBreakpoint;
         // A grid keeps the softer card corner: the pill's stadium radius
         // would bite into the corner cells of a multi-row track.
         final radius = singleRow
@@ -276,15 +283,18 @@ class _Segment<T> extends StatelessWidget {
     return MTappable(
       onPress: onPress,
       selected: selected,
-      semanticsLabel: option.label,
+      semanticsLabel: option.description == null
+          ? option.label
+          : '${option.label}. ${option.description}',
       builder: (context, state) {
-        // Focus never erases the selection's tone: it thickens that same
-        // border (foreground where the cell has no tone of its own).
+        // Focus never erases the selection's colour: a selected cell keeps
+        // its border colour at a heavier weight. An unselected cell gains
+        // its palette tone when it has one, otherwise the foreground.
+        final focusColor = selected
+            ? selectionColor
+            : option.selectedBorder ?? theme.colors.foreground;
         final border = state.focused
-            ? Border.all(
-                color: option.selectedBorder ?? theme.colors.foreground,
-                width: 2.5,
-              )
+            ? Border.all(color: focusColor, width: 2.5)
             : selected
             ? Border.all(color: selectionColor, width: 1.5)
             : null;
@@ -313,7 +323,17 @@ class _Segment<T> extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (showLeading && leading != null) ...[
-                      leading,
+                      // Icons follow the selected/unselected ink without
+                      // every picker passing a colour.
+                      IconTheme.merge(
+                        data: IconThemeData(
+                          size: 14,
+                          color: selected
+                              ? theme.colors.foreground
+                              : theme.colors.mutedForeground,
+                        ),
+                        child: leading,
+                      ),
                       const SizedBox(width: 8),
                     ],
                     Flexible(

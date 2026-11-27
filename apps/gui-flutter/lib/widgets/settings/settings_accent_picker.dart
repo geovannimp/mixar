@@ -6,7 +6,6 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:material_ui/material_ui.dart' show Theme;
 
 /// Accent palette chooser — one segmented pill, like the deck selector.
 ///
@@ -30,7 +29,7 @@ class SettingsAccentPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final brightness = Theme.brightnessOf(context);
+    final brightness = context.theme.colors.brightness;
     Color ink(AccentPaletteSetting palette) =>
         textColorStep(accentPaletteFromSettings(palette).scale, brightness);
     return SettingsSegmentedChoice<AccentPaletteSetting>(

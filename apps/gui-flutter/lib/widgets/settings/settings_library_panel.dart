@@ -42,6 +42,16 @@ class SettingsLibraryPanel extends StatelessWidget {
     KeyDisplayModeSetting.camelot => l10n.settingsLibraryKeyDisplayCamelot,
   };
 
+  static String _keyDisplaySubtitle(
+    AppLocalizations l10n,
+    KeyDisplayModeSetting mode,
+  ) => switch (mode) {
+    KeyDisplayModeSetting.musical =>
+      l10n.settingsLibraryKeyDisplayMusicalSubtitle,
+    KeyDisplayModeSetting.camelot =>
+      l10n.settingsLibraryKeyDisplayCamelotSubtitle,
+  };
+
   static String _keyColorLabel(
     AppLocalizations l10n,
     KeyColorModeSetting mode,
@@ -118,6 +128,7 @@ class SettingsLibraryPanel extends StatelessWidget {
                       SettingsSegmentedOption<KeyDisplayModeSetting>(
                         value: mode,
                         label: _keyDisplayLabel(l10n, mode),
+                        description: _keyDisplaySubtitle(l10n, mode),
                         leading: _KeyDisplayPreview(mode: mode),
                       ),
                   ],

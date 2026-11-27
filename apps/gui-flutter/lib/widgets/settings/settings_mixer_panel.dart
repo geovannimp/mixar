@@ -42,6 +42,15 @@ class SettingsMixerPanel extends StatelessWidget {
         MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereo,
       };
 
+  static String _metersSubtitle(
+    AppLocalizations l10n,
+    MixerMetersSetting value,
+  ) => switch (value) {
+    MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNoneSubtitle,
+    MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMonoSubtitle,
+    MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereoSubtitle,
+  };
+
   /// Last measured CPU capability; `null` until this device has run a probe.
   final RealtimeStemsCapability? capability;
   final bool benchmarkRunning;
@@ -161,6 +170,7 @@ class SettingsMixerPanel extends StatelessWidget {
                 SettingsSegmentedOption<MixerMetersSetting>(
                   value: mode,
                   label: _metersLabel(l10n, mode),
+                  description: _metersSubtitle(l10n, mode),
                   leading: _MixerMetersGlyph(mode: mode),
                 ),
             ],

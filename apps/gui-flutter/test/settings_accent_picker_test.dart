@@ -162,12 +162,14 @@ void main() {
     );
     Border? ringOf(int index) {
       final box = tester.widget<DecoratedBox>(
-        find
-            .descendant(
-              of: cells.at(index),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
+        find.descendant(
+          of: cells.at(index),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.position == DecorationPosition.foreground,
+          ),
+        ),
       );
       return (box.decoration as BoxDecoration).border as Border?;
     }
@@ -222,7 +224,16 @@ void main() {
     await tester.pumpAndSettle();
 
     final box = tester.widget<DecoratedBox>(
-      find.descendant(of: cell, matching: find.byType(DecoratedBox)).at(1),
+      find.descendant(
+        of: cell,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.position == DecorationPosition.background &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).border == null,
+        ),
+      ),
     );
     expect((box.decoration as BoxDecoration).color, theme.hoverWash);
   });

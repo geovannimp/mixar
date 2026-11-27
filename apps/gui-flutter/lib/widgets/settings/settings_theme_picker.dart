@@ -3,7 +3,6 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Theme chooser — the same segmented pill as the accent picker.
@@ -32,7 +31,6 @@ class SettingsThemePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final theme = context.theme;
     return SettingsSegmentedChoice<ThemeSetting>(
       value: value,
       options: [
@@ -40,11 +38,7 @@ class SettingsThemePicker extends StatelessWidget {
           SettingsSegmentedOption<ThemeSetting>(
             value: option,
             label: themeSettingLabel(l10n, option),
-            leading: Icon(
-              _icon(option),
-              size: 14,
-              color: theme.colors.mutedForeground,
-            ),
+            leading: Icon(_icon(option)),
           ),
       ],
       onChanged: onChanged,
