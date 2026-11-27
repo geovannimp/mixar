@@ -9,7 +9,7 @@ import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsWaveformPanel extends StatelessWidget {
@@ -28,11 +28,11 @@ class SettingsWaveformPanel extends StatelessWidget {
           subtitle: l10n.settingsWaveformDisplayDescription,
           child: SettingsField(
             label: l10n.settingsWaveformDisplayMode,
-            child: SettingsVisualChoice<WaveformDisplayModeSetting>(
+            child: SettingsSegmentedChoice<WaveformDisplayModeSetting>(
               value: draft.waveformDisplayMode,
               options: [
                 for (final value in WaveformDisplayModeSetting.values)
-                  SettingsVisualOption<WaveformDisplayModeSetting>(
+                  SettingsSegmentedOption<WaveformDisplayModeSetting>(
                     value: value,
                     label: switch (value) {
                       WaveformDisplayModeSetting.rgb =>
@@ -40,7 +40,7 @@ class SettingsWaveformPanel extends StatelessWidget {
                       WaveformDisplayModeSetting.filtered =>
                         l10n.settingsWaveformModeFiltered,
                     },
-                    preview: _WaveformDisplayModePreview(mode: value),
+                    leading: _WaveformDisplayModeGlyph(mode: value),
                   ),
               ],
               onChanged: (mode) =>
@@ -80,6 +80,21 @@ class _WaveformDisplayModePreview extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The lane at segment scale, small enough to sit beside the mode label while
+/// keeping the two band treatments distinguishable.
+class _WaveformDisplayModeGlyph extends StatelessWidget {
+  const new({required this.mode});
+
+  final WaveformDisplayModeSetting mode;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 36,
+    height: 20,
+    child: _WaveformDisplayModePreview(mode: mode),
+  );
 }
 
 class _WaveformDisplayModePainter extends CustomPainter {

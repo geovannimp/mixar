@@ -1,15 +1,17 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-/// Accent palette chooser — two rows of three labelled swatches.
+/// Accent palette chooser — one segmented pill, like the deck selector.
 ///
-/// Swatches paint each palette's own `s500` step, so the hue reads the same in
-/// light and dark; selection is carried by the ring and the label weight.
+/// Each segment paints its own tone: the dot is the palette's `s500` step and
+/// the label takes [textColorStep], so the hue reads the same in light and
+/// dark. Selection outlines the segment in that same tone.
 class SettingsAccentPicker extends StatelessWidget {
   const new({required this.value, required this.onChanged, super.key});
 
@@ -24,93 +26,50 @@ class SettingsAccentPicker extends StatelessWidget {
     AccentPaletteSetting.pink,
   ];
 
-  static String _label(AppLocalizations l10n, AccentPaletteSetting option) =>
-      accentPaletteLabel(l10n, option);
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Row(
-      spacing: 12,
-      children: [
-        for (final option in _options)
-          Expanded(child: _cell(context, l10n, option)),
+    final brightness = context.theme.colors.brightness;
+    Color ink(AccentPaletteSetting palette) =>
+        textColorStep(accentPaletteFromSettings(palette).scale, brightness);
+    return SettingsSegmentedChoice<AccentPaletteSetting>(
+      value: value,
+      options: [
+        for (final palette in _options)
+          SettingsSegmentedOption<AccentPaletteSetting>(
+            value: palette,
+            label: accentPaletteLabel(l10n, palette),
+            labelColor: ink(palette),
+            selectedBorder: ink(palette),
+            leading: _AccentDot(palette: palette),
+          ),
       ],
+      onChanged: onChanged,
     );
   }
+}
 
-  Widget _cell(
-    BuildContext context,
-    AppLocalizations l10n,
-    AccentPaletteSetting option,
-  ) {
+/// The palette's own mid tone, matching the accent marks elsewhere.
+class _AccentDot extends StatelessWidget {
+  const new({required this.palette});
+
+  final AccentPaletteSetting palette;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = context.theme;
-    final selected = option == value;
-    final label = _label(l10n, option);
-    return MTappable(
-      semanticsLabel: label,
-      selected: selected,
-      onPress: () => onChanged(option),
-      builder: (context, state) {
-        // Keyboard focus paints the same ring as selection, so tabbing through
-        // the row is visible without a mouse.
-        final ringed = selected || state.focused;
-        final highlighted = ringed || state.hovered;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: state.hovered ? theme.hoverWash : null,
-            borderRadius: theme.style.borderRadius.md,
+    return SizedBox.square(
+      dimension: 10,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: accentPaletteFromSettings(palette).scale.s500,
+          border: Border.all(
+            color: theme.colors.border,
+            width: theme.style.borderWidth,
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6,
-              children: [
-                // AspectRatio instead of a fixed 22px box: a narrow settings
-                // card shrinks the swatch rather than overflowing the cell.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 22,
-                    maxHeight: 22,
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accentPaletteFromSettings(option).scale.s500,
-                        border: Border.all(
-                          color: ringed
-                              ? theme.colors.foreground
-                              : theme.colors.border,
-                          width: ringed ? 2 : theme.style.borderWidth,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // The cell's Semantics already carries the name; the visible
-                // label stays out of the tree so it is not read twice.
-                ExcludeSemantics(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: theme.typography.body.xs.copyWith(
-                      color: highlighted
-                          ? theme.colors.foreground
-                          : theme.colors.mutedForeground,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

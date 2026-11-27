@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -35,7 +35,7 @@ void main() {
   }
 
   Finder displayChoice() =>
-      find.byType(SettingsVisualChoice<KeyDisplayModeSetting>);
+      find.byType(SettingsSegmentedChoice<KeyDisplayModeSetting>);
 
   Finder childOf(Finder parent, String label) =>
       find.descendant(of: parent, matching: find.text(label));
@@ -54,7 +54,9 @@ void main() {
 
     expect(
       tester
-          .widget<SettingsVisualChoice<KeyDisplayModeSetting>>(displayChoice())
+          .widget<SettingsSegmentedChoice<KeyDisplayModeSetting>>(
+            displayChoice(),
+          )
           .value,
       KeyDisplayModeSetting.musical,
     );

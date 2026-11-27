@@ -12,6 +12,7 @@ import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_sticky_header.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
@@ -59,11 +60,7 @@ void main() {
 
   Future<void> pumpUi(WidgetTester tester) => pumpPanel(
     tester,
-    SettingsUiPanel(
-      draft: defaultAppSettings(),
-      savedAccentPalette: defaultAppSettings().accentPalette,
-      onChanged: (_) {},
-    ),
+    SettingsUiPanel(draft: defaultAppSettings(), onChanged: (_) {}),
     // The UI panel's own tests drive animations frame by frame.
     settle: false,
   );
@@ -174,12 +171,21 @@ void main() {
     expect(border.bottom.width, 1);
     expect(border.left.width, 0);
     expect(border.right.width, 0);
+    // The panel itself never uses dividers between cards; the segmented
+    // controls inside it draw their own hairlines.
+    final strayDividers = [
+      for (final element
+          in find
+              .descendant(
+                of: find.byType(SettingsLibraryPanel),
+                matching: find.byType(MDivider),
+              )
+              .evaluate())
+        if (!_insideSegmentedChoice(element)) element,
+    ];
     expect(
-      find.descendant(
-        of: find.byType(SettingsLibraryPanel),
-        matching: find.byType(MDivider),
-      ),
-      findsNothing,
+      strayDividers,
+      isEmpty,
       reason: 'gaps separate the cards, not dividers',
     );
     expect(
@@ -305,4 +311,18 @@ void main() {
       findsNothing,
     );
   }, semanticsEnabled: false);
+}
+
+/// Whether [element] sits inside a segmented settings control, whose own
+/// hairlines are not card separators.
+bool _insideSegmentedChoice(Element element) {
+  var inside = false;
+  element.visitAncestorElements((ancestor) {
+    if (ancestor.widget is SettingsSegmentedChoice) {
+      inside = true;
+      return false;
+    }
+    return true;
+  });
+  return inside;
 }

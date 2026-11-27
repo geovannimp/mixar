@@ -3,12 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_theme_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
-import 'package:gui_flutter/widgets/settings/theme_swatch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -22,7 +20,6 @@ void main() {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
     Key? captureKey,
-    AccentPaletteSetting savedAccentPalette = AccentPaletteSetting.teal,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -34,7 +31,6 @@ void main() {
                 key: captureKey,
                 child: SettingsUiPanel(
                   draft: draft ?? defaultAppSettings(),
-                  savedAccentPalette: savedAccentPalette,
                   onChanged: onChanged ?? (_) {},
                 ),
               ),
@@ -45,46 +41,39 @@ void main() {
     );
   }
 
-  testWidgets('theme previews use the saved accent until a save', (
-    tester,
-  ) async {
-    await pumpPanel(
-      tester,
-      draft: copyAppSettings(
-        defaultAppSettings(),
-        accentPalette: AccentPaletteSetting.teal,
-      ),
-      savedAccentPalette: AccentPaletteSetting.orange,
-    );
-    await tester.pumpAndSettle();
-
-    final palettes = tester
-        .widgetList<ThemeSwatch>(find.byType(ThemeSwatch))
-        .map((swatch) => swatch.palette)
-        .toSet();
-    expect(palettes, {MixarAccentPalette.orange});
-  }, semanticsEnabled: false);
-
   testWidgets('UI panel offers the theme choice, defaulting to system', (
     tester,
   ) async {
     await pumpPanel(tester);
     expect(find.text('THEME'), findsOneWidget);
-    final choice = find.byType(SettingsVisualChoice<ThemeSetting>);
+    final choice = find.byType(SettingsThemePicker);
     expect(choice, findsOneWidget);
-    final widget = tester.widget<SettingsVisualChoice<ThemeSetting>>(choice);
+    final widget = tester.widget<SettingsThemePicker>(choice);
     expect(widget.value, ThemeSetting.system);
-    expect(widget.options.map((option) => option.value), [
-      ThemeSetting.system,
-      ThemeSetting.light,
-      ThemeSetting.dark,
-    ]);
     for (final label in ['System default', 'Light', 'Dark']) {
       expect(
         find.descendant(of: choice, matching: find.text(label)),
         findsOneWidget,
       );
     }
+
+    // The three options sit in one rounded pill, like the accent picker.
+    final track = tester.widget<DecoratedBox>(
+      find.descendant(of: choice, matching: find.byType(DecoratedBox)).first,
+    );
+    final decoration = track.decoration as BoxDecoration;
+    expect(
+      decoration.borderRadius,
+      MixarThemeData.dark().style.borderRadius.pill,
+    );
+    final centres = {
+      for (final label in ['System default', 'Light', 'Dark'])
+        tester
+            .getCenter(find.descendant(of: choice, matching: find.text(label)))
+            .dy
+            .round(),
+    };
+    expect(centres, hasLength(1));
   }, semanticsEnabled: false);
 
   testWidgets('picking Dark emits the theme setting', (tester) async {
@@ -92,7 +81,7 @@ void main() {
     await pumpPanel(tester, onChanged: (settings) => changed = settings);
 
     final darkOption = find.descendant(
-      of: find.byType(SettingsVisualChoice<ThemeSetting>),
+      of: find.byType(SettingsThemePicker),
       matching: find.text('Dark'),
     );
     await tester.ensureVisible(darkOption);

@@ -887,11 +887,7 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.ui => SettingsUiPanel(
-        draft: draft,
-        savedAccentPalette: baseline.accentPalette,
-        onChanged: onChanged,
-      ),
+      SettingsSection.ui => SettingsUiPanel(draft: draft, onChanged: onChanged),
       SettingsSection.layout => SettingsLayoutPanel(
         draft: draft,
         onChanged: onChanged,

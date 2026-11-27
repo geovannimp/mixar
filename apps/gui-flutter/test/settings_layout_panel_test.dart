@@ -9,9 +9,12 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -67,7 +70,7 @@ void main() {
   }
 
   Finder waveformChoice() =>
-      find.byType(SettingsVisualChoice<WaveformPositionSetting>);
+      find.byType(SettingsSegmentedChoice<WaveformPositionSetting>);
   Finder drawerChoice() =>
       find.byType(SettingsVisualChoice<LibraryDrawerSideSetting>);
 
@@ -92,16 +95,21 @@ void main() {
     expect(find.text('Waveform position'), findsOneWidget);
     expect(find.text('POSITION'), findsOneWidget);
 
+    // Each option is present and keeps its own layout miniature inside its
+    // segment.
     for (final label in [
       'Top',
       'Middle horizontal',
       'Middle vertical',
       'Bottom',
     ]) {
+      final option = choiceOption(waveformChoice(), label);
+      expect(option, findsOneWidget, reason: 'missing $label option');
+      final cell = find.ancestor(of: option, matching: find.byType(MTappable));
       expect(
-        choiceOption(waveformChoice(), label),
-        findsOneWidget,
-        reason: 'missing $label option',
+        find.descendant(of: cell, matching: find.byType(SettingsPreviewBlock)),
+        findsWidgets,
+        reason: 'missing preview for $label',
       );
     }
   }, semanticsEnabled: false);
@@ -177,7 +185,7 @@ void main() {
     );
 
     expect(
-      find.byType(SettingsVisualChoice<WaveformPositionSetting>),
+      find.byType(SettingsSegmentedChoice<WaveformPositionSetting>),
       findsNothing,
     );
     expect(find.text('POSITION'), findsNothing);

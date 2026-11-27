@@ -9,8 +9,8 @@ import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
@@ -121,15 +121,15 @@ class SettingsLibraryPanel extends StatelessWidget {
             children: [
               SettingsField(
                 label: l10n.settingsLibraryKeyDisplayMode,
-                child: SettingsVisualChoice<KeyDisplayModeSetting>(
+                child: SettingsSegmentedChoice<KeyDisplayModeSetting>(
                   value: draft.keyDisplayMode,
                   options: [
                     for (final mode in _keyDisplayModes)
-                      SettingsVisualOption<KeyDisplayModeSetting>(
+                      SettingsSegmentedOption<KeyDisplayModeSetting>(
                         value: mode,
                         label: _keyDisplayLabel(l10n, mode),
-                        subtitle: _keyDisplaySubtitle(l10n, mode),
-                        preview: _KeyDisplayPreview(mode: mode),
+                        description: _keyDisplaySubtitle(l10n, mode),
+                        leading: _KeyDisplayPreview(mode: mode),
                       ),
                   ],
                   onChanged: (m) =>

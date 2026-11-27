@@ -10,6 +10,7 @@ import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -200,16 +201,14 @@ class SettingsLayoutPanel extends StatelessWidget {
           child: draft.showWaveform
               ? SettingsField(
                   label: l10n.settingsLayoutWaveformPosition,
-                  child: SettingsVisualChoice<WaveformPositionSetting>(
+                  child: SettingsSegmentedChoice<WaveformPositionSetting>(
                     value: draft.waveformPosition,
-                    axis: Axis.horizontal,
-                    previewAspectRatio: 16 / 9,
                     options: [
                       for (final value in WaveformPositionSetting.values)
-                        SettingsVisualOption<WaveformPositionSetting>(
+                        SettingsSegmentedOption<WaveformPositionSetting>(
                           value: value,
                           label: _positionLabel(l10n, value),
-                          preview: _WaveformPositionPreview(position: value),
+                          leading: _WaveformPositionGlyph(position: value),
                         ),
                     ],
                     onChanged: (position) => onChanged(
@@ -342,6 +341,23 @@ class _WaveformPositionPreview extends StatelessWidget {
         children: [sized(3, block), sideBySideLanes(), sized(3, block)],
       ),
     };
+  }
+}
+
+/// The same miniature at segment scale, small enough to sit beside a label in
+/// the segmented control while keeping the layout readable.
+class _WaveformPositionGlyph extends StatelessWidget {
+  const new({required this.position});
+
+  final WaveformPositionSetting position;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 20,
+      child: _WaveformPositionPreview(position: position),
+    );
   }
 }
 
