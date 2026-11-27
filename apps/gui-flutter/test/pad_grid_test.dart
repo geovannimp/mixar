@@ -132,6 +132,43 @@ void main() {
     }
   });
 
+  testWidgets('a flush grid leaves its outer frames to the chrome', (
+    tester,
+  ) async {
+    await pumpGrid(tester, size: const Size(400, 300));
+    final painter = tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(PadGrid),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<PadTablePainter>()
+        .single;
+    // The deck chrome already draws the left and right hairlines on a flush
+    // block; painting ours beside them would read as a two-pixel border.
+    expect(painter.leftFrame, isFalse);
+    expect(painter.rightFrame, isFalse);
+  });
+
+  testWidgets('a capped grid frames the sides it leaves empty', (tester) async {
+    // 1000 x 300: the 16:10 cap narrows the block to 960 and centres it.
+    await pumpGrid(tester, size: const Size(1000, 300));
+    final painter = tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(PadGrid),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<PadTablePainter>()
+        .single;
+    expect(painter.leftFrame, isTrue);
+    expect(painter.rightFrame, isTrue);
+  });
+
   test('the table seams frame the block and divide it evenly', () {
     final lines = padTableLines(const Size(400, 300), 1, 1);
     // Left and right frames, three column seams, one row seam.
@@ -144,6 +181,16 @@ void main() {
     // transport divider does), so the frame never doubles.
     final horizontals = lines.where((line) => line.height == 1);
     expect(horizontals, hasLength(1));
+
+    // A flush block drops both frames and keeps the interior seams.
+    final bare = padTableLines(
+      const Size(400, 300),
+      1,
+      1,
+      leftFrame: false,
+      rightFrame: false,
+    );
+    expect(bare, hasLength(4));
   });
 
   test('fractional pad widths snap their seams to device pixels', () {

@@ -27,17 +27,24 @@ List<double> padTableSeams(double extent, int cells, double devicePixelRatio) {
 
 /// Seams of the tiled pad table, in block coordinates.
 ///
-/// The grid paints the table itself, above the pads: left and right frames, the
-/// three column seams, and the row seam. Only the top edge is missing — the
-/// panel's header divider draws it — and the bottom is left to the surface
-/// below (the deck's transport divider).
+/// The grid paints the table itself, above the pads: the three column seams,
+/// the row seam, and — only on a side where the block does not reach the pane
+/// edge — an outer frame. A flush side is left bare: the chrome next to it
+/// already draws that hairline (the tempo column's border or the tab rail's),
+/// and painting ours beside it would read as a two-pixel border.
 @visibleForTesting
-List<Rect> padTableLines(Size size, double width, double devicePixelRatio) {
+List<Rect> padTableLines(
+  Size size,
+  double width,
+  double devicePixelRatio, {
+  bool leftFrame = true,
+  bool rightFrame = true,
+}) {
   final columns = padTableSeams(size.width, 4, devicePixelRatio);
   final rows = padTableSeams(size.height, 2, devicePixelRatio);
   return <Rect>[
-    Rect.fromLTWH(0, 0, width, size.height),
-    Rect.fromLTWH(size.width - width, 0, width, size.height),
+    if (leftFrame) Rect.fromLTWH(0, 0, width, size.height),
+    if (rightFrame) Rect.fromLTWH(size.width - width, 0, width, size.height),
     for (var column = 1; column < 4; column++)
       Rect.fromLTWH(columns[column], 0, width, size.height),
     Rect.fromLTWH(0, rows[1], size.width, width),
@@ -50,16 +57,26 @@ class PadTablePainter extends CustomPainter {
     required this.color,
     required this.width,
     required this.devicePixelRatio,
+    this.leftFrame = true,
+    this.rightFrame = true,
   });
 
   final Color color;
   final double width;
   final double devicePixelRatio;
+  final bool leftFrame;
+  final bool rightFrame;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
-    for (final line in padTableLines(size, width, devicePixelRatio)) {
+    for (final line in padTableLines(
+      size,
+      width,
+      devicePixelRatio,
+      leftFrame: leftFrame,
+      rightFrame: rightFrame,
+    )) {
       canvas.drawRect(line, paint);
     }
   }
@@ -68,7 +85,9 @@ class PadTablePainter extends CustomPainter {
   bool shouldRepaint(PadTablePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.width != width ||
-      oldDelegate.devicePixelRatio != devicePixelRatio;
+      oldDelegate.devicePixelRatio != devicePixelRatio ||
+      oldDelegate.leftFrame != leftFrame ||
+      oldDelegate.rightFrame != rightFrame;
 }
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
@@ -187,6 +206,9 @@ class _PadGridState extends State<PadGrid> {
                                   color: theme.colors.border,
                                   width: theme.style.borderWidth,
                                   devicePixelRatio: devicePixelRatio,
+                                  leftFrame: inset > 0,
+                                  rightFrame:
+                                      constraints.maxWidth - width - inset > 0,
                                 ),
                               ),
                             ),
