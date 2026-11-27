@@ -354,6 +354,19 @@ void main() {
     expect(line.right, closeTo(lastPad.right, 0.5));
   });
 
+  testWidgets('the last pad row leaves its bottom edge to the panel below', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final firstRow = padDecorationOf(tester, find.byType(PadButton).at(0));
+    final lastRow = padDecorationOf(tester, find.byType(PadButton).at(4));
+
+    // Row 1 keeps the seam that separates the two rows…
+    expect((firstRow.border! as Border).bottom.width, 1);
+    // …the bottom row does not, or the deck's divider below would double it.
+    expect((lastRow.border! as Border).bottom, BorderSide.none);
+  });
+
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
     final pressed = <(int, bool)>[];
     await pumpPanel(

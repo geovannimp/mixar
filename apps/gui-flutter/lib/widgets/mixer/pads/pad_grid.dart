@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_seams.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
@@ -101,11 +102,13 @@ class _PadGridState extends State<PadGrid> {
                               widget.children.sublist(0, 4),
                               padWidth,
                               padHeight,
+                              bottomSeam: true,
                             ),
                             _padRow(
                               widget.children.sublist(4),
                               padWidth,
                               padHeight,
+                              bottomSeam: false,
                             ),
                           ],
                         ),
@@ -122,13 +125,23 @@ class _PadGridState extends State<PadGrid> {
   }
 }
 
-Widget _padRow(List<Widget> pads, double padWidth, double padHeight) {
+Widget _padRow(
+  List<Widget> pads,
+  double padWidth,
+  double padHeight, {
+  required bool bottomSeam,
+}) {
   return SizedBox(
     height: padHeight,
     child: Row(
       children: [
         for (final pad in pads)
-          SizedBox(width: padWidth, height: padHeight, child: pad),
+          SizedBox(
+            width: padWidth,
+            height: padHeight,
+            // The last row leaves its bottom hairline to the panel below.
+            child: bottomSeam ? pad : PadSeams(bottom: false, child: pad),
+          ),
       ],
     ),
   );
