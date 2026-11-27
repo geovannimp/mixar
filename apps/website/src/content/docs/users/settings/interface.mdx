@@ -42,15 +42,15 @@ Card subtitle: "Language, hover tips, and how selects open."
 
 ## UI → First-run setup
 
-Card subtitle: "Show the welcome steps again instead of the mixer. Saved with the rest of Settings."
+Card subtitle: "Run the welcome steps again the next time Mixar opens."
 
 | Control | Type | Values | Default | Effect |
 | --- | --- | --- | --- | --- |
-| **Show setup again** | button | — | — | Clears the "setup done" flag in the draft; nothing happens until you Save. |
+| **Show onboarding next run** | switch | on / off | off | Schedules the setup stages for the next launch. |
 
-The button clears the "setup done" flag in the settings draft, and nothing happens until you save. After Save, the app leaves the mixer and shows the setup stages again, exactly as on a fresh install. The controller stage appears only when a supported, mapped controller is detected. The stages are described in [First launch](/docs/users/getting-started#first-launch).
+The switch records that setup should run the next time Mixar opens. Saving it does not switch the current window to setup: the mixer keeps playing, and setup appears on the next launch exactly as on a fresh install. Finishing or skipping it at that launch turns the switch back off. The controller stage appears only when a supported, mapped controller is detected. The stages are described in [First launch](/docs/users/getting-started#first-launch).
 
-This save does not restart the engine, so audio keeps playing while you are sent back to setup.
+This save does not restart the engine, so audio keeps playing while setup is scheduled.
 
 ## Layout → Presets
 

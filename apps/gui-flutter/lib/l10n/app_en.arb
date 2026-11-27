@@ -137,8 +137,8 @@
   "settingsLanguagePtBr": "Português (Brasil)",
   "settingsShowTooltips": "Show tooltips",
   "settingsUiOnboardingTitle": "First-run setup",
-  "settingsUiOnboardingDescription": "Show the welcome steps again instead of the mixer. Saved with the rest of Settings.",
-  "settingsUiOnboardingReplay": "Show setup again",
+  "settingsUiOnboardingDescription": "Run the welcome steps again the next time Mixar opens.",
+  "settingsUiOnboardingNextRun": "Show onboarding next run",
   "onboardingStepProgress": "Step {index} of {total}",
   "@onboardingStepProgress": {
     "placeholders": {

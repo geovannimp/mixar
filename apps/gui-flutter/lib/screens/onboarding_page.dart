@@ -112,8 +112,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (!mounted) {
       return;
     }
-    // Replay re-runs the probe: the provider keeps its first answer, and the
-    // hardware may have changed since.
+    // Probe fresh: a provider read before this page opened keeps its first
+    // answer, and the hardware may have changed since.
     ref.invalidate(onboardingControllersProvider);
     // A failed MIDI probe means "no controller", never a blocked setup.
     // Only a controller Mixar has a mapping for gets a setup step: a bare MIDI

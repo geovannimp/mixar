@@ -1,17 +1,16 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_theme_picker.dart';
-import 'package:gui_flutter/widgets/shell/app_button.dart';
 
 class SettingsUiPanel extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -80,12 +79,19 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiOnboardingTitle,
           subtitle: l10n.settingsUiOnboardingDescription,
-          trailing: AppButton(
-            size: MixarButtonSize.sm,
-            variant: MixarButtonVariant.outline,
-            onPress: () =>
-                onChanged(copyAppSettings(draft, onboardingCompleted: false)),
-            child: Text(l10n.settingsUiOnboardingReplay),
+          // The docs and the switch's own name both say "Show onboarding next
+          // run", while the card reads "First-run setup": index the former so
+          // a search for the name the user was told finds the card.
+          searchTerms: [l10n.settingsUiOnboardingNextRun],
+          // Setup is a launch decision: the switch only records that the next
+          // launch should open it. `Application` reads the flag once, so
+          // saving here never swaps the window away from the mixer.
+          trailing: SettingsHeaderSwitch(
+            value: !draft.onboardingCompleted,
+            semanticsLabel: l10n.settingsUiOnboardingNextRun,
+            onChanged: (scheduled) => onChanged(
+              copyAppSettings(draft, onboardingCompleted: !scheduled),
+            ),
           ),
         ),
       ],

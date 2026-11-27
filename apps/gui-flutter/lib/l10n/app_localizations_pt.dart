@@ -370,10 +370,11 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiOnboardingDescription =>
-      'Mostrar outra vez os passos de boas-vindas em vez do mixer. Salvo com o resto das configurações.';
+      'Mostrar outra vez os passos de boas-vindas na próxima vez que o Mixar abrir.';
 
   @override
-  String get settingsUiOnboardingReplay => 'Mostrar configuração outra vez';
+  String get settingsUiOnboardingNextRun =>
+      'Mostrar configuração inicial na próxima abertura';
 
   @override
   String onboardingStepProgress(int index, int total) {
