@@ -8,9 +8,6 @@ import 'package:silky_scroll/silky_scroll.dart';
 
 const _kPadMinSide = 24.0;
 
-/// Widest a pad may get relative to its height.
-const _kPadMaxAspect = 16 / 10;
-
 /// Evenly spaced cell boundaries for [extent], snapped to device pixels.
 ///
 /// Boundaries, not widths: neighbouring cells may differ by one device pixel,
@@ -27,24 +24,16 @@ List<double> padTableSeams(double extent, int cells, double devicePixelRatio) {
 
 /// Seams of the tiled pad table, in block coordinates.
 ///
-/// The grid paints the table itself, above the pads: the three column seams,
-/// the row seam, and — only on a side where the block does not reach the pane
-/// edge — an outer frame. A flush side is left bare: the chrome next to it
-/// already draws that hairline (the tempo column's border or the tab rail's),
-/// and painting ours beside it would read as a two-pixel border.
+/// The grid paints the table's interior above the pads: the three column seams
+/// and the row seam. It draws no outer frame — the top is the panel's header
+/// divider, the bottom the deck's transport divider, and the sides are the
+/// hairline the deck chrome already draws against the pane (the tempo column's
+/// border or the tab rail's).
 @visibleForTesting
-List<Rect> padTableLines(
-  Size size,
-  double width,
-  double devicePixelRatio, {
-  bool leftFrame = true,
-  bool rightFrame = true,
-}) {
+List<Rect> padTableLines(Size size, double width, double devicePixelRatio) {
   final columns = padTableSeams(size.width, 4, devicePixelRatio);
   final rows = padTableSeams(size.height, 2, devicePixelRatio);
   return <Rect>[
-    if (leftFrame) Rect.fromLTWH(0, 0, width, size.height),
-    if (rightFrame) Rect.fromLTWH(size.width - width, 0, width, size.height),
     for (var column = 1; column < 4; column++)
       Rect.fromLTWH(columns[column], 0, width, size.height),
     Rect.fromLTWH(0, rows[1], size.width, width),
@@ -57,26 +46,16 @@ class PadTablePainter extends CustomPainter {
     required this.color,
     required this.width,
     required this.devicePixelRatio,
-    this.leftFrame = true,
-    this.rightFrame = true,
   });
 
   final Color color;
   final double width;
   final double devicePixelRatio;
-  final bool leftFrame;
-  final bool rightFrame;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
-    for (final line in padTableLines(
-      size,
-      width,
-      devicePixelRatio,
-      leftFrame: leftFrame,
-      rightFrame: rightFrame,
-    )) {
+    for (final line in padTableLines(size, width, devicePixelRatio)) {
       canvas.drawRect(line, paint);
     }
   }
@@ -85,17 +64,14 @@ class PadTablePainter extends CustomPainter {
   bool shouldRepaint(PadTablePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.width != width ||
-      oldDelegate.devicePixelRatio != devicePixelRatio ||
-      oldDelegate.leftFrame != leftFrame ||
-      oldDelegate.rightFrame != rightFrame;
+      oldDelegate.devicePixelRatio != devicePixelRatio;
 }
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
 ///
-/// Pads tile the pane edge to edge, table-style: no gaps and no outer inset.
-/// A pad's width caps at 16:10, so a pane wider than that ratio centres a
-/// narrower block instead of stretching pads; short panes scroll without
-/// crushing controls.
+/// Pads tile the pane edge to edge, table-style: no gaps, no outer inset and
+/// no aspect cap — each pad takes a quarter of the width and half the height,
+/// whatever shape that gives. Short panes scroll without crushing controls.
 class PadGrid extends StatefulWidget {
   new({required this.children, super.key}) {
     if (children.length != 8) {
@@ -151,15 +127,10 @@ class _PadGridState extends State<PadGrid> {
               // would leave a pad fill bleeding past its frame by a fraction
               // of a pixel, which reads as a second border along the edge.
               final double height = snapDown(2 * padHeight);
-              final double width = snapDown(
-                math.min(constraints.maxWidth, 4 * _kPadMaxAspect * padHeight),
-              );
+              final double width = snapDown(constraints.maxWidth);
               if (width <= 0) {
                 return const SizedBox.shrink();
               }
-              final double leftover = math.max(0, constraints.maxWidth - width);
-              final double inset =
-                  (leftover / 2 * devicePixelRatio).round() / devicePixelRatio;
               final columns = padTableSeams(width, 4, devicePixelRatio);
               final rows = padTableSeams(height, 2, devicePixelRatio);
               return SilkySingleChildScrollView(
@@ -173,47 +144,40 @@ class _PadGridState extends State<PadGrid> {
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Align(
                     alignment: Alignment.topLeft,
-                    child: Padding(
-                      // Centre the capped block on a whole device pixel too.
-                      padding: EdgeInsets.only(left: inset),
-                      child: SizedBox(
-                        width: width,
-                        height: height,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Column(
-                              children: [
-                                _padRow(
-                                  widget.children.sublist(0, 4),
-                                  columns,
-                                  rows[0],
-                                  rows[1],
-                                ),
-                                _padRow(
-                                  widget.children.sublist(4),
-                                  columns,
-                                  rows[1],
-                                  rows[2],
-                                ),
-                              ],
-                            ),
-                            // The seams sit above the pads, so no pad fill can
-                            // cover the frame and every line is one hairline.
-                            IgnorePointer(
-                              child: CustomPaint(
-                                painter: PadTablePainter(
-                                  color: theme.colors.border,
-                                  width: theme.style.borderWidth,
-                                  devicePixelRatio: devicePixelRatio,
-                                  leftFrame: inset > 0,
-                                  rightFrame:
-                                      constraints.maxWidth - width - inset > 0,
-                                ),
+                    child: SizedBox(
+                      width: width,
+                      height: height,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Column(
+                            children: [
+                              _padRow(
+                                widget.children.sublist(0, 4),
+                                columns,
+                                rows[0],
+                                rows[1],
+                              ),
+                              _padRow(
+                                widget.children.sublist(4),
+                                columns,
+                                rows[1],
+                                rows[2],
+                              ),
+                            ],
+                          ),
+                          // The seams sit above the pads, so no pad fill can
+                          // cover one and every line stays one hairline.
+                          IgnorePointer(
+                            child: CustomPaint(
+                              painter: PadTablePainter(
+                                color: theme.colors.border,
+                                width: theme.style.borderWidth,
+                                devicePixelRatio: devicePixelRatio,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

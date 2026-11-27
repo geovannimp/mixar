@@ -67,18 +67,15 @@ void main() {
     expect(rects[4].top, closeTo(150, 0.5));
   });
 
-  testWidgets('pads cap at 16:10 and centre in a very wide pane', (
-    tester,
-  ) async {
+  testWidgets('pads fill a very wide pane', (tester) async {
     final rects = await pumpPads(tester, size: const Size(1000, 300));
-    // Rows take 150, so the cap holds width at 1.6 x 150.
+    // No aspect cap: a quarter of the width, half the height.
     for (final rect in rects) {
-      expect(rect.width, closeTo(240, 0.5));
+      expect(rect.width, closeTo(250, 0.5));
       expect(rect.height, closeTo(150, 0.5));
     }
-    const blockWidth = 4 * 240.0;
-    expect(rects[0].left, closeTo((1000 - blockWidth) / 2, 0.5));
-    expect(rects[3].right, closeTo((1000 + blockWidth) / 2, 0.5));
+    expect(rects[0].left, closeTo(0, 0.5));
+    expect(rects[3].right, closeTo(1000, 0.5));
   });
 
   testWidgets('pads stretch tall in a narrow pane', (tester) async {
@@ -92,7 +89,7 @@ void main() {
   testWidgets('a short pane keeps a 24 px row and scrolls', (tester) async {
     final rects = await pumpPads(tester, size: const Size(400, 30));
     expect(rects[0].height, closeTo(24, 0.5));
-    expect(rects[0].width, closeTo(38.4, 0.5));
+    expect(rects[0].width, closeTo(100, 0.5));
     expect(find.byType(Scrollable), findsWidgets);
   });
 
@@ -132,65 +129,14 @@ void main() {
     }
   });
 
-  testWidgets('a flush grid leaves its outer frames to the chrome', (
-    tester,
-  ) async {
-    await pumpGrid(tester, size: const Size(400, 300));
-    final painter = tester
-        .widgetList<CustomPaint>(
-          find.descendant(
-            of: find.byType(PadGrid),
-            matching: find.byType(CustomPaint),
-          ),
-        )
-        .map((paint) => paint.painter)
-        .whereType<PadTablePainter>()
-        .single;
-    // The deck chrome already draws the left and right hairlines on a flush
-    // block; painting ours beside them would read as a two-pixel border.
-    expect(painter.leftFrame, isFalse);
-    expect(painter.rightFrame, isFalse);
-  });
-
-  testWidgets('a capped grid frames the sides it leaves empty', (tester) async {
-    // 1000 x 300: the 16:10 cap narrows the block to 960 and centres it.
-    await pumpGrid(tester, size: const Size(1000, 300));
-    final painter = tester
-        .widgetList<CustomPaint>(
-          find.descendant(
-            of: find.byType(PadGrid),
-            matching: find.byType(CustomPaint),
-          ),
-        )
-        .map((paint) => paint.painter)
-        .whereType<PadTablePainter>()
-        .single;
-    expect(painter.leftFrame, isTrue);
-    expect(painter.rightFrame, isTrue);
-  });
-
-  test('the table seams frame the block and divide it evenly', () {
+  test('the table paints interior seams only', () {
     final lines = padTableLines(const Size(400, 300), 1, 1);
-    // Left and right frames, three column seams, one row seam.
-    expect(lines, hasLength(6));
-    expect(lines[0], const Rect.fromLTWH(0, 0, 1, 300));
-    expect(lines[1], const Rect.fromLTWH(399, 0, 1, 300));
-    expect([for (var i = 2; i < 5; i++) lines[i].left], [100.0, 200.0, 300.0]);
-    expect(lines[5], const Rect.fromLTWH(0, 150, 400, 1));
-    // No top seam (the header divider draws it) and no bottom seam (the
-    // transport divider does), so the frame never doubles.
-    final horizontals = lines.where((line) => line.height == 1);
-    expect(horizontals, hasLength(1));
-
-    // A flush block drops both frames and keeps the interior seams.
-    final bare = padTableLines(
-      const Size(400, 300),
-      1,
-      1,
-      leftFrame: false,
-      rightFrame: false,
-    );
-    expect(bare, hasLength(4));
+    // Three column seams and one row seam: no top (the header divider draws
+    // it), bottom (the transport divider), or side frame (the deck chrome's
+    // hairline) — so no edge is ever doubled.
+    expect(lines, hasLength(4));
+    expect([for (final line in lines) line.left], [100.0, 200.0, 300.0, 0.0]);
+    expect(lines.last, const Rect.fromLTWH(0, 150, 400, 1));
   });
 
   test('fractional pad widths snap their seams to device pixels', () {
@@ -201,7 +147,7 @@ void main() {
       for (final line in lines)
         if (line.width == 1 && line.height == 260) line.left,
     ]..sort();
-    expect(verticals, [0.0, 73.0, 145.0, 218.0, 289.0]);
+    expect(verticals, [73.0, 145.0, 218.0]);
     for (final x in verticals) {
       expect(x, x.roundToDouble());
     }
