@@ -213,15 +213,21 @@ class DeckPadsPanel extends StatelessWidget {
     }
 
     return DecoratedBox(
-      // Above the pads: the tiled grid now fills the body's edges, so a
-      // background border would sit under the pad fills.
-      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        border: Border.all(color: theme.colors.border),
-        borderRadius: theme.style.borderRadius.sm,
         color: theme.colors.background.withValues(alpha: 0.8),
+        borderRadius: theme.style.borderRadius.sm,
       ),
-      child: body,
+      child: DecoratedBox(
+        // Border only, and above the pads: the tiled grid fills the body's
+        // edges, so a background stroke would sit under the pad fills — but a
+        // foreground *fill* would wash the pads out.
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colors.border),
+          borderRadius: theme.style.borderRadius.sm,
+        ),
+        child: body,
+      ),
     );
   }
 

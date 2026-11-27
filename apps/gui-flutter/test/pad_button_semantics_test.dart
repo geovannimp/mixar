@@ -1,7 +1,5 @@
 import 'dart:ui' show Tristate;
 
-import 'package:flutter/gestures.dart';
-
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,9 +42,7 @@ void main() {
     final pad = find.byType(PadButton);
     expect(padDecorationOf(tester, pad).color, theme.colors.card);
 
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: const Offset(200, 200));
+    final pointer = await attachMousePointer(tester);
     await pointer.moveTo(tester.getCenter(pad));
     await tester.pumpAndSettle();
     expect(padDecorationOf(tester, pad).color, theme.colors.secondary);
@@ -82,7 +78,7 @@ void main() {
     final theme = MixarThemeData.dark();
     await pumpPad(
       tester,
-      pad: PadButton(disabled: true, child: const Text('X')),
+      pad: const PadButton(disabled: true, child: Text('X')),
     );
     final pad = find.byType(PadButton);
     expect(
@@ -112,9 +108,7 @@ void main() {
       ),
     );
     final pad = find.byType(PadButton);
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: const Offset(200, 200));
+    final pointer = await attachMousePointer(tester);
     await pointer.moveTo(tester.getCenter(pad));
     await tester.pumpAndSettle();
     await pointer.moveTo(const Offset(200, 200));

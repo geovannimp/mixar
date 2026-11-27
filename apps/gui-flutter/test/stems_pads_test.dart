@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
@@ -64,9 +63,7 @@ void main() {
   }
 
   Future<TestGesture> hoverPad(WidgetTester tester, int index) async {
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: Offset.zero);
+    final pointer = await attachMousePointer(tester);
     await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(index)));
     await tester.pumpAndSettle();
     return pointer;

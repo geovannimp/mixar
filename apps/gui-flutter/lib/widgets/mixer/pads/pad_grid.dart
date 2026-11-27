@@ -94,12 +94,7 @@ class PadTablePainter extends CustomPainter {
         ((value + fraction) * devicePixelRatio).floor() / devicePixelRatio -
         fraction;
 
-    for (final line in padTableLines(
-      size,
-      stroke,
-      padTableSeams(size.width, 4, devicePixelRatio),
-      padTableSeams(size.height, 2, devicePixelRatio),
-    )) {
+    for (final line in padTableLines(size, stroke, columns, rows)) {
       final vertical = line.height == size.height;
       canvas.drawRect(
         vertical

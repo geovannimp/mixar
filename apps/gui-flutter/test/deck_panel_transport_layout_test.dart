@@ -1,6 +1,3 @@
-import 'dart:ui' as ui;
-
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +17,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart' show Scaffold;
 
 import 'support/fake_engine_transport.dart';
+import 'support/render_capture.dart';
 import 'support/mixar_material_app.dart';
 
 class _EngineUi extends EngineUi {
@@ -193,18 +191,8 @@ void main() {
     expect(foot.right, BorderSide.none);
 
     // Painted above the panel's own fill, so the deck actually shows it.
-    final boundary =
-        deckKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    final bytes = (await tester.runAsync(() async {
-      final image = await boundary.toImage();
-      try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        return data!.buffer.asUint8List();
-      } finally {
-        image.dispose();
-      }
-    }))!;
-    final imageWidth = boundary.size.width.round();
+    final bytes = await captureRgba(tester, deckKey);
+    final imageWidth = tester.getRect(find.byKey(deckKey)).width.round();
     final i =
         ((panel.bottom.round() - 1) * imageWidth + panel.center.dx.round()) * 4;
     final border = MixarThemeData.dark().colors.border;

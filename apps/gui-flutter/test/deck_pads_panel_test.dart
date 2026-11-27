@@ -22,6 +22,8 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import 'support/render_capture.dart';
+
 import 'support/mixar_material_app.dart';
 import 'support/pad_finders.dart';
 
@@ -48,6 +50,8 @@ void expectMutedPadSuffix(
 }
 
 void main() {
+  final panelKey = GlobalKey();
+
   Future<void> pumpPanel(
     WidgetTester tester, {
     required bool hasTrack,
@@ -91,55 +95,58 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (context, setState) {
-                return SizedBox(
-                  width: size.width,
-                  height: size.height,
-                  child: DeckPadsPanel(
-                    padMode: mode,
-                    onPadMode: (next) {
-                      onPadMode?.call(next);
-                      setState(() => mode = next);
-                    },
-                    hotCues: cues,
-                    onHotCuePress: (slot, shift) {
-                      onHotCuePress?.call(slot, shift);
-                      if (!hasTrack || disabled) {
-                        return;
-                      }
-                      setState(() {
-                        cues.removeWhere((c) => c.slot == slot);
-                        cues.add(
-                          DeckHotCue(slot: slot, positionMs: slot * 1000),
-                        );
-                      });
-                    },
-                    onHotCueRelease: (_) {},
-                    onLoopRollPress: (_) {},
-                    onLoopRollRelease: (_) {},
-                    onBeatJumpPress: (_) {},
-                    onBeatJumpRelease: (_) {},
-                    samplerSlots: [
-                      ...samplerSlots,
-                      for (var i = samplerSlots.length; i < 8; i++)
-                        const SamplerSlot(),
-                    ],
-                    samplerBanks: samplerBanks,
-                    activeBankId: bankId,
-                    onSamplerPress: (_, _) {},
-                    onSamplerRelease: (_) {},
-                    onSelectBank: (id) => setState(() => bankId = id),
-                    onSaveBank: (_, _, _) {},
-                    onCreateBank: (_, _) {},
-                    onSelectPage: (_) {},
-                    onKeyShiftPress: onKeyShiftPress ?? (_) {},
-                    onKeyboardPress: onKeyboardPress ?? (_) {},
-                    onKeyboardRelease: (_) {},
-                    stemsReady: stemsReady,
-                    stemsLive: stemsLive,
-                    realtimeStemsEnabled: realtimeStemsEnabled,
-                    hasTrack: hasTrack,
-                    disabled: disabled,
-                    bordered: bordered,
+                return RepaintBoundary(
+                  key: panelKey,
+                  child: SizedBox(
+                    width: size.width,
+                    height: size.height,
+                    child: DeckPadsPanel(
+                      padMode: mode,
+                      onPadMode: (next) {
+                        onPadMode?.call(next);
+                        setState(() => mode = next);
+                      },
+                      hotCues: cues,
+                      onHotCuePress: (slot, shift) {
+                        onHotCuePress?.call(slot, shift);
+                        if (!hasTrack || disabled) {
+                          return;
+                        }
+                        setState(() {
+                          cues.removeWhere((c) => c.slot == slot);
+                          cues.add(
+                            DeckHotCue(slot: slot, positionMs: slot * 1000),
+                          );
+                        });
+                      },
+                      onHotCueRelease: (_) {},
+                      onLoopRollPress: (_) {},
+                      onLoopRollRelease: (_) {},
+                      onBeatJumpPress: (_) {},
+                      onBeatJumpRelease: (_) {},
+                      samplerSlots: [
+                        ...samplerSlots,
+                        for (var i = samplerSlots.length; i < 8; i++)
+                          const SamplerSlot(),
+                      ],
+                      samplerBanks: samplerBanks,
+                      activeBankId: bankId,
+                      onSamplerPress: (_, _) {},
+                      onSamplerRelease: (_) {},
+                      onSelectBank: (id) => setState(() => bankId = id),
+                      onSaveBank: (_, _, _) {},
+                      onCreateBank: (_, _) {},
+                      onSelectPage: (_) {},
+                      onKeyShiftPress: onKeyShiftPress ?? (_) {},
+                      onKeyboardPress: onKeyboardPress ?? (_) {},
+                      onKeyboardRelease: (_) {},
+                      stemsReady: stemsReady,
+                      stemsLive: stemsLive,
+                      realtimeStemsEnabled: realtimeStemsEnabled,
+                      hasTrack: hasTrack,
+                      disabled: disabled,
+                      bordered: bordered,
+                    ),
                   ),
                 );
               },

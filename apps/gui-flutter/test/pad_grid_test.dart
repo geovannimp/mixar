@@ -1,11 +1,12 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'support/render_capture.dart';
 
 void main() {
   test('PadGrid rejects wrong child counts', () {
@@ -168,18 +169,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final boundary =
-        boundaryKey.currentContext!.findRenderObject()!
-            as RenderRepaintBoundary;
-    final bytes = (await tester.runAsync(() async {
-      final image = await boundary.toImage();
-      try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        return data!.buffer.asUint8List();
-      } finally {
-        image.dispose();
-      }
-    }))!;
+    final bytes = await captureRgba(tester, boundaryKey);
     final colors = <int>{
       for (var x = 1; x < 290; x++)
         () {
@@ -269,18 +259,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final boundary =
-        boundaryKey.currentContext!.findRenderObject()!
-            as RenderRepaintBoundary;
-    final bytes = (await tester.runAsync(() async {
-      final image = await boundary.toImage(pixelRatio: 1.3);
-      try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        return data!.buffer.asUint8List();
-      } finally {
-        image.dispose();
-      }
-    }))!;
+    final bytes = await captureRgba(tester, boundaryKey, pixelRatio: 1.3);
     final imageWidth = (200 * 1.3).round();
     int pixel(int x, int y) {
       final i = (y * imageWidth + x) * 4;
