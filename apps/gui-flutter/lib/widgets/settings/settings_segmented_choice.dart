@@ -35,9 +35,13 @@ class SettingsSegmentedOption<T> {
 /// A rounded segmented track: one bordered pill split by hairlines, matching
 /// the deck selector's grouped options.
 ///
-/// Selection is carried by a coloured border around the cell, the heavier
-/// label, and the leading mark; a keyboard focus ring paints the same border
-/// in the foreground colour.
+/// Cells stay in one row while each one keeps [_minCellWidth]; otherwise the
+/// track wraps into as many columns as the pane can hold (three, two, or one),
+/// and the last row's final cell spans the leftover columns. Selection is
+/// carried by a coloured border around the cell, the heavier label, and the
+/// leading mark; keyboard focus thickens that border.
+///
+/// Needs a bounded width: every cell is an [Expanded] inside a row.
 class SettingsSegmentedChoice<T> extends StatelessWidget {
   const new({
     required this.value,
@@ -54,11 +58,15 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
   /// label, so the mark drops out and the label keeps the space.
   static const _leadingBreakpoint = 96.0;
 
+  /// The narrowest cell that still reads: a 36px mark, an 8px gap, a short
+  /// label, and the cell padding.
+  static const _minCellWidth = 120.0;
+
   /// Up to one row of cells reads as a pill. Past that, the same cells wrap
-  /// into a three-column grid — a single row of six or more labels would
-  /// squeeze every segment below readability.
+  /// into a grid — a single row of six or more labels would squeeze every
+  /// segment below readability.
   static const _rowLimit = 5;
-  static const _gridColumns = 3;
+  static const _maxGridColumns = 3;
 
   @override
   Widget build(BuildContext context) {
@@ -68,11 +76,29 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
     final theme = context.theme;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final singleRow = options.length <= _rowLimit;
-        final columns = singleRow ? options.length : _gridColumns;
-        final showLeading =
-            !constraints.hasBoundedWidth ||
-            constraints.maxWidth / columns >= _leadingBreakpoint;
+        assert(
+          constraints.hasBoundedWidth,
+          'SettingsSegmentedChoice needs a bounded width for its Expanded '
+          'cells.',
+        );
+        final width = constraints.maxWidth;
+        final singleRow =
+            options.length <= _rowLimit &&
+            width / options.length >= _minCellWidth;
+        final columns = singleRow
+            ? options.length
+            : width >= _maxGridColumns * _minCellWidth
+            ? _maxGridColumns
+            : width >= 2 * _minCellWidth
+            ? 2
+            : 1;
+        final dividers = columns - 1;
+        final cellWidth =
+            (width - dividers * theme.style.borderWidth) / columns;
+        final showLeading = cellWidth >= _leadingBreakpoint;
+        // At pathological widths the padding would eat the whole cell; shrink
+        // it so a truncated label still shows.
+        final inset = cellWidth >= 44 ? 6.0 : 2.0;
         // A grid keeps the softer card corner: the pill's stadium radius
         // would bite into the corner cells of a multi-row track.
         final radius = singleRow
@@ -89,15 +115,15 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
           child: ClipRRect(
             borderRadius: radius,
             child: singleRow
-                ? _row(theme, showLeading)
-                : _grid(theme, showLeading),
+                ? _row(theme, showLeading, inset)
+                : _grid(theme, showLeading, columns, inset),
           ),
         );
       },
     );
   }
 
-  Widget _row(MixarThemeData theme, bool showLeading) {
+  Widget _row(MixarThemeData theme, bool showLeading, double inset) {
     final pill = theme.style.borderRadius.pill;
     BorderRadius? shapeFor(int index) {
       if (options.length == 1) {
@@ -118,30 +144,41 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
         children: [
           for (var i = 0; i < options.length; i++) ...[
             if (i > 0) _divider(theme, Axis.vertical),
-            Expanded(child: _cell(options[i], showLeading, shapeFor(i))),
+            Expanded(child: _cell(options[i], showLeading, inset, shapeFor(i))),
           ],
         ],
       ),
     );
   }
 
-  Widget _grid(MixarThemeData theme, bool showLeading) {
-    final rows = (options.length + _gridColumns - 1) ~/ _gridColumns;
+  Widget _grid(
+    MixarThemeData theme,
+    bool showLeading,
+    int columns,
+    double inset,
+  ) {
+    final rows = (options.length + columns - 1) ~/ columns;
     final lastRow = rows - 1;
     final corner = theme.style.borderRadius.dialog.topLeft;
-    BorderRadius? shapeFor(int row, int column) {
+    BorderRadius? shapeFor(int row, int column, int count) {
       final top = row == 0;
       final bottom = row == lastRow;
       final left = column == 0;
-      final right = column == _gridColumns - 1;
-      if (top && left) return BorderRadius.only(topLeft: corner);
-      if (top && right) return BorderRadius.only(topRight: corner);
-      if (bottom && left) return BorderRadius.only(bottomLeft: corner);
-      if (bottom && right) return BorderRadius.only(bottomRight: corner);
-      return null;
+      final right = column == count - 1;
+      final shape = BorderRadius.only(
+        topLeft: top && left ? corner : Radius.zero,
+        topRight: top && right ? corner : Radius.zero,
+        bottomLeft: bottom && left ? corner : Radius.zero,
+        bottomRight: bottom && right ? corner : Radius.zero,
+      );
+      return shape == BorderRadius.zero ? null : shape;
     }
 
     return Column(
+      // A grid sits in loose, bounded contexts too; without this it would
+      // stretch to the parent's height and detach the last row from the
+      // track's bottom edge.
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var row = 0; row < rows; row++) ...[
@@ -150,19 +187,22 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var column = 0; column < _gridColumns; column++) ...[
+                for (
+                  var column = 0;
+                  column < _rowCount(row, columns);
+                  column++
+                ) ...[
                   if (column > 0) _divider(theme, Axis.vertical),
                   Expanded(
-                    child: switch (row * _gridColumns + column) {
-                      final index when index < options.length => _cell(
-                        options[index],
-                        showLeading,
-                        shapeFor(row, column),
-                      ),
-                      // Short last row: the empty slot keeps the column
-                      // hairlines running to the bottom edge.
-                      _ => const SizedBox.shrink(),
-                    },
+                    // The last row's final cell fills the leftover columns,
+                    // so no inert placeholder owns a track corner.
+                    flex: _flex(row, column, columns, rows),
+                    child: _cell(
+                      options[row * columns + column],
+                      showLeading,
+                      inset,
+                      shapeFor(row, column, _rowCount(row, columns)),
+                    ),
                   ),
                 ],
               ],
@@ -173,9 +213,21 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
     );
   }
 
+  int _rowCount(int row, int columns) =>
+      (options.length - row * columns).clamp(1, columns);
+
+  int _flex(int row, int column, int columns, int rows) {
+    if (row != rows - 1) {
+      return 1;
+    }
+    final count = _rowCount(row, columns);
+    return column == count - 1 ? columns - (count - 1) : 1;
+  }
+
   Widget _cell(
     SettingsSegmentedOption<T> option,
     bool showLeading,
+    double inset,
     BorderRadius? shape,
   ) {
     return _Segment<T>(
@@ -183,6 +235,7 @@ class SettingsSegmentedChoice<T> extends StatelessWidget {
       selected: option.value == value,
       showLeading: showLeading,
       borderShape: shape,
+      horizontalInset: inset,
       onPress: () => onChanged(option.value),
     );
   }
@@ -200,6 +253,7 @@ class _Segment<T> extends StatelessWidget {
     required this.selected,
     required this.showLeading,
     required this.borderShape,
+    required this.horizontalInset,
     required this.onPress,
   });
 
@@ -211,24 +265,28 @@ class _Segment<T> extends StatelessWidget {
   /// selection border follows the pill instead of ending in a square.
   final BorderRadius? borderShape;
 
+  final double horizontalInset;
   final VoidCallback onPress;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final leading = option.leading;
+    final selectionColor = option.selectedBorder ?? theme.colors.primary;
     return MTappable(
       onPress: onPress,
       selected: selected,
       semanticsLabel: option.label,
       builder: (context, state) {
+        // Focus never erases the selection's tone: it thickens that same
+        // border (foreground where the cell has no tone of its own).
         final border = state.focused
-            ? Border.all(color: theme.colors.foreground, width: 1.5)
-            : selected
             ? Border.all(
-                color: option.selectedBorder ?? theme.colors.primary,
-                width: 1.5,
+                color: option.selectedBorder ?? theme.colors.foreground,
+                width: 2.5,
               )
+            : selected
+            ? Border.all(color: selectionColor, width: 1.5)
             : null;
         return DecoratedBox(
           // The cell border paints over the track: the selection and the
@@ -243,7 +301,10 @@ class _Segment<T> extends StatelessWidget {
                   : const Color(0x00000000),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalInset,
+                vertical: 10,
+              ),
               child: ExcludeSemantics(
                 // The cell's Semantics already carries the name; the visible
                 // label and mark stay out of the tree so they are not read

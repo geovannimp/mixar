@@ -151,7 +151,9 @@ void main() {
     }, semanticsEnabled: false);
   }
 
-  testWidgets('a focused segment shows the focus ring', (tester) async {
+  testWidgets('a focused segment thickens its palette-tone ring', (
+    tester,
+  ) async {
     await pumpPicker(tester);
 
     final cells = find.descendant(
@@ -181,10 +183,22 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
+    // Focus keeps the palette tone and only thickens the ring.
     final focused = ringOf(0);
     expect(focused, isNotNull);
-    expect(focused!.top.width, 1.5);
-    expect(focused.top.color, MixarThemeData.dark().colors.foreground);
+    expect(focused!.top.width, 2.5);
+    expect(focused.top.color, MixarTeal.s400);
+
+    // The next tab lands on Blue, an unselected cell, which gains its own
+    // tone ring so keyboard focus matches the label colour.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(ringOf(0)!.top.width, 1.5);
+    final next = ringOf(1);
+    expect(next, isNotNull);
+    expect(next!.top.width, 2.5);
+    expect(next.top.color, MixarBlue.s400);
   }, semanticsEnabled: false);
 
   testWidgets('hovering a segment paints the shared hover wash', (

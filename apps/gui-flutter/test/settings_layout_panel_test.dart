@@ -14,6 +14,7 @@ import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -107,14 +108,23 @@ void main() {
       );
     }
 
-    // The layout miniatures stay inside the segments, one per option.
-    expect(
-      find.descendant(
-        of: waveformChoice(),
-        matching: find.byType(SettingsPreviewBlock),
-      ),
-      findsAtLeastNWidgets(4),
-    );
+    // Each option keeps its own layout miniature inside its segment.
+    for (final label in [
+      'Top',
+      'Middle horizontal',
+      'Middle vertical',
+      'Bottom',
+    ]) {
+      final cell = find.ancestor(
+        of: choiceOption(waveformChoice(), label),
+        matching: find.byType(MTappable),
+      );
+      expect(
+        find.descendant(of: cell, matching: find.byType(SettingsPreviewBlock)),
+        findsWidgets,
+        reason: 'missing preview for $label',
+      );
+    }
   }, semanticsEnabled: false);
 
   testWidgets('the default layout reads as the Desktop preset', (tester) async {

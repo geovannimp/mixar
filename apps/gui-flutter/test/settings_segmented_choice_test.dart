@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/widgets/settings/settings_segmented_choice.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
@@ -13,6 +14,7 @@ void main() {
     List<String> labels, {
     String value = 'One',
     ValueChanged<String>? onChanged,
+    double width = 900,
   }) async {
     await tester.pumpWidget(
       mixarTestMaterialApp(
@@ -20,7 +22,7 @@ void main() {
         home: Scaffold(
           body: Center(
             child: SizedBox(
-              width: 900,
+              width: width,
               child: SettingsSegmentedChoice<String>(
                 value: value,
                 options: [
@@ -50,6 +52,30 @@ void main() {
     return (track.decoration as BoxDecoration).borderRadius;
   }
 
+  Finder cellFor(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(MTappable));
+
+  /// The cell's foreground decoration (selection/focus border and shape).
+  BoxDecoration decorationOf(WidgetTester tester, Finder cell) {
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+    );
+    return box.decoration as BoxDecoration;
+  }
+
+  BorderRadiusGeometry? borderRadiusOf(WidgetTester tester, Finder cell) =>
+      decorationOf(tester, cell).borderRadius;
+
+  Border? borderOf(WidgetTester tester, Finder cell) =>
+      decorationOf(tester, cell).border as Border?;
+
+  Color? fillOf(WidgetTester tester, Finder cell) {
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: cell, matching: find.byType(DecoratedBox)).at(1),
+    );
+    return (box.decoration as BoxDecoration).color;
+  }
+
   testWidgets('up to five options stay in one rounded pill row', (
     tester,
   ) async {
@@ -75,46 +101,23 @@ void main() {
   ) async {
     await pumpChoice(tester, const ['One', 'Two', 'Three']);
 
-    Finder cellFor(String label) =>
-        find.ancestor(of: find.text(label), matching: find.byType(MTappable));
-    Border? borderOf(Finder cell) {
-      final box = tester.widget<DecoratedBox>(
-        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
-      );
-      return (box.decoration as BoxDecoration).border as Border?;
-    }
-
-    Color? fillOf(Finder cell) {
-      final box = tester.widget<DecoratedBox>(
-        find.descendant(of: cell, matching: find.byType(DecoratedBox)).at(1),
-      );
-      return (box.decoration as BoxDecoration).color;
-    }
-
-    final selected = borderOf(cellFor('One'));
+    final selected = borderOf(tester, cellFor('One'));
     expect(selected, isNotNull);
     expect(selected!.top.width, 1.5);
     expect(selected.top.color, MixarThemeData.dark().colors.primary);
-    expect(borderOf(cellFor('Two')), isNull);
-    expect(fillOf(cellFor('One')), const Color(0x00000000));
+    expect(borderOf(tester, cellFor('Two')), isNull);
+    expect(fillOf(tester, cellFor('One')), const Color(0x00000000));
 
     // Only the edge cells round their outer corners, so the border follows
     // the pill instead of ending square.
     final pill = MixarThemeData.dark().style.borderRadius.pill;
-    BorderRadiusGeometry? shapeOf(Finder cell) {
-      final box = tester.widget<DecoratedBox>(
-        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
-      );
-      return (box.decoration as BoxDecoration).borderRadius;
-    }
-
     expect(
-      shapeOf(cellFor('One')),
+      borderRadiusOf(tester, cellFor('One')),
       BorderRadius.horizontal(left: pill.topLeft),
     );
-    expect(shapeOf(cellFor('Two')), isNull);
+    expect(borderRadiusOf(tester, cellFor('Two')), isNull);
     expect(
-      shapeOf(cellFor('Three')),
+      borderRadiusOf(tester, cellFor('Three')),
       BorderRadius.horizontal(right: pill.topRight),
     );
   }, semanticsEnabled: false);
@@ -139,22 +142,24 @@ void main() {
       MixarThemeData.dark().style.borderRadius.dialog,
     );
     final dialog = MixarThemeData.dark().style.borderRadius.dialog;
-    BorderRadiusGeometry? shapeOf(String label) {
-      final cell = find.ancestor(
-        of: find.text(label),
-        matching: find.byType(MTappable),
-      );
-      final box = tester.widget<DecoratedBox>(
-        find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
-      );
-      return (box.decoration as BoxDecoration).borderRadius;
-    }
 
     // Each outer corner of the grid rounds only its own cell.
-    expect(shapeOf('One'), BorderRadius.only(topLeft: dialog.topLeft));
-    expect(shapeOf('Three'), BorderRadius.only(topRight: dialog.topRight));
-    expect(shapeOf('Four'), BorderRadius.only(bottomLeft: dialog.bottomLeft));
-    expect(shapeOf('Six'), BorderRadius.only(bottomRight: dialog.bottomRight));
+    expect(
+      borderRadiusOf(tester, cellFor('One')),
+      BorderRadius.only(topLeft: dialog.topLeft),
+    );
+    expect(
+      borderRadiusOf(tester, cellFor('Three')),
+      BorderRadius.only(topRight: dialog.topRight),
+    );
+    expect(
+      borderRadiusOf(tester, cellFor('Four')),
+      BorderRadius.only(bottomLeft: dialog.bottomLeft),
+    );
+    expect(
+      borderRadiusOf(tester, cellFor('Six')),
+      BorderRadius.only(bottomRight: dialog.bottomRight),
+    );
     expect(horizontalDividers(), findsOneWidget);
     expect(verticalDividers(), findsNWidgets(4));
 
@@ -169,6 +174,12 @@ void main() {
     expect(rowOne, hasLength(1));
     expect(rowTwo, hasLength(1));
     expect(rowOne.single, isNot(rowTwo.single));
+    // A grid in a loose, bounded context stays compact instead of stretching
+    // to the parent height.
+    expect(
+      tester.getSize(find.byType(SettingsSegmentedChoice<String>)).height,
+      lessThan(160),
+    );
   }, semanticsEnabled: false);
 
   testWidgets('a seven-option grid keeps the short last row inside the track', (
@@ -186,8 +197,27 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(horizontalDividers(), findsNWidgets(2));
-    expect(verticalDividers(), findsNWidgets(6));
+    // Two dividers per full row, none in the single-cell last row.
+    expect(verticalDividers(), findsNWidgets(4));
     expect(find.text('Seven'), findsOneWidget);
+
+    // The last real cell spans the leftover columns, owns the track's
+    // bottom-right corner, and is not an inert placeholder.
+    final seven = cellFor('Seven');
+    expect(
+      tester.getSize(seven).width,
+      greaterThan(
+        tester.getSize(find.byType(SettingsSegmentedChoice<String>)).width - 20,
+      ),
+    );
+    final dialog = MixarThemeData.dark().style.borderRadius.dialog;
+    expect(
+      borderRadiusOf(tester, seven),
+      BorderRadius.only(
+        bottomLeft: dialog.topLeft,
+        bottomRight: dialog.topRight,
+      ),
+    );
   }, semanticsEnabled: false);
 
   testWidgets('tapping a grid cell emits its value', (tester) async {
@@ -226,4 +256,38 @@ void main() {
     );
     handle.dispose();
   });
+
+  testWidgets('a narrow pane wraps four options into a two-column grid', (
+    tester,
+  ) async {
+    await pumpChoice(tester, const ['One', 'Two', 'Three', 'Four'], width: 320);
+
+    final choice = find.byType(SettingsSegmentedChoice<String>);
+    expect(
+      trackRadius(tester, choice),
+      MixarThemeData.dark().style.borderRadius.dialog,
+    );
+    expect(horizontalDividers(), findsOneWidget);
+    expect(verticalDividers(), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  }, semanticsEnabled: false);
+
+  testWidgets('focus thickens the cell border', (tester) async {
+    await pumpChoice(tester, const ['One', 'Two', 'Three']);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    final focused = borderOf(tester, cellFor('One'))!;
+    expect(focused.top.width, 2.5);
+    expect(focused.top.color, MixarThemeData.dark().colors.foreground);
+
+    // The next tab lands on an unselected cell, which gains the same ring.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    final next = borderOf(tester, cellFor('Two'))!;
+    expect(next.top.width, 2.5);
+    expect(next.top.color, MixarThemeData.dark().colors.foreground);
+  }, semanticsEnabled: false);
 }
