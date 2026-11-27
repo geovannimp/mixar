@@ -17,7 +17,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-/// Cached Material / Shad themes so [Application.build] and
+/// Cached Material / Shad themes so [_ApplicationState.build] and
 /// MaterialApp.builder do not rebuild style graphs every frame.
 final _materialThemes = <(MixarAccentPalette, Brightness), ThemeData>{};
 final _shadThemes = <(MixarAccentPalette, Brightness), ShadThemeData>{};
@@ -41,20 +41,52 @@ ShadThemeData _shadTheme(MixarAccentPalette palette, Brightness brightness) =>
 final AppSettings _fallbackSettings = defaultAppSettings();
 
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
-class Application extends ConsumerWidget {
+class Application extends ConsumerStatefulWidget {
   const new({required this.appTitle, super.key});
 
   final String appTitle;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<Application> createState() => _ApplicationState();
+}
+
+class _ApplicationState extends ConsumerState<Application> {
+  /// Set once this launch has seen setup marked done.
+  ///
+  /// Setup is a launch decision: Settings schedules it for the next run by
+  /// saving `onboardingCompleted: false`, so `home` reading that flag
+  /// reactively would drop the window into setup the moment the switch is
+  /// saved. Latching `true` keeps the mixer for the rest of the launch, while
+  /// still letting the setup flow hand over to it when it finishes.
+  late bool _setupDone;
+
+  /// Whether [settings] report setup as done; unresolved reads as not done.
+  static bool _setupSeen(AsyncValue<AppSettings> settings) =>
+      settings.asData?.value.onboardingCompleted ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolved by the preload in `main()`; a preload timeout leaves this
+    // `false` and the listener below latches once the read lands.
+    _setupDone = _setupSeen(ref.read(appSettingsProvider));
+    // The latch only moves one way, so a replay scheduled from Settings cannot
+    // reopen setup after the flow handed over to the mixer.
+    ref.listenManual(appSettingsProvider, (_, next) {
+      if (!_setupDone && _setupSeen(next)) {
+        setState(() => _setupDone = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
+    final settings = settingsAsync.asData?.value;
     // A running first-run flow owns the theme, accent and locale: its draft
     // previews step choices before Finish writes them.
     final resolved =
-        ref.watch(onboardingDraftProvider) ??
-        settingsAsync.asData?.value ??
-        _fallbackSettings;
+        ref.watch(onboardingDraftProvider) ?? settings ?? _fallbackSettings;
     final locale = localeFromUiLanguage(resolved.uiLanguage);
     // `system` stays the default so an install without a saved theme keeps
     // following the OS light/dark preference.
@@ -68,7 +100,7 @@ class Application extends ConsumerWidget {
     final palette = accentPaletteFromSettings(resolved.accentPalette);
 
     return MaterialApp(
-      title: appTitle,
+      title: widget.appTitle,
       debugShowCheckedModeBanner: false,
       locale: locale,
       localizationsDelegates: mixarLocalizationsDelegates,
@@ -96,12 +128,9 @@ class Application extends ConsumerWidget {
       // Only resolved settings may route to setup: the fallback keeps the
       // mixer, and `main.dart` preloads settings before `runApp` (falling back
       // here only on the preload timeout).
-      home: settingsAsync.maybeWhen(
-        data: (settings) => settings.onboardingCompleted
-            ? AppShell(appTitle: appTitle)
-            : OnboardingPage(appTitle: appTitle),
-        orElse: () => AppShell(appTitle: appTitle),
-      ),
+      home: settings != null && !_setupDone
+          ? OnboardingPage(appTitle: widget.appTitle)
+          : AppShell(appTitle: widget.appTitle),
     );
   }
 }

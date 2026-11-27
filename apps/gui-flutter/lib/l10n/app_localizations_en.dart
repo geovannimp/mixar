@@ -368,10 +368,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiOnboardingDescription =>
-      'Show the welcome steps again instead of the mixer. Saved with the rest of Settings.';
+      'Run the welcome steps again the next time Mixar opens.';
 
   @override
-  String get settingsUiOnboardingReplay => 'Show setup again';
+  String get settingsUiOnboardingNextRun => 'Show onboarding next run';
 
   @override
   String onboardingStepProgress(int index, int total) {

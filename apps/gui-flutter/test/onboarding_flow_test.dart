@@ -590,9 +590,7 @@ void main() {
     expect(find.bySemanticsLabel('Step 5 of 6'), findsOneWidget);
   });
 
-  testWidgets('Finishing leaves no preview draft behind for a replay', (
-    tester,
-  ) async {
+  testWidgets('Finishing leaves no preview draft behind', (tester) async {
     late ProviderContainer container;
     final settings = FakeSettingsTransport(defaultAppSettings());
     await pumpSetup(
@@ -605,8 +603,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(settings.stored.onboardingCompleted, isTrue);
-    // Settings → UI → Show setup again flips the flag and re-opens the wizard;
-    // a draft left here would preview itself over the settings it is editing.
+    // Settings can schedule setup for a later launch; a draft left here would
+    // preview itself over the settings it is editing.
     expect(container.read(onboardingDraftProvider), isNull);
   });
 

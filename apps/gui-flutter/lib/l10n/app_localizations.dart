@@ -768,14 +768,14 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiOnboardingDescription.
   ///
   /// In en, this message translates to:
-  /// **'Show the welcome steps again instead of the mixer. Saved with the rest of Settings.'**
+  /// **'Run the welcome steps again the next time Mixar opens.'**
   String get settingsUiOnboardingDescription;
 
-  /// No description provided for @settingsUiOnboardingReplay.
+  /// No description provided for @settingsUiOnboardingNextRun.
   ///
   /// In en, this message translates to:
-  /// **'Show setup again'**
-  String get settingsUiOnboardingReplay;
+  /// **'Show onboarding next run'**
+  String get settingsUiOnboardingNextRun;
 
   /// No description provided for @onboardingStepProgress.
   ///
