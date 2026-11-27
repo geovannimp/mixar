@@ -43,7 +43,6 @@ import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_back_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
-import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
@@ -55,6 +54,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'helpers/collection_tracks_override.dart';
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
+import 'support/mixar_dialog_scrim.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -1244,12 +1244,7 @@ void main() {
 
     // No Cancel in the footer: dismissing the card is how the user stays.
     expect(find.widgetWithText(AppButton, 'Cancel'), findsNothing);
-    final barrier = tester
-        .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-        .firstWhere((b) => b.color == kMixarDialogScrimColor);
-    final barrierRect = tester.getRect(find.byWidget(barrier));
-    await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
-    await tester.pumpAndSettle();
+    await dismissMixarDialogScrim(tester);
     expect(find.byType(SettingsPage), findsOneWidget);
 
     // The menu still opens after a cancelled guard, and discarding leaves.

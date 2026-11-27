@@ -16,11 +16,11 @@ import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
-import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/fake_settings_transport.dart';
+import 'support/mixar_dialog_scrim.dart';
 import 'support/mixar_material_app.dart';
 
 /// Pumps the page on its own: [overrides] supply the settings host, and each
@@ -39,17 +39,6 @@ Future<void> _pumpSettingsPage(
       ),
     ),
   );
-  await tester.pumpAndSettle();
-}
-
-/// Stays put by dismissing the card: a press on the dimmed body, at the
-/// barrier's own top-left so the point holds for a bottom sheet too.
-Future<void> _dismissByBarrier(WidgetTester tester) async {
-  final barrier = tester
-      .widgetList<ModalBarrier>(find.byType(ModalBarrier))
-      .firstWhere((b) => b.color == kMixarDialogScrimColor);
-  final barrierRect = tester.getRect(find.byWidget(barrier));
-  await tester.tapAt(barrierRect.topLeft + const Offset(8, 8));
   await tester.pumpAndSettle();
 }
 
@@ -97,7 +86,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
-    await _dismissByBarrier(tester);
+    await dismissMixarDialogScrim(tester);
     expect(find.text(l10n.settingsUnsavedTitle), findsNothing);
     expect(find.byType(SettingsUiPanel), findsOneWidget);
     expect(
@@ -208,7 +197,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
-    await _dismissByBarrier(tester);
+    // Clear the earlier answer: the dismissal below must complete the pending
+    // leave with false, not inherit it.
+    left = null;
+    await dismissMixarDialogScrim(tester);
     expect(left, isFalse);
 
     // Discarding is a real leave: the shell may navigate away.
