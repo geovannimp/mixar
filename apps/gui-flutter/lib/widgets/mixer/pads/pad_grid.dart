@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/scroll_physics.dart';
 import 'package:gui_flutter/core/utils/silky_scroll_glide.dart';
-import 'package:gui_flutter/widgets/mixer/pads/pad_seams.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
@@ -11,6 +10,59 @@ const _kPadMinSide = 24.0;
 
 /// Widest a pad may get relative to its height.
 const _kPadMaxAspect = 16 / 10;
+
+/// Seams of the tiled pad table, in block coordinates.
+///
+/// The grid paints the table itself, above the pads: left and right frames, the
+/// three column seams, and the row seam. Only the top edge is missing — the
+/// panel's header divider draws it — and the bottom is left to the surface
+/// below (the deck's transport divider).
+///
+/// Lines snap to device pixels: a 290 px pane gives 72.5 px pads, and an
+/// unsnapped 1 px seam would blur across two pixels and read as a double line.
+@visibleForTesting
+List<Rect> padTableLines(Size size, double width, double devicePixelRatio) {
+  double snap(double value) =>
+      (value * devicePixelRatio).round() / devicePixelRatio;
+  final lines = <Rect>[
+    Rect.fromLTWH(0, 0, width, size.height),
+    Rect.fromLTWH(size.width - width, 0, width, size.height),
+  ];
+  for (var column = 1; column < 4; column++) {
+    lines.add(
+      Rect.fromLTWH(snap(size.width * column / 4), 0, width, size.height),
+    );
+  }
+  lines.add(Rect.fromLTWH(0, snap(size.height / 2), size.width, width));
+  return lines;
+}
+
+/// Paints [padTableLines] above the pads.
+class PadTablePainter extends CustomPainter {
+  const PadTablePainter({
+    required this.color,
+    required this.width,
+    required this.devicePixelRatio,
+  });
+
+  final Color color;
+  final double width;
+  final double devicePixelRatio;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    for (final line in padTableLines(size, width, devicePixelRatio)) {
+      canvas.drawRect(line, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(PadTablePainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.width != width ||
+      oldDelegate.devicePixelRatio != devicePixelRatio;
+}
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
 ///
@@ -50,16 +102,6 @@ class _PadGridState extends State<PadGrid> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // The table's outer top line belongs to the panel's divider above the grid,
-    // so the grid draws only the left edge; each pad draws its right and bottom.
-    final frame = BoxDecoration(
-      border: Border(
-        left: BorderSide(
-          color: theme.colors.border,
-          width: theme.style.borderWidth,
-        ),
-      ),
-    );
     // Pads fire on pointer-down, so only wheel/thumb scrolling is safe.
     return SilkyGlideHandoff(
       scrollKey: _silkyKey,
@@ -81,6 +123,7 @@ class _PadGridState extends State<PadGrid> {
                 0,
                 math.min(widthFit, _kPadMaxAspect * padHeight),
               );
+              final size = Size(4 * padWidth, 2 * padHeight);
               return SilkySingleChildScrollView(
                 key: _silkyKey,
                 controller: _controller,
@@ -91,27 +134,39 @@ class _PadGridState extends State<PadGrid> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Center(
-                    child: DecoratedBox(
-                      decoration: frame,
-                      child: SizedBox(
-                        width: 4 * padWidth,
-                        height: 2 * padHeight,
-                        child: Column(
-                          children: [
-                            _padRow(
-                              widget.children.sublist(0, 4),
-                              padWidth,
-                              padHeight,
-                              bottomSeam: true,
+                    child: SizedBox.fromSize(
+                      size: size,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Column(
+                            children: [
+                              _padRow(
+                                widget.children.sublist(0, 4),
+                                padWidth,
+                                padHeight,
+                              ),
+                              _padRow(
+                                widget.children.sublist(4),
+                                padWidth,
+                                padHeight,
+                              ),
+                            ],
+                          ),
+                          // The seams sit above the pads, so no pad fill can
+                          // cover the frame and every line is one hairline.
+                          IgnorePointer(
+                            child: CustomPaint(
+                              painter: PadTablePainter(
+                                color: theme.colors.border,
+                                width: theme.style.borderWidth,
+                                devicePixelRatio: MediaQuery.devicePixelRatioOf(
+                                  context,
+                                ),
+                              ),
                             ),
-                            _padRow(
-                              widget.children.sublist(4),
-                              padWidth,
-                              padHeight,
-                              bottomSeam: false,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -125,23 +180,13 @@ class _PadGridState extends State<PadGrid> {
   }
 }
 
-Widget _padRow(
-  List<Widget> pads,
-  double padWidth,
-  double padHeight, {
-  required bool bottomSeam,
-}) {
+Widget _padRow(List<Widget> pads, double padWidth, double padHeight) {
   return SizedBox(
     height: padHeight,
     child: Row(
       children: [
         for (final pad in pads)
-          SizedBox(
-            width: padWidth,
-            height: padHeight,
-            // The last row leaves its bottom hairline to the panel below.
-            child: bottomSeam ? pad : PadSeams(bottom: false, child: pad),
-          ),
+          SizedBox(width: padWidth, height: padHeight, child: pad),
       ],
     ),
   );

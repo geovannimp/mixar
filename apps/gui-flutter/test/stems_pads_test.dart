@@ -78,8 +78,8 @@ void main() {
         find.byType(PadButton).at(stem),
       );
       expect(decoration.color, theme.colors.card);
-      // The seam is shared and neutral: no stem tint on the border.
-      expect((decoration.border! as Border).right.color, theme.colors.border);
+      // The grid paints the seam; the pad itself is fill only.
+      expect(decoration.border, isNull);
     }
   });
 
@@ -138,7 +138,7 @@ void main() {
 
     final decoration = padDecorationOf(tester, find.byType(PadButton).at(0));
     expect(decoration.color, theme.colors.secondary.withValues(alpha: 0.35));
-    expect((decoration.border! as Border).right.color, theme.colors.border);
+    expect(decoration.border, isNull);
 
     // Inert pads must not keep the bright name that made them look enabled.
     final name = tester.widget<Text>(find.text('Drums').first);

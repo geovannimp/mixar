@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/key_shift_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -354,17 +355,24 @@ void main() {
     expect(line.right, closeTo(lastPad.right, 0.5));
   });
 
-  testWidgets('the last pad row leaves its bottom edge to the panel below', (
+  testWidgets('the grid paints three column seams and one row seam', (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true);
-    final firstRow = padDecorationOf(tester, find.byType(PadButton).at(0));
-    final lastRow = padDecorationOf(tester, find.byType(PadButton).at(4));
+    final line = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is CustomPaint && widget.painter is PadTablePainter,
+        description: 'table seams',
+      ),
+    );
+    final firstPad = tester.getRect(find.byType(PadButton).first);
+    final lastPad = tester.getRect(find.byType(PadButton).at(7));
 
-    // Row 1 keeps the seam that separates the two rows…
-    expect((firstRow.border! as Border).bottom.width, 1);
-    // …the bottom row does not, or the deck's divider below would double it.
-    expect((lastRow.border! as Border).bottom, BorderSide.none);
+    // The seam layer covers exactly the tiled block.
+    expect(line.left, closeTo(firstPad.left, 0.5));
+    expect(line.top, closeTo(firstPad.top, 0.5));
+    expect(line.right, closeTo(lastPad.right, 0.5));
+    expect(line.bottom, closeTo(lastPad.bottom, 0.5));
   });
 
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
@@ -508,12 +516,8 @@ void main() {
     expect(padDecorationOf(tester, pad).color, theme.colors.card);
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();
+    // The fill carries the state; the grid owns the seam.
     expect(padDecorationOf(tester, pad).color, theme.colors.primary);
-    // The seam stays neutral while held; the fill carries the state.
-    expect(
-      (padDecorationOf(tester, pad).border! as Border).right.color,
-      theme.colors.border,
-    );
 
     await gesture.up();
     await tester.pump();
@@ -757,8 +761,8 @@ void main() {
             as BoxDecoration;
 
     expect(decoration().color, theme.colors.card);
-    // A set cue never tints its seam; the accent dot and held fill carry it.
-    expect((decoration().border! as Border).right.color, theme.colors.border);
+    // Pads are fill only: the accent dot and the held fill carry the state.
+    expect(decoration().border, isNull);
 
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();

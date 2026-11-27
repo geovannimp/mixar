@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/widgets/mixer/pads/pad_seams.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -133,7 +132,6 @@ class _PadButtonState extends State<PadButton> {
     final theme = context.theme;
     final disabled = widget.disabled;
     final chrome = widget.chrome;
-    final bottomSeam = PadSeams.bottomOf(context);
     // Pressing any pad lights it with the shared primary; pads that own a
     // colour (cue/sampler/stems) highlight with it instead.
     final pressedFill = !disabled && _pressed
@@ -197,20 +195,10 @@ class _PadButtonState extends State<PadButton> {
           onTap: disabled ? null : widget.onPress,
           child: SizedBox.expand(
             child: DecoratedBox(
+              // The grid paints the table seams above the pads, so a pad is
+              // fill only: no border to double, tint, or blur on a half pixel.
               decoration: BoxDecoration(
                 color: fill,
-                border: Border(
-                  right: BorderSide(
-                    color: theme.colors.border,
-                    width: theme.style.borderWidth,
-                  ),
-                  bottom: bottomSeam
-                      ? BorderSide(
-                          color: theme.colors.border,
-                          width: theme.style.borderWidth,
-                        )
-                      : BorderSide.none,
-                ),
                 borderRadius: theme.style.borderRadius.md,
               ),
               child: DefaultTextStyle.merge(

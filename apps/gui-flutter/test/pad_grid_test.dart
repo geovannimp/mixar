@@ -104,4 +104,32 @@ void main() {
       expect(rect.height, closeTo(100, 0.5));
     }
   });
+
+  test('the table seams frame the block and divide it evenly', () {
+    final lines = padTableLines(const Size(400, 300), 1, 1);
+    // Left and right frames, three column seams, one row seam.
+    expect(lines, hasLength(6));
+    expect(lines[0], const Rect.fromLTWH(0, 0, 1, 300));
+    expect(lines[1], const Rect.fromLTWH(399, 0, 1, 300));
+    expect([for (var i = 2; i < 5; i++) lines[i].left], [100.0, 200.0, 300.0]);
+    expect(lines[5], const Rect.fromLTWH(0, 150, 400, 1));
+    // No top seam (the header divider draws it) and no bottom seam (the
+    // transport divider does), so the frame never doubles.
+    final horizontals = lines.where((line) => line.height == 1);
+    expect(horizontals, hasLength(1));
+  });
+
+  test('fractional pad widths snap their seams to device pixels', () {
+    // A 290 px pane gives 72.5 px pads; an unsnapped seam would blur across
+    // two pixels and read as a double line.
+    final lines = padTableLines(const Size(290, 260), 1, 1);
+    final verticals = [
+      for (final line in lines)
+        if (line.width == 1 && line.height == 260) line.left,
+    ]..sort();
+    expect(verticals, [0.0, 73.0, 145.0, 218.0, 289.0]);
+    for (final x in verticals) {
+      expect(x, x.roundToDouble());
+    }
+  });
 }

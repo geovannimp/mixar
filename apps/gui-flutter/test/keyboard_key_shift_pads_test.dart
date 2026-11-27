@@ -64,12 +64,9 @@ void main() {
       tester,
       find.byKey(const ValueKey('key-shift-pad-2-active')),
     );
-    // Latched pads fill with primary; the seam stays neutral.
+    // Latched pads fill with primary; the grid owns the seam.
     expect(activeDecoration.color, MixarThemeData.dark().colors.primary);
-    expect(
-      (activeDecoration.border! as Border).right.color,
-      MixarThemeData.dark().colors.border,
-    );
+    expect(activeDecoration.border, isNull);
 
     await tester.tap(find.text('+2'));
     await tester.pumpAndSettle();
