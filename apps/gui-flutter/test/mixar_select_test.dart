@@ -427,28 +427,34 @@ void main() {
     expect(find.text('medium'), findsNothing);
   });
 
-  testWidgets('mobile style opens its dialog from the keyboard', (
-    tester,
-  ) async {
-    await pumpSelect(
+  for (final (key, keyName) in const [
+    (LogicalKeyboardKey.enter, 'Enter'),
+    (LogicalKeyboardKey.space, 'Space'),
+  ]) {
+    testWidgets('mobile style opens its dialog from the $keyName key', (
       tester,
-      value: 'low',
-      onChanged: (_) {},
-      style: SelectStyleSetting.mobile,
-      dialogTitle: 'Quality',
-    );
+    ) async {
+      await pumpSelect(
+        tester,
+        value: 'low',
+        onChanged: (_) {},
+        style: SelectStyleSetting.mobile,
+        dialogTitle: 'Quality',
+      );
 
-    // ShadSelect's Enter shortcut asks the controller to open; in mobile mode
-    // that must be the option dialog, never an empty popover. Tab puts the
-    // trigger's own focus node in charge, then Enter activates it.
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pumpAndSettle();
+      // ShadSelect's own activation shortcuts ask the controller to open; in
+      // mobile mode that must be the option dialog, never an empty popover.
+      // Tab puts the trigger's own focus node in charge, then the key
+      // activates it.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(key);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Quality'), findsOneWidget);
-    expect(find.text('medium'), findsOneWidget);
-  });
+      expect(find.text('Quality'), findsOneWidget);
+      expect(find.text('medium'), findsOneWidget);
+    });
+  }
 
   testWidgets('mobile style lists options with dividers instead of cards', (
     tester,

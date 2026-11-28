@@ -167,13 +167,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   /// A select's dialog is a route above the page, and the onboarding title bar
   /// stays clickable above the dialog's scrim, so Skip (or Finish) can land
   /// with a picker still open; without this the dialog would outlive setup and
-  /// hang over the mixer.
+  /// hang over the mixer. Only dialogs are popped: a flow that pushed a page of
+  /// its own keeps it, so this cannot cancel work it does not own.
   void _dismissOpenPanels() {
     final pageRoute = ModalRoute.of(context);
     final navigator = Navigator.of(context, rootNavigator: true);
-    if (pageRoute != null && navigator.canPop()) {
-      navigator.popUntil((route) => route == pageRoute);
+    if (pageRoute == null || !navigator.canPop()) {
+      return;
     }
+    navigator.popUntil(
+      (route) => route == pageRoute || route is! RawDialogRoute,
+    );
   }
 
   bool get _last => _index == _steps.length - 1;
