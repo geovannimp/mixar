@@ -463,20 +463,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'Ou importe uma biblioteca existente';
 
   @override
-  String get onboardingPrivacyOffTitle => 'Manter privado';
-
-  @override
-  String get onboardingPrivacyOffBody =>
-      'Sem análises. Nada sai desta máquina.';
-
-  @override
-  String get onboardingPrivacyOnTitle => 'Compartilhar uso anônimo';
-
-  @override
-  String get onboardingPrivacyOnBody =>
-      'Eventos anônimos e relatórios de erro. Sem música, sem nomes de arquivos.';
-
-  @override
   String get onboardingLanguageFollowsOs => 'Segue o idioma do sistema';
 
   @override

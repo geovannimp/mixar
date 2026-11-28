@@ -457,20 +457,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingLibraryImportLabel => 'Or import an existing library';
 
   @override
-  String get onboardingPrivacyOffTitle => 'Keep it private';
-
-  @override
-  String get onboardingPrivacyOffBody =>
-      'No analytics. Nothing leaves this machine.';
-
-  @override
-  String get onboardingPrivacyOnTitle => 'Share anonymous usage';
-
-  @override
-  String get onboardingPrivacyOnBody =>
-      'Anonymous events and error reports. No music, no file names.';
-
-  @override
   String get onboardingLanguageFollowsOs => 'Follows the system language';
 
   @override

@@ -16,12 +16,15 @@ import 'package:gui_flutter/screens/onboarding_page.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_backdrop.dart';
+import 'package:gui_flutter/widgets/onboarding/onboarding_language_step.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:material_ui/material_ui.dart';
@@ -265,6 +268,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Open the language select and choose its option row.
+  Future<void> pickLanguage(WidgetTester tester, String label) async {
+    await tester.tap(find.byKey(kOnboardingLanguageSelectKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   /// Press Continue/Finish [times] times: the run's length lives in the flow,
   /// not in each test.
   Future<void> tapNextTimes(WidgetTester tester, int times) async {
@@ -458,8 +469,7 @@ void main() {
     expect(find.bySemanticsLabel('Step 2 of 6'), findsOneWidget);
     expect(find.text('Pick your language'), findsOneWidget);
 
-    await tester.tap(find.text('Português (Brasil)'));
-    await tester.pumpAndSettle();
+    await pickLanguage(tester, 'Português (Brasil)');
     // The draft drives the app: the page itself switches language immediately.
     expect(find.text('Escolha o seu idioma'), findsOneWidget);
     expect(find.text('Pick your language'), findsNothing);
@@ -489,7 +499,7 @@ void main() {
     expect(settings.stored.onboardingCompleted, isTrue);
   });
 
-  testWidgets('Enter advances the flow and the theme tile previews live', (
+  testWidgets('Enter advances the flow and the theme segment previews live', (
     tester,
   ) async {
     final settings = await pumpApp(tester);
@@ -538,6 +548,43 @@ void main() {
     expect(settings.stored.accentPalette, AccentPaletteSetting.teal);
     expect(find.byType(OnboardingPage), findsNothing);
     expect(find.byType(AppShell), findsOneWidget);
+  });
+
+  testWidgets('the analytics switch keeps the wizard shortcuts alive', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    // Welcome → language → appearance → library → privacy.
+    await tapNextTimes(tester, 4);
+    expect(find.bySemanticsLabel('Step 5 of 6'), findsOneWidget);
+
+    // ShadSwitch drops the window focus on a pointer press; the wizard has to
+    // take it back, or Enter and the arrows stop navigating.
+    await tester.tap(find.byType(MixarSwitch));
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Step 6 of 6'), findsOneWidget);
+  });
+
+  testWidgets('Skip closes an open picker before leaving setup', (
+    tester,
+  ) async {
+    final settings = await pumpApp(tester);
+    await tapNext(tester); // Language.
+    await tester.tap(find.byKey(kOnboardingLanguageSelectKey));
+    await tester.pumpAndSettle();
+    expect(find.byType(MixarDialog), findsOneWidget);
+
+    // The title bar sits above the dialog scrim, so Skip is still clickable
+    // and must not leave the picker hanging over the mixer.
+    await tester.tap(find.byKey(kOnboardingSkipKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MixarDialog), findsNothing);
+    expect(find.byType(OnboardingPage), findsNothing);
+    expect(settings.stored.onboardingCompleted, isTrue);
   });
 
   testWidgets('An unreadable settings file still starts setup', (tester) async {

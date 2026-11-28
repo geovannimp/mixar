@@ -4,7 +4,13 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/settings/settings_labels.dart';
+import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+/// Key the widget tests open the language choice with.
+const ValueKey<String> kOnboardingLanguageSelectKey = ValueKey(
+  'onboarding-language-select',
+);
 
 /// Step 2: the interface language, on its own so it is one decision.
 ///
@@ -22,26 +28,20 @@ class OnboardingLanguageStep extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return OnboardingBody(
       eyebrow: l10n.onboardingKickerLanguage,
+      icon: LucideIcons.languages,
       title: l10n.onboardingLanguageTitle,
       description: l10n.onboardingLanguageBody,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 8,
-        children: [
-          for (final language in UiLanguageSetting.values)
-            OnboardingChoiceCard(
-              compact: true,
-              icon: LucideIcons.languages,
-              title: uiLanguageSettingLabel(l10n, language),
-              subtitle: switch (language) {
-                UiLanguageSetting.system => l10n.onboardingLanguageFollowsOs,
-                _ => null,
-              },
-              selected: draft.uiLanguage == language,
-              onPress: () =>
-                  onChanged(copyAppSettings(draft, uiLanguage: language)),
-            ),
-        ],
+      child: SettingsSelect<UiLanguageSetting>(
+        key: kOnboardingLanguageSelectKey,
+        value: draft.uiLanguage,
+        options: UiLanguageSetting.values,
+        dialogTitle: l10n.onboardingLanguageTitle,
+        labelBuilder: (language) => uiLanguageSettingLabel(l10n, language),
+        subtitleBuilder: (language) => language == UiLanguageSetting.system
+            ? l10n.onboardingLanguageFollowsOs
+            : null,
+        onChanged: (language) =>
+            onChanged(copyAppSettings(draft, uiLanguage: language)),
       ),
     );
   }

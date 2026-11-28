@@ -4,30 +4,26 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
-import 'package:gui_flutter/widgets/settings/theme_option_tile.dart';
+import 'package:gui_flutter/widgets/settings/settings_theme_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Step 2: theme, accent and language — chosen on live previews.
+/// Step 3: theme and accent, chosen on live previews.
 ///
 /// Every tap repaints the whole window: `Application` reads the draft, so the
-/// preview is the real app, not a mock.
+/// preview is the real app, not a mock. Both pickers are the same segmented
+/// controls Settings uses.
 class OnboardingAppearanceStep extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
-  static const List<ThemeSetting> _themes = [
-    ThemeSetting.system,
-    ThemeSetting.light,
-    ThemeSetting.dark,
-  ];
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final palette = accentPaletteFromSettings(draft.accentPalette);
     return OnboardingBody(
       eyebrow: l10n.onboardingKickerAppearance,
+      icon: LucideIcons.palette,
       title: l10n.onboardingAppearanceTitle,
       description: l10n.onboardingAppearanceBody,
       child: Column(
@@ -39,20 +35,10 @@ class OnboardingAppearanceStep extends StatelessWidget {
             spacing: 10,
             children: [
               OnboardingGroupLabel(label: l10n.settingsUiTheme),
-              Row(
-                spacing: 12,
-                children: [
-                  for (final theme in _themes)
-                    Expanded(
-                      child: ThemeOptionTile(
-                        value: theme,
-                        palette: palette,
-                        selected: draft.theme == theme,
-                        onPress: () =>
-                            onChanged(copyAppSettings(draft, theme: theme)),
-                      ),
-                    ),
-                ],
+              SettingsThemePicker(
+                value: draft.theme,
+                onChanged: (theme) =>
+                    onChanged(copyAppSettings(draft, theme: theme)),
               ),
             ],
           ),

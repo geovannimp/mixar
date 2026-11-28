@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_wash_card.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Tone of a toast. The variant colour paints the glyph, its disc and the card
@@ -27,15 +28,12 @@ const _toastDiscOverhang = (_toastGlyphSize - _toastDiscSize) / 2;
 /// Description and actions share it so the card reads as one stack.
 const _toastCopyIndent = _toastGlyphSize + _toastGlyphGap;
 
-/// Left-edge strength of the variant wash; it reaches the card colour by half
-/// the card's width.
-const _toastWashAlpha = 0.16;
-
 /// Success green for the check disc. The palette ships no green ladder, so the
 /// status colour stays local, like the library live dot and the settings
 /// capability verdict.
 const _toastSuccessLight = Color(0xFF15803D);
 const _toastSuccessDark = Color(0xFF4ADE80);
+
 const _toastEnter = Duration(milliseconds: 320);
 const _toastExit = Duration(milliseconds: 180);
 const _toastLift = 18.0;
@@ -524,151 +522,115 @@ class _MixarToastCard extends StatelessWidget {
     final description = spec.description;
     final suffix = spec.suffixBuilder?.call(context, dismiss);
 
-    final radius = theme.style.borderRadius.dialog;
-    final borderWidth = theme.style.borderWidth;
-
     return IntrinsicWidth(
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           minWidth: _toastMinWidth,
           maxWidth: _toastMaxWidth,
         ),
-        child: DecoratedBox(
-          // Foreground: the card content runs full-bleed, so the outline would
-          // otherwise be covered at the rounded corners.
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(color: colors.border, width: borderWidth),
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color.alphaBlend(
-                      accent.withValues(alpha: _toastWashAlpha),
-                      colors.card,
-                    ),
-                    colors.card,
-                  ],
-                  stops: const [0, 0.5],
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 13, 8, 13),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+        child: MixarWashCard(
+          accent: accent,
+          padding: const EdgeInsets.fromLTRB(14, 13, 8, 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  // The disc is wider than its glyph slot and overhangs
+                  // into the card padding and gap, so the copy column
+                  // keeps its indent.
+                  SizedBox(
+                    width: _toastGlyphSize,
+                    height: _toastDiscSize,
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        // The disc is wider than its glyph slot and overhangs
-                        // into the card padding and gap, so the copy column
-                        // keeps its indent.
-                        SizedBox(
-                          width: _toastGlyphSize,
+                        Positioned(
+                          left: _toastDiscOverhang,
+                          width: _toastDiscSize,
                           height: _toastDiscSize,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                left: _toastDiscOverhang,
-                                width: _toastDiscSize,
-                                height: _toastDiscSize,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: icon == null
-                                        ? Icon(
-                                            variantGlyph,
-                                            size: _toastGlyphSize,
-                                            color: onAccent,
-                                          )
-                                        : ExcludeSemantics(
-                                            // Decorative: the title carries the
-                                            // message, and a fixed size keeps
-                                            // the glyph inside the disc at any
-                                            // text scale.
-                                            child: MediaQuery.withNoTextScaling(
-                                              child: IconTheme.merge(
-                                                data: IconThemeData(
-                                                  color: onAccent,
-                                                  size: _toastGlyphSize,
-                                                ),
-                                                child: DefaultTextStyle(
-                                                  style: theme
-                                                      .typography
-                                                      .body
-                                                      .md
-                                                      .copyWith(
-                                                        color: onAccent,
-                                                        fontSize:
-                                                            _toastGlyphSize,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        height: 1,
-                                                      ),
-                                                  child: icon,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: _toastGlyphGap),
-                        Expanded(
-                          child: DefaultTextStyle(
-                            style: theme.typography.body.md.copyWith(
-                              color: colors.foreground,
-                              fontWeight: FontWeight.w700,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: accent,
+                              shape: BoxShape.circle,
                             ),
-                            child: spec.title,
+                            child: Center(
+                              child: icon == null
+                                  ? Icon(
+                                      variantGlyph,
+                                      size: _toastGlyphSize,
+                                      color: onAccent,
+                                    )
+                                  : ExcludeSemantics(
+                                      // Decorative: the title carries the
+                                      // message, and a fixed size keeps
+                                      // the glyph inside the disc at any
+                                      // text scale.
+                                      child: MediaQuery.withNoTextScaling(
+                                        child: IconTheme.merge(
+                                          data: IconThemeData(
+                                            color: onAccent,
+                                            size: _toastGlyphSize,
+                                          ),
+                                          child: DefaultTextStyle(
+                                            style: theme.typography.body.md
+                                                .copyWith(
+                                                  color: onAccent,
+                                                  fontSize: _toastGlyphSize,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1,
+                                                ),
+                                            child: icon,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        _ToastCloseButton(onPress: dismiss),
                       ],
                     ),
-                    if (description != null) ...[
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(left: _toastCopyIndent),
-                        child: DefaultTextStyle(
-                          style: theme.typography.body.xs.copyWith(
-                            color: colors.mutedForeground,
-                            height: 1.4,
-                          ),
-                          child: description,
-                        ),
+                  ),
+                  const SizedBox(width: _toastGlyphGap),
+                  Expanded(
+                    child: DefaultTextStyle(
+                      style: theme.typography.body.md.copyWith(
+                        color: colors.foreground,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
-                    if (suffix != null) ...[
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(left: _toastCopyIndent),
-                        // A row that fills the width starts at the copy
-                        // column; a content-sized row (the plain
-                        // Cancel/Enable pair) keeps the corner alignment
-                        // the prompts already use.
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: suffix,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                      child: spec.title,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _ToastCloseButton(onPress: dismiss),
+                ],
               ),
-            ),
+              if (description != null) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.only(left: _toastCopyIndent),
+                  child: DefaultTextStyle(
+                    style: theme.typography.body.xs.copyWith(
+                      color: colors.mutedForeground,
+                      height: 1.4,
+                    ),
+                    child: description,
+                  ),
+                ),
+              ],
+              if (suffix != null) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.only(left: _toastCopyIndent),
+                  // A row that fills the width starts at the copy
+                  // column; a content-sized row (the plain
+                  // Cancel/Enable pair) keeps the corner alignment
+                  // the prompts already use.
+                  child: Align(alignment: Alignment.centerRight, child: suffix),
+                ),
+              ],
+            ],
           ),
         ),
       ),

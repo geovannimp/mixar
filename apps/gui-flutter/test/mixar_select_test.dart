@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -355,7 +356,7 @@ void main() {
       trigger.decoration?.border?.radius,
       MixarThemeData.dark().style.borderRadius.pill,
     );
-    expect(trigger.decoration?.color, isNull);
+    expect(trigger.decoration?.color, MixarThemeData.dark().colors.muted);
   });
 
   testWidgets('mobile style opens a dialog of options and selects', (
@@ -383,6 +384,77 @@ void main() {
     expect(selected, 'medium');
     expect(find.text('Quality'), findsNothing);
   });
+
+  testWidgets('switching to the mobile style closes an open panel', (
+    tester,
+  ) async {
+    final style = ValueNotifier(SelectStyleSetting.desktop);
+    addTearDown(style.dispose);
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 220,
+              child: ValueListenableBuilder<SelectStyleSetting>(
+                valueListenable: style,
+                builder: (context, value, _) => MixarSelect<String>(
+                  value: 'low',
+                  options: const ['low', 'medium', 'high'],
+                  labelBuilder: (option) => option,
+                  onChanged: (_) {},
+                  style: value,
+                  dialogTitle: 'Quality',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await openMenu(tester);
+    expect(popoverDecoratorFinder(borderlessTop: true), findsOneWidget);
+
+    // The style can change while its panel is open (Settings saves the select
+    // style); the panel must close through the same controller it opened on.
+    style.value = SelectStyleSetting.mobile;
+    await tester.pumpAndSettle();
+
+    expect(popoverDecoratorFinder(borderlessTop: true), findsNothing);
+    expect(find.text('medium'), findsNothing);
+  });
+
+  for (final (key, keyName) in const [
+    (LogicalKeyboardKey.enter, 'Enter'),
+    (LogicalKeyboardKey.space, 'Space'),
+  ]) {
+    testWidgets('mobile style opens its dialog from the $keyName key', (
+      tester,
+    ) async {
+      await pumpSelect(
+        tester,
+        value: 'low',
+        onChanged: (_) {},
+        style: SelectStyleSetting.mobile,
+        dialogTitle: 'Quality',
+      );
+
+      // ShadSelect's own activation shortcuts ask the controller to open; in
+      // mobile mode that must be the option dialog, never an empty popover.
+      // Tab puts the trigger's own focus node in charge, then the key
+      // activates it.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(key);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Quality'), findsOneWidget);
+      expect(find.text('medium'), findsOneWidget);
+    });
+  }
 
   testWidgets('mobile style lists options with dividers instead of cards', (
     tester,

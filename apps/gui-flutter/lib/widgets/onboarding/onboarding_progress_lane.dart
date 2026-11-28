@@ -95,12 +95,8 @@ class _OnboardingProgressLaneState extends State<OnboardingProgressLane> {
                                   ? colors.accent
                                   : i < step
                                   ? colors.accent.withValues(alpha: 0.8)
-                                  : colors.background,
-                              // Future stops are hollow, and every stop keeps
-                              // the spine readable underneath it.
-                              border: i > step
-                                  ? Border.all(color: railColor)
-                                  : null,
+                                  : railColor,
+                              shape: BoxShape.circle,
                             ),
                           ),
                         ),

@@ -12,6 +12,7 @@ const double kOnboardingWideBreakpoint = 900;
 class OnboardingBody extends StatelessWidget {
   const new({
     required this.eyebrow,
+    required this.icon,
     required this.title,
     required this.description,
     required this.child,
@@ -30,6 +31,9 @@ class OnboardingBody extends StatelessWidget {
 
   /// Uppercase kicker above the title (e.g. "STEP 2 — LOOK").
   final String eyebrow;
+
+  /// Glyph beside the eyebrow, tinted with the accent.
+  final IconData icon;
   final String title;
 
   /// Substring of [title] drawn in the accent (the product name).
@@ -48,6 +52,7 @@ class OnboardingBody extends StatelessWidget {
         final headline = _Headline(
           emphasis: emphasis,
           eyebrow: eyebrow,
+          icon: icon,
           title: title,
           titleHighlight: titleHighlight,
           description: description,
@@ -109,6 +114,7 @@ class _Headline extends StatelessWidget {
   const new({
     required this.emphasis,
     required this.eyebrow,
+    required this.icon,
     required this.title,
     required this.description,
     this.titleHighlight,
@@ -116,6 +122,7 @@ class _Headline extends StatelessWidget {
 
   final bool emphasis;
   final String eyebrow;
+  final IconData icon;
   final String title;
 
   /// Substring of [title] drawn in the accent (the product name).
@@ -154,13 +161,21 @@ class _Headline extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          eyebrow.toUpperCase(),
-          style: theme.typography.mono.xs.copyWith(
-            color: theme.colors.accent,
-            letterSpacing: 2.4,
-            height: 1,
-          ),
+        Row(
+          spacing: 8,
+          children: [
+            Icon(icon, size: 15, color: theme.colors.accent),
+            Flexible(
+              child: Text(
+                eyebrow.toUpperCase(),
+                style: theme.typography.mono.xs.copyWith(
+                  color: theme.colors.accent,
+                  letterSpacing: 2.4,
+                  height: 1,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         Text.rich(

@@ -24,7 +24,6 @@ import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_welcome_step.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/macos_title_bar_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -148,6 +147,37 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void _apply(AppSettings next) {
     setState(() => _draft = next);
     ref.read(onboardingDraftProvider.notifier).set(next);
+    // Some controls (the analytics switch) drop the window focus when a
+    // pointer press lands while they are unfocused. The wizard's Enter and
+    // arrow shortcuts live on [_keyboardFocus]; give them back once the press
+    // has finished, but only when nothing else claimed focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _keyboardFocus.hasPrimaryFocus) {
+        return;
+      }
+      final focused = FocusManager.instance.primaryFocus;
+      if (focused == null || focused is FocusScopeNode) {
+        _keyboardFocus.requestFocus();
+      }
+    });
+  }
+
+  /// Dismiss any picker opened by a step before the run leaves the page.
+  ///
+  /// A select's dialog is a route above the page, and the onboarding title bar
+  /// stays clickable above the dialog's scrim, so Skip (or Finish) can land
+  /// with a picker still open; without this the dialog would outlive setup and
+  /// hang over the mixer. Only dialogs are popped: a flow that pushed a page of
+  /// its own keeps it, so this cannot cancel work it does not own.
+  void _dismissOpenPanels() {
+    final pageRoute = ModalRoute.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (pageRoute == null || !navigator.canPop()) {
+      return;
+    }
+    navigator.popUntil(
+      (route) => route == pageRoute || route is! RawDialogRoute,
+    );
   }
 
   bool get _last => _index == _steps.length - 1;
@@ -168,6 +198,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Future<void> _finish() async {
+    _dismissOpenPanels();
     final result = await _save(_draft!);
     if (result == null || !mounted) {
       // No page left to preview on or toast on: the mixer is already up.
@@ -207,6 +238,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (_busy) {
       return;
     }
+    _dismissOpenPanels();
     // Lock the page before the first await: the settings read can take a
     // frame, and a second click would enter `_save` twice.
     setState(() => _busy = true);
@@ -463,10 +495,13 @@ class _TopBar extends StatelessWidget {
               ),
               Expanded(child: maybeDrag(const SizedBox.expand())),
               if (!busy && showSkip)
-                _SkipAction(
+                AppButton(
                   key: kOnboardingSkipKey,
-                  label: l10n.onboardingSkip,
+                  variant: MixarButtonVariant.ghost,
+                  size: MixarButtonSize.sm,
+                  mainAxisSize: MainAxisSize.min,
                   onPress: onSkip,
+                  child: Text(l10n.onboardingSkip),
                 )
               else
                 const SizedBox(height: 28, width: 84),
@@ -532,50 +567,6 @@ class _Footer extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Top-right escape hatch: quiet text, never competing with the primary action.
-class _SkipAction extends StatelessWidget {
-  const new({required this.label, required this.onPress, super.key});
-
-  final String label;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return MTappable(
-      onPress: onPress,
-      semanticsLabel: label,
-      builder: (_, state) {
-        final ink = state.hovered || state.focused
-            ? theme.colors.foreground
-            : theme.colors.mutedForeground;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: state.hovered || state.focused
-                      ? theme.colors.accent
-                      : const Color(0x00000000),
-                ),
-              ),
-            ),
-            child: Text(
-              label.toUpperCase(),
-              style: theme.typography.mono.xs.copyWith(
-                color: ink,
-                letterSpacing: 1.6,
-                height: 1.2,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -33,6 +33,7 @@ class OnboardingControllersStep extends StatelessWidget {
     final theme = context.theme;
     return OnboardingBody(
       eyebrow: l10n.onboardingKickerControllers,
+      icon: LucideIcons.usb,
       title: l10n.onboardingControllersTitle,
       description: l10n.onboardingControllersDetected(controllers.length),
       child: Column(
@@ -94,64 +95,29 @@ class _ControllerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     // The raw ALSA port name ("DDJ-400:DDJ-400 MIDI 1 36:0") means nothing to
     // a person; the mapping's display name is the device they own.
     final name = controller.mappingName ?? controller.portName;
     final canTrust = controller.deviceId != null;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.card,
-        border: Border.all(
-          color: trusted ? theme.colors.primary : theme.colors.border,
-          width: trusted ? 2 : theme.style.borderWidth,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 16,
-          children: [
-            Icon(
-              LucideIcons.usb,
-              size: 20,
-              color: trusted
-                  ? theme.colors.primary
-                  : theme.colors.mutedForeground,
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 4,
-                children: [
-                  Text(
-                    name,
-                    style: theme.typography.body.lg.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
+    return OnboardingOptionCard(
+      icon: LucideIcons.usb,
+      title: name,
+      highlighted: trusted,
+      trailing: canTrust
+          ? AppButton(
+              variant: trusted
+                  ? MixarButtonVariant.secondary
+                  : MixarButtonVariant.outline,
+              size: MixarButtonSize.sm,
+              onPress: () => onChanged(!trusted),
+              child: Text(
+                trusted
+                    ? l10n.onboardingControllersTrustedAction
+                    : l10n.onboardingControllersTrust,
               ),
-            ),
-            if (canTrust)
-              AppButton(
-                variant: trusted
-                    ? MixarButtonVariant.secondary
-                    : MixarButtonVariant.outline,
-                size: MixarButtonSize.sm,
-                onPress: () => onChanged(!trusted),
-                child: Text(
-                  trusted
-                      ? l10n.onboardingControllersTrustedAction
-                      : l10n.onboardingControllersTrust,
-                ),
-              ),
-          ],
-        ),
-      ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }
