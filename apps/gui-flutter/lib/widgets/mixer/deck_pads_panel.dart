@@ -194,13 +194,18 @@ class DeckPadsPanel extends StatelessWidget {
     );
 
     final body = LayoutBuilder(
-      builder: (context, constraints) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (constraints.maxHeight > _headerMinHeight) header,
-          Expanded(child: _modeBody()),
-        ],
-      ),
+      builder: (context, constraints) {
+        final showsHeader = constraints.maxHeight > _headerMinHeight;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The grid paints the table's top edge itself, snapped to the
+            // screen's pixels; a header rule here would double it.
+            if (showsHeader) header,
+            Expanded(child: _modeBody()),
+          ],
+        );
+      },
     );
 
     if (!bordered) {
@@ -209,11 +214,20 @@ class DeckPadsPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: theme.colors.border),
-        borderRadius: theme.style.borderRadius.sm,
         color: theme.colors.background.withValues(alpha: 0.8),
+        borderRadius: theme.style.borderRadius.sm,
       ),
-      child: body,
+      child: DecoratedBox(
+        // Border only, and above the pads: the tiled grid fills the body's
+        // edges, so a background stroke would sit under the pad fills — but a
+        // foreground *fill* would wash the pads out.
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colors.border),
+          borderRadius: theme.style.borderRadius.sm,
+        ),
+        child: body,
+      ),
     );
   }
 

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
@@ -63,9 +62,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('rest pads show every stem with a tinted hairline border', (
-    tester,
-  ) async {
+  Future<TestGesture> hoverPad(WidgetTester tester, int index) async {
+    final pointer = await attachMousePointer(tester);
+    await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(index)));
+    await tester.pumpAndSettle();
+    return pointer;
+  }
+
+  testWidgets('rest pads show every stem with a neutral seam', (tester) async {
     await pumpStems(tester);
 
     expect(find.text('MUTE'), findsNWidgets(4));
@@ -80,10 +84,8 @@ void main() {
         find.byType(PadButton).at(stem),
       );
       expect(decoration.color, theme.colors.card);
-      expect(
-        decoration.border!.top.color,
-        Color.lerp(theme.colors.border, kStemColors[stem], 0.4),
-      );
+      // The grid paints the seam; the pad itself is fill only.
+      expect(decoration.border, isNull);
     }
   });
 
@@ -98,12 +100,10 @@ void main() {
 
     final muted = padDecorationOf(tester, find.byType(PadButton).at(0));
     expect(muted.color, kStemColors[0]);
-    expect(muted.border!.top.color, kStemColors[0]);
 
     // Solo pads are slots 4–7; isolate index 2 lights slot 6 (Other).
     final isolated = padDecorationOf(tester, find.byType(PadButton).at(6));
     expect(isolated.color, kStemColors[2]);
-    expect(isolated.border!.top.color, kStemColors[2]);
 
     // A non-lit pad keeps the card fill.
     expect(
@@ -112,25 +112,59 @@ void main() {
     );
   });
 
-  testWidgets('hover lifts the border to the full stem color', (tester) async {
+  testWidgets('hover shifts the pad fill, not its seam', (tester) async {
     await pumpStems(tester);
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(pointer.removePointer);
-    await pointer.addPointer(location: Offset.zero);
-
-    await pointer.moveTo(tester.getCenter(find.byType(PadButton).at(1)));
-    await tester.pumpAndSettle();
+    final pointer = await hoverPad(tester, 1);
     expect(
-      padDecorationOf(tester, find.byType(PadButton).at(1)).border!.top.color,
-      kStemColors[1],
+      padDecorationOf(tester, find.byType(PadButton).at(1)).color,
+      theme.colors.secondary,
     );
 
     await pointer.moveTo(Offset.zero);
     await tester.pumpAndSettle();
     expect(
-      padDecorationOf(tester, find.byType(PadButton).at(1)).border!.top.color,
-      Color.lerp(theme.colors.border, kStemColors[1], 0.4),
+      padDecorationOf(tester, find.byType(PadButton).at(1)).color,
+      theme.colors.card,
     );
+  });
+
+  testWidgets('a lit pad keeps its stem fill while the pointer stays on it', (
+    tester,
+  ) async {
+    var mute = [false, false, false, false];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 360,
+            child: StatefulBuilder(
+              builder: (context, setState) => StemsPads(
+                stemMute: mute,
+                stemIsolate: null,
+                stemsReady: true,
+                stemsGenerating: false,
+                onPress: (slot) =>
+                    setState(() => mute = [...mute]..[slot] = !mute[slot]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pad = find.byType(PadButton).at(0);
+    await hoverPad(tester, 0);
+
+    await tester.tap(pad);
+    await tester.pumpAndSettle();
+
+    // The press lands with the pointer still over the pad: the hover tint must
+    // not bury the stem colour it just switched to.
+    expect(padDecorationOf(tester, pad).color, kStemColors[0]);
   });
 
   testWidgets('pads without stems stay inert and neutral', (tester) async {
@@ -144,7 +178,7 @@ void main() {
 
     final decoration = padDecorationOf(tester, find.byType(PadButton).at(0));
     expect(decoration.color, theme.colors.secondary.withValues(alpha: 0.35));
-    expect(decoration.border!.top.color, theme.colors.border);
+    expect(decoration.border, isNull);
 
     // Inert pads must not keep the bright name that made them look enabled.
     final name = tester.widget<Text>(find.text('Drums').first);

@@ -15,6 +15,7 @@ import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/key_shift_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -23,6 +24,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'support/mixar_material_app.dart';
 import 'support/pad_finders.dart';
+import 'support/render_capture.dart';
 
 Finder padLabel(String text) => find.text(text, findRichText: true);
 
@@ -47,6 +49,8 @@ void expectMutedPadSuffix(
 }
 
 void main() {
+  final panelKey = GlobalKey();
+
   Future<void> pumpPanel(
     WidgetTester tester, {
     required bool hasTrack,
@@ -90,55 +94,58 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (context, setState) {
-                return SizedBox(
-                  width: size.width,
-                  height: size.height,
-                  child: DeckPadsPanel(
-                    padMode: mode,
-                    onPadMode: (next) {
-                      onPadMode?.call(next);
-                      setState(() => mode = next);
-                    },
-                    hotCues: cues,
-                    onHotCuePress: (slot, shift) {
-                      onHotCuePress?.call(slot, shift);
-                      if (!hasTrack || disabled) {
-                        return;
-                      }
-                      setState(() {
-                        cues.removeWhere((c) => c.slot == slot);
-                        cues.add(
-                          DeckHotCue(slot: slot, positionMs: slot * 1000),
-                        );
-                      });
-                    },
-                    onHotCueRelease: (_) {},
-                    onLoopRollPress: (_) {},
-                    onLoopRollRelease: (_) {},
-                    onBeatJumpPress: (_) {},
-                    onBeatJumpRelease: (_) {},
-                    samplerSlots: [
-                      ...samplerSlots,
-                      for (var i = samplerSlots.length; i < 8; i++)
-                        const SamplerSlot(),
-                    ],
-                    samplerBanks: samplerBanks,
-                    activeBankId: bankId,
-                    onSamplerPress: (_, _) {},
-                    onSamplerRelease: (_) {},
-                    onSelectBank: (id) => setState(() => bankId = id),
-                    onSaveBank: (_, _, _) {},
-                    onCreateBank: (_, _) {},
-                    onSelectPage: (_) {},
-                    onKeyShiftPress: onKeyShiftPress ?? (_) {},
-                    onKeyboardPress: onKeyboardPress ?? (_) {},
-                    onKeyboardRelease: (_) {},
-                    stemsReady: stemsReady,
-                    stemsLive: stemsLive,
-                    realtimeStemsEnabled: realtimeStemsEnabled,
-                    hasTrack: hasTrack,
-                    disabled: disabled,
-                    bordered: bordered,
+                return RepaintBoundary(
+                  key: panelKey,
+                  child: SizedBox(
+                    width: size.width,
+                    height: size.height,
+                    child: DeckPadsPanel(
+                      padMode: mode,
+                      onPadMode: (next) {
+                        onPadMode?.call(next);
+                        setState(() => mode = next);
+                      },
+                      hotCues: cues,
+                      onHotCuePress: (slot, shift) {
+                        onHotCuePress?.call(slot, shift);
+                        if (!hasTrack || disabled) {
+                          return;
+                        }
+                        setState(() {
+                          cues.removeWhere((c) => c.slot == slot);
+                          cues.add(
+                            DeckHotCue(slot: slot, positionMs: slot * 1000),
+                          );
+                        });
+                      },
+                      onHotCueRelease: (_) {},
+                      onLoopRollPress: (_) {},
+                      onLoopRollRelease: (_) {},
+                      onBeatJumpPress: (_) {},
+                      onBeatJumpRelease: (_) {},
+                      samplerSlots: [
+                        ...samplerSlots,
+                        for (var i = samplerSlots.length; i < 8; i++)
+                          const SamplerSlot(),
+                      ],
+                      samplerBanks: samplerBanks,
+                      activeBankId: bankId,
+                      onSamplerPress: (_, _) {},
+                      onSamplerRelease: (_) {},
+                      onSelectBank: (id) => setState(() => bankId = id),
+                      onSaveBank: (_, _, _) {},
+                      onCreateBank: (_, _) {},
+                      onSelectPage: (_) {},
+                      onKeyShiftPress: onKeyShiftPress ?? (_) {},
+                      onKeyboardPress: onKeyboardPress ?? (_) {},
+                      onKeyboardRelease: (_) {},
+                      stemsReady: stemsReady,
+                      stemsLive: stemsLive,
+                      realtimeStemsEnabled: realtimeStemsEnabled,
+                      hasTrack: hasTrack,
+                      disabled: disabled,
+                      bordered: bordered,
+                    ),
                   ),
                 );
               },
@@ -327,6 +334,59 @@ void main() {
     expect(frameBorder.bottom.color, theme.colors.border);
   });
 
+  testWidgets("the pad table's top edge sits under the mode header", (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final header = tester.getRect(find.byType(MixarSelect<PadMode>));
+    final firstPad = tester.getRect(find.byType(PadButton).first);
+    final lastPad = tester.getRect(find.byType(PadButton).at(3));
+
+    // The grid paints that edge itself, snapped to the screen's pixels, so a
+    // header rule beside it would double the line.
+    final seam = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is PadTablePainter,
+      description: 'table seams',
+    );
+    final layer = tester.getRect(seam);
+    expect(layer.top, closeTo(firstPad.top, 0.5));
+    expect(layer.top, greaterThanOrEqualTo(header.bottom));
+    expect(layer.left, closeTo(firstPad.left, 0.5));
+    expect(layer.right, closeTo(lastPad.right, 0.5));
+
+    // Painted, not just computed: the grid's first pixel row is the seam.
+    final bytes = await captureRgba(tester, panelKey);
+    final imageWidth = tester.getRect(find.byKey(panelKey)).width.round();
+    final i = (layer.top.round() * imageWidth + firstPad.center.dx.round()) * 4;
+    final border = MixarThemeData.dark().colors.border;
+    expect(
+      (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2],
+      (border.r * 255).round() << 16 |
+          (border.g * 255).round() << 8 |
+          (border.b * 255).round(),
+    );
+  });
+
+  testWidgets('the grid paints three column seams and one row seam', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final line = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is CustomPaint && widget.painter is PadTablePainter,
+        description: 'table seams',
+      ),
+    );
+    final firstPad = tester.getRect(find.byType(PadButton).first);
+    final lastPad = tester.getRect(find.byType(PadButton).at(7));
+
+    // The seam layer covers exactly the tiled block.
+    expect(line.left, closeTo(firstPad.left, 0.5));
+    expect(line.top, closeTo(firstPad.top, 0.5));
+    expect(line.right, closeTo(lastPad.right, 0.5));
+    expect(line.bottom, closeTo(lastPad.bottom, 0.5));
+  });
+
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
     final pressed = <(int, bool)>[];
     await pumpPanel(
@@ -468,11 +528,8 @@ void main() {
     expect(padDecorationOf(tester, pad).color, theme.colors.card);
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();
+    // The fill carries the state; the grid owns the seam.
     expect(padDecorationOf(tester, pad).color, theme.colors.primary);
-    expect(
-      padDecorationOf(tester, pad).border!.top.color,
-      theme.colors.primary,
-    );
 
     await gesture.up();
     await tester.pump();
@@ -699,7 +756,7 @@ void main() {
     );
   });
 
-  testWidgets('assigned cue rests outlined and fills while held', (
+  testWidgets('assigned cue rests neutral and fills while held', (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true);
@@ -716,17 +773,8 @@ void main() {
             as BoxDecoration;
 
     expect(decoration().color, theme.colors.card);
-    final restingBorder = decoration().border!.top.color;
-    expect(
-      restingBorder,
-      Color.lerp(
-        theme.colors.border,
-        hotCueAccent(0).fill.withValues(alpha: 1),
-        0.4,
-      ),
-    );
-    // The accent fill is a 20% tint; the hairline must still be opaque.
-    expect(restingBorder.a, 1.0);
+    // Pads are fill only: the accent dot and the held fill carry the state.
+    expect(decoration().border, isNull);
 
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();

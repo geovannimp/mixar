@@ -64,13 +64,47 @@ void main() {
       tester,
       find.byKey(const ValueKey('key-shift-pad-2-active')),
     );
-    // Single-select stays outline-only: card fill + accent stroke.
-    expect(activeDecoration.color, MixarThemeData.dark().colors.card);
+    // Latched pads fill with primary; the grid owns the seam.
+    expect(activeDecoration.color, MixarThemeData.dark().colors.primary);
+    expect(activeDecoration.border, isNull);
+    // The caption must switch to on-primary ink, or it falls to ~1.4:1.
+    final caption = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('key-shift-pad-2-active')),
+        matching: find.text('SHIFT'),
+      ),
+    );
+    expect(
+      caption.style?.color,
+      MixarThemeData.dark().colors.primaryForeground,
+    );
 
     await tester.tap(find.text('+2'));
     await tester.pumpAndSettle();
     expect(pressed, [2, 2]);
     expect(find.byKey(const ValueKey('key-shift-pad-2-active')), findsNothing);
+  });
+
+  testWidgets('a disabled latched pad keeps its muted caption', (tester) async {
+    await pumpPad(
+      tester,
+      KeyShiftPads(
+        page: kDefaultPitchPage,
+        activeSemitones: 2,
+        onPress: (_) {},
+        disabled: true,
+      ),
+    );
+
+    // Disabled pads paint the muted fill, not primary, so the caption must
+    // stay muted instead of switching to on-primary ink.
+    final caption = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('key-shift-pad-2-active')),
+        matching: find.text('SHIFT'),
+      ),
+    );
+    expect(caption.style?.color, MixarThemeData.dark().colors.mutedForeground);
   });
 
   testWidgets('KeyShiftPads renders page-5 specials and highlights semitones', (

@@ -33,6 +33,89 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('hover darkens the plain card face', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpPad(
+      tester,
+      pad: PadButton(onPress: () {}, child: const Text('X')),
+    );
+    final pad = find.byType(PadButton);
+    expect(padDecorationOf(tester, pad).color, theme.colors.card);
+
+    final pointer = await attachMousePointer(tester);
+    await pointer.moveTo(tester.getCenter(pad));
+    await tester.pumpAndSettle();
+    expect(padDecorationOf(tester, pad).color, theme.colors.secondary);
+
+    await pointer.moveTo(const Offset(200, 200));
+    await tester.pumpAndSettle();
+    expect(padDecorationOf(tester, pad).color, theme.colors.card);
+  });
+
+  testWidgets('a latched pad fills with primary and on-primary ink', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpPad(
+      tester,
+      pad: PadButton(active: true, onPress: () {}, child: const Text('X')),
+    );
+    final pad = find.byType(PadButton);
+    expect(padDecorationOf(tester, pad).color, theme.colors.primary);
+    expect(
+      tester
+          .widget<RichText>(
+            find.descendant(of: pad, matching: find.byType(RichText)),
+          )
+          .text
+          .style
+          ?.color,
+      theme.colors.primaryForeground,
+    );
+  });
+
+  testWidgets('a disabled pad paints the muted face', (tester) async {
+    final theme = MixarThemeData.dark();
+    await pumpPad(
+      tester,
+      pad: const PadButton(disabled: true, child: Text('X')),
+    );
+    final pad = find.byType(PadButton);
+    expect(
+      padDecorationOf(tester, pad).color,
+      theme.colors.secondary.withValues(alpha: 0.35),
+    );
+    expect(
+      tester
+          .widget<RichText>(
+            find.descendant(of: pad, matching: find.byType(RichText)),
+          )
+          .text
+          .style
+          ?.color,
+      theme.colors.mutedForeground,
+    );
+  });
+
+  testWidgets('leaving the pad reports pointer exit', (tester) async {
+    var exits = 0;
+    await pumpPad(
+      tester,
+      pad: PadButton(
+        onPress: () {},
+        onPointerExit: () => exits++,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    final pad = find.byType(PadButton);
+    final pointer = await attachMousePointer(tester);
+    await pointer.moveTo(tester.getCenter(pad));
+    await tester.pumpAndSettle();
+    await pointer.moveTo(const Offset(200, 200));
+    await tester.pumpAndSettle();
+    expect(exits, greaterThanOrEqualTo(1));
+  });
+
   testWidgets('pressed state clears when the pad becomes disabled', (
     tester,
   ) async {

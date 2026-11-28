@@ -17,6 +17,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart' show Scaffold;
 
 import 'support/fake_engine_transport.dart';
+import 'support/render_capture.dart';
 import 'support/mixar_material_app.dart';
 
 class _EngineUi extends EngineUi {
@@ -38,6 +39,8 @@ const _kSideInset = 10.0;
 const _kRowGap = 8.0;
 
 void main() {
+  final deckKey = GlobalKey();
+
   Future<void> pumpDeck(
     WidgetTester tester, {
     required Size size,
@@ -68,10 +71,13 @@ void main() {
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
           home: Scaffold(
-            body: DeckPanel(
-              deckId: deckId,
-              label: 'DECK A',
-              accent: DeckAccent.a,
+            body: RepaintBoundary(
+              key: deckKey,
+              child: DeckPanel(
+                deckId: deckId,
+                label: 'DECK A',
+                accent: DeckAccent.a,
+              ),
             ),
           ),
         ),
@@ -155,6 +161,47 @@ void main() {
     expect(panel.height, greaterThan(120));
     // The panel reaches the deck pane's bottom: no foot clearance.
     expect(panel.bottom, closeTo(290, _kEpsilon));
+
+    // Tiled pads carry no bottom border, and the transport sits beside them:
+    // the panel draws that closing hairline itself, on its own bounds.
+    final ancestors = find.ancestor(
+      of: find.byType(DeckPerformancePanel),
+      matching: find.byType(DecoratedBox),
+    );
+    Border? foot;
+    for (var i = 0; i < ancestors.evaluate().length; i++) {
+      final decoration = tester
+          .widget<DecoratedBox>(ancestors.at(i))
+          .decoration;
+      final border = decoration is BoxDecoration ? decoration.border : null;
+      if (border is! Border || border.bottom == BorderSide.none) {
+        continue;
+      }
+      final rect = tester.getRect(ancestors.at(i));
+      if ((rect.width - panel.width).abs() < _kEpsilon &&
+          (rect.height - panel.height).abs() < _kEpsilon) {
+        foot = border;
+        break;
+      }
+    }
+    expect(foot, isNotNull);
+    expect(foot!.bottom.color, MixarThemeData.dark().colors.border);
+    expect(foot.top, BorderSide.none);
+    expect(foot.left, BorderSide.none);
+    expect(foot.right, BorderSide.none);
+
+    // Painted above the panel's own fill, so the deck actually shows it.
+    final bytes = await captureRgba(tester, deckKey);
+    final imageWidth = tester.getRect(find.byKey(deckKey)).width.round();
+    final i =
+        ((panel.bottom.round() - 1) * imageWidth + panel.center.dx.round()) * 4;
+    final border = MixarThemeData.dark().colors.border;
+    expect(
+      (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2],
+      (border.r * 255).round() << 16 |
+          (border.g * 255).round() << 8 |
+          (border.b * 255).round(),
+    );
   });
 
   testWidgets('right-hand deck puts the compact transport left of the panel', (

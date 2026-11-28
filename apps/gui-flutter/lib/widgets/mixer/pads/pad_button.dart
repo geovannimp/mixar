@@ -35,20 +35,16 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 const kPadOnAccentColor = Color(0xFFFFFFFF);
 
 /// Resting chrome for pads that own an accent colour (hot cue, sampler).
+///
+/// The accent never paints the seam — pads draw one neutral hairline — but it
+/// does fill the pad while it is held.
 PadChrome accentPadChrome(
   MixarThemeData theme,
   ({Color border, Color fill, Color text}) accent,
 ) {
-  // The accent fill is a 20% tint. Mix from its opaque RGB, or the lerp would
-  // carry that alpha into the hairline and reintroduce the surface-dependent
-  // shade this token exists to remove.
-  final accentBase = accent.fill.withValues(alpha: 1);
   return PadChrome(
-    // color-mix(in srgb, accent 40%, border), resolved to a solid.
-    border: Color.lerp(theme.colors.border, accentBase, 0.4)!,
     fill: theme.colors.card,
     foreground: theme.colors.foreground,
-    hoverBorder: accent.border,
     pressedFill: accent.fill.withValues(alpha: 1),
     pressedForeground: kPadOnAccentColor,
   );
@@ -56,24 +52,20 @@ PadChrome accentPadChrome(
 
 /// Explicit per-pad chrome for modes that own their palette (Stems).
 ///
-/// [border] / [fill] / [foreground] paint the resting pad; [hoverBorder]
-/// replaces the border while the pointer is inside; [pressedFill] fills the pad
-/// while it is held (and forces white content). Disabled pads ignore it.
+/// [fill] / [foreground] paint the resting pad; [pressedFill] fills the pad
+/// while it is held (and forces white content). The seam is never tinted.
+/// Disabled pads ignore it.
 @immutable
 class PadChrome {
   const new({
-    required this.border,
     required this.fill,
     required this.foreground,
-    this.hoverBorder,
     this.pressedFill,
     this.pressedForeground,
   });
 
-  final Color border;
   final Color fill;
   final Color foreground;
-  final Color? hoverBorder;
   final Color? pressedFill;
 
   /// Content colour while [pressedFill] is active; defaults to
@@ -110,8 +102,9 @@ class PadButton extends StatefulWidget {
   final VoidCallback? onPointerExit;
   final bool disabled;
 
-  /// Latched single-select state (e.g. the active semitone): the pad keeps its
-  /// card fill and wears a primary-colour border.
+  /// Latched single-select state (e.g. the active semitone): the pad fills
+  /// with the primary colour and its content switches to on-primary ink. Pads
+  /// paint no border; the grid owns every seam.
   final bool active;
   final PadChrome? chrome;
   final String? tooltip;
@@ -140,37 +133,37 @@ class _PadButtonState extends State<PadButton> {
     final theme = context.theme;
     final disabled = widget.disabled;
     final chrome = widget.chrome;
-    final hoverable = !disabled && chrome?.hoverBorder != null;
     // Pressing any pad lights it with the shared primary; pads that own a
     // colour (cue/sampler/stems) highlight with it instead.
     final pressedFill = !disabled && _pressed
         ? (chrome?.pressedFill ?? theme.colors.primary)
         : null;
-    final activeBorder = !disabled && widget.active
-        ? theme.colors.primary
-        : null;
-    final border = disabled
-        ? theme.colors.border
-        : pressedFill ??
-              (_hovered && hoverable
-                  ? chrome!.hoverBorder!
-                  : (chrome?.border ?? activeBorder ?? theme.colors.border));
-    // Single-select / latched accents only stroke the border; they never fill
-    // the pad at rest.
+    // Pads never own a border colour: the seam is painted by the grid.
+    final restFill = chrome?.fill ?? theme.colors.card;
+    // Hover only tints the plain card face. A pad that fills with its own
+    // colour (a lit stem) keeps it: the pointer is still over the pad when the
+    // press lands, and darkening it would hide the state it just switched to.
     final fill = disabled
         ? theme.colors.secondary.withValues(alpha: 0.35)
-        : pressedFill ?? chrome?.fill ?? theme.colors.card;
+        : pressedFill ??
+              (!disabled && widget.active
+                  ? theme.colors.primary
+                  : (!disabled && _hovered && restFill == theme.colors.card
+                        ? theme.colors.secondary
+                        : restFill));
     final fg = disabled
         ? theme.colors.mutedForeground
         : pressedFill != null
         ? (chrome?.pressedForeground ??
               chrome?.foreground ??
               theme.colors.primaryForeground)
-        : (chrome?.foreground ?? theme.colors.foreground);
+        : (!disabled && widget.active
+              ? theme.colors.primaryForeground
+              : (chrome?.foreground ?? theme.colors.foreground));
 
     Widget pad = MouseRegion(
-      onEnter: hoverable ? (_) => setState(() => _hovered = true) : null,
-      onExit: hoverable || (!disabled && widget.onPointerExit != null)
+      onEnter: disabled ? null : (_) => setState(() => _hovered = true),
+      onExit: !disabled
           ? (_) {
               if (_hovered || _pressed) {
                 setState(() {
@@ -178,9 +171,7 @@ class _PadButtonState extends State<PadButton> {
                   _pressed = false;
                 });
               }
-              if (!disabled) {
-                widget.onPointerExit?.call();
-              }
+              widget.onPointerExit?.call();
             }
           : null,
       child: Listener(
@@ -208,9 +199,10 @@ class _PadButtonState extends State<PadButton> {
           onTap: disabled ? null : widget.onPress,
           child: SizedBox.expand(
             child: DecoratedBox(
+              // The grid paints the table seams above the pads, so a pad is
+              // fill only: no border to double, tint, or blur on a half pixel.
               decoration: BoxDecoration(
                 color: fill,
-                border: Border.all(color: border),
                 borderRadius: theme.style.borderRadius.md,
               ),
               child: DefaultTextStyle.merge(

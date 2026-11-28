@@ -224,11 +224,28 @@ class DeckPanel extends ConsumerWidget {
                 ),
               );
               final divider = transportDivider(axis: Axis.vertical);
+              // Beside the pads there is no horizontal transport divider, so
+              // the panel keeps its own bottom hairline: the tiled pads end
+              // flush and nothing else draws that edge.
+              final compactPerformance = DecoratedBox(
+                // Above the panel: the panel paints an opaque fill over the
+                // same bounds, so a background-position border never shows.
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: theme.colors.border,
+                      width: theme.style.borderWidth,
+                    ),
+                  ),
+                ),
+                child: performance,
+              );
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: transportOnLeft
-                    ? [side, divider, Expanded(child: performance)]
-                    : [Expanded(child: performance), divider, side],
+                    ? [side, divider, Expanded(child: compactPerformance)]
+                    : [Expanded(child: compactPerformance), divider, side],
               );
             },
           ),
